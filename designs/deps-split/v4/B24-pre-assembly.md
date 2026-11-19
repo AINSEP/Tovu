@@ -55,7 +55,7 @@ A getter is required wherever the binding is declared after the range or is a ro
 | `ensureSiteConsentPrivacy` | `./site-consent.js` | **move** (delete from deps.ts) |
 | `resolve` | `node:path` | copy (still used in deps.ts) |
 
-Relative specifiers (`./x.js`) become `../x.js` in `site-deps/`.
+Relative specifiers gain one `../` in `site-deps/` (`./x.js` → `../x.js`, `../../x.js` → `../../../x.js`); `#src/…` and package specifiers are unchanged.
 
 ## Importers to repoint
 None: no exported symbol of deps.ts moves (verify: `git grep -n "composePreAssembly" -- apps` returns only the two files of this slice after the commit).

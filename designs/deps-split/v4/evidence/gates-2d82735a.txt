@@ -11,3 +11,4 @@ hooks exit=0 secs=1
 typecheck exit=0 secs=51
 typecheck-tests exit=0 secs=92
 MEASURE-DONE
+tests-70 (node24, concurrency=1) exit=1 secs=646 pass=352 fail=8 — details: tests-2d82735a.txt

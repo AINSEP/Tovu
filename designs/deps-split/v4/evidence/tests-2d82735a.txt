@@ -1,0 +1,20 @@
+# Slice test set (70 files, INDEX-v4 "Slice test set") on the design tip — run 2026-11-19 by the 4b run
+# Tovu 2d82735a (worktree, detached), Jini d37821a4 (pnpm install --frozen-lockfile; pnpm --no-bail -r build: exit 0)
+# Node v24.22.3; setup per INDEX-v4 §Setup (npm ci --ignore-scripts, link-jini, build contracts + sdk); container runs as root (uid 0)
+# Command: the sheets' step-6 runner line with --test-concurrency=1 (not 2), the 70 files, unpiped, under `timeout --signal=KILL 1500`
+# (the 25-minute cap was not reached)
+exit=1 secs=646 tests=360 suites=1 pass=352 fail=8 cancelled=0 skipped=0 todo=0
+# Failing on the unmodified tip (base-red; a sheet's step 6 passes when its failures are exactly these names):
+apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts | runServeCommand's body passes the resolved host into app.listen(port, host)
+apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts | the BR-07 shutdown uses the shared bounded store close with the composition and boot work
+apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts | index.ts main(): the content.db schema guard and site key run before the composition root opens the database
+apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts | createSiteRouteDeps prelude: store open, then the awaited workspace, deny store and orphan check, all before the first fire-and-forget boot promise
+apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts | AGENT_PLUGIN_SET_ENABLED: post-activation discovery failure preserves the successful toggle (object)
+apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts | AGENT_PLUGIN_SET_ENABLED: post-activation discovery failure preserves the successful toggle (string)
+apps/website/src/server/runtime/boot/__tests__/index-bind-host-wiring.unit.test.ts | serve.ts pins composition, callback and actual listener origins in their owning boot phases
+apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts | a project store that can't open (EACCES on its folder): the site boots, warns, and a settings save is refused, never sent to the site vault
+# Causes seen in the output (not investigated further; none is in deps.ts's moved ranges):
+# - serve-command-wiring x2, index-bind-host-wiring, composition-boot-order "index.ts main()": source-text anchors that no longer match the tip's serve/index shape
+# - composition-boot-order "prelude": anchor `await publishTrustRevocationStoreFor(kernel)` missing; the tip line is `await publishTrustRevocationStoreFor({ kernel })` (deps.ts:1036)
+# - agent-plugin-set-enabled x2: assertion on the error kind ('Error')
+# - EACCES test: chmod-based denial does not deny root (uid 0); expected to pass for a non-root user

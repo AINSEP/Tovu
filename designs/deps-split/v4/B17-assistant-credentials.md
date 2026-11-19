@@ -38,7 +38,7 @@ A getter is required wherever the binding is declared after the range or is a ro
 | `createSiteKeyReferences` | `#src/features/project-keys/site-references` | **move** (delete from deps.ts) |
 | `createSqliteDeviceAuthorizationStore` | `#src/platform/db/sqlite/oauth-pending-store.sqlite` | **move** (delete from deps.ts) |
 
-Relative specifiers (`./x.js`) become `../x.js` in `site-deps/`.
+Relative specifiers gain one `../` in `site-deps/` (`./x.js` → `../x.js`, `../../x.js` → `../../../x.js`); `#src/…` and package specifiers are unchanged.
 
 ## Importers to repoint
 None: no exported symbol of deps.ts moves (verify: `git grep -n "composeAssistantCredentials" -- apps` returns only the two files of this slice after the commit).

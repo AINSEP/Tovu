@@ -68,7 +68,7 @@ A getter is required wherever the binding is declared after the range or is a ro
 | `widgetCollectionListPort` | `../../../features/entries/public-list.js` | **move** (delete from deps.ts) |
 | `wireCoreResolvers` | `@jini-ai/cms/widgets/resolvers` | **move** (delete from deps.ts) |
 
-Relative specifiers (`./x.js`) become `../x.js` in `site-deps/`.
+Relative specifiers gain one `../` in `site-deps/` (`./x.js` → `../x.js`, `../../x.js` → `../../../x.js`); `#src/…` and package specifiers are unchanged.
 
 ## Importers to repoint
 None: no exported symbol of deps.ts moves (verify: `git grep -n "composeContentResolversComments" -- apps` returns only the two files of this slice after the commit).

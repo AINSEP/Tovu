@@ -1,0 +1,6310 @@
+{
+ "M": [
+  {
+   "id": "M1",
+   "name": "overrides",
+   "names": [
+    "CreateSiteRouteDepsOverrides",
+    "assertOverridesPairedOrAbsent",
+    "pluginFailureThresholdOverride",
+    "resolveThemesDirOverride",
+    "resolveSiteBindingOverride",
+    "resolveWorkspaceIdOverride"
+   ],
+   "decls": [
+    {
+     "n": "CreateSiteRouteDepsOverrides",
+     "a": 419,
+     "start": 425,
+     "b": 504,
+     "exported": true,
+     "code": 21,
+     "sha": "7e3b386388ade1e7a12a57309a121e1cee4269d3b62bb7871114e148b1dceadd",
+     "anchor": "export interface CreateSiteRouteDepsOverrides {",
+     "kind": "InterfaceDeclaration"
+    },
+    {
+     "n": "assertOverridesPairedOrAbsent",
+     "a": 506,
+     "start": 513,
+     "b": 521,
+     "exported": false,
+     "code": 9,
+     "sha": "b8f8f604b2030c75f858aa9e302f2f93a7b8105879db9c5cd587d669c864e8b9",
+     "anchor": "function assertOverridesPairedOrAbsent(overrides?: Partial<CreateSiteRouteDepsOverrides>): void {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "pluginFailureThresholdOverride",
+     "a": 523,
+     "start": 530,
+     "b": 534,
+     "exported": false,
+     "code": 5,
+     "sha": "bc5db0549fedb5fd2ec43cacca98ecb20b1eca3f59082f8a21bf06732a7723d1",
+     "anchor": "function pluginFailureThresholdOverride(",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "resolveThemesDirOverride",
+     "a": 553,
+     "start": 559,
+     "b": 561,
+     "exported": false,
+     "code": 3,
+     "sha": "6b08eccd696d0936e686de2f2df9c9c5a6c496c68c45827b5c8645b57128f79d",
+     "anchor": "function resolveThemesDirOverride(siteBinding: SiteBinding, overrides?: Partial<CreateSiteRouteDepsOverrides>): string {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "resolveSiteBindingOverride",
+     "a": 563,
+     "start": 569,
+     "b": 571,
+     "exported": false,
+     "code": 3,
+     "sha": "4788446c6c8ae4996a56acf3fb7b09f4c30437f152499e9f9c91b0233d622699",
+     "anchor": "function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverrides>): SiteBinding {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "resolveWorkspaceIdOverride",
+     "a": 762,
+     "start": 768,
+     "b": 772,
+     "exported": false,
+     "code": 5,
+     "sha": "330384b61579fa316c67397c9a8da199e3c8a661f9052ce532e6e5291e7ce378",
+     "anchor": "async function resolveWorkspaceIdOverride(kernel: ContentKernel, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<string> {",
+     "kind": "FunctionDeclaration"
+    }
+   ],
+   "imports": [
+    {
+     "n": "ContentDb",
+     "spec": "#src/platform/db/sqlite/content-db",
+     "type": true,
+     "alsoOutside": true
+    },
+    {
+     "n": "ContentDbOpenOptions",
+     "spec": "#src/platform/db/sqlite/content-db",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "ContentKernel",
+     "spec": "#src/platform/db/content-kernel",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "ProjectStore",
+     "spec": "./project-store.js",
+     "type": true,
+     "alsoOutside": true
+    },
+    {
+     "n": "RouteDeps",
+     "spec": "../../routes/types.js",
+     "type": true,
+     "alsoOutside": true
+    },
+    {
+     "n": "SiteBinding",
+     "spec": "#src/platform/site-dir/index",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "SiteStore",
+     "spec": "./open-site-store.js",
+     "type": true,
+     "alsoOutside": true
+    },
+    {
+     "n": "SiteStoreRole",
+     "spec": "./open-site-store.js",
+     "type": true,
+     "alsoOutside": true
+    },
+    {
+     "n": "bootProviderPlugins",
+     "spec": "./provider-plugins.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "describeSiteBinding",
+     "spec": "#src/platform/site-dir/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolveWorkspace",
+     "spec": "#src/platform/site-dir/resolve-workspace",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "siteThemesDir",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": true
+    }
+   ],
+   "top": [],
+   "stillUsed": [
+    "CreateSiteRouteDepsOverrides",
+    "assertOverridesPairedOrAbsent",
+    "pluginFailureThresholdOverride",
+    "resolveThemesDirOverride",
+    "resolveSiteBindingOverride",
+    "resolveWorkspaceIdOverride"
+   ],
+   "code": 46,
+   "readers": [
+    [
+     "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+     [
+      "createSiteRouteDepsForWorkspace",
+      "resolveWorkspace",
+      "createSiteRouteDeps"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/serving-app-boot-wiring.unit.test.ts",
+     [
+      "cli/commands/serve.ts",
+      "createRouteDeps"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts",
+     [
+      "createSiteRouteDeps",
+      "openCompositionStore",
+      "openSiteStore",
+      "openSiteContentDb",
+      "composeSiteRouteDeps",
+      "async function openCompositionStore(",
+      "function prepareCompositionStorage(",
+      "const storage = prepareCompositionStorage({ dbPath, overrides })",
+      "hydrateContentDbIfNeeded({ dbPath, storage }, { overrides })",
+      "await openSiteStore(",
+      "startOwnerSweeps({ role, opened }, { overrides })",
+      "function startOwnerSweeps(",
+      "startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep })"
+     ]
+    ],
+    [
+     "apps/website/src/platform/db/sqlite/__tests__/chat-orphan-check.integration.test.ts",
+     [
+      "createSiteRouteDeps",
+      "process.cwd()",
+      "openSiteStore",
+      "openCompositionStore("
+     ]
+    ],
+    [
+     "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+     [
+      "createSiteRouteDeps"
+     ]
+    ],
+    [
+     "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+     [
+      "apps/website/src",
+      "server/runtime/composition/app.ts"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+     [
+      "package.json",
+      "apps/website/",
+      "apps/website/src/server/",
+      "apps/website/src/server",
+      "apps/website/src/server/runtime/composition",
+      "apps/website/src"
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "M2",
+   "name": "open-store",
+   "names": [
+    "hydrateContentDbIfNeeded",
+    "prepareCompositionStorage",
+    "StoreCloseRegistration",
+    "openCompositionStore",
+    "resolveChatDbPath",
+    "startOwnerSweeps",
+    "startOwnerChatExpirySweep"
+   ],
+   "decls": [
+    {
+     "n": "hydrateContentDbIfNeeded",
+     "a": 536,
+     "start": 546,
+     "b": 551,
+     "exported": false,
+     "code": 4,
+     "sha": "a35c76e901b75046969ff1d68594584f25d92c3a2281ce7b8b721c264d8455ec",
+     "anchor": "function hydrateContentDbIfNeeded({ dbPath, storage }: { dbPath: string; storage: SiteStorage }, { overrides }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}): void {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "prepareCompositionStorage",
+     "a": 653,
+     "start": 653,
+     "b": 660,
+     "exported": false,
+     "code": 8,
+     "sha": "b3cb1f8b6619c046a6bef64392a2cca03d7ae5b7c273005ba91aee92c5243266",
+     "anchor": "function prepareCompositionStorage({ dbPath, overrides }: {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "StoreCloseRegistration",
+     "a": 662,
+     "start": 667,
+     "b": 667,
+     "exported": false,
+     "code": 1,
+     "sha": "f6600541cf09101bdc152dac7c593b0a083aac27fce870df03e3ddce7cddfbe4",
+     "anchor": "type StoreCloseRegistration = (() => unknown) | Promise<() => unknown>;",
+     "kind": "TypeAliasDeclaration"
+    },
+    {
+     "n": "openCompositionStore",
+     "a": 669,
+     "start": 687,
+     "b": 722,
+     "exported": false,
+     "code": 32,
+     "sha": "3912f98ef5a60c959e9ad5d25f51df988d53025522390ae5d2ba6cfeb9ed2d20",
+     "anchor": "async function openCompositionStore(",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "resolveChatDbPath",
+     "a": 724,
+     "start": 728,
+     "b": 733,
+     "exported": false,
+     "code": 6,
+     "sha": "4b2d6bf2a00bdc88a635ffb7235e7303ddbe6ac363c0185b83232ea68e701c92",
+     "anchor": "function resolveChatDbPath(",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "startOwnerSweeps",
+     "a": 735,
+     "start": 740,
+     "b": 752,
+     "exported": false,
+     "code": 11,
+     "sha": "0a3531275566491b2d038d4164036080fee3c25286feeea1929a9bfa1c460d7a",
+     "anchor": "function startOwnerSweeps(",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "startOwnerChatExpirySweep",
+     "a": 754,
+     "start": 755,
+     "b": 760,
+     "exported": false,
+     "code": 6,
+     "sha": "0bfb5184e40a89ed2c0a83a3e4ee1391794b806707b04e36fcb0a6311e00890c",
+     "anchor": "function startOwnerChatExpirySweep(",
+     "kind": "FunctionDeclaration"
+    }
+   ],
+   "imports": [
+    {
+     "n": "SiteStorage",
+     "spec": "#src/platform/site-dir/types",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "SiteStore",
+     "spec": "./open-site-store.js",
+     "type": true,
+     "alsoOutside": true
+    },
+    {
+     "n": "SiteStoreRole",
+     "spec": "./open-site-store.js",
+     "type": true,
+     "alsoOutside": true
+    },
+    {
+     "n": "builtInContentSeedDbPath",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "defaultChatDbPath",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "dirname",
+     "spec": "node:path",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "hydrateContentDbFromSeed",
+     "spec": "#src/platform/db/sqlite/hydrate-content-db-from-seed",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "isInMemoryDbPath",
+     "spec": "@jini-ai/db/data-modules",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "mkdirSync",
+     "spec": "node:fs",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "openSiteStore",
+     "spec": "./open-site-store.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolveSiteDirForDatabase",
+     "spec": "#src/platform/site-dir/site-databases",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "resolveSiteStorage",
+     "spec": "#src/platform/site-dir/site-storage",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "startChatExpirySweep",
+     "spec": "#src/assistant/persistence/chat-expiry-sweep",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "startMailRetention",
+     "spec": "#src/features/mail/retention",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "startSubmissionIpExpirySweep",
+     "spec": "#src/features/forms/submission-ip-expiry-sweep",
+     "type": false,
+     "alsoOutside": false
+    }
+   ],
+   "top": [
+    {
+     "n": "CreateSiteRouteDepsOverrides",
+     "line": 425,
+     "from": "M1"
+    },
+    {
+     "n": "resolveSiteBindingOverride",
+     "line": 569,
+     "from": "M1"
+    }
+   ],
+   "stillUsed": [
+    "hydrateContentDbIfNeeded",
+    "StoreCloseRegistration",
+    "openCompositionStore",
+    "resolveChatDbPath"
+   ],
+   "code": 68,
+   "readers": [
+    [
+     "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+     [
+      "createSiteRouteDeps"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts",
+     [
+      "createSiteRouteDeps",
+      "openCompositionStore",
+      "openSiteStore",
+      "openSiteContentDb",
+      "composeSiteRouteDeps",
+      "async function openCompositionStore(",
+      "function prepareCompositionStorage(",
+      "const storage = prepareCompositionStorage({ dbPath, overrides })",
+      "hydrateContentDbIfNeeded({ dbPath, storage }, { overrides })",
+      "await openSiteStore(",
+      "startOwnerSweeps({ role, opened }, { overrides })",
+      "function startOwnerSweeps(",
+      "startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep })"
+     ]
+    ],
+    [
+     "apps/website/src/platform/db/sqlite/__tests__/chat-orphan-check.integration.test.ts",
+     [
+      "createSiteRouteDeps",
+      "process.cwd()",
+      "openSiteStore",
+      "openCompositionStore("
+     ]
+    ],
+    [
+     "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+     [
+      "createSiteRouteDeps"
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "M3",
+   "name": "provider-identity",
+   "names": [
+    "providerPluginBoot",
+    "composeProviderConfig",
+    "credentialProject",
+    "acceptedSiteId",
+    "siteIdentityFor",
+    "projectStoreFor"
+   ],
+   "decls": [
+    {
+     "n": "providerPluginBoot",
+     "a": 846,
+     "start": 847,
+     "b": 849,
+     "exported": false,
+     "code": 3,
+     "sha": "d9d3bc0f7315e49fc1ea784b935eca769966340a4dc78544d15cb485121878d4",
+     "anchor": "function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteDepsOverrides> }): typeof bootProviderPlugins {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "composeProviderConfig",
+     "a": 851,
+     "start": 856,
+     "b": 872,
+     "exported": false,
+     "code": 17,
+     "sha": "455aff1d2435f317664f86f1a776f4682fc8174e7b0d34a749240d3d4256aac6",
+     "anchor": "async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site, binding, references }: {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "credentialProject",
+     "a": 874,
+     "start": 881,
+     "b": 885,
+     "exported": false,
+     "code": 5,
+     "sha": "b01b53b236bb6d1e1288aa4d9699e9994ffedde64ba259e0ab5d573363ae2b36",
+     "anchor": "function credentialProject<R>({ projectVault, repo }: { projectVault: ProjectVaultScope | undefined; repo: (vault: ProjectVaultScope[\"repo\"]) => R }, _optional = {}): { project?: { workspaceId: string; repo: R; createRepo?: R; replaceRepo?: R; sealer: ProjectVaultScope[\"sealer\"]; keyring: ProjectVaultScope[\"keyring\"] } } {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "acceptedSiteId",
+     "a": 887,
+     "start": 888,
+     "b": 892,
+     "exported": false,
+     "code": 5,
+     "sha": "c112829856a69dacc5296e7e2e252650a1637612ac8bfffba9f9980bded20c59",
+     "anchor": "function acceptedSiteId({ value, source }: { value: string | undefined; source: string }, _optional = {}): string | undefined {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "siteIdentityFor",
+     "a": 894,
+     "start": 904,
+     "b": 909,
+     "exported": true,
+     "code": 6,
+     "sha": "0e1a1dc39f3ac839628a875033cfc06d27bb358c4b3b19d6c1b17f11f0688146",
+     "anchor": "export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }: { workspaceId: string; binding: { name: string; dir: string }; runtimeMode: RuntimeMode; projectId: string | undefined }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): SiteIdentity {",
+     "kind": "FunctionDeclaration"
+    },
+    {
+     "n": "projectStoreFor",
+     "a": 911,
+     "start": 917,
+     "b": 929,
+     "exported": false,
+     "code": 13,
+     "sha": "a6eafe7311f583daa7941a0c35324b042a76da964b59e3d1a2e0d9fb2ec732e9",
+     "anchor": "async function projectStoreFor({ overrides, runtimeMode }: { overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode }): Promise<ProjectStore | { unavailable: string } | undefined> {",
+     "kind": "FunctionDeclaration"
+    }
+   ],
+   "imports": [
+    {
+     "n": "ProjectStore",
+     "spec": "./project-store.js",
+     "type": true,
+     "alsoOutside": true
+    },
+    {
+     "n": "ProjectVaultScope",
+     "spec": "./project-store.js",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "ProviderConfigSource",
+     "spec": "./provider-config-source.js",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "RuntimeMode",
+     "spec": "#src/contracts/core/runtime-mode",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "SiteIdentity",
+     "spec": "./provider-plugins.js",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "SiteKeyReferences",
+     "spec": "#src/features/project-keys/site-references",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "TOVU_ERROR_REDACTION_OPTIONS",
+     "spec": "@tovu/contracts/secret-redaction",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "attachedOnlyVault",
+     "spec": "#src/features/project-keys/attached-vault",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "bootProviderPlugins",
+     "spec": "./provider-plugins.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createSitesWorkspace",
+     "spec": "#src/platform/site-dir/sites-home",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "formatErrorForLog",
+     "spec": "@jini-ai/core",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "homedir",
+     "spec": "node:os",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "isSiteIdToken",
+     "spec": "#src/features/webhooks/site-key-sources",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "localOwnerStoreEnabled",
+     "spec": "./project-store.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "openProjectStore",
+     "spec": "./project-store.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "ownerKeyHandleOnly",
+     "spec": "#src/features/project-keys/site-sealer",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "projectKeyCreateVault",
+     "spec": "#src/features/project-keys/create-vault",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "readSiteMetaId",
+     "spec": "#src/features/webhooks/site-key-sources",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "siteGrantedSealer",
+     "spec": "#src/features/project-keys/site-sealer",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "telemetryEnvironment",
+     "spec": "./build-release.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "withAttachedProject",
+     "spec": "./provider-config-source.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "withUnavailableProject",
+     "spec": "./provider-config-source.js",
+     "type": false,
+     "alsoOutside": false
+    }
+   ],
+   "top": [
+    {
+     "n": "CreateSiteRouteDepsOverrides",
+     "line": 425,
+     "from": "M1"
+    }
+   ],
+   "stillUsed": [
+    "providerPluginBoot",
+    "composeProviderConfig",
+    "credentialProject",
+    "siteIdentityFor"
+   ],
+   "code": 49,
+   "readers": [
+    [
+     "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+     [
+      "workspace-local"
+     ]
+    ]
+   ]
+  }
+ ],
+ "H": [
+  {
+   "id": "H1",
+   "name": "chat-orphans-project-keys",
+   "fns": [
+    {
+     "name": "warnCompositionChatOrphans",
+     "a": 1045,
+     "start": 1045,
+     "b": 1060,
+     "code": 7,
+     "sha": "1e32665cb664d0ba9622d8e0a36ba2681b9482c5ea81f68741d1694ef8588fee",
+     "anchor": "  async function warnCompositionChatOrphans(_required: Record<string, never>, _options = {}): Promise<void> {",
+     "callAt": 1043,
+     "callText": "  await warnCompositionChatOrphans({}, {});",
+     "inputs": [
+      {
+       "n": "dbPath",
+       "decl": "param",
+       "declText": "",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "store",
+       "decl": 959,
+       "declText": "const { store, onStoreClose } = opened;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "chatDbPath",
+       "decl": 1041,
+       "declText": "const chatDbPath = resolveChatDbPath({ dbPath }, { overrides });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "errs": []
+    },
+    {
+     "name": "compositionProjectKeys",
+     "a": 1862,
+     "start": 1864,
+     "b": 1878,
+     "code": 14,
+     "sha": "52eeae6ff52f2c32572186a6a87b1259a951e5b809ddfa7421894eba0e625913",
+     "anchor": "  function compositionProjectKeys() {",
+     "callAt": 1860,
+     "callText": "  const projectKeys = compositionProjectKeys();",
+     "inputs": [
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectKeyReferences",
+       "decl": 1821,
+       "declText": "const projectKeyReferences = createSiteKeyReferences({ workspaceId, repo: siteReferenceRepo,",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectSiteId",
+       "decl": 1823,
+       "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectStore",
+       "decl": 1823,
+       "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "providerConfigSource",
+       "decl": 1826,
+       "declText": "const providerConfigSource = withProviderSettingsMigrations({ source: savedProviderConfig, providers: async ({ pluginId }) =>",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "providerPlugins",
+       "decl": 1845,
+       "declText": "const providerPlugins = await providerPluginBoot({ overrides })({",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "bindSharedApiOAuth",
+       "decl": 1859,
+       "declText": "let bindSharedApiOAuth: ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined;",
+       "let": true,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "getter"
+      }
+     ],
+     "errs": []
+    }
+   ],
+   "imports": [
+    {
+     "n": "createOtherSiteKeys",
+     "spec": "./other-site-keys.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createProjectKeys",
+     "spec": "#src/features/project-keys/service",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createSharedOAuthLabels",
+     "spec": "#src/features/api-connections/shared-owner",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "isLocalTovuHost",
+     "spec": "./registered-sites.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "sqliteConnectionOf",
+     "spec": "#src/platform/db/kernel/drivers/sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "warnOnOrphanedChatRows",
+     "spec": "#src/platform/db/sqlite/chat-orphan-check",
+     "type": false,
+     "alsoOutside": false
+    }
+   ],
+   "top": [
+    {
+     "n": "consoleLogger",
+     "line": 417
+    }
+   ],
+   "readers": [
+    [
+     "apps/website/src/server/__tests__/integration/production-readiness-boot.integration.test.ts",
+     [
+      "TOVU_RUNTIME_MODE",
+      "TOVU_SITE_KEY",
+      "site-key.hex",
+      "newsletterKeyring",
+      "~/.tovu/site-key.hex"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+     [
+      "identityReady",
+      "`settingsReady`"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/serving-app-boot-wiring.unit.test.ts",
+     [
+      "cli/commands/serve.ts"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts",
+     [
+      "preparePostSearchIndex",
+      "await warnOnOrphanedChatRows(",
+      "preparePostSearchIndex(",
+      "  await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {",
+      "  const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding, references: projectKeyReferences,",
+      "  const providerPlugins = await providerPluginBoot({ overrides })({",
+      "const siteAssistantSecretKeyring = new EnvOrFileKeyring(",
+      "await normalizeSiteVaultAtBoot(",
+      "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo("
+     ]
+    ],
+    [
+     "apps/website/src/platform/db/sqlite/__tests__/chat-orphan-check.integration.test.ts",
+     [
+      "better-sqlite3",
+      "already-migrated",
+      "warnOnOrphanedChatRows",
+      "warnOnOrphanedChatRows("
+     ]
+    ],
+    [
+     "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+     [
+      "(required, optional)",
+      ", workspaceId: "
+     ]
+    ],
+    [
+     "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+     [
+      "apps/website/src",
+      "server/runtime/composition/app.ts"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+     [
+      "apps/website/",
+      "apps/website/src/server/",
+      "apps/website/src/server",
+      "apps/website/src/server/runtime/composition",
+      "apps/website/src",
+      " delegates to "
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "H2",
+   "name": "shared-oauth-commerce",
+   "fns": [
+    {
+     "name": "compositionSharedOAuth",
+     "a": 2787,
+     "start": 2789,
+     "b": 2798,
+     "code": 10,
+     "sha": "05e60a37aa5e19aba8a184a9343eb864dbb89ce364929a0735f78321ac8eaaa7",
+     "anchor": "  function compositionSharedOAuth() {",
+     "callAt": 2276,
+     "callText": "      ...compositionSharedOAuth(),",
+     "inputs": [
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "identity",
+       "decl": 1120,
+       "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretKeyring",
+       "decl": 1787,
+       "declText": "const siteAssistantSecretKeyring = new EnvOrFileKeyring({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretSealer",
+       "decl": 1790,
+       "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteReferenceRepo",
+       "decl": 1820,
+       "declText": "const siteReferenceRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectSiteId",
+       "decl": 1823,
+       "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectStore",
+       "decl": 1823,
+       "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "errs": []
+    },
+    {
+     "name": "compositionCommerce",
+     "a": 2802,
+     "start": 2804,
+     "b": 2813,
+     "code": 9,
+     "sha": "4a63f20b072474874360d2318c9afa37ba26830c5c87441b1235a0963200fe3c",
+     "anchor": "  function compositionCommerce() {",
+     "callAt": 2800,
+     "callText": "  const commerceBinding = compositionCommerce();",
+     "inputs": [
+      {
+       "n": "dbPath",
+       "decl": "param",
+       "declText": "",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "overrides",
+       "decl": "param",
+       "declText": "",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "agentPluginLayout",
+       "decl": 978,
+       "declText": "const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "idGen",
+       "decl": 1082,
+       "declText": "const idGen = { newId: () => randomUUID() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "settingsRepo",
+       "decl": 1133,
+       "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteSettingsReady",
+       "decl": 1154,
+       "declText": "const siteSettingsReady = analyticsSettingsReady",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectSiteId",
+       "decl": 1823,
+       "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "providerConfigSource",
+       "decl": 1826,
+       "declText": "const providerConfigSource = withProviderSettingsMigrations({ source: savedProviderConfig, providers: async ({ pluginId }) =>",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "providerPlugins",
+       "decl": 1845,
+       "declText": "const providerPlugins = await providerPluginBoot({ overrides })({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "observability",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "errs": []
+    }
+   ],
+   "imports": [
+    {
+     "n": "KyselyKernel",
+     "spec": "@jini-ai/db/kernel",
+     "type": true,
+     "alsoOutside": true
+    },
+    {
+     "n": "SINGLE_HOP_HTTPS_EGRESS_POLICY",
+     "spec": "#src/platform/http/egress-policies",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "composeCommerce",
+     "spec": "./commerce.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createApiConnectionVault",
+     "spec": "#src/features/api-connections/vault-stores",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createDefaultHttpClient",
+     "spec": "#src/platform/http/client",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createSharedOAuthOwnerStorage",
+     "spec": "#src/features/api-connections/shared-owner",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createSiteOAuthBindings",
+     "spec": "#src/features/project-keys/site-references",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "dirname",
+     "spec": "node:path",
+     "type": false,
+     "alsoOutside": true
+    }
+   ],
+   "top": [],
+   "readers": []
+  },
+  {
+   "id": "H3",
+   "name": "site-sharing",
+   "fns": [
+    {
+     "name": "configureSiteSharing",
+     "a": 2838,
+     "start": 2838,
+     "b": 2913,
+     "code": 68,
+     "sha": "cefc8c0d28b3361491049871c2ed839a93319b9de3801842a8d24221891c0ec1",
+     "anchor": "  function configureSiteSharing(_required: Record<string, never>, _options = {}): void {",
+     "callAt": 2836,
+     "callText": "  configureSiteSharing({}, {});",
+     "inputs": [
+      {
+       "n": "dbPath",
+       "decl": "param",
+       "declText": "",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "agentPluginLayout",
+       "decl": 978,
+       "declText": "const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "skillLayout",
+       "decl": 988,
+       "declText": "const skillLayout = resolveSkillLayout({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "resolvedThemesDir",
+       "decl": 989,
+       "declText": "const resolvedThemesDir = resolveThemesDirOverride(resolvedSiteBinding, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "resolvedUploadsDir",
+       "decl": 1002,
+       "declText": "const resolvedUploadsDir = overrides.uploadsDir ?? mediaUploadsDir({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "mediaStorePorts",
+       "decl": 1007,
+       "declText": "const mediaStorePorts = (): MediaObjectStorePorts => ({",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "blobStore",
+       "decl": 1020,
+       "declText": "const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePor",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "identity",
+       "decl": 1120,
+       "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "settingsRepo",
+       "decl": 1133,
+       "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretKeyring",
+       "decl": 1787,
+       "declText": "const siteAssistantSecretKeyring = new EnvOrFileKeyring({",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretSealer",
+       "decl": 1790,
+       "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishContentPeerHttpClient",
+       "decl": 1935,
+       "declText": "const { outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient } = composeContentHttpClients({}, {});",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "guardedOutboundHttpClient",
+       "decl": 2080,
+       "declText": "const guardedOutboundHttpClient = createGuardedMediaHttpClient({",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "routeDeps",
+       "decl": 2135,
+       "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "savedKeys",
+       "decl": 2835,
+       "declText": "const savedKeys = composeSiteSavedKeys({ workspaceId, sealer: siteAssistantSecretSealer });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "errs": []
+    }
+   ],
+   "imports": [
+    {
+     "n": "SiteShareRegistry",
+     "spec": "#src/features/site-backup/share-registry",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "artifactStoreBinding",
+     "spec": "#src/features/object-storage/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "artifactStoreTarget",
+     "spec": "#src/features/object-storage/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "composePublishCredentialSource",
+     "spec": "#src/features/deployments/static-publish/credentials",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createDeployHostKit",
+     "spec": "#src/features/deployments/deploy-targets/host-kit",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createRuntimeShareDelivery",
+     "spec": "#src/features/site-backup/share-hosting",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createSiteCreationTimeZone",
+     "spec": "#src/platform/site-dir/read-site-dir",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createSiteShareBackend",
+     "spec": "#src/features/site-backup/share-backend",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "join",
+     "spec": "node:path",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "prepareShareContent",
+     "spec": "#src/features/site-backup/share-preparation",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "readMediaObjectStoreSetting",
+     "spec": "#src/features/object-storage/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "resolvePublishDestinationCredential",
+     "spec": "#src/features/publish-content/destination-credential",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolveShareDelivery",
+     "spec": "#src/features/site-backup/share-hosting",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolveShareDirectory",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolveSiteTimeZone",
+     "spec": "#src/features/settings/site-timezone",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "rewriteArchiveMedia",
+     "spec": "#src/server/runtime/composition/site-portability",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "sanitizeShareDatabase",
+     "spec": "#src/server/runtime/composition/site-portability",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "selectArtifactStoreProvider",
+     "spec": "#src/features/object-storage/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "selectConnectedDestination",
+     "spec": "#src/features/publish-content/peers",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "tmpdir",
+     "spec": "node:os",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "toDeployTargetCredential",
+     "spec": "#src/features/deployments/static-publish/credentials",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "zipFolderFiles",
+     "spec": "@jini-ai/agent-plugins/folder-zip",
+     "type": false,
+     "alsoOutside": false
+    }
+   ],
+   "top": [],
+   "readers": []
+  },
+  {
+   "id": "H4",
+   "name": "site-imports",
+   "fns": [
+    {
+     "name": "configureSiteImports",
+     "a": 2916,
+     "start": 2916,
+     "b": 2930,
+     "code": 12,
+     "sha": "e4b4a533e9944dce4d090ccbe544ed5426135aede4feb4658c834582b8a3571f",
+     "anchor": "  function configureSiteImports(_required: Record<string, never>, _options = {}): void {",
+     "callAt": 2914,
+     "callText": "  configureSiteImports({}, {});",
+     "inputs": [
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "observability",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "tracker",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "routeDeps",
+       "decl": 2135,
+       "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "savedKeys",
+       "decl": 2835,
+       "declText": "const savedKeys = composeSiteSavedKeys({ workspaceId, sealer: siteAssistantSecretSealer });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "errs": []
+    }
+   ],
+   "imports": [
+    {
+     "n": "composeSiteImportBackend",
+     "spec": "./site-import-backend.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createSitesWorkspace",
+     "spec": "#src/platform/site-dir/sites-home",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "localSiteSupervisorForHost",
+     "spec": "../lifecycle/local-site-host.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "siteCreationBaseForBinding",
+     "spec": "#src/platform/site-dir/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "startLocalSiteWhenRunning",
+     "spec": "#src/platform/site-dir/local-site-supervisor",
+     "type": false,
+     "alsoOutside": false
+    }
+   ],
+   "top": [],
+   "readers": []
+  }
+ ],
+ "L": [
+  {
+   "id": "L1",
+   "name": "route-deps-content-chat",
+   "fns": [
+    {
+     "fn": "routeDepsContentTrash",
+     "a": 2136,
+     "b": 2186,
+     "code": 44,
+     "entries": 21,
+     "keys": [
+      "siteBackupSanitize",
+      "pluginExports",
+      "assistantAgentInventory",
+      "workspaceId",
+      "peerSiteReads",
+      "workspaceRepo",
+      "trash",
+      "removePost",
+      "removeComment",
+      "removeMedia",
+      "removeRedirect",
+      "removeWidget",
+      "forgetRemovedMedia",
+      "forgetRemovedPost",
+      "sweepTrash",
+      "isTrashableEntityType",
+      "registry",
+      "db",
+      "postRepo",
+      "postGoLiveCandidates",
+      "postSearch"
+     ],
+     "sha": "1ab683c94621410f754c5742466a848d1cf9a5a99495ee81022936431c0eb40f",
+     "anchorAt": 2136,
+     "anchor": "    siteBackupSanitize: sanitizeShareDatabase,",
+     "inputs": [
+      {
+       "n": "assistantAgentInventory",
+       "decl": 965,
+       "declText": "const assistantAgentInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "postSearchBackfillReady",
+       "decl": 1077,
+       "declText": "const postSearchBackfillReady = preparePostSearchIndex({ kernel }).catch((err) => {",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "trashRegistry",
+       "decl": 1370,
+       "declText": "const trashRegistry = buildTrashRegistry();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "sqliteTrashDb",
+       "decl": 1371,
+       "declText": "const sqliteTrashDb = kernel;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "trashRepo",
+       "decl": 1380,
+       "declText": "const trashRepo = new SqliteTrashRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "trashAdapters",
+       "decl": 1465,
+       "declText": "const trashAdapters = new Map<string, TrashAdapter>([",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "trashTransaction",
+       "decl": 1520,
+       "declText": "const trashTransaction = createContentDbTransactionRunner({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "trash",
+       "decl": 1521,
+       "declText": "const trash = createTrashService({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "postRepo",
+       "decl": 1965,
+       "declText": "const postRepo = new SqlitePostRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "pluginExports",
+       "decl": 2132,
+       "declText": "const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, embedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === tr",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "  const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+     "after": "    // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's"
+    },
+    {
+     "fn": "routeDepsChatAgents",
+     "a": 2187,
+     "b": 2208,
+     "code": 7,
+     "entries": 7,
+     "keys": [
+      "slugChangeCapture",
+      "docBodyAsPageHtml",
+      "pagesHtmlStore",
+      "chatHistory",
+      "chatRunLedger",
+      "agentSessions",
+      "conversationToolApprovals"
+     ],
+     "sha": "ebe45f08221794360bcff91455bb97b8e09da686632a51ec8131b4c75ee1290d",
+     "anchorAt": 2187,
+     "anchor": "    // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's",
+     "inputs": [
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "chat",
+       "decl": 1042,
+       "declText": "const chat = store.chat;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "outbox",
+       "decl": 1294,
+       "declText": "const outbox = new SqliteOutboxAdapter({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "entryRefsRepo",
+       "decl": 1636,
+       "declText": "const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "tracker",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "postRepo",
+       "decl": 1965,
+       "declText": "const postRepo = new SqlitePostRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "pluginExports",
+       "decl": 2132,
+       "declText": "const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, embedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === tr",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    postSearch: postSearchIndexFor(kernel, { ready: postSearchBackfillReady }),",
+     "after": "    ...compositionApprovalOverrides({ overrides }),"
+    }
+   ],
+   "imports": [
+    {
+     "n": "COMMENT_ENTITY_TYPE",
+     "spec": "#src/features/trash/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "MEDIA_ENTITY_TYPE",
+     "spec": "#src/features/trash/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "POST_ENTITY_TYPE",
+     "spec": "#src/features/trash/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "PagesHtmlDocumentStore",
+     "spec": "#src/features/pages/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "REDIRECT_ENTITY_TYPE",
+     "spec": "#src/features/trash/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "SqliteWorkspaceRepo",
+     "spec": "#src/features/workspace/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "bindForgetRemovedEntity",
+     "spec": "@jini-ai/cms/trash",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "bindRemoveEntity",
+     "spec": "@jini-ai/cms/trash",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "bindWidgetRemoval",
+     "spec": "#src/features/trash/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createChatRunLedger",
+     "spec": "#src/assistant/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createChatStoreFactory",
+     "spec": "#src/assistant/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createPeerSiteReads",
+     "spec": "./peer-site-reads.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createSqliteAgentSessionStore",
+     "spec": "#src/assistant/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createSqliteConversationToolApprovalStore",
+     "spec": "#src/assistant/persistence/conversation-tool-approval-store",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createTrashSweep",
+     "spec": "@jini-ai/cms/trash",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "getSlugChangeCapture",
+     "spec": "#src/platform/routing/adapter",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "postSearchIndexFor",
+     "spec": "#src/features/post/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "removeEntityWithoutBlocker",
+     "spec": "#src/features/trash/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "renderDocBodyAsPageHtml",
+     "spec": "#src/server/inbound/public-http/http/site/render/content-html",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "sanitizeShareDatabase",
+     "spec": "#src/server/runtime/composition/site-portability",
+     "type": false,
+     "alsoOutside": true
+    }
+   ],
+   "top": [],
+   "readers": [
+    [
+     "apps/website/src/server/__tests__/unit/serving-app-boot-wiring.unit.test.ts",
+     [
+      "createServingApp"
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "L2",
+   "name": "route-deps-assistant-mcp",
+   "fns": [
+    {
+     "fn": "routeDepsAssistantSettings",
+     "a": 2210,
+     "b": 2260,
+     "code": 43,
+     "entries": 27,
+     "keys": [
+      "presentationRepo",
+      "settingsRepo",
+      "getEffective",
+      "set",
+      "instructionsNamespace",
+      "seoReady",
+      "seoDeps",
+      "sitemapService",
+      "settingsReady",
+      "assistantSettingsReady",
+      "visitorToolsManagement",
+      "adminAssistantEnabled",
+      "siteAssistantCredentialRepo",
+      "siteAssistantSecretSealer",
+      "siteAssistantSecretKeyring",
+      "databaseTransferChatSnapshot",
+      "databaseTransferDestinationStore",
+      "adminExecutionCredentialRepo",
+      "mediaProviderCredentialRepo",
+      "externalMcpServerRepo",
+      "bundledSourceRoot",
+      "mcp",
+      "preferences",
+      "providerFaces",
+      "notifyRosterChanged",
+      "builtInExternalMcpServerIds",
+      "externalMcpToolApprovalRepo"
+     ],
+     "sha": "21ed132a347582baafd4d4c323a9e464870860d3ffabe939f269f2d90c603d04",
+     "anchorAt": 2213,
+     "anchor": "    set: (required, optional) => set(required, {",
+     "inputs": [
+      {
+       "n": "agentPluginLayout",
+       "decl": 978,
+       "declText": "const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "chat",
+       "decl": 1042,
+       "declText": "const chat = store.chat;",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "idGen",
+       "decl": 1082,
+       "declText": "const idGen = { newId: () => randomUUID() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "identity",
+       "decl": 1120,
+       "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "settingsPrincipals",
+       "decl": 1122,
+       "declText": "const settingsPrincipals = {",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "presentationRepo",
+       "decl": 1132,
+       "declText": "const presentationRepo = new SqlitePresentationSettingsRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "settingsRepo",
+       "decl": 1133,
+       "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "settingsReady",
+       "decl": 1138,
+       "declText": "const settingsReady = Promise.resolve();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "assistantSettingsReady",
+       "decl": 1140,
+       "declText": "const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettings",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "seoReady",
+       "decl": 1140,
+       "declText": "const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettings",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretKeyring",
+       "decl": 1787,
+       "declText": "const siteAssistantSecretKeyring = new EnvOrFileKeyring({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretSealer",
+       "decl": 1790,
+       "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantCredentialRepo",
+       "decl": 1800,
+       "declText": "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "externalMcpServerRepo",
+       "decl": 1804,
+       "declText": "const externalMcpServerRepo = new SqliteExternalMcpServerRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteThemes",
+       "decl": 2002,
+       "declText": "const siteThemes = discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: \"built-in\" });",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "seoDeps",
+       "decl": 2121,
+       "declText": "const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, ",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "sitemapService",
+       "decl": 2122,
+       "declText": "const sitemapService = createSitemapService({ deps: seoDeps }, {});",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "agentPluginMcp",
+       "decl": 2134,
+       "declText": "const agentPluginMcp = composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, cl",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "routeDeps",
+       "decl": 2135,
+       "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+       "let": false,
+       "later": true,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "getter"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    ...compositionApprovalOverrides({ overrides }),",
+     "after": "    /**"
+    },
+    {
+     "fn": "routeDepsExternalMcpOAuth",
+     "a": 2261,
+     "b": 2282,
+     "code": 14,
+     "entries": 4,
+     "keys": [
+      "externalMcpOAuth",
+      "externalMcpOAuthDevices",
+      "derivedPublicOrigin",
+      "passkeyOrigin"
+     ],
+     "sha": "16e464cae967266ef8b65c6e2410006e1114de804827119930cd6280d595ee00",
+     "anchorAt": 2262,
+     "anchor": "     * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: \"oauth\"`",
+     "inputs": [
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "agentPluginLayout",
+       "decl": 978,
+       "declText": "const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "identity",
+       "decl": 1120,
+       "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretKeyring",
+       "decl": 1787,
+       "declText": "const siteAssistantSecretKeyring = new EnvOrFileKeyring({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretSealer",
+       "decl": 1790,
+       "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "externalMcpServerRepo",
+       "decl": 1804,
+       "declText": "const externalMcpServerRepo = new SqliteExternalMcpServerRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "externalMcpOAuthDevices",
+       "decl": 1807,
+       "declText": "const externalMcpOAuthDevices = createSqliteDeviceAuthorizationStore({ db: kernel, workspaceId, clock, sealer: siteAssistantSecretSealer, keyring: sit",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteReferenceRepo",
+       "decl": 1820,
+       "declText": "const siteReferenceRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectSiteId",
+       "decl": 1823,
+       "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectStore",
+       "decl": 1823,
+       "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "externalMcpOAuthHttpPorts",
+       "decl": 2090,
+       "declText": "const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "derivedPublicOrigin",
+       "decl": 2091,
+       "declText": "const derivedPublicOrigin = resolveCompositionPublicOrigin({}, {});",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "agentPluginMcp",
+       "decl": 2134,
+       "declText": "const agentPluginMcp = composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, cl",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "routeDeps",
+       "decl": 2135,
+       "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+       "let": false,
+       "later": true,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "getter"
+      }
+     ],
+     "hCalls": [
+      "compositionSharedOAuth"
+     ],
+     "errs": [],
+     "before": "    externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo({ store: kernel }),",
+     "after": "    ...agentPluginConnections,"
+    },
+    {
+     "fn": "routeDepsExecutionPlugins",
+     "a": 2284,
+     "b": 2292,
+     "code": 8,
+     "entries": 8,
+     "keys": [
+      "executionSettingsReady",
+      "settingsUiTabsReady",
+      "analyticsSettingsReady",
+      "siteTitleReady",
+      "siteConsentReady",
+      "consentStore",
+      "publicPageSecurityHeaders",
+      "pluginExportHosts"
+     ],
+     "sha": "de1ef590d322e3c8b8ab2fc9621228d8c1d800fb3b9927ae9d04617167be4dab",
+     "anchorAt": 2284,
+     "anchor": "    // Same shared sealer/keyring once more — see the note above the BYOK repo.",
+     "inputs": [
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "analyticsSettingsReady",
+       "decl": 1140,
+       "declText": "const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettings",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "executionSettingsReady",
+       "decl": 1140,
+       "declText": "const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettings",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "settingsUiTabsReady",
+       "decl": 1140,
+       "declText": "const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettings",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteTitleReady",
+       "decl": 1174,
+       "declText": "const siteTitleReady = siteSettingsReady",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "formCollectionProviders",
+       "decl": 1638,
+       "declText": "let formCollectionProviders = () => createFormCollectionRegistry({});",
+       "let": true,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteConsentReady",
+       "decl": 2126,
+       "declText": "const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "pluginExports",
+       "decl": 2132,
+       "declText": "const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, embedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === tr",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    ...agentPluginConnections,",
+     "after": "    ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),"
+    }
+   ],
+   "imports": [
+    {
+     "n": "DatabaseDestinationRepo",
+     "spec": "#src/features/database-transfer/destination-repo",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "INSTRUCTIONS_NAMESPACE",
+     "spec": "#src/features/settings/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SealedDatabaseDestinationStore",
+     "spec": "#src/features/database-transfer/destination-store",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteAdminExecutionCredentialRepo",
+     "spec": "#src/assistant/execution-credential-repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteExternalMcpToolApprovalRepo",
+     "spec": "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteMediaProviderCredentialRepo",
+     "spec": "#src/features/media/media-provider-credential-repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "bundledAgentPluginsDir",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "composeAgentPluginPreferences",
+     "spec": "./agent-plugin-service-ports.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "composePluginProviderFaces",
+     "spec": "./agent-plugin-service-ports.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "composeVisitorToolsManagement",
+     "spec": "./visitor-tools-management.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createApplyConnectDefaults",
+     "spec": "#src/features/agent-plugins/apply-connect-defaults",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createExternalMcpOAuthService",
+     "spec": "../../../features/external-mcp/external-mcp-oauth.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createSiteConsentStore",
+     "spec": "#src/features/consent/revisions.repo",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "getEffective",
+     "spec": "#src/features/settings/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "isAdminAssistantEnabled",
+     "spec": "./admin-assistant-enabled.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "join",
+     "spec": "node:path",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "mkdtemp",
+     "spec": "node:fs/promises",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "notifyExternalMcpRosterChanged",
+     "spec": "../../../assistant/external-mcp-roster-change.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "preparePreviewSwitcherWrite",
+     "spec": "#src/features/theme/preview-switcher",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "publicPageSecurityHeaders",
+     "spec": "#src/features/theme/public-page-security-headers",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "readBuiltInExternalMcpServerIds",
+     "spec": "#src/features/external-mcp/built-in-connections",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "readFile",
+     "spec": "node:fs/promises",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolveActiveThemeId",
+     "spec": "#src/features/presentation/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolvePublicAssistantAvailability",
+     "spec": "../../../assistant/index.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "rm",
+     "spec": "node:fs/promises",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "set",
+     "spec": "#src/features/settings/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "tmpdir",
+     "spec": "node:os",
+     "type": false,
+     "alsoOutside": true
+    }
+   ],
+   "top": [],
+   "readers": [
+    [
+     "apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts",
+     [
+      "externalMcpOAuthHttpPorts"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/serving-app-boot-wiring.unit.test.ts",
+     [
+      "createRouteDeps"
+     ]
+    ],
+    [
+     "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+     [
+      "(required, optional)",
+      ", workspaceId: "
+     ]
+    ],
+    [
+     "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+     [
+      "apps/website/src",
+      "server/runtime/composition/app.ts"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+     [
+      "apps/website/",
+      "apps/website/src/server/",
+      "apps/website/src/server",
+      "apps/website/src/server/runtime/composition",
+      "apps/website/src"
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "L3",
+   "name": "route-deps-site-providers",
+   "fns": [
+    {
+     "fn": "routeDepsSiteThemesTelemetry",
+     "a": 2294,
+     "b": 2355,
+     "code": 44,
+     "entries": 31,
+     "keys": [
+      "mailFeedbackRoute",
+      "siteTitlePreservationStore",
+      "siteDisplayName",
+      "siteTimeZone",
+      "changeSets",
+      "revertRegistry",
+      "themes",
+      "themesDir",
+      "packageThemesDir",
+      "siteBinding",
+      "createSite",
+      "federatedMcpPresetRegistry",
+      "agentPluginLayout",
+      "agentPluginLifecycle",
+      "skillLayout",
+      "siteBackupSources",
+      "siteStoragePaths",
+      "outbox",
+      "bus",
+      "observability",
+      "tracker",
+      "visitorTracker",
+      "observabilityEnabled",
+      "flushTelemetry",
+      "browserAnalytics",
+      "consentAdapters",
+      "telemetryStatus",
+      "sendTelemetryTest",
+      "aiTraceSink",
+      "providerConfig",
+      "reapplyProvider"
+     ],
+     "sha": "3e46c5f8fc148c14f9d4d9cd31b37b5b7973a8ea03fbb09dfffce52c1a95c468",
+     "anchorAt": 2294,
+     "anchor": "    mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },",
+     "inputs": [
+      {
+       "n": "dbPath",
+       "decl": "param",
+       "declText": "",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "agentPluginLayout",
+       "decl": 978,
+       "declText": "const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "agentPluginLifecycle",
+       "decl": 979,
+       "declText": "const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "federatedMcpPresetRegistry",
+       "decl": 987,
+       "declText": "const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "skillLayout",
+       "decl": 988,
+       "declText": "const skillLayout = resolveSkillLayout({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "resolvedThemesDir",
+       "decl": 989,
+       "declText": "const resolvedThemesDir = resolveThemesDirOverride(resolvedSiteBinding, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "resolvedUploadsDir",
+       "decl": 1002,
+       "declText": "const resolvedUploadsDir = overrides.uploadsDir ?? mediaUploadsDir({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "isMediaRemote",
+       "decl": 1020,
+       "declText": "const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePor",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "mediaIsRemoteByEnv",
+       "decl": 1020,
+       "declText": "const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePor",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "idGen",
+       "decl": 1082,
+       "declText": "const idGen = { newId: () => randomUUID() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "pluginRuntime",
+       "decl": 1093,
+       "declText": "const pluginRuntime = composePluginRuntime({",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteTitlePreservationStore",
+       "decl": 1151,
+       "declText": "const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteDisplayName",
+       "decl": 1152,
+       "declText": "const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteTimeZone",
+       "decl": 1152,
+       "declText": "const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "menuRepo",
+       "decl": 1193,
+       "declText": "const menuRepo = new SqliteMenuRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "outbox",
+       "decl": 1294,
+       "declText": "const outbox = new SqliteOutboxAdapter({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "bus",
+       "decl": 1295,
+       "declText": "const bus = new InMemoryEventBus();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "trashRepo",
+       "decl": 1380,
+       "declText": "const trashRepo = new SqliteTrashRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretSealer",
+       "decl": 1790,
+       "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "providerConfigSource",
+       "decl": 1826,
+       "declText": "const providerConfigSource = withProviderSettingsMigrations({ source: savedProviderConfig, providers: async ({ pluginId }) =>",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "customCredentialSetRepo",
+       "decl": 1835,
+       "declText": "const customCredentialSetRepo = compositionCustomCredentials();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "providerPlugins",
+       "decl": 1845,
+       "declText": "const providerPlugins = await providerPluginBoot({ overrides })({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "aiTraceSink",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "observability",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "tracker",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "postRepo",
+       "decl": 1965,
+       "declText": "const postRepo = new SqlitePostRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteThemes",
+       "decl": 2002,
+       "declText": "const siteThemes = discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: \"built-in\" });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),",
+     "after": "    providerAppliesAt: input => providerPlugins.appliesAt(input),"
+    },
+    {
+     "fn": "routeDepsProviderAnalytics",
+     "a": 2356,
+     "b": 2376,
+     "code": 13,
+     "entries": 9,
+     "keys": [
+      "providerAppliesAt",
+      "projectKeys",
+      "legacyProviderCredential",
+      "publishTrustRevocations",
+      "clock",
+      "idGen",
+      "analyticsSink",
+      "analyticsConfig",
+      "analyticsProviders"
+     ],
+     "sha": "2d06ce25773a91bea7884da00bd4ae98c0366c3caffcab4d9766b860ca850e1b",
+     "anchorAt": 2356,
+     "anchor": "    providerAppliesAt: input => providerPlugins.appliesAt(input),",
+     "inputs": [
+      {
+       "n": "agentPluginLifecycle",
+       "decl": 979,
+       "declText": "const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishTrustRevocations",
+       "decl": 1036,
+       "declText": "const publishTrustRevocations = await publishTrustRevocationStoreFor({ kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "idGen",
+       "decl": 1082,
+       "declText": "const idGen = { newId: () => randomUUID() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "settingsRepo",
+       "decl": 1133,
+       "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretSealer",
+       "decl": 1790,
+       "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "customCredentialSetRepo",
+       "decl": 1835,
+       "declText": "const customCredentialSetRepo = compositionCustomCredentials();",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "providerPlugins",
+       "decl": 1845,
+       "declText": "const providerPlugins = await providerPluginBoot({ overrides })({",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectKeys",
+       "decl": 1860,
+       "declText": "const projectKeys = compositionProjectKeys();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "observability",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    reapplyProvider: input => providerPlugins.reapply(input),",
+     "after": "    ...identity,"
+    }
+   ],
+   "imports": [
+    {
+     "n": "POST_ENTITY_TYPE",
+     "spec": "#src/features/trash/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "SINGLE_HOP_HTTPS_EGRESS_POLICY",
+     "spec": "#src/platform/http/egress-policies",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "SqliteBufferSink",
+     "spec": "#src/platform/db/sqlite/analytics-sink.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteChangeSetRepo",
+     "spec": "#src/platform/db/sqlite/change-set-repo.sqlite",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "bindForgetRemovedEntity",
+     "spec": "@jini-ai/cms/trash",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "buildAnalyticsProviders",
+     "spec": "./analytics-providers.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "builtInThemesDir",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createDefaultHttpClient",
+     "spec": "#src/platform/http/client",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createPostRevertRegistry",
+     "spec": "#src/features/post/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createSettingsAnalyticsConfig",
+     "spec": "#src/features/analytics/config.settings",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createSiteMailFeedbackRoute",
+     "spec": "#src/features/mail/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "legacyProviderCredentialCheck",
+     "spec": "./provider-plugins.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "listCustomCredentials",
+     "spec": "#src/features/custom-credentials/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "loadMailAdapterRegistry",
+     "spec": "#src/features/agent-plugins/mail-adapter-registry",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "pluginsInstallDir",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "registerMenuReverters",
+     "spec": "#src/features/navigation/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolveCustomCredentialByLabel",
+     "spec": "#src/features/custom-credentials/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "resolveSiteStoragePaths",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": true
+    }
+   ],
+   "top": [
+    {
+     "n": "resolveSiteBackupSources",
+     "line": 583
+    }
+   ],
+   "readers": [
+    [
+     "apps/website/src/server/__tests__/integration/production-readiness-boot.integration.test.ts",
+     [
+      "durable-adapter"
+     ]
+    ],
+    [
+     "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+     [
+      ", workspaceId: "
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+     [
+      "builtInThemesDir",
+      "builtInThemesDir()"
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "L4",
+   "name": "route-deps-members-mail",
+   "fns": [
+    {
+     "fn": "routeDepsMembersMail",
+     "a": 2378,
+     "b": 2412,
+     "code": 23,
+     "entries": 19,
+     "keys": [
+      "principalRepo",
+      "removeUser",
+      "isInTrash",
+      "redirectRepo",
+      "redirectHitSink",
+      "originRegistry",
+      "redirectsWriteDeps",
+      "memberRepo",
+      "removeMember",
+      "memberTierRepo",
+      "memberSubscriptionRepo",
+      "memberSessionRepo",
+      "magicLinkRepo",
+      "mailer",
+      "settleMailer",
+      "mailStatus",
+      "setAgentPluginEnabled",
+      "mailProviderControl",
+      "mailDomainRequirements"
+     ],
+     "sha": "50c41ae831f6ea39c98239429a3af8b6dfbbb1d86e804614e034df686c4266c2",
+     "anchorAt": 2378,
+     "anchor": "    principalRepo: settingsPrincipals,",
+     "inputs": [
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "settingsPrincipals",
+       "decl": 1122,
+       "declText": "const settingsPrincipals = {",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "originRegistry",
+       "decl": 1356,
+       "declText": "const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: kernel }, { after: originReady }) });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "redirectRepo",
+       "decl": 1357,
+       "declText": "const redirectRepo = SqliteRedirectRepo({ store: kernel }, {});",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "redirectHitSink",
+       "decl": 1358,
+       "declText": "const redirectHitSink = new RedirectHitSinkImpl();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "trash",
+       "decl": 1521,
+       "declText": "const trash = createTrashService({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "removeUser",
+       "decl": 1542,
+       "declText": "const removeUser = bindRemoveEntity({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "isInTrash",
+       "decl": 1546,
+       "declText": "const isInTrash = async ({ principalId }: { principalId: string }, _optional = {}): Promise<boolean> =>",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "redirectsWriteDeps",
+       "decl": 1549,
+       "declText": "const redirectsWriteDeps: RedirectsWriteDeps = {",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "runtimeMode",
+       "decl": 1702,
+       "declText": "const runtimeMode = resolveRuntimeMode();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "memberRepo",
+       "decl": 1746,
+       "declText": "const memberRepo = new SqliteMemberRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "resolvedMailer",
+       "decl": 1911,
+       "declText": "const resolvedMailer = createSiteMailer({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "mailDurableOutboxReady",
+       "decl": 1923,
+       "declText": "const mailDurableOutboxReady = formsMailOutboxReady;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    ...identity,",
+     "after": "    // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the"
+    },
+    {
+     "fn": "routeDepsMailFormsNewsletter",
+     "a": 2416,
+     "b": 2495,
+     "code": 44,
+     "entries": 37,
+     "keys": [
+      "mailActivity",
+      "mailSuppressionAdmin",
+      "menuRepo",
+      "navLocationBindingRepo",
+      "removeMenu",
+      "webhookSubscriptionRepo",
+      "webhookDeliveryRepo",
+      "webhookSigner",
+      "mediaRepo",
+      "assetBlobRepo",
+      "assetRenditionRepo",
+      "mediaContentTypeStore",
+      "blobStore",
+      "documentTextExtractors",
+      "blobHydrationReady",
+      "adminPasswordResetReady",
+      "transformDefinitionRepo",
+      "imageTransformer",
+      "imageCodec",
+      "newsletterReady",
+      "newsletterCampaignRepo",
+      "newsletterListRepo",
+      "newsletterSubscriptionRepo",
+      "newsletterAudienceSnapshotRepo",
+      "newsletterSendRepo",
+      "newsletterConfirmationTokenRepo",
+      "membersConsentCapability",
+      "newsletterSubscriberDirectory",
+      "newsletterKeyring",
+      "newsletterHooks",
+      "formDefinitionRepo",
+      "formCollectionProviders",
+      "formSubmissionRepo",
+      "formSubmissionAttempts",
+      "removeFormSubmission",
+      "executeCommand",
+      "formsRateLimiter"
+     ],
+     "sha": "2fa91eefe33825c7a0ebcc9200fccc887fb559ef54b90f5796859b8225222110",
+     "anchorAt": 2416,
+     "anchor": "    // Email page phase 4: send history over the ledgers, and the live purpose gate asked without sending.",
+     "inputs": [
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "blobStore",
+       "decl": 1020,
+       "declText": "const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePor",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "adminPasswordResetReady",
+       "decl": 1131,
+       "declText": "const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ beforeReset: () => storeBound.dbOps.captureRestorePoint({ scopeId: \"boot-",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "menuRepo",
+       "decl": 1193,
+       "declText": "const menuRepo = new SqliteMenuRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "navLocationBindingRepo",
+       "decl": 1194,
+       "declText": "const navLocationBindingRepo = new SqliteNavLocationBindingRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "newsletterListRepo",
+       "decl": 1213,
+       "declText": "const newsletterListRepo = new SqliteNewsletterListRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "newsletterReady",
+       "decl": 1217,
+       "declText": "const newsletterReady = installNewsletterDataModule({ db: kernel, dbPath })",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "transformDefinitionRepo",
+       "decl": 1251,
+       "declText": "const transformDefinitionRepo = new SqliteTransformDefinitionRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "blobHydrationReady",
+       "decl": 1279,
+       "declText": "const blobHydrationReady = hydrateBlobStoreFromSeed({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "assetRenditionRepo",
+       "decl": 1366,
+       "declText": "const assetRenditionRepo = new SqliteAssetRenditionRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "trash",
+       "decl": 1521,
+       "declText": "const trash = createTrashService({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "formDefinitionRepo",
+       "decl": 1637,
+       "declText": "const formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "formCollectionProviders",
+       "decl": 1638,
+       "declText": "let formCollectionProviders = () => createFormCollectionRegistry({});",
+       "let": true,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "formSubmissionRepo",
+       "decl": 1639,
+       "declText": "const formSubmissionRepo = new SqliteFormSubmissionRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "newsletterKeyring",
+       "decl": 1752,
+       "declText": "const newsletterKeyring = new EnvOrFileKeyring({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "newsletterSubscriberDirectory",
+       "decl": 1755,
+       "declText": "const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "newsletterHooks",
+       "decl": 1756,
+       "declText": "const newsletterHooks = createHookRegistry();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "mediaRepo",
+       "decl": 1978,
+       "declText": "const mediaRepo = new SqliteMediaRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "assetBlobRepo",
+       "decl": 1979,
+       "declText": "const assetBlobRepo = new SqliteAssetBlobRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "mediaContentTypeStore",
+       "decl": 1982,
+       "declText": "const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    ...resolvedMailer.operations,",
+     "after": "    // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,"
+    }
+   ],
+   "imports": [
+    {
+     "n": "FORMS_SUBMIT_PROFILE",
+     "spec": "#src/features/forms/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SharpImageTransformer",
+     "spec": "#src/features/media/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteMagicLinkTokenRepo",
+     "spec": "#src/features/members/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteMemberSessionRepo",
+     "spec": "#src/features/members/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteMemberSubscriptionRepo",
+     "spec": "#src/features/members/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteMemberTierRepo",
+     "spec": "#src/features/members/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteNewsletterAudienceSnapshotRepo",
+     "spec": "#src/features/newsletter/repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteNewsletterCampaignRepo",
+     "spec": "#src/features/newsletter/repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteNewsletterConfirmationTokenRepo",
+     "spec": "#src/features/newsletter/repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteNewsletterSendRepo",
+     "spec": "#src/features/newsletter/repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteNewsletterSubscriptionRepo",
+     "spec": "#src/features/newsletter/repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteWebhookDeliveryRepo",
+     "spec": "#src/platform/db/sqlite/webhook-repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteWebhookSubscriptionRepo",
+     "spec": "#src/platform/db/sqlite/webhook-repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "bindRemoveEntity",
+     "spec": "@jini-ai/cms/trash",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createKeyringBackedSigner",
+     "spec": "#src/features/webhooks/signing.keyring",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createMailActivityRepo",
+     "spec": "#src/features/mail/activity.repo",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createMailSuppressionAdminRepo",
+     "spec": "#src/features/mail/suppression-admin.repo",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createMammothDocumentTextExtractor",
+     "spec": "@jini-ai/cms/media/plugins/document-text/mammoth",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createRateLimiter",
+     "spec": "#src/contracts/core/rate-limit/rate-limit",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createShareArchiveReader",
+     "spec": "#src/features/site-backup/import-archive-reader",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createUnpdfDocumentTextExtractor",
+     "spec": "@jini-ai/cms/media/plugins/document-text/unpdf",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "formSubmissionAttemptsFor",
+     "spec": "#src/features/forms/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "importYauzl",
+     "spec": "yauzl",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "removeEntityWithoutBlocker",
+     "spec": "#src/features/trash/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "wrapMailerWithPurposeGate",
+     "spec": "#src/platform/mail/purpose-scoped-mailer",
+     "type": false,
+     "alsoOutside": false
+    }
+   ],
+   "top": [],
+   "readers": [
+    [
+     "apps/website/src/server/__tests__/integration/production-readiness-boot.integration.test.ts",
+     [
+      "capability-inventory.ts",
+      "newsletterKeyring"
+     ]
+    ],
+    [
+     "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+     [
+      "apps/website/src",
+      "server/runtime/composition/app.ts"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+     [
+      "package.json",
+      "apps/website/",
+      "apps/website/src/server/",
+      "apps/website/src/server",
+      "apps/website/src/server/runtime/composition",
+      "apps/website/src"
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "L5",
+   "name": "route-deps-comments-plugins",
+   "fns": [
+    {
+     "fn": "routeDepsTaxonomyComments",
+     "a": 2496,
+     "b": 2567,
+     "code": 44,
+     "entries": 28,
+     "keys": [
+      "siteAssistantRateLimiter",
+      "databaseLedgerRepo",
+      "contentTypeRepo",
+      "contentTypeIndexProvisioner",
+      "entryRepo",
+      "taxonomyRepo",
+      "termRepo",
+      "removeTerm",
+      "removeTaxonomy",
+      "entryTermRepo",
+      "entryTermReadRepo",
+      "taxonomyRevisionRepo",
+      "stampWatermark",
+      "restorePointsRepo",
+      "dbOps",
+      "databaseIntrospection",
+      "toolAttemptAuditSink",
+      "toolGaps",
+      "siteStatusRepo",
+      "migrationRunsRepo",
+      "contentKernel",
+      "verifyDueDomainBindings",
+      "disclosureWatermarkSource",
+      "deepLinkRestorePointLookup",
+      "gatedMutations",
+      "commentRepo",
+      "commentIngressPolicy",
+      "commentWriteService"
+     ],
+     "sha": "e057daceaacbeef1af84adc129224f4e0474cdb311963859ef74a5164a5c51e7",
+     "anchorAt": 2496,
+     "anchor": "    // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,",
+     "inputs": [
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "idGen",
+       "decl": 1082,
+       "declText": "const idGen = { newId: () => randomUUID() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "reportToolAuditError",
+       "decl": 1083,
+       "declText": "const reportToolAuditError = createSiteAssistantErrorReporter({ ids: idGen, redact: redactSecrets,",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "identity",
+       "decl": 1120,
+       "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "trash",
+       "decl": 1521,
+       "declText": "const trash = createTrashService({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "databaseLedgerRepo",
+       "decl": 1598,
+       "declText": "const databaseLedgerRepo = new SqliteDatabaseLedgerRepo({ db: databaseJournalDb, siteId: workspaceId });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "migrationRunsRepo",
+       "decl": 1603,
+       "declText": "const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: workspaceId });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "restorePointsRepo",
+       "decl": 1609,
+       "declText": "const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId,",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "dbOps",
+       "decl": 1612,
+       "declText": "const { dbOps } = storeBound;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "databaseIntrospection",
+       "decl": 1615,
+       "declText": "const databaseIntrospection = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "entryRepo",
+       "decl": 1622,
+       "declText": "const entryRepo = new SqliteEntryRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "sqliteEntryTermRepo",
+       "decl": 1626,
+       "declText": "const sqliteEntryTermRepo = new SqliteEntryTermRepo({ db: kernel, workspaceId: workspaceId });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "taxonomyRepo",
+       "decl": 1628,
+       "declText": "const taxonomyRepo = new SqliteTaxonomyRepo({ db: kernel, workspaceId: workspaceId });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "termRepo",
+       "decl": 1629,
+       "declText": "const termRepo = new SqliteTermRepo({ db: kernel, workspaceId: workspaceId });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "taxonomyRevisionRepo",
+       "decl": 1630,
+       "declText": "const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId: workspaceId });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "stampWatermark",
+       "decl": 1631,
+       "declText": "const stampWatermark = storeBound.stampWatermark;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "contentTypeRepo",
+       "decl": 1644,
+       "declText": "const contentTypeRepo = new SqliteContentTypeRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "contentTypeIndexProvisioner",
+       "decl": 1645,
+       "declText": "const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "commentsModule",
+       "decl": 1671,
+       "declText": "const commentsModule = createCommentsModule({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "commentsCapability",
+       "decl": 1691,
+       "declText": "const commentsCapability = createCommentsCapability({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "observability",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "tracker",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),",
+     "after": "    commentsProviders: commentsCapability.providers,"
+    },
+    {
+     "fn": "routeDepsPluginsSiteApp",
+     "a": 2568,
+     "b": 2645,
+     "code": 44,
+     "entries": 37,
+     "keys": [
+      "commentsProviders",
+      "commentsReady",
+      "commentsSettingsReady",
+      "widgetBindingRepo",
+      "entryRefsRepo",
+      "pluginActivationRepo",
+      "discoverPlugins",
+      "onPluginEnabled",
+      "onPluginDisabled",
+      "listPluginConflicts",
+      "removePlugin",
+      "removeTheme",
+      "readPluginPackageFiles",
+      "previewPluginBeforeSave",
+      "pluginInstaller",
+      "pluginSource",
+      "pluginSourcePolicy",
+      "pluginLoadedVersion",
+      "browserProviders",
+      "chartProviderSnapshot",
+      "pluginContributions",
+      "pluginBeforeSaveHook",
+      "pluginRuntimeReady",
+      "publishContentBundleRepo",
+      "fileBlobIndex",
+      "publishContentBaselineRepo",
+      "publishContentApplyPort",
+      "publishContentSeedHash",
+      "publishContentRunRepo",
+      "publishContentPeerRepo",
+      "publishContentPeerHttpClient",
+      "runExportSite",
+      "exportOutputRootDir",
+      "createSiteApp",
+      "siteAppBootWork",
+      "resolveStorefrontProducts",
+      "resolveActiveThemeId"
+     ],
+     "sha": "336b062c7d758dec774bcedc8425447f9e3adf6eb7da59f53d3cff2df4f18402",
+     "anchorAt": 2568,
+     "anchor": "    commentsProviders: commentsCapability.providers,",
+     "inputs": [
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "workspaceId",
+       "decl": 1033,
+       "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "pluginActivationRepo",
+       "decl": 1087,
+       "declText": "const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId,",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "pluginRuntime",
+       "decl": 1093,
+       "declText": "const pluginRuntime = composePluginRuntime({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "settingsRepo",
+       "decl": 1133,
+       "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "commentsSettingsReady",
+       "decl": 1140,
+       "declText": "const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettings",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "commentsReady",
+       "decl": 1234,
+       "declText": "const commentsReady = newsletterReady",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "removePlugin",
+       "decl": 1535,
+       "declText": "const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ adapter: pluginTrashAdapter, remove: bindRemoveEntity({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishContentRunRepo",
+       "decl": 1608,
+       "declText": "const publishContentRunRepo = new SqlitePublishContentRunRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "widgetBindingRepo",
+       "decl": 1635,
+       "declText": "const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(kernel);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "entryRefsRepo",
+       "decl": 1636,
+       "declText": "const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "commentsCapability",
+       "decl": 1691,
+       "declText": "const commentsCapability = createCommentsCapability({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "providerPlugins",
+       "decl": 1845,
+       "declText": "const providerPlugins = await providerPluginBoot({ overrides })({",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishContentPeerHttpClient",
+       "decl": 1935,
+       "declText": "const { outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient } = composeContentHttpClients({}, {});",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishContentBundleRepo",
+       "decl": 1983,
+       "declText": "const publishContentBundleRepo = new SqlitePublishContentBundleRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishContentBaselineRepo",
+       "decl": 1984,
+       "declText": "const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo({ store: kernel });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishContentFileBlobIndex",
+       "decl": 1987,
+       "declText": "const publishContentFileBlobIndex = createFileBlobIndex();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishContentPeerRepo",
+       "decl": 1990,
+       "declText": "const publishContentPeerRepo = new SqlitePublishContentPeerRepo(kernel);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishContentSeedHash",
+       "decl": 1993,
+       "declText": "const publishContentSeedHash = createSqlitePublishContentSeedHash({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "removeTheme",
+       "decl": 2013,
+       "declText": "const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "publishContentApplyPort",
+       "decl": 2014,
+       "declText": "const publishContentApplyPort = createPublishContentApplyPort({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAppBootWork",
+       "decl": 2120,
+       "declText": "const siteAppBootWork = new Set<Promise<void>>();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "routeDeps",
+       "decl": 2135,
+       "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+       "let": false,
+       "later": true,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "getter"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    commentWriteService: commentsCapability.writeService,",
+     "after": "    listPublishedPosts: () =>"
+    }
+   ],
+   "imports": [
+    {
+     "n": "AlwaysUnavailableWatermarkSource",
+     "spec": "@jini-ai/db/recovery/lookup-adapters",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "DOMAIN_DNS_EGRESS_POLICY",
+     "spec": "./domain-dns-adapters.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "InMemorySiteStatusRepo",
+     "spec": "#src/features/database/repo.memory",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "RECHARTS_DEFAULT_PROVIDER",
+     "spec": "./charts-recharts-source.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "RestorePointDeepLinkLookup",
+     "spec": "@jini-ai/db/recovery/lookup-adapters",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SITE_ASSISTANT_PER_IP",
+     "spec": "#src/contracts/core/rate-limit/rate-limit",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteTokenStore",
+     "spec": "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteToolAttemptAuditSink",
+     "spec": "#src/features/tool-audit/repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "bindRemoveEntity",
+     "spec": "@jini-ai/cms/trash",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "buildGatewayDeps",
+     "spec": "#src/contracts/core/gated-mutations/composition",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "buildOwnerOnlyInstanceAuthorize",
+     "spec": "#src/contracts/core/gated-mutations/composition",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createApp",
+     "spec": "./app.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createDefaultHttpClient",
+     "spec": "#src/platform/http/client",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "createDomainBindingSweep",
+     "spec": "./dns-change-deps.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createRateLimiter",
+     "spec": "#src/contracts/core/rate-limit/rate-limit",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createToolGapReader",
+     "spec": "#src/features/tool-audit/tool-gaps.repo",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "exportSite",
+     "spec": "#src/features/site-export/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "readAdminChartProviderSnapshot",
+     "spec": "./chart-providers.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "removeEntityWithoutBlocker",
+     "spec": "#src/features/trash/index",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "resolveActiveThemeId",
+     "spec": "#src/features/presentation/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolveExportOutputRootDir",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "resolveStorefrontProducts",
+     "spec": "../../inbound/public-http/routes/site/products.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "withToolUseEvents",
+     "spec": "./tool-use-events.js",
+     "type": false,
+     "alsoOutside": false
+    }
+   ],
+   "top": [],
+   "readers": [
+    [
+     "apps/website/src/server/__tests__/integration/production-readiness-boot.integration.test.ts",
+     [
+      "gated-mutations",
+      "InMemoryTokenStore",
+      "core/gated-mutations/composition.ts",
+      "buildGatewayDeps",
+      "SqliteTokenStore",
+      "core/gated-mutations"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/serving-app-boot-wiring.unit.test.ts",
+     [
+      "createServingApp"
+     ]
+    ],
+    [
+     "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+     [
+      "apps/website/src",
+      "server/runtime/composition/app.ts"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+     [
+      "apps/website/",
+      "apps/website/src/server/",
+      "apps/website/src/server",
+      "apps/website/src/server/runtime/composition",
+      "apps/website/src"
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "L6",
+   "name": "route-deps-publish-credentials",
+   "fns": [
+    {
+     "fn": "routeDepsPublishCredentials",
+     "a": 2646,
+     "b": 2704,
+     "code": 31,
+     "entries": 20,
+     "keys": [
+      "listPublishedPosts",
+      "publishHistoryStore",
+      "publishExecutionMode",
+      "publishOutputRootDir",
+      "loadDeployTargets",
+      "loadInstalledDeployTargets",
+      "loadDeployWorkflowFiles",
+      "loadDeployOps",
+      "loadSourceControlProviders",
+      "loadPluginCredentialCards",
+      "loadAuthSchemes",
+      "publishCredentialVerificationCache",
+      "sourceControlCredentialSetRepo",
+      "sourceControlExportRootDir",
+      "vendorCredentialSetRepo",
+      "customCredentialSetRepo",
+      "customCredentialsHttpClient",
+      "siteBackupHttpClient",
+      "deployOpsHttpClient",
+      "mediaImportHttpClient"
+     ],
+     "sha": "2761f405d589c1b8b55caa377b0230aec77b2f9d540c86ca83167831976b2ae8",
+     "anchorAt": 2646,
+     "anchor": "    listPublishedPosts: () =>",
+     "inputs": [
+      {
+       "n": "resolvedSiteBinding",
+       "decl": 977,
+       "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "agentPluginLayout",
+       "decl": 978,
+       "declText": "const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "agentPluginLifecycle",
+       "decl": 979,
+       "declText": "const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {",
+       "let": false,
+       "later": false,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "kernel",
+       "decl": 993,
+       "declText": "const kernel = store.content;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "clock",
+       "decl": 1081,
+       "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "idGen",
+       "decl": 1082,
+       "declText": "const idGen = { newId: () => randomUUID() };",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretKeyring",
+       "decl": 1787,
+       "declText": "const siteAssistantSecretKeyring = new EnvOrFileKeyring({",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteAssistantSecretSealer",
+       "decl": 1790,
+       "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "projectVault",
+       "decl": 1823,
+       "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "customCredentialSetRepo",
+       "decl": 1835,
+       "declText": "const customCredentialSetRepo = compositionCustomCredentials();",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "observability",
+       "decl": 1884,
+       "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "customCredentialsHttpClient",
+       "decl": 1931,
+       "declText": "const customCredentialsHttpClient = createDefaultHttpClient({ policy: CUSTOM_CREDENTIALS_EGRESS_POLICY }, { observability });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "siteBackupHttpClient",
+       "decl": 1933,
+       "declText": "const siteBackupHttpClient = createDefaultHttpClient({ policy: SITE_BACKUP_EGRESS_POLICY }, { observability });",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "mediaImportHttpClient",
+       "decl": 1935,
+       "declText": "const { outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient } = composeContentHttpClients({}, {});",
+       "let": false,
+       "later": false,
+       "eager": true,
+       "deferred": false,
+       "fn": false,
+       "mode": "value"
+      },
+      {
+       "n": "routeDeps",
+       "decl": 2135,
+       "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+       "let": false,
+       "later": true,
+       "eager": false,
+       "deferred": true,
+       "fn": false,
+       "mode": "getter"
+      }
+     ],
+     "hCalls": [],
+     "errs": [],
+     "before": "    resolveActiveThemeId: () => resolveActiveThemeId(routeDeps),",
+     "after": "    ...(outboundTestOrigins.length > 0 ? { outboundTestOrigins } : {}),"
+    }
+   ],
+   "imports": [
+    {
+     "n": "InMemoryPublishCredentialVerificationCache",
+     "spec": "#src/features/deployments/static-publish/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SINGLE_HOP_HTTPS_EGRESS_POLICY",
+     "spec": "#src/platform/http/egress-policies",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "SourceControlCredentialSetRecord",
+     "spec": "#src/features/source-control/types",
+     "type": true,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqlitePublishHistoryStore",
+     "spec": "#src/platform/db/sqlite/publish-history-repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteSourceControlCredentialSetRepo",
+     "spec": "#src/features/source-control/source-control-credential-repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "SqliteVendorCredentialSetRepo",
+     "spec": "#src/features/vendor-credentials/vendor-credential-repo.sqlite",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "TovuCredentialSetVaultAdapter",
+     "spec": "#src/features/vendor-credentials/vault-adapter",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "VendorCredentialSetVaultRepo",
+     "spec": "#src/features/vendor-credentials/vault-adapter",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "createDefaultHttpClient",
+     "spec": "#src/platform/http/client",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "executionModeFromEnv",
+     "spec": "#src/features/deployments/publish-credentials/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "listPublishedPosts",
+     "spec": "#src/features/post/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "loadCredentialSchemeRegistry",
+     "spec": "#src/features/agent-plugins/auth-schemes",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "loadDeployOpsRegistry",
+     "spec": "#src/features/deployments/deploy-ops/registry",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "loadDeployTargetRegistry",
+     "spec": "#src/features/deployments/deploy-targets/registry",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "loadDeployWorkflowFiles",
+     "spec": "#src/features/deployments/index",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "loadInstalledDeployTargets",
+     "spec": "#src/features/deployments/deploy-targets/registry",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "loadMailAdapterRegistry",
+     "spec": "#src/features/agent-plugins/mail-adapter-registry",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "loadMailCredentialCards",
+     "spec": "../boot/mail-provider-catalog.js",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "loadSourceControlProviderRegistry",
+     "spec": "#src/features/source-control/provider-registry",
+     "type": false,
+     "alsoOutside": false
+    },
+    {
+     "n": "resolvePublishOutputRootDir",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "resolveSourceControlExportRootDir",
+     "spec": "./site-paths.js",
+     "type": false,
+     "alsoOutside": true
+    },
+    {
+     "n": "sourceControlKeyBinding",
+     "spec": "./source-control-key-binding.js",
+     "type": false,
+     "alsoOutside": false
+    }
+   ],
+   "top": [
+    {
+     "n": "credentialProject",
+     "line": 881
+    }
+   ],
+   "readers": [
+    [
+     "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+     [
+      "agent-daemon-server.ts"
+     ]
+    ],
+    [
+     "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+     [
+      "agent-daemon-server.ts",
+      "apps/website/src",
+      "server/runtime/composition/app.ts"
+     ]
+    ],
+    [
+     "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+     [
+      "apps/website/",
+      "apps/website/src/server/",
+      "apps/website/src/server",
+      "apps/website/src/server/runtime/composition",
+      "apps/website/src"
+     ]
+    ]
+   ]
+  }
+ ],
+ "R": {
+  "units": [
+   {
+    "id": null,
+    "a": 959,
+    "b": 959,
+    "first": "const { store, onStoreClose } = opened;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 963,
+    "b": 963,
+    "first": "const pendingLifecycleEvents: Array<Parameters<RouteDeps['tracker']['capture']>> = [];",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 964,
+    "b": 964,
+    "first": "let lifecycleTracker: Pick<RouteDeps['tracker'], 'capture'> = { capture: (input, options = {}) => { pendingLif",
+    "cost": 1,
+    "await": false,
+    "letDecl": true,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B01",
+    "a": 965,
+    "b": 990,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 993,
+    "b": 993,
+    "first": "const kernel = store.content;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B02",
+    "a": 1002,
+    "b": 1023,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 1033,
+    "b": 1033,
+    "first": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "cost": 1,
+    "await": true,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1036,
+    "b": 1036,
+    "first": "const publishTrustRevocations = await publishTrustRevocationStoreFor({ kernel });",
+    "cost": 1,
+    "await": true,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1041,
+    "b": 1041,
+    "first": "const chatDbPath = resolveChatDbPath({ dbPath }, { overrides });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1042,
+    "b": 1042,
+    "first": "const chat = store.chat;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1043,
+    "b": 1043,
+    "first": "await warnCompositionChatOrphans({}, {});",
+    "cost": 1,
+    "await": true,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1065,
+    "b": 1065,
+    "first": "const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecy",
+    "cost": 1,
+    "await": true,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1066,
+    "b": 1066,
+    "first": "logMediaProviderRefusals({ refusals: mediaProviders.refusals });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B03",
+    "a": 1077,
+    "b": 1088,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 1092,
+    "b": 1092,
+    "first": "let routeDepsBuiltForPluginHost: { readonly pluginHost?: RouteDeps[\"pluginHost\"] } | undefined;",
+    "cost": 1,
+    "await": false,
+    "letDecl": true,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B04",
+    "a": 1093,
+    "b": 1116,
+    "cost": 1
+   },
+   {
+    "id": "B05",
+    "a": 1120,
+    "b": 1185,
+    "cost": 1
+   },
+   {
+    "id": "B06",
+    "a": 1193,
+    "b": 1285,
+    "cost": 1
+   },
+   {
+    "id": "B07",
+    "a": 1294,
+    "b": 1366,
+    "cost": 1
+   },
+   {
+    "id": "B08",
+    "a": 1370,
+    "b": 1391,
+    "cost": 1
+   },
+   {
+    "id": "B09",
+    "a": 1392,
+    "b": 1459,
+    "cost": 1
+   },
+   {
+    "id": "B10",
+    "a": 1460,
+    "b": 1516,
+    "cost": 1
+   },
+   {
+    "id": "B11",
+    "a": 1520,
+    "b": 1547,
+    "cost": 1
+   },
+   {
+    "id": "B12",
+    "a": 1549,
+    "b": 1585,
+    "cost": 1
+   },
+   {
+    "id": "B13",
+    "a": 1590,
+    "b": 1615,
+    "cost": 1
+   },
+   {
+    "id": "B14",
+    "a": 1622,
+    "b": 1637,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 1638,
+    "b": 1638,
+    "first": "let formCollectionProviders = () => createFormCollectionRegistry({});",
+    "cost": 1,
+    "await": false,
+    "letDecl": true,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B15",
+    "a": 1639,
+    "b": 1694,
+    "cost": 1
+   },
+   {
+    "id": "B16",
+    "a": 1702,
+    "b": 1790,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 1796,
+    "b": 1799,
+    "first": "await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {",
+    "cost": 4,
+    "await": true,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B17",
+    "a": 1800,
+    "b": 1822,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 1823,
+    "b": 1825,
+    "first": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteI",
+    "cost": 3,
+    "await": true,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B18",
+    "a": 1826,
+    "b": 1844,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 1845,
+    "b": 1852,
+    "first": "const providerPlugins = await providerPluginBoot({ overrides })({",
+    "cost": 8,
+    "await": true,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1853,
+    "b": 1858,
+    "first": "onStoreClose({ registration: async () => {",
+    "cost": 4,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1859,
+    "b": 1859,
+    "first": "let bindSharedApiOAuth: ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined;",
+    "cost": 1,
+    "await": false,
+    "letDecl": true,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1860,
+    "b": 1860,
+    "first": "const projectKeys = compositionProjectKeys();",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1879,
+    "b": 1883,
+    "first": "onStoreClose({ registration: watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: pr",
+    "cost": 5,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1884,
+    "b": 1884,
+    "first": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1885,
+    "b": 1885,
+    "first": "formCollectionProviders = () => providerPlugins.formCollectionProviders?.() ?? createFormCollectionRegistry({}",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": true,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1887,
+    "b": 1887,
+    "first": "setServerLogTraceReader({ traceIds: () => observability.activeTraceIds?.() });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1888,
+    "b": 1888,
+    "first": "lifecycleTracker = tracker;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": true,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1889,
+    "b": 1889,
+    "first": "flushLifecycleEvents({ pending: pendingLifecycleEvents, tracker });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1890,
+    "b": 1890,
+    "first": "instrumentStorageKernel({ kernel, observability });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 1891,
+    "b": 1891,
+    "first": "instrumentStorageKernel({ kernel: chat, observability });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B19",
+    "a": 1902,
+    "b": 1958,
+    "cost": 1
+   },
+   {
+    "id": "B20",
+    "a": 1965,
+    "b": 1979,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 1980,
+    "b": 1980,
+    "first": "if ((overrides.storeRole ?? \"owner\") === \"owner\") await protectExistingFormFiles({ kernel, workspaceId, siteDi",
+    "cost": 1,
+    "await": true,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B21",
+    "a": 1982,
+    "b": 2013,
+    "cost": 1
+   },
+   {
+    "id": "B22",
+    "a": 2014,
+    "b": 2077,
+    "cost": 1
+   },
+   {
+    "id": "B23",
+    "a": 2080,
+    "b": 2113,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 2114,
+    "b": 2114,
+    "first": "bindSharedApiOAuth = agentPluginConnections.apiConnections.host.sharedOAuth?.bind;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": true,
+    "fnDecl": null
+   },
+   {
+    "id": "B24",
+    "a": 2116,
+    "b": 2134,
+    "cost": 1
+   },
+   {
+    "id": "LIT",
+    "a": 2135,
+    "b": 2715,
+    "first": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+    "cost": null,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2716,
+    "b": 2716,
+    "first": "resolveRouteDeps(routeDeps);",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": "B25",
+    "a": 2723,
+    "b": 2785,
+    "cost": 1
+   },
+   {
+    "id": null,
+    "a": 2800,
+    "b": 2800,
+    "first": "const commerceBinding = compositionCommerce();",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2814,
+    "b": 2814,
+    "first": "routeDeps.commerce = commerceBinding.commerce;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2815,
+    "b": 2815,
+    "first": "routeDeps.commerceCatalog = commerceBinding.commerceCatalog;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2816,
+    "b": 2816,
+    "first": "onStoreClose({ registration: () => commerceBinding.close() });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2818,
+    "b": 2818,
+    "first": "siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2819,
+    "b": 2819,
+    "first": "routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2820,
+    "b": 2820,
+    "first": "routeDepsBuiltForPluginHost = routeDeps;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": true,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2823,
+    "b": 2823,
+    "first": "routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2824,
+    "b": 2831,
+    "first": "opened.beforeStoreClose({ drain: async () => {",
+    "cost": 7,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2832,
+    "b": 2833,
+    "first": "provideMediaCredentials(composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutio",
+    "cost": 2,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2835,
+    "b": 2835,
+    "first": "const savedKeys = composeSiteSavedKeys({ workspaceId, sealer: siteAssistantSecretSealer });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2836,
+    "b": 2836,
+    "first": "configureSiteSharing({}, {});",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2914,
+    "b": 2914,
+    "first": "configureSiteImports({}, {});",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2931,
+    "b": 2931,
+    "first": "routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2932,
+    "b": 2932,
+    "first": "configureVisitorConsentAnalytics({ routeDeps, workspaceId });",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2933,
+    "b": 2933,
+    "first": "await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });",
+    "cost": 1,
+    "await": true,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   },
+   {
+    "id": null,
+    "a": 2934,
+    "b": 2934,
+    "first": "return routeDeps;",
+    "cost": 1,
+    "await": false,
+    "letDecl": false,
+    "letWrite": false,
+    "fnDecl": null
+   }
+  ],
+  "lets": [
+   [
+    "provideMediaCredentials",
+    [
+     1006
+    ]
+   ],
+   [
+    "formCollectionProviders",
+    [
+     1885
+    ]
+   ],
+   [
+    "lifecycleTracker",
+    [
+     1888
+    ]
+   ],
+   [
+    "bindSharedApiOAuth",
+    [
+     2114
+    ]
+   ],
+   [
+    "resolveRouteDeps",
+    [
+     2124
+    ]
+   ],
+   [
+    "routeDepsBuiltForPluginHost",
+    [
+     2820
+    ]
+   ]
+  ],
+  "sigLines": 4
+ }
+}

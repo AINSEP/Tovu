@@ -1,0 +1,2531 @@
+{
+ "phaseImports": [
+  {
+   "n": "ByokToolSurfaceDeps",
+   "spec": "#src/assistant/index",
+   "type": true,
+   "alsoOutside": true
+  },
+  {
+   "n": "KyselyKernel",
+   "spec": "@jini-ai/db/kernel",
+   "type": true,
+   "alsoOutside": true
+  },
+  {
+   "n": "NewsletterRouteDeps",
+   "spec": "../../inbound/admin-http/routes/newsletter/deps.js",
+   "type": true,
+   "alsoOutside": true
+  },
+  {
+   "n": "bindCredentialsHostPorts",
+   "spec": "./credentials-host-ports.js",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "bindSiteConsentService",
+   "spec": "./site-consent.js",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "bindStaticSiteContext",
+   "spec": "./static-site-context.js",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "composePublishCredentialSource",
+   "spec": "#src/features/deployments/static-publish/credentials",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "composeSiteSavedKeys",
+   "spec": "#src/server/runtime/composition/site-portability",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "createStaticSitePackager",
+   "spec": "#src/features/site-backup/static-site-packager",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "createTovuPluginHost",
+   "spec": "./plugin-host.js",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "exportSite",
+   "spec": "#src/features/site-export/index",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "instrumentStorageKernel",
+   "spec": "@jini-ai/diagnostics/observability",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "providerPluginOf",
+   "spec": "#src/features/project-keys/service",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "siteAppBootWorkByDeps",
+   "spec": "./site-app-boot-work.js",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "siteProviderRevisions",
+   "spec": "./provider-revision-watch.js",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "watchProviderRevisions",
+   "spec": "@jini-ai/plugins/host",
+   "type": false,
+   "alsoOutside": false
+  }
+ ],
+ "phaseTop": [
+  {
+   "n": "compositionApprovalOverrides",
+   "line": 646,
+   "alsoOutside": false
+  },
+  {
+   "n": "compositionConsentOptions",
+   "line": 1157,
+   "alsoOutside": false
+  },
+  {
+   "n": "configureVisitorConsentAnalytics",
+   "line": 1167,
+   "alsoOutside": false
+  },
+  {
+   "n": "flushLifecycleEvents",
+   "line": 1150,
+   "alsoOutside": false
+  },
+  {
+   "n": "logMediaProviderRefusals",
+   "line": 935,
+   "alsoOutside": false
+  }
+ ],
+ "phaseSheet": [
+  {
+   "n": "composeAgentPluginBootstrap",
+   "from": "./agent-plugin-bootstrap.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeContentRepos",
+   "from": "./content-repos.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeContentResolversComments",
+   "from": "./content-resolvers-comments.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeContentStores",
+   "from": "./content-stores.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeDatabaseJournal",
+   "from": "./database-journal.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeEventsOrigin",
+   "from": "./events-origin.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeIdentitySettings",
+   "from": "./identity-settings.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeMailHttp",
+   "from": "./mail-http.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeMediaStorage",
+   "from": "./media-storage.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeOutboundConnections",
+   "from": "./outbound-connections.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composePreAssembly",
+   "from": "./pre-assembly.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composePublishContentApplyPort",
+   "from": "./publish-apply.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composePublishingStoresThemes",
+   "from": "./publishing-stores-themes.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeRedirects",
+   "from": "./redirects.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeSiteKeysMembers",
+   "from": "./site-keys-members.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeSitePluginRuntime",
+   "from": "./plugin-runtime.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeStoreBasics",
+   "from": "./store-basics.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeTrashAdapters",
+   "from": "./trash-adapters.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeTrashFollowUpHooks",
+   "from": "./trash-follow-up-hooks.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeTrashService",
+   "from": "./trash-service.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "composeTrashStores",
+   "from": "./trash-stores.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "compositionCommerce",
+   "from": "./shared-oauth-commerce.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "compositionProjectKeys",
+   "from": "./project-keys.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "configureSiteImports",
+   "from": "./site-imports.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "configureSiteSharing",
+   "from": "./site-sharing.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsAssistantSettings",
+   "from": "./route-deps-assistant-mcp.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsChatAgents",
+   "from": "./route-deps-content-chat.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsContentTrash",
+   "from": "./route-deps-content-chat.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsExecutionPlugins",
+   "from": "./route-deps-assistant-mcp.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsExternalMcpOAuth",
+   "from": "./route-deps-assistant-mcp.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsMailFormsNewsletter",
+   "from": "./route-deps-members-mail.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsMembersMail",
+   "from": "./route-deps-members-mail.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsPluginsSiteApp",
+   "from": "./route-deps-comments-plugins.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsProviderAnalytics",
+   "from": "./route-deps-site-providers.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsPublishCredentials",
+   "from": "./route-deps-publish-credentials.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsSiteThemesTelemetry",
+   "from": "./route-deps-site-providers.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "routeDepsTaxonomyComments",
+   "from": "./route-deps-comments-plugins.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "startBootData",
+   "from": "./boot-data.js",
+   "alsoOutside": false
+  },
+  {
+   "n": "wireFormsAndSearch",
+   "from": "./after-assembly-forms-search.js",
+   "alsoOutside": false
+  }
+ ],
+ "depsUnused": [
+  {
+   "n": "renderDocBodyAsPageHtml",
+   "spec": "#src/server/inbound/public-http/http/site/render/content-html",
+   "usedByPhases": false
+  },
+  {
+   "n": "publicPageSecurityHeaders",
+   "spec": "#src/features/theme/public-page-security-headers",
+   "usedByPhases": false
+  },
+  {
+   "n": "startupSecretEnvironment",
+   "spec": "../../../platform/secrets/startup-secrets.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSharedOAuthOwnerStorage",
+   "spec": "#src/features/api-connections/shared-owner",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSharedOAuthLabels",
+   "spec": "#src/features/api-connections/shared-owner",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteOAuthBindings",
+   "spec": "#src/features/project-keys/site-references",
+   "usedByPhases": false
+  },
+  {
+   "n": "composeCommerce",
+   "spec": "./commerce.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureCommerceSetting",
+   "spec": "./commerce-settings.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createFormFilePurgeHooks",
+   "spec": "#src/features/forms/form-file-purge",
+   "usedByPhases": false
+  },
+  {
+   "n": "createFormMediaCleanup",
+   "spec": "#src/features/forms/form-file-purge",
+   "usedByPhases": false
+  },
+  {
+   "n": "trashFormMedia",
+   "spec": "#src/features/media/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "purgeFormMedia",
+   "spec": "#src/features/media/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "formsMailOutboxReady",
+   "spec": "#src/features/forms/mail-outbox-readiness",
+   "usedByPhases": false
+  },
+  {
+   "n": "notifyExternalMcpRosterChanged",
+   "spec": "../../../assistant/external-mcp-roster-change.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "outboxEventValues",
+   "spec": "@jini-ai/db/events",
+   "usedByPhases": false
+  },
+  {
+   "n": "composeAgentPluginMcp",
+   "spec": "./agent-plugin-service-ports.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "composeAgentPluginPreferences",
+   "spec": "./agent-plugin-service-ports.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "composePluginProviderFaces",
+   "spec": "./agent-plugin-service-ports.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteKeyReferences",
+   "spec": "#src/features/project-keys/site-references",
+   "usedByPhases": false
+  },
+  {
+   "n": "SiteKeyReferences",
+   "spec": "#src/features/project-keys/site-references",
+   "usedByPhases": false
+  },
+  {
+   "n": "ownerKeyHandleOnly",
+   "spec": "#src/features/project-keys/site-sealer",
+   "usedByPhases": false
+  },
+  {
+   "n": "siteGrantedSealer",
+   "spec": "#src/features/project-keys/site-sealer",
+   "usedByPhases": false
+  },
+  {
+   "n": "projectKeyCreateVault",
+   "spec": "#src/features/project-keys/create-vault",
+   "usedByPhases": false
+  },
+  {
+   "n": "sourceControlKeyBinding",
+   "spec": "./source-control-key-binding.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "attachedOnlyVault",
+   "spec": "#src/features/project-keys/attached-vault",
+   "usedByPhases": false
+  },
+  {
+   "n": "createProjectKeys",
+   "spec": "#src/features/project-keys/service",
+   "usedByPhases": false
+  },
+  {
+   "n": "providerPluginOf",
+   "spec": "#src/features/project-keys/service",
+   "usedByPhases": true
+  },
+  {
+   "n": "siteProviderRevisions",
+   "spec": "./provider-revision-watch.js",
+   "usedByPhases": true
+  },
+  {
+   "n": "setAgentPluginEnabled",
+   "spec": "#src/features/agent-plugins/set-enabled",
+   "usedByPhases": false
+  },
+  {
+   "n": "createReadyLoginProviderList",
+   "spec": "#src/features/member-login/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createPluginExportRuntime",
+   "spec": "#src/features/agent-plugins/exports/runtime",
+   "usedByPhases": false
+  },
+  {
+   "n": "createPluginExportSource",
+   "spec": "#src/features/agent-plugins/exports/source",
+   "usedByPhases": false
+  },
+  {
+   "n": "readSiteListenerOrigin",
+   "spec": "../boot/site-listener-origin.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadDeployWorkflowFiles",
+   "spec": "#src/features/deployments/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createPluginAccountTokenResolver",
+   "spec": "../boot/mail-plugin-account-token.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createCommentsCapability",
+   "spec": "#src/features/comments/provider-selection",
+   "usedByPhases": false
+  },
+  {
+   "n": "composeVisitorToolsManagement",
+   "spec": "./visitor-tools-management.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createCommentTargetLookup",
+   "spec": "#src/features/comments/comment-targets",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensurePreviewSwitcherSetting",
+   "spec": "#src/features/theme/preview-switcher",
+   "usedByPhases": false
+  },
+  {
+   "n": "preparePreviewSwitcherWrite",
+   "spec": "#src/features/theme/preview-switcher",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteConsentStore",
+   "spec": "#src/features/consent/revisions.repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "bindSiteConsentService",
+   "spec": "./site-consent.js",
+   "usedByPhases": true
+  },
+  {
+   "n": "ensureSiteConsentPrivacy",
+   "spec": "./site-consent.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "zipFolderFiles",
+   "spec": "@jini-ai/agent-plugins/folder-zip",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteShareBackend",
+   "spec": "#src/features/site-backup/share-backend",
+   "usedByPhases": false
+  },
+  {
+   "n": "createStaticSitePackager",
+   "spec": "#src/features/site-backup/static-site-packager",
+   "usedByPhases": true
+  },
+  {
+   "n": "bindCredentialsHostPorts",
+   "spec": "./credentials-host-ports.js",
+   "usedByPhases": true
+  },
+  {
+   "n": "bindStaticSiteContext",
+   "spec": "./static-site-context.js",
+   "usedByPhases": true
+  },
+  {
+   "n": "composeSiteImportBackend",
+   "spec": "./site-import-backend.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "composeSiteSavedKeys",
+   "spec": "#src/server/runtime/composition/site-portability",
+   "usedByPhases": true
+  },
+  {
+   "n": "startLocalSiteWhenRunning",
+   "spec": "#src/platform/site-dir/local-site-supervisor",
+   "usedByPhases": false
+  },
+  {
+   "n": "createShareArchiveReader",
+   "spec": "#src/features/site-backup/import-archive-reader",
+   "usedByPhases": false
+  },
+  {
+   "n": "createUnpdfDocumentTextExtractor",
+   "spec": "@jini-ai/cms/media/plugins/document-text/unpdf",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMammothDocumentTextExtractor",
+   "spec": "@jini-ai/cms/media/plugins/document-text/mammoth",
+   "usedByPhases": false
+  },
+  {
+   "n": "importYauzl",
+   "spec": "yauzl",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSitesWorkspace",
+   "spec": "#src/platform/site-dir/sites-home",
+   "usedByPhases": false
+  },
+  {
+   "n": "siteCreationBaseForBinding",
+   "spec": "#src/platform/site-dir/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "localSiteSupervisorForHost",
+   "spec": "../lifecycle/local-site-host.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SiteShareRegistry",
+   "spec": "#src/features/site-backup/share-registry",
+   "usedByPhases": false
+  },
+  {
+   "n": "prepareShareContent",
+   "spec": "#src/features/site-backup/share-preparation",
+   "usedByPhases": false
+  },
+  {
+   "n": "sanitizeShareDatabase",
+   "spec": "#src/server/runtime/composition/site-portability",
+   "usedByPhases": false
+  },
+  {
+   "n": "rewriteArchiveMedia",
+   "spec": "#src/server/runtime/composition/site-portability",
+   "usedByPhases": false
+  },
+  {
+   "n": "createRuntimeShareDelivery",
+   "spec": "#src/features/site-backup/share-hosting",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveShareDelivery",
+   "spec": "#src/features/site-backup/share-hosting",
+   "usedByPhases": false
+  },
+  {
+   "n": "selectConnectedDestination",
+   "spec": "#src/features/publish-content/peers",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolvePublishDestinationCredential",
+   "spec": "#src/features/publish-content/destination-credential",
+   "usedByPhases": false
+  },
+  {
+   "n": "composePublishCredentialSource",
+   "spec": "#src/features/deployments/static-publish/credentials",
+   "usedByPhases": true
+  },
+  {
+   "n": "toDeployTargetCredential",
+   "spec": "#src/features/deployments/static-publish/credentials",
+   "usedByPhases": false
+  },
+  {
+   "n": "createDeployHostKit",
+   "spec": "#src/features/deployments/deploy-targets/host-kit",
+   "usedByPhases": false
+  },
+  {
+   "n": "createToolGapReader",
+   "spec": "#src/features/tool-audit/tool-gaps.repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "createNativeAgentRuntime",
+   "spec": "@jini-ai/agent-runtime",
+   "usedByPhases": false
+  },
+  {
+   "n": "createAssistantAgentInventory",
+   "spec": "#src/assistant/agents",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadSiteVaultKinds",
+   "spec": "./vault-boot.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "composeAgentPluginConnections",
+   "spec": "./agent-plugin-connections.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "sharedApiConnectionOptions",
+   "spec": "./agent-plugin-connections.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveApiConnectionRuntime",
+   "spec": "./agent-plugin-connections.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createPeerSiteReads",
+   "spec": "./peer-site-reads.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveSiteDatabasePaths",
+   "spec": "#src/platform/site-dir/site-databases",
+   "usedByPhases": false
+  },
+  {
+   "n": "createTovuPluginHost",
+   "spec": "./plugin-host.js",
+   "usedByPhases": true
+  },
+  {
+   "n": "createFederatedMcpPresetRegistry",
+   "spec": "@jini-ai/mcp/federation",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolvePublishContentPeerHttpClient",
+   "spec": "./publish-content-http.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "widgetCollectionListPort",
+   "spec": "../../../features/entries/public-list.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveMenuDoc",
+   "spec": "@jini-ai/cms/navigation",
+   "usedByPhases": false
+  },
+  {
+   "n": "RESERVED_SEGMENTS",
+   "spec": "#src/platform/routing/reserved-paths",
+   "usedByPhases": false
+  },
+  {
+   "n": "readBuiltInExternalMcpServerIds",
+   "spec": "#src/features/external-mcp/built-in-connections",
+   "usedByPhases": false
+  },
+  {
+   "n": "assertUserAccountAction",
+   "spec": "#src/features/identity/delete-user-service",
+   "usedByPhases": false
+  },
+  {
+   "n": "TRASH_RETENTION_DAYS",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "bindWidgetRemoval",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createTovuOAuthHttpPorts",
+   "spec": "#src/platform/oauth/endpoint-safety",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSettingsPrincipalLookup",
+   "spec": "#src/features/settings/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "mkdtemp",
+   "spec": "node:fs/promises",
+   "usedByPhases": false
+  },
+  {
+   "n": "readFile",
+   "spec": "node:fs/promises",
+   "usedByPhases": false
+  },
+  {
+   "n": "rm",
+   "spec": "node:fs/promises",
+   "usedByPhases": false
+  },
+  {
+   "n": "createGuardedMediaHttpClient",
+   "spec": "@jini-ai/platform/http/guarded",
+   "usedByPhases": false
+  },
+  {
+   "n": "createNodeGuardedHttpPorts",
+   "spec": "@jini-ai/platform/http/guarded",
+   "usedByPhases": false
+  },
+  {
+   "n": "executeCommand",
+   "spec": "@jini-ai/cms/core",
+   "usedByPhases": false
+  },
+  {
+   "n": "randomUUID",
+   "spec": "node:crypto",
+   "usedByPhases": false
+  },
+  {
+   "n": "mkdirSync",
+   "spec": "node:fs",
+   "usedByPhases": false
+  },
+  {
+   "n": "homedir",
+   "spec": "node:os",
+   "usedByPhases": false
+  },
+  {
+   "n": "tmpdir",
+   "spec": "node:os",
+   "usedByPhases": false
+  },
+  {
+   "n": "basename",
+   "spec": "node:path",
+   "usedByPhases": false
+  },
+  {
+   "n": "dirname",
+   "spec": "node:path",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolve",
+   "spec": "node:path",
+   "usedByPhases": false
+  },
+  {
+   "n": "InMemoryEventBus",
+   "spec": "#src/contracts/core/events/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "instrumentStorageKernel",
+   "spec": "@jini-ai/diagnostics/observability",
+   "usedByPhases": true
+  },
+  {
+   "n": "trackFetch",
+   "spec": "@jini-ai/diagnostics/observability",
+   "usedByPhases": false
+  },
+  {
+   "n": "bootProviderPlugins",
+   "spec": "./provider-plugins.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "legacyProviderCredentialCheck",
+   "spec": "./provider-plugins.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SiteIdentity",
+   "spec": "./provider-plugins.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "telemetryEnvironment",
+   "spec": "./build-release.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "withToolUseEvents",
+   "spec": "./tool-use-events.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "withAttachedProject",
+   "spec": "./provider-config-source.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "withUnavailableProject",
+   "spec": "./provider-config-source.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "withProviderSettingsMigrations",
+   "spec": "./provider-config-source.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "ProviderConfigSource",
+   "spec": "./provider-config-source.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "localOwnerStoreEnabled",
+   "spec": "./project-store.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "openProjectStore",
+   "spec": "./project-store.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "ProjectStore",
+   "spec": "./project-store.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "ProjectVaultScope",
+   "spec": "./project-store.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createOtherSiteKeys",
+   "spec": "./other-site-keys.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "isLocalTovuHost",
+   "spec": "./registered-sites.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveStorefrontProducts",
+   "spec": "../../inbound/public-http/routes/site/products.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "preparePostSearchIndex",
+   "spec": "#src/features/post/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlitePostRepo",
+   "spec": "#src/features/post/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "postSearchIndexFor",
+   "spec": "#src/features/post/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createPostRevertRegistry",
+   "spec": "#src/features/post/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "listPublishedPosts",
+   "spec": "#src/features/post/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createApplyConnectDefaults",
+   "spec": "#src/features/agent-plugins/apply-connect-defaults",
+   "usedByPhases": false
+  },
+  {
+   "n": "createTovuAgentPluginLifecycle",
+   "spec": "#src/features/agent-plugins/lifecycle",
+   "usedByPhases": false
+  },
+  {
+   "n": "createDeferredAgentPluginUpdateEffects",
+   "spec": "#src/features/agent-plugins/update-effects",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveAgentPluginLayout",
+   "spec": "#src/features/agent-plugins/layout",
+   "usedByPhases": false
+  },
+  {
+   "n": "bindProviderFacePorts",
+   "spec": "#src/features/agent-plugins/provider-plugin-link",
+   "usedByPhases": false
+  },
+  {
+   "n": "followProviderActivations",
+   "spec": "#src/features/agent-plugins/provider-plugin-link",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveSkillLayout",
+   "spec": "#src/features/skills/layout",
+   "usedByPhases": false
+  },
+  {
+   "n": "SiteBackupSources",
+   "spec": "#src/features/site-backup/sources",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlitePublishHistoryStore",
+   "spec": "#src/platform/db/sqlite/publish-history-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlitePublishContentBundleRepo",
+   "spec": "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlitePublishContentPeerRepo",
+   "spec": "#src/features/publish-content/publish-content-peer-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlitePublishContentBaselineRepo",
+   "spec": "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlitePublishContentRunRepo",
+   "spec": "#src/platform/db/sqlite/publish-content-run-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "ContentKernel",
+   "spec": "#src/platform/db/content-kernel",
+   "usedByPhases": false
+  },
+  {
+   "n": "createPublishContentApplyPort",
+   "spec": "#src/features/publish-content/apply-port",
+   "usedByPhases": false
+  },
+  {
+   "n": "toPublishContentApplyDeps",
+   "spec": "#src/features/publish-content/apply-port",
+   "usedByPhases": false
+  },
+  {
+   "n": "createFileBlobIndex",
+   "spec": "#src/features/publish-content/file-blob-index",
+   "usedByPhases": false
+  },
+  {
+   "n": "buildContentPublishPorts",
+   "spec": "#src/server/runtime/composition/content-publish-ports",
+   "usedByPhases": false
+  },
+  {
+   "n": "composeFormSubmissions",
+   "spec": "#src/server/runtime/composition/form-submissions",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlFormSubmissionReceiptRepo",
+   "spec": "#src/platform/db/repos/form-submission-receipt-repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "composeFormDelivery",
+   "spec": "#src/server/runtime/composition/form-delivery",
+   "usedByPhases": false
+  },
+  {
+   "n": "composeFormDeliveryDeliverer",
+   "spec": "#src/server/runtime/composition/form-delivery-deliverer",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlFormDeliveryRepo",
+   "spec": "#src/platform/db/repos/form-delivery-repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlFormPullLeaseRepo",
+   "spec": "#src/platform/db/repos/form-delivery-repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureFormDeliverySettings",
+   "spec": "#src/features/settings/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureMailSenderSettings",
+   "spec": "#src/features/settings/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "readMailSenderSetting",
+   "spec": "#src/features/settings/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSqlitePublishContentSeedHash",
+   "spec": "./publish-content-seed-hash.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteCustomCredentialSetRepo",
+   "spec": "#src/features/custom-credentials/custom-credential-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "createDefaultHttpClient",
+   "spec": "#src/platform/http/client",
+   "usedByPhases": false
+  },
+  {
+   "n": "createTestOriginHttpClientFactory",
+   "spec": "#src/platform/http/test-origin-allowlist",
+   "usedByPhases": false
+  },
+  {
+   "n": "CUSTOM_CREDENTIALS_EGRESS_POLICY",
+   "spec": "#src/platform/http/egress-policies",
+   "usedByPhases": false
+  },
+  {
+   "n": "SITE_BACKUP_EGRESS_POLICY",
+   "spec": "#src/platform/http/egress-policies",
+   "usedByPhases": false
+  },
+  {
+   "n": "MEDIA_IMPORT_EGRESS_POLICY",
+   "spec": "#src/platform/http/egress-policies",
+   "usedByPhases": false
+  },
+  {
+   "n": "SINGLE_HOP_HTTPS_EGRESS_POLICY",
+   "spec": "#src/platform/http/egress-policies",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteMailer",
+   "spec": "./site-mailer.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadMailCredentialCards",
+   "spec": "../boot/mail-provider-catalog.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createDomainBindingSweep",
+   "spec": "./dns-change-deps.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "DOMAIN_DNS_EGRESS_POLICY",
+   "spec": "./domain-dns-adapters.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadDeployOpsRegistry",
+   "spec": "#src/features/deployments/deploy-ops/registry",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadCredentialSchemeRegistry",
+   "spec": "#src/features/agent-plugins/auth-schemes",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadSourceControlProviderRegistry",
+   "spec": "#src/features/source-control/provider-registry",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadMailAdapterRegistry",
+   "spec": "#src/features/agent-plugins/mail-adapter-registry",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMailCaptureRepo",
+   "spec": "#src/features/mail/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMailSendLedgerRepo",
+   "spec": "#src/features/mail/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMailSuppressionRepo",
+   "spec": "#src/features/mail/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteMailFeedbackRoute",
+   "spec": "#src/features/mail/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMailActivityRepo",
+   "spec": "#src/features/mail/activity.repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMailSuppressionAdminRepo",
+   "spec": "#src/features/mail/suppression-admin.repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureMailProviderSettings",
+   "spec": "#src/features/settings/mail-provider",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteSourceControlCredentialSetRepo",
+   "spec": "#src/features/source-control/source-control-credential-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteVendorCredentialSetRepo",
+   "spec": "#src/features/vendor-credentials/vendor-credential-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "executionModeFromEnv",
+   "spec": "#src/features/deployments/publish-credentials/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "InMemoryPublishCredentialVerificationCache",
+   "spec": "#src/features/deployments/static-publish/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadDeployTargetRegistry",
+   "spec": "#src/features/deployments/deploy-targets/registry",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadInstalledDeployTargets",
+   "spec": "#src/features/deployments/deploy-targets/registry",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadFormDestinationRegistry",
+   "spec": "#src/features/form-destinations/registry",
+   "usedByPhases": false
+  },
+  {
+   "n": "PagesHtmlDocumentStore",
+   "spec": "#src/features/pages/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createChatRunLedger",
+   "spec": "#src/assistant/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createChatStoreFactory",
+   "spec": "#src/assistant/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSqliteAgentSessionStore",
+   "spec": "#src/assistant/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqlitePresentationSettingsRepo",
+   "spec": "#src/features/presentation/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveActiveThemeId",
+   "spec": "#src/features/presentation/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteSettingsRepo",
+   "spec": "#src/features/settings/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteToolAttemptAuditSink",
+   "spec": "#src/features/tool-audit/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteAssistantErrorReporter",
+   "spec": "#src/assistant/site/public-errors",
+   "usedByPhases": false
+  },
+  {
+   "n": "redactSecrets",
+   "spec": "@jini-ai/core",
+   "usedByPhases": false
+  },
+  {
+   "n": "discoverAllBuiltInThemes",
+   "spec": "#src/features/theme/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "rescanThemes",
+   "spec": "#src/features/theme/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "syncThemeRoster",
+   "spec": "#src/features/theme/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMemberTrashAdapter",
+   "spec": "#src/features/trash/adapters/member",
+   "usedByPhases": false
+  },
+  {
+   "n": "createThemeTrashAdapter",
+   "spec": "#src/features/theme/theme-trash",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteWorkspaceRepo",
+   "spec": "#src/features/workspace/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "ContentDb",
+   "spec": "#src/platform/db/sqlite/content-db",
+   "usedByPhases": false
+  },
+  {
+   "n": "ContentDbOpenOptions",
+   "spec": "#src/platform/db/sqlite/content-db",
+   "usedByPhases": false
+  },
+  {
+   "n": "sqliteConnectionOf",
+   "spec": "#src/platform/db/kernel/drivers/sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "openSiteStore",
+   "spec": "./open-site-store.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSite",
+   "spec": "./site-dir.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "storeBoundServicesFor",
+   "spec": "./store-bound-services.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SiteStorage",
+   "spec": "#src/platform/site-dir/types",
+   "usedByPhases": false
+  },
+  {
+   "n": "startChatExpirySweep",
+   "spec": "#src/assistant/persistence/chat-expiry-sweep",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMailAttemptObserver",
+   "spec": "#src/features/mail/attempts.repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "startMailRetention",
+   "spec": "#src/features/mail/retention",
+   "usedByPhases": false
+  },
+  {
+   "n": "startSubmissionIpExpirySweep",
+   "spec": "#src/features/forms/submission-ip-expiry-sweep",
+   "usedByPhases": false
+  },
+  {
+   "n": "hydrateContentDbFromSeed",
+   "spec": "#src/platform/db/sqlite/hydrate-content-db-from-seed",
+   "usedByPhases": false
+  },
+  {
+   "n": "hydrateBlobStoreFromSeed",
+   "spec": "#src/features/media/hydrate-blob-store-from-seed",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureSiteTimeZoneSettingDefinition",
+   "spec": "#src/features/settings/site-timezone",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveSiteTimeZone",
+   "spec": "#src/features/settings/site-timezone",
+   "usedByPhases": false
+  },
+  {
+   "n": "seedSiteThemes",
+   "spec": "#src/platform/site-dir/seed-site-themes",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveCheckoutRoot",
+   "spec": "#src/platform/site-dir/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "describeSiteBinding",
+   "spec": "#src/platform/site-dir/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SiteBinding",
+   "spec": "#src/platform/site-dir/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteChangeSetRepo",
+   "spec": "#src/platform/db/sqlite/change-set-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteOutboxAdapter",
+   "spec": "#src/platform/db/sqlite/outbox-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteTokenStore",
+   "spec": "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "openDatabaseJournalDb",
+   "spec": "#src/platform/db/sqlite/database-journal-db",
+   "usedByPhases": false
+  },
+  {
+   "n": "warnOnOrphanedChatRows",
+   "spec": "#src/platform/db/sqlite/chat-orphan-check",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMigrationRunsRepo",
+   "spec": "#src/platform/db/sqlite/database-journal-repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteDatabaseLedgerRepo",
+   "spec": "#src/platform/db/sqlite/database-journal-repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSitemapService",
+   "spec": "@jini-ai/cms/seo",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSeoDeps",
+   "spec": "#src/features/seo/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "installNewsletterDataModule",
+   "spec": "#src/features/newsletter/data-module-manifest",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureDefaultList",
+   "spec": "#src/features/newsletter/lists",
+   "usedByPhases": false
+  },
+  {
+   "n": "createHookRegistry",
+   "spec": "#src/features/newsletter/hooks",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteNewsletterAudienceSnapshotRepo",
+   "spec": "#src/features/newsletter/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteNewsletterCampaignRepo",
+   "spec": "#src/features/newsletter/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteNewsletterConfirmationTokenRepo",
+   "spec": "#src/features/newsletter/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteNewsletterListRepo",
+   "spec": "#src/features/newsletter/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteNewsletterSendRepo",
+   "spec": "#src/features/newsletter/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteNewsletterSubscriptionRepo",
+   "spec": "#src/features/newsletter/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "DefaultMemberAccessResolver",
+   "spec": "#src/features/members/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "MembersSubscriberDirectory",
+   "spec": "#src/features/members/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "listCustomCredentials",
+   "spec": "#src/features/custom-credentials/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveCustomCredentialByLabel",
+   "spec": "#src/features/custom-credentials/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "CustomCredentialVaultRepo",
+   "spec": "#src/features/custom-credentials/vault-repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "TovuCredentialSetVaultAdapter",
+   "spec": "#src/features/vendor-credentials/vault-adapter",
+   "usedByPhases": false
+  },
+  {
+   "n": "VendorCredentialSetVaultRepo",
+   "spec": "#src/features/vendor-credentials/vault-adapter",
+   "usedByPhases": false
+  },
+  {
+   "n": "SourceControlCredentialSetRecord",
+   "spec": "#src/features/source-control/types",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureSearchProviderSetting",
+   "spec": "#src/features/site-search/settings",
+   "usedByPhases": false
+  },
+  {
+   "n": "bindSiteSearchPorts",
+   "spec": "./modules/site-search.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteSearchRuntime",
+   "spec": "./modules/site-search.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID",
+   "spec": "../configuration/seed.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteBufferSink",
+   "spec": "#src/platform/db/sqlite/analytics-sink.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "buildAnalyticsProviders",
+   "spec": "./analytics-providers.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMagicLinkTokenRepo",
+   "spec": "#src/features/members/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMemberRepo",
+   "spec": "#src/features/members/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMemberSessionRepo",
+   "spec": "#src/features/members/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMemberSubscriptionRepo",
+   "spec": "#src/features/members/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMemberTierRepo",
+   "spec": "#src/features/members/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "rebuildNavLocationBindings",
+   "spec": "#src/features/navigation/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "registerMenuReverters",
+   "spec": "#src/features/navigation/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMenuRepo",
+   "spec": "#src/features/navigation/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteNavLocationBindingRepo",
+   "spec": "#src/features/navigation/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "buildMenuTrashFollowUpHooks",
+   "spec": "#src/features/navigation/menu-trash-follow-ups",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteWebhookDeliveryRepo",
+   "spec": "#src/platform/db/sqlite/webhook-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteWebhookSubscriptionRepo",
+   "spec": "#src/platform/db/sqlite/webhook-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "EnvOrFileKeyring",
+   "spec": "#src/features/webhooks/keyring.env",
+   "usedByPhases": false
+  },
+  {
+   "n": "isSiteIdToken",
+   "spec": "#src/features/webhooks/site-key-sources",
+   "usedByPhases": false
+  },
+  {
+   "n": "readSiteMetaId",
+   "spec": "#src/features/webhooks/site-key-sources",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveSiteKeyId",
+   "spec": "#src/features/webhooks/site-key-sources",
+   "usedByPhases": false
+  },
+  {
+   "n": "siteKeySources",
+   "spec": "#src/features/webhooks/site-key-sources",
+   "usedByPhases": false
+  },
+  {
+   "n": "siteKeyEnvOnlySources",
+   "spec": "#src/features/webhooks/site-key-sources",
+   "usedByPhases": false
+  },
+  {
+   "n": "createKeyringBackedSigner",
+   "spec": "#src/features/webhooks/signing.keyring",
+   "usedByPhases": false
+  },
+  {
+   "n": "AesGcmSecretSealer",
+   "spec": "#src/features/webhooks/secret-sealer.aesgcm",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteSiteAssistantCredentialRepo",
+   "spec": "#src/assistant/site-credential-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SealedDatabaseDestinationStore",
+   "spec": "#src/features/database-transfer/destination-store",
+   "usedByPhases": false
+  },
+  {
+   "n": "DatabaseDestinationRepo",
+   "spec": "#src/features/database-transfer/destination-repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteAdminExecutionCredentialRepo",
+   "spec": "#src/assistant/execution-credential-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMediaProviderCredentialRepo",
+   "spec": "#src/features/media/media-provider-credential-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteExternalMcpServerRepo",
+   "spec": "../../../features/external-mcp/external-mcp-repo.sqlite.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteExternalMcpToolApprovalRepo",
+   "spec": "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSqliteConversationToolApprovalStore",
+   "spec": "#src/assistant/persistence/conversation-tool-approval-store",
+   "usedByPhases": false
+  },
+  {
+   "n": "DEFAULT_GC_GRACE_MS",
+   "spec": "#src/features/media/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "LocalFsBlobStore",
+   "spec": "#src/features/media/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "purgeMedia",
+   "spec": "#src/features/media/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SharpImageTransformer",
+   "spec": "#src/features/media/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "readBundledObjectStoreEnvDeclarations",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMediaBlobStore",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureMediaObjectStoreSetting",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadBundledObjectStoreRegistry",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "loadObjectStoreRegistry",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "readMediaObjectStoreSetting",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "artifactStoreBinding",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "artifactStoreTarget",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "selectArtifactStoreProvider",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "MediaObjectStorePorts",
+   "spec": "#src/features/object-storage/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureCoreMediaTransform",
+   "spec": "#src/features/media/bootstrap",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSqliteIdentityRouteDeps",
+   "spec": "#src/features/identity/wiring",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveOwnerCredentials",
+   "spec": "#src/features/identity/wiring",
+   "usedByPhases": false
+  },
+  {
+   "n": "createAppPermissionGrants",
+   "spec": "#src/server/runtime/composition/app-permission-grants",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteUserPurge",
+   "spec": "#src/features/identity/user-purge.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "IdentityRepos",
+   "spec": "@jini-ai/user-management",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteFormDefinitionRepo",
+   "spec": "#src/features/forms/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteFormSubmissionRepo",
+   "spec": "#src/features/forms/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "FORMS_SUBMIT_PROFILE",
+   "spec": "#src/features/forms/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "formSubmissionAttemptsFor",
+   "spec": "#src/features/forms/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createRateLimiter",
+   "spec": "#src/contracts/core/rate-limit/rate-limit",
+   "usedByPhases": false
+  },
+  {
+   "n": "SITE_ASSISTANT_PER_IP",
+   "spec": "#src/contracts/core/rate-limit/rate-limit",
+   "usedByPhases": false
+  },
+  {
+   "n": "createVerifiedOrigin",
+   "spec": "@jini-ai/core/contracts/server/verified-origin",
+   "usedByPhases": false
+  },
+  {
+   "n": "OriginRegistry",
+   "spec": "@jini-ai/core/contracts/server/verified-origin",
+   "usedByPhases": false
+  },
+  {
+   "n": "planOriginBoot",
+   "spec": "#src/features/origin/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "registerConfiguredOrigin",
+   "spec": "#src/platform/db/sqlite/origin-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "seedDevCapabilityOrigin",
+   "spec": "#src/platform/db/sqlite/origin-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteOriginSettingRepo",
+   "spec": "#src/platform/db/sqlite/origin-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "deriveDevScheme",
+   "spec": "../../../platform/dev-host/dev-tls.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveDevTls",
+   "spec": "../../../platform/dev-host/dev-tls.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveDevTlsCertPaths",
+   "spec": "../../../platform/dev-host/dev-tls.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteAssetBlobRepo",
+   "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteAssetRenditionRepo",
+   "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMediaContentTypeStore",
+   "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteMediaRepo",
+   "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteTransformDefinitionRepo",
+   "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "RedirectHitSinkImpl",
+   "spec": "@jini-ai/cms/redirects",
+   "usedByPhases": false
+  },
+  {
+   "n": "redirectMatcher",
+   "spec": "@jini-ai/cms/redirects",
+   "usedByPhases": false
+  },
+  {
+   "n": "RedirectSlugChangeCapture",
+   "spec": "@jini-ai/cms/redirects",
+   "usedByPhases": false
+  },
+  {
+   "n": "registerRedirectHitOutboxHandler",
+   "spec": "@jini-ai/cms/redirects",
+   "usedByPhases": false
+  },
+  {
+   "n": "RedirectsWriteDeps",
+   "spec": "@jini-ai/cms/redirects",
+   "usedByPhases": false
+  },
+  {
+   "n": "registerRedirectsPhaseHandlers",
+   "spec": "#src/features/redirects/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteRedirectRepo",
+   "spec": "#src/features/redirects/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "getSlugChangeCapture",
+   "spec": "#src/platform/routing/adapter",
+   "usedByPhases": false
+  },
+  {
+   "n": "registerSlugChangeCapture",
+   "spec": "#src/platform/routing/adapter",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteRestorePointsRepo",
+   "spec": "#src/platform/db/sqlite/database-journal-repo",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteDatabaseIntrospectionAdapter",
+   "spec": "#src/platform/db/sqlite/database-introspection-adapter.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "InMemorySiteStatusRepo",
+   "spec": "#src/features/database/repo.memory",
+   "usedByPhases": false
+  },
+  {
+   "n": "NoopContentTypeIndexProvisioner",
+   "spec": "#src/features/content-types/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteContentTypeRepo",
+   "spec": "#src/features/content-types/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteEntryRepo",
+   "spec": "#src/features/entries/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "invalidateMediaAccessEvidence",
+   "spec": "#src/features/media/access-evidence",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteWidgetRegionBindingRepo",
+   "spec": "#src/features/widgets/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "buildWidgetsDeps",
+   "spec": "#src/features/widgets/deps",
+   "usedByPhases": false
+  },
+  {
+   "n": "adoptLegacyTrashedWidgets",
+   "spec": "@jini-ai/cms/widgets",
+   "usedByPhases": false
+  },
+  {
+   "n": "restoreWidgetPriorStatus",
+   "spec": "@jini-ai/cms/widgets",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteEntryRefsRepo",
+   "spec": "#src/platform/db/sqlite/entry-refs-repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "sqlitePluginActivationRepoFor",
+   "spec": "#src/features/plugin-runtime/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "readAdminChartProviderSnapshot",
+   "spec": "./chart-providers.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "RECHARTS_RUNTIME_SOURCE",
+   "spec": "./charts-recharts-source.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "RECHARTS_BROWSER_APPROVAL",
+   "spec": "./charts-recharts-source.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "RECHARTS_DEFAULT_PROVIDER",
+   "spec": "./charts-recharts-source.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureChartProviderSetting",
+   "spec": "#src/features/settings/chart-provider",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureFormDestinationSetting",
+   "spec": "#src/features/settings/form-destination",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteConsentReadiness",
+   "spec": "#src/features/consent/settings",
+   "usedByPhases": false
+  },
+  {
+   "n": "WORD_COUNT_RUNTIME_SOURCE",
+   "spec": "#src/features/plugin-runtime/built-ins/word-count/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "CONTENT_ANALYZER_RUNTIME_SOURCE",
+   "spec": "#src/features/plugin-runtime/built-ins/content-analyzer/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createDeclaredContentTypePorts",
+   "spec": "./declared-content-types.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "deferDeclaredContentTypePorts",
+   "spec": "@jini-ai/plugins/host",
+   "usedByPhases": false
+  },
+  {
+   "n": "watchProviderRevisions",
+   "spec": "@jini-ai/plugins/host",
+   "usedByPhases": true
+  },
+  {
+   "n": "forgetPluginActivations",
+   "spec": "@jini-ai/plugins/host",
+   "usedByPhases": false
+  },
+  {
+   "n": "RemovePluginFn",
+   "spec": "@jini-ai/plugins/host",
+   "usedByPhases": false
+  },
+  {
+   "n": "composePluginRuntime",
+   "spec": "./plugin-runtime.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "TOVU_CORE_EXTENSION_CLAIMS",
+   "spec": "./core-extension-claims.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "isAdminAssistantEnabled",
+   "spec": "./admin-assistant-enabled.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveGalleryWidgetMedia",
+   "spec": "@jini-ai/cms/widgets/html",
+   "usedByPhases": false
+  },
+  {
+   "n": "buildWidgetHostPorts",
+   "spec": "#src/features/widgets/deps",
+   "usedByPhases": false
+  },
+  {
+   "n": "wireCoreResolvers",
+   "spec": "@jini-ai/cms/widgets/resolvers",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMenuPageTargetResolver",
+   "spec": "#src/features/navigation/page-target-resolver",
+   "usedByPhases": false
+  },
+  {
+   "n": "createNavMenuReadModel",
+   "spec": "#src/features/navigation/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createCommentsModule",
+   "spec": "@jini-ai/cms/comments",
+   "usedByPhases": false
+  },
+  {
+   "n": "HeuristicSpamCheck",
+   "spec": "@jini-ai/cms/comments",
+   "usedByPhases": false
+  },
+  {
+   "n": "createCommentsHostPorts",
+   "spec": "#src/features/comments/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "getEffective",
+   "spec": "#src/features/settings/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "set",
+   "spec": "#src/features/settings/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "INSTRUCTIONS_NAMESPACE",
+   "spec": "#src/features/settings/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSettingsAnalyticsConfig",
+   "spec": "#src/features/analytics/config.settings",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureSiteTitleSettingDefinition",
+   "spec": "#src/features/settings/site-title",
+   "usedByPhases": false
+  },
+  {
+   "n": "preserveLegacySiteTitles",
+   "spec": "#src/features/settings/site-title",
+   "usedByPhases": false
+  },
+  {
+   "n": "ensureAdminInterfaceSettingDefinitions",
+   "spec": "#src/features/settings/admin-interface",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteSiteTitlePreservationStore",
+   "spec": "#src/features/settings/site-title-preservation.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteCommentRepo",
+   "spec": "#src/features/comments/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "COMMENT_ENTITY_TYPE",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "buildTrashRegistry",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createCommentTrashAdapter",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createContentDbTransactionRunner",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createDirectoryTrashAdapter",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "unhideIfRemoveThrows",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createMediaTrashAdapter",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createPostTrashAdapter",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createRedirectTrashAdapter",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "MEDIA_ENTITY_TYPE",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "PLUGIN_ENTITY_TYPE",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "THEME_ENTITY_TYPE",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "POST_ENTITY_TYPE",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "REDIRECT_ENTITY_TYPE",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteTrashRepo",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "USER_ENTITY_TYPE",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createUserTrashAdapter",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "removeEntityWithoutBlocker",
+   "spec": "#src/features/trash/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "TRASH_TABLES",
+   "spec": "#src/features/trash/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "createTableTrashAdapter",
+   "spec": "@jini-ai/cms/trash/sql",
+   "usedByPhases": false
+  },
+  {
+   "n": "bindRemoveEntity",
+   "spec": "@jini-ai/cms/trash",
+   "usedByPhases": false
+  },
+  {
+   "n": "bindForgetRemovedEntity",
+   "spec": "@jini-ai/cms/trash",
+   "usedByPhases": false
+  },
+  {
+   "n": "createTrashService",
+   "spec": "@jini-ai/cms/trash",
+   "usedByPhases": false
+  },
+  {
+   "n": "createTrashSweep",
+   "spec": "@jini-ai/cms/trash",
+   "usedByPhases": false
+  },
+  {
+   "n": "TrashAdapter",
+   "spec": "@jini-ai/cms/trash",
+   "usedByPhases": false
+  },
+  {
+   "n": "TrashFollowUpHooks",
+   "spec": "@jini-ai/cms/trash",
+   "usedByPhases": false
+  },
+  {
+   "n": "withFollowUps",
+   "spec": "@jini-ai/cms/trash",
+   "usedByPhases": false
+  },
+  {
+   "n": "installCommentsDataModule",
+   "spec": "#src/features/comments/data-module-install",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteEntryTermRepo",
+   "spec": "#src/features/taxonomy/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteTaxonomyRepo",
+   "spec": "#src/features/taxonomy/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteTaxonomyRevisionRepo",
+   "spec": "#src/features/taxonomy/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "SqliteTermRepo",
+   "spec": "#src/features/taxonomy/repo.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "toTaxonomyOutbox",
+   "spec": "#src/features/taxonomy/index",
+   "usedByPhases": false
+  },
+  {
+   "n": "createTermPurgeFollowUp",
+   "spec": "#src/features/taxonomy/taxonomy-trash-follow-ups",
+   "usedByPhases": false
+  },
+  {
+   "n": "createTaxonomyPurgeFollowUp",
+   "spec": "#src/features/taxonomy/taxonomy-trash-follow-ups",
+   "usedByPhases": false
+  },
+  {
+   "n": "AlwaysUnavailableWatermarkSource",
+   "spec": "@jini-ai/db/recovery/lookup-adapters",
+   "usedByPhases": false
+  },
+  {
+   "n": "RestorePointDeepLinkLookup",
+   "spec": "@jini-ai/db/recovery/lookup-adapters",
+   "usedByPhases": false
+  },
+  {
+   "n": "buildGatewayDeps",
+   "spec": "#src/contracts/core/gated-mutations/composition",
+   "usedByPhases": false
+  },
+  {
+   "n": "buildOwnerOnlyInstanceAuthorize",
+   "spec": "#src/contracts/core/gated-mutations/composition",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveRuntimeMode",
+   "spec": "#src/contracts/core/runtime-mode",
+   "usedByPhases": false
+  },
+  {
+   "n": "RuntimeMode",
+   "spec": "#src/contracts/core/runtime-mode",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveSitesHome",
+   "spec": "#src/platform/site-dir/sites-home",
+   "usedByPhases": false
+  },
+  {
+   "n": "wrapMailerWithPurposeGate",
+   "spec": "#src/platform/mail/purpose-scoped-mailer",
+   "usedByPhases": false
+  },
+  {
+   "n": "createExternalMcpOAuthService",
+   "spec": "../../../features/external-mcp/external-mcp-oauth.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolvePublicAssistantAvailability",
+   "spec": "../../../assistant/index.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSqliteDeviceAuthorizationStore",
+   "spec": "#src/platform/db/sqlite/oauth-pending-store.sqlite",
+   "usedByPhases": false
+  },
+  {
+   "n": "builtInContentSeedDbPath",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "builtInSeedUploadsDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "defaultChatDbPath",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "defaultDatabaseJournalDbPath",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "pluginsInstallDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveShareDirectory",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "siteThemesDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "bundledAgentPluginsDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "builtInThemesDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "mediaUploadsDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveExportOutputRootDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolvePublishOutputRootDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveSiteStoragePaths",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveSourceControlExportRootDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "siteDir",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "SitePathResolverOptional",
+   "spec": "./site-paths.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "exportSite",
+   "spec": "#src/features/site-export/index",
+   "usedByPhases": true
+  },
+  {
+   "n": "createApp",
+   "spec": "./app.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "siteAppBootWorkByDeps",
+   "spec": "./site-app-boot-work.js",
+   "usedByPhases": true
+  },
+  {
+   "n": "startSettingsRegistration",
+   "spec": "./settings-registration.js",
+   "usedByPhases": false
+  }
+ ]
+}

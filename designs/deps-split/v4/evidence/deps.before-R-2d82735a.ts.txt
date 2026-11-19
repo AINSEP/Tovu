@@ -1,0 +1,1237 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
+import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
+import { startupSecretEnvironment } from "../../../platform/secrets/startup-secrets.js";
+import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
+import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
+import { createFormCollectionRegistry } from "@jini-ai/cms/forms";
+import { composeCommerce } from "./commerce.js";
+import { ensureCommerceSetting } from "./commerce-settings.js";
+import { protectExistingFormFiles } from "#src/features/forms/protect-existing-files";
+import { createFormFilePurgeHooks, createFormMediaCleanup } from "#src/features/forms/form-file-purge";
+import { trashMedia as trashFormMedia, purgeMedia as purgeFormMedia } from "#src/features/media/index";
+import { formsMailOutboxReady } from "#src/features/forms/mail-outbox-readiness";
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
+import { applyOwnerPasswordReset } from "#src/features/identity/owner-reset-env";
+import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
+import { outboxEventValues } from "@jini-ai/db/events";
+import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
+import { createSiteKeyReferences, type SiteKeyReferences } from "#src/features/project-keys/site-references";
+import { ownerKeyHandleOnly, siteGrantedSealer } from "#src/features/project-keys/site-sealer";
+import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
+import { sourceControlKeyBinding } from "./source-control-key-binding.js";
+import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { createProjectKeys, providerPluginOf } from "#src/features/project-keys/service";
+import { siteProviderRevisions } from "./provider-revision-watch.js";
+
+import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { createReadyLoginProviderList } from "#src/features/member-login/index";
+import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
+import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
+import { readSiteListenerOrigin } from "../boot/site-listener-origin.js";
+import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
+import { createPluginAccountTokenResolver } from "../boot/mail-plugin-account-token.js";
+import { createCommentsCapability } from '#src/features/comments/provider-selection';
+import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
+import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
+import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
+import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
+import { bindSiteConsentService, ensureSiteConsentPrivacy } from './site-consent.js';
+import { bindCookieConsentAnalyticsGate, createSiteCookieConsentDeps } from './site-cookie-consent.js';
+import { findExclusionReason } from '@jini-ai/analytics';
+import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
+import { registerContentAnalytics } from './content-events.js';
+import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
+import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
+import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
+import { bindCredentialsHostPorts } from "./credentials-host-ports.js";
+import { bindStaticSiteContext } from "./static-site-context.js";
+import { composeSiteImportBackend } from "./site-import-backend.js";
+import { composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
+import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
+import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
+import { createUnpdfDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/unpdf";
+import { createMammothDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/mammoth";
+import * as importYauzl from "yauzl";
+import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
+import { siteCreationBaseForBinding } from "#src/platform/site-dir/index";
+import { localSiteSupervisorForHost } from "../lifecycle/local-site-host.js";
+import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { prepareShareContent } from "#src/features/site-backup/share-preparation";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
+import { createRuntimeShareDelivery, resolveShareDelivery } from "#src/features/site-backup/share-hosting";
+import { selectConnectedDestination } from "#src/features/publish-content/peers";
+import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
+import { composePublishCredentialSource, toDeployTargetCredential } from "#src/features/deployments/static-publish/credentials";
+import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
+import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createAssistantAgentInventory } from "#src/assistant/agents";
+import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
+import { composeAgentPluginConnections, sharedApiConnectionOptions, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
+import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { createPeerSiteReads } from "./peer-site-reads.js";
+
+import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
+import { createTovuPluginHost } from "./plugin-host.js";
+import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
+import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
+import { widgetCollectionListPort } from "../../../features/entries/public-list.js";
+import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
+import { assertUserAccountAction } from "#src/features/identity/delete-user-service";
+import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
+import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
+import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
+import type { ByokToolSurfaceDeps } from "#src/assistant/index";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
+import { executeCommand } from "@jini-ai/cms/core";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+
+import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { instrumentStorageKernel, trackFetch } from "@jini-ai/diagnostics/observability";
+import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
+import { telemetryEnvironment } from './build-release.js';
+import { setServerLogTraceReader } from '../../../platform/server-logs/index.js';
+import { withToolUseEvents } from "./tool-use-events.js";
+import { createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, withProviderSettingsMigrations, type ProviderConfigSource } from "./provider-config-source.js";
+import { localOwnerStoreEnabled, openProjectStore, type ProjectStore, type ProjectVaultScope } from "./project-store.js";
+import { createOtherSiteKeys } from "./other-site-keys.js";
+import { isLocalTovuHost } from "./registered-sites.js";
+import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
+import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
+import { createTelemetryConsent } from "./telemetry-consent.js";
+import { resolveProductRoot } from "#src/platform/site-dir/product-root";
+// A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
+// eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
+// route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
+// `resolveStorefrontProducts` doc for why this field exists at all.
+import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
+import {
+  preparePostSearchIndex,
+  SqlitePostRepo,
+  postSearchIndexFor,
+  createPostRevertRegistry,
+  listPublishedPosts,
+} from "#src/features/post/index";
+import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
+import { createDeferredAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { bindProviderFacePorts, followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
+import { resolveSkillLayout } from "#src/features/skills/layout";
+import type { SiteBackupSources } from "#src/features/site-backup/sources";
+import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
+import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
+import { SqlitePublishContentPeerRepo } from "#src/features/publish-content/publish-content-peer-repo.sqlite";
+import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
+import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
+import { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
+import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
+import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-port";
+import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
+import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
+import { composeFormSubmissions } from "#src/server/runtime/composition/form-submissions";
+import { SqlFormSubmissionReceiptRepo } from "#src/platform/db/repos/form-submission-receipt-repo";
+import { composeFormDelivery } from "#src/server/runtime/composition/form-delivery";
+import { composeFormDeliveryDeliverer } from "#src/server/runtime/composition/form-delivery-deliverer";
+import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
+import { ensureFormDeliverySettings, ensureMailSenderSettings, readMailSenderSetting } from "#src/features/settings/index";
+import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
+import { SqliteCustomCredentialSetRepo } from "#src/features/custom-credentials/custom-credential-repo.sqlite";
+import { createDefaultHttpClient } from "#src/platform/http/client";
+import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
+import {
+  CUSTOM_CREDENTIALS_EGRESS_POLICY,
+  SITE_BACKUP_EGRESS_POLICY,
+  MEDIA_IMPORT_EGRESS_POLICY,
+  SINGLE_HOP_HTTPS_EGRESS_POLICY,
+} from "#src/platform/http/egress-policies";
+import { createSiteMailer } from "./site-mailer.js";
+import { loadMailCredentialCards } from "../boot/mail-provider-catalog.js";
+import { createDomainBindingSweep } from "./dns-change-deps.js";
+import { DOMAIN_DNS_EGRESS_POLICY } from "./domain-dns-adapters.js";
+import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
+import { loadCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
+import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
+import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
+import { createMailCaptureRepo, createMailSendLedgerRepo, createMailSuppressionRepo, createSiteMailFeedbackRoute } from "#src/features/mail/index";
+import { createMailActivityRepo } from "#src/features/mail/activity.repo";
+import { createMailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
+import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
+import { SqliteSourceControlCredentialSetRepo } from "#src/features/source-control/source-control-credential-repo.sqlite";
+import { SqliteVendorCredentialSetRepo } from "#src/features/vendor-credentials/vendor-credential-repo.sqlite";
+import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
+import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
+import { loadDeployTargetRegistry, loadInstalledDeployTargets } from "#src/features/deployments/deploy-targets/registry";
+import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
+import { PagesHtmlDocumentStore } from "#src/features/pages/index";
+import {
+  createChatRunLedger,
+  createChatStoreFactory,
+  createSqliteAgentSessionStore,
+} from "#src/assistant/index";
+import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
+import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
+import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
+import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
+import { formatErrorForLog, redactSecrets } from "@jini-ai/core";
+import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/features/theme/index";
+import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
+import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
+import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
+import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/content-db";
+import { sqliteConnectionOf, closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
+import { openSiteContentDb } from "./open-site-content-db.js";
+import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
+import { createSite } from "./site-dir.js";
+import { storeBoundServicesFor } from "./store-bound-services.js";
+import { isInMemoryDbPath } from "@jini-ai/db/data-modules";
+import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
+import type { SiteStorage } from "#src/platform/site-dir/types";
+import { startChatExpirySweep } from "#src/assistant/persistence/chat-expiry-sweep";
+import { createMailAttemptObserver } from "#src/features/mail/attempts.repo";
+import { startMailRetention } from "#src/features/mail/retention";
+import { startSubmissionIpExpirySweep } from "#src/features/forms/submission-ip-expiry-sweep";
+import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
+import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
+import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
+import { createLiveSiteDisplayName, createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
+import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition, resolveSiteTimeZone } from "#src/features/settings/site-timezone";
+import { seedSiteThemes } from "#src/platform/site-dir/seed-site-themes";
+import { resolveCheckoutRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
+import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
+import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
+import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
+import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
+import { warnOnOrphanedChatRows } from "#src/platform/db/sqlite/chat-orphan-check";
+import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "#src/features/seo/index";
+import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
+import { ensureDefaultList } from "#src/features/newsletter/lists";
+import { createHookRegistry } from "#src/features/newsletter/hooks";
+import {
+  SqliteNewsletterAudienceSnapshotRepo,
+  SqliteNewsletterCampaignRepo,
+  SqliteNewsletterConfirmationTokenRepo,
+  SqliteNewsletterListRepo,
+  SqliteNewsletterSendRepo,
+  SqliteNewsletterSubscriptionRepo,
+} from "#src/features/newsletter/repo.sqlite";
+import { DefaultMemberAccessResolver, MembersSubscriberDirectory } from "#src/features/members/index";
+import { listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
+import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
+import { TovuCredentialSetVaultAdapter, VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
+import type { SourceControlCredentialSetRecord } from "#src/features/source-control/types";
+import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
+import { bindSiteSearchPorts, createSiteSearchRuntime } from "./modules/site-search.js";
+import {
+  SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+} from "../configuration/seed.js";
+import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
+import { buildAnalyticsProviders } from "./analytics-providers.js";
+import {
+  SqliteMagicLinkTokenRepo,
+  SqliteMemberRepo,
+  SqliteMemberSessionRepo,
+  SqliteMemberSubscriptionRepo,
+  SqliteMemberTierRepo,
+} from "#src/features/members/index";
+import { rebuildNavLocationBindings, registerMenuReverters } from "#src/features/navigation/index";
+import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
+import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
+import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
+import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
+import { isSiteIdToken, readSiteMetaId, resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
+import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { SqliteSiteAssistantCredentialRepo } from "#src/assistant/site-credential-repo.sqlite";
+import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
+import { DatabaseDestinationRepo } from "#src/features/database-transfer/destination-repo";
+import { SqliteAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-repo.sqlite";
+import { SqliteMediaProviderCredentialRepo } from "#src/features/media/media-provider-credential-repo.sqlite";
+import { SqliteExternalMcpServerRepo } from "../../../features/external-mcp/external-mcp-repo.sqlite.js";
+import { SqliteExternalMcpToolApprovalRepo } from "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite";
+import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
+import {
+  DEFAULT_GC_GRACE_MS,
+  LocalFsBlobStore,
+  purgeMedia,
+  SharpImageTransformer,
+} from "#src/features/media/index";
+import { readBundledObjectStoreEnvDeclarations, createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, artifactStoreBinding, artifactStoreTarget, selectArtifactStoreProvider, type MediaObjectStorePorts } from "#src/features/object-storage/index";
+import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
+import { createSqliteIdentityRouteDeps, resolveOwnerCredentials, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
+import type { IdentityRepos } from "@jini-ai/user-management";
+import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
+import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
+import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/index";
+import { formSubmissionAttemptsFor } from "#src/features/forms/index";
+import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
+import type { RouteDeps } from "../../routes/types.js";
+import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
+import {
+  createVerifiedOrigin,
+  OriginRegistry,
+} from "@jini-ai/core/contracts/server/verified-origin";
+import { planOriginBoot } from "#src/features/origin/index";
+import { registerConfiguredOrigin, seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
+import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/dev-host/dev-tls.js";
+import {
+  SqliteAssetBlobRepo,
+  SqliteAssetRenditionRepo,
+  SqliteMediaContentTypeStore,
+  SqliteMediaRepo,
+  SqliteTransformDefinitionRepo,
+} from "#src/platform/db/sqlite/media-repo.sqlite";
+import { RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
+import { SqliteRedirectRepo } from "#src/features/redirects/index";
+import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
+import { SqliteRestorePointsRepo } from "#src/platform/db/sqlite/database-journal-repo";
+import { SqliteDatabaseIntrospectionAdapter } from "#src/platform/db/sqlite/database-introspection-adapter.sqlite";
+import { InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
+import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
+import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
+import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
+import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
+import { buildWidgetsDeps } from "#src/features/widgets/deps";
+import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "@jini-ai/cms/widgets";
+import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
+import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
+import { readAdminChartProviderSnapshot } from "./chart-providers.js";
+import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./charts-recharts-source.js";
+import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
+import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
+import { createSiteConsentReadiness } from "#src/features/consent/settings";
+import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
+import { createDeclaredContentTypePorts } from "./declared-content-types.js";
+import { deferDeclaredContentTypePorts, watchProviderRevisions } from "@jini-ai/plugins/host";
+import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
+import { composePluginRuntime } from "./plugin-runtime.js";
+import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
+import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
+import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
+import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
+import { createNavMenuReadModel } from "#src/features/navigation/index";
+import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
+import { createCommentsHostPorts } from "#src/features/comments/index";
+import {
+  getEffective,
+  set,
+  INSTRUCTIONS_NAMESPACE,
+} from "#src/features/settings/index";
+import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
+import {
+  ensureSiteTitleSettingDefinition,
+  preserveLegacySiteTitles,
+  type SiteDisplayNameSource,
+} from "#src/features/settings/site-title";
+import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
+import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
+import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
+import {
+  COMMENT_ENTITY_TYPE,
+  buildTrashRegistry,
+  createCommentTrashAdapter,
+  createContentDbTransactionRunner,
+  createDirectoryTrashAdapter,
+  unhideIfRemoveThrows,
+  createMediaTrashAdapter,
+  createPostTrashAdapter,
+  createRedirectTrashAdapter,
+  MEDIA_ENTITY_TYPE,
+  PLUGIN_ENTITY_TYPE,
+  THEME_ENTITY_TYPE,
+  POST_ENTITY_TYPE,
+  REDIRECT_ENTITY_TYPE,
+  SqliteTrashRepo,
+  USER_ENTITY_TYPE,
+  createUserTrashAdapter,
+  removeEntityWithoutBlocker,
+} from "#src/features/trash/index";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import {
+  bindRemoveEntity,
+  bindForgetRemovedEntity,
+  createTrashService,
+  createTrashSweep,
+  type TrashAdapter,
+  type TrashFollowUpHooks,
+  withFollowUps,
+} from "@jini-ai/cms/trash";
+import { installCommentsDataModule } from "#src/features/comments/data-module-install";
+import {
+  SqliteEntryTermRepo,
+  SqliteTaxonomyRepo,
+  SqliteTaxonomyRevisionRepo,
+  SqliteTermRepo,
+} from "#src/features/taxonomy/repo.sqlite";
+import { toTaxonomyOutbox } from "#src/features/taxonomy/index";
+import { createTermPurgeFollowUp, createTaxonomyPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
+import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
+import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
+import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
+import { resolveSitesHome } from "#src/platform/site-dir/sites-home";
+import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
+import { createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
+import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
+import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
+
+import { builtInContentSeedDbPath, builtInSeedUploadsDir, defaultChatDbPath, defaultDatabaseJournalDbPath, pluginsInstallDir, resolveShareDirectory, siteThemesDir } from "./site-paths.js";
+import { bundledAgentPluginsDir, assertContentDbFileName, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
+export { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
+
+// Historical cycle context; shared resolvers now live in site-paths.ts.
+// Kept LAST on purpose. `app.ts` imports this file back (`builtInThemesDir` and the three
+// `resolve*RootDir` functions), so `createApp` below closes the `deps.ts` <-> `app.ts` cycle that
+// `.dependency-cruiser.mjs`'s `no-circular` header records. It is safe because neither module's
+// top level uses the other's exports: this file's top level declares only functions. Keeping these
+// last means a process that loads this file first (every `tovu` CLI command) still evaluates every
+// import above in its existing order. Both were call-time `require()`s until 2026-09-16 (t91
+// F4.1-A): under tsx, `require()` of a first-party `.ts` module loads a second, CommonJS-compiled
+// copy of that module and its whole graph, so the site app built here read empty copies of the
+// routing, page-head and event-subscription registries — exports and site inspection served no
+// redirects. `src/__tests__/no-first-party-require.boundary.test.ts` now forbids that pattern.
+import { exportSite } from "#src/features/site-export/index";
+import { createApp } from "./app.js";
+import { siteAppBootWorkByDeps } from "./site-app-boot-work.js";
+import { startSettingsRegistration } from "./settings-registration.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
+
+/**
+ * SPEC-003 (ADR-PIPE-003 C-010) — an already-opened db + a resolved workspace id, supplied by
+ * the install-dir boot path (`site-dir/boot-site-dir.ts`) instead of this function opening its
+ * own db. `db`/`workspaceId` are required together or omitted together (validated below) — there
+ * is no legal state where only one is supplied. `uploadsDir` is independent of that pair.
+ */
+export interface CreateSiteRouteDepsOverrides {
+  /** Test seam: replaces provider-plugin selection/initialization (fakes; never a vendor call). */
+  bootProviderPlugins: typeof bootProviderPlugins;
+  /** Test seam: the project store (`project-store.ts`); resolving to undefined means "none". */
+  openProjectStore: () => Promise<ProjectStore | undefined>;
+  sqliteOpen: ContentDbOpenOptions["open"];
+  /** DB placement may differ from the site root or from content.db. */
+  chatDbPath: string;
+  publishContentPeerHttpClient: RouteDeps["publishContentPeerHttpClient"];
+  nativeApprovalMemory: RouteDeps["nativeApprovalMemory"];
+  approvalIdentityForRun: RouteDeps["approvalIdentityForRun"];
+  db: ContentDb;
+  workspaceId: string;
+  /** Consecutive plugin hook failures before automatic quarantine. */
+  pluginFailureThreshold: number;
+  /**
+   * Install-dir-relative uploads path — `cli/commands/serve.ts` supplies `<dir>/uploads` (CR-R01
+   * fix: uploads used to always default to `mediaUploadsDir()`, which is `process.cwd()`-relative
+   * and therefore wrong whenever `tovu serve <dir>` is invoked from outside that dir). Omitted, it
+   * falls back to `mediaUploadsDir()` — the legacy same-directory dev boot's existing behavior.
+   */
+  uploadsDir: string;
+  /**
+   * Install-dir-relative themes path — `cli/commands/{serve,export}.ts` supply `<dir>/themes`, for
+   * exactly the reason `uploadsDir` above exists (CR-R01): the default {@link siteThemesDir} is
+   * `process.cwd()`-relative, so `tovu serve <dir>` invoked from outside `<dir>` would otherwise
+   * seed and serve a `sites/tovu-dev/themes` next to wherever the operator happened to be standing
+   * rather than the site it was told to run. Omitted, it falls back to {@link siteThemesDir}.
+   */
+  themesDir: string;
+  /**
+   * The `RouteDeps.siteBinding` value this boot should carry — supplied by `cli/commands/serve.ts`
+   * for the install-dir path (`{dir: target, ..., switcherCompatible: false}`, since `target` bears
+   * no `{cwd, env}`-relative relationship to any `sites/` folder). Omitted, it falls back to
+   * `describeSiteBinding()` — the legacy same-process default boot's existing behavior, unchanged.
+   * See `RouteDeps.siteBinding`'s own doc for the full defect this fixes.
+   */
+  siteBinding: SiteBinding;
+  /**
+   * Which process opens the site's store (`open-site-store.ts`): the agent daemon passes
+   * `"client"`; omitted means `"owner"` (the API process, which also runs the guest-chat sweep).
+   */
+  storeRole: SiteStoreRole;
+  /**
+   * The owner's guest-chat expiry sweep timing (`startChatExpirySweep`): its re-run interval and
+   * clock. Omitted, the sweep runs hourly on `Date.now`; tests pass a short interval and a
+   * controlled clock to observe later passes and closing during one.
+   */
+  chatExpirySweep: { intervalMs?: number; now?: () => number };
+  /**
+   * A workspace id to serve, validated against the store this call opens (`resolveWorkspace`
+   * rejects an id with no row). The Postgres/PGlite form of `db` + `workspaceId`, which need the
+   * SQLite handle the id was validated against; see {@link createSiteRouteDepsForWorkspace}.
+   */
+  requestedWorkspaceId: string;
+  /**
+   * An already opened Postgres/PGlite store, supplied with `workspaceId` by the install-dir boot
+   * path (`bootSiteDir` opened, migrated and resolved it) — the non-SQLite form of `db`, so one
+   * boot never opens a second pool. Its opener closes it, through the store `onStoreOpened` hands
+   * back (`closeSiteDirBoot`), so the composition's chat sweep stops first.
+   */
+  store: SiteStore;
+  /**
+   * Called once, before the rest of the composition is built, with the composition's store: the one
+   * this call opened, or the supplied `store` (a supplied SQLite `db` is still wrapped with the
+   * `chat.db` this call opens). Its `close()` stops the guest-chat sweep, waiting for a pass in
+   * flight, then closes the underlying store, so the caller closes this one rather than its own
+   * reference. The default boot (`index.ts`) closes it on shutdown and hands a PGlite owner's socket
+   * to the agent daemon. When the composition fails after this, it has already closed what it opened
+   * (and stopped the sweep on a supplied store).
+   */
+  onStoreOpened: (required: { store: SiteStore }, optional?: Record<string, never>) => void;
+  /**
+   * HARNESS ONLY: exact loopback origins (`http://127.0.0.1:<port>`) the assistant's URL tools may
+   * reach — a site-import journey's offline fixture site. Supplied only by
+   * `development/e2e/support/site-import-api.ts`; `index.ts` and `tovu serve` never pass it, and
+   * omitted it builds exactly the production clients (`platform/http/test-origin-allowlist.ts`).
+   */
+  outboundTestOrigins: readonly string[];
+}
+
+/**
+ * 2026-08-20 (complexity pass) — CIC U-001 / Contract Map C-010's paired-override guard, hoisted
+ * out of `createSiteRouteDeps`. Each `overrides?.field` read is its own branch under ESLint's
+ * `complexity` rule; splitting the two reads plus the comparison `if` into their own 4-line
+ * function moves those 3 points of complexity here instead of onto the composition root, without
+ * changing what gets checked or when.
+ */
+function assertOverridesPairedOrAbsent(overrides?: Partial<CreateSiteRouteDepsOverrides>): void {
+  const hasOverrideDb = overrides?.db !== undefined || overrides?.store !== undefined;
+  const hasOverrideWorkspaceId = overrides?.workspaceId !== undefined;
+  if (hasOverrideDb !== hasOverrideWorkspaceId) {
+    throw new Error(
+      "createSiteRouteDeps: overrides.db (or overrides.store) and overrides.workspaceId must be supplied together or not at all"
+    );
+  }
+}
+
+/**
+ * Builds `composePluginRuntime`'s optional `failureThreshold` field from `overrides` — the exact
+ * undefined-check-and-conditional-spread shape `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps` repeats for its
+ * own optional `composePluginRuntime` fields, hoisted here for the same reason
+ * {@link assertOverridesPairedOrAbsent} is: one ternary counted once, not inline in the composition
+ * root.
+ */
+function pluginFailureThresholdOverride(
+  overrides?: Partial<CreateSiteRouteDepsOverrides>
+): { failureThreshold?: number } {
+  return overrides?.pluginFailureThreshold === undefined ? {} : { failureThreshold: overrides.pluginFailureThreshold };
+}
+
+/**
+ * First-boot-only: turns a deployed container's stock `content.seed.db` into this site's live
+ * `content.db`, exactly once — same presence-not-contents gate `seedSiteThemes()` above uses for
+ * `themes/`, so a live db from any later boot is never touched (see `hydrateContentDbFromSeed()`'s
+ * own header for the full rationale). Hoisted out of `createSiteRouteDeps` for the same reason
+ * {@link assertOverridesPairedOrAbsent} is: one branch counted once here, not inline in the
+ * composition root. A no-op whenever `overrides.db` is supplied — that caller (`boot-site-dir.ts`'s
+ * install-dir path) has already opened its own db before reaching here, so `dbPath` is never even
+ * read in that branch.
+ */
+function hydrateContentDbIfNeeded({ dbPath, storage }: { dbPath: string; storage: SiteStorage }, { overrides }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}): void {
+  if (overrides?.db !== undefined || storage.kind !== "sqlite") return;
+  // The served site's stock seed, by its binding's name, not `basename(siteDir())`: see
+  // {@link resolveExportOutputRootDir}'s doc for why the env/cwd site can be a different one.
+  hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath({ siteName: resolveSiteBindingOverride(overrides).name }), dbPath });
+}
+
+/**
+ * 2026-09-03 (complexity pass) — `overrides.themesDir ?? siteThemesDir(...)`, hoisted out of
+ * `createSiteRouteDeps` for the same reason {@link assertOverridesPairedOrAbsent} is: one `??`
+ * counted once here, not inline in the composition root. The default is under the served
+ * `siteBinding`'s directory, not {@link siteDir}'s.
+ */
+function resolveThemesDirOverride(siteBinding: SiteBinding, overrides?: Partial<CreateSiteRouteDepsOverrides>): string {
+  return overrides?.themesDir ?? siteThemesDir({ siteDir: siteBinding.dir });
+}
+
+/**
+ * `overrides.siteBinding ?? describeSiteBinding()`, hoisted for the same reason
+ * {@link resolveThemesDirOverride} is: one `??` counted once here, not inline in the composition
+ * root. See `CreateSiteRouteDepsOverrides.siteBinding`'s own doc for why the install-dir boot
+ * path (`cli/commands/serve.ts`) must supply an explicit value rather than let this default apply.
+ */
+function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverrides>): SiteBinding {
+  return overrides?.siteBinding ?? describeSiteBinding();
+}
+
+/**
+ * `RouteDeps.siteBackupSources`: the directories `site_backup_plan` reads, taken from the SAME
+ * resolved values this root serves the site from, so a backup never walks a different folder than
+ * the one in use. Media is `null` under `TOVU_MEDIA_BLOB_STORE=s3`: the bytes then live in object
+ * storage, and the backup says so instead of copying an unused local folder. A remote provider
+ * chosen by the site setting instead is only known when the backup runs, so `isMediaRemote` (the
+ * media store's effective answer) is passed through for the backup to ask then.
+ *
+ * @complexity O(1) — env reads and one small `package.json` read.
+ */
+function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"]; sitePlugins: NonNullable<SiteBackupSources["sitePlugins"]> }): SiteBackupSources {
+  return {
+    siteDir: input.siteDir,
+    mediaUploadsDir: input.mediaIsRemoteByEnv ? null : input.uploadsDir,
+    isMediaRemote: input.isMediaRemote,
+    themesDir: input.themesDir,
+    agentPlugins: input.agentPluginLayout,
+    skillsDir: input.skillLayout.root,
+    tovuVersion: readTovuVersion(),
+    sitePlugins: input.sitePlugins,
+  };
+}
+
+/** The product's own `package.json` version, stamped into a site backup's manifest. A missing or
+ *  unreadable file costs only the stamp, never the boot. */
+function readTovuVersion(): string {
+  try {
+    const parsed = JSON.parse(readFileSync(join(resolveProductRoot({}), "package.json"), "utf8")) as { version?: unknown };
+    return typeof parsed.version === "string" ? parsed.version : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
+ * SPEC-050 (NC-2 = B, REQ-13): the served site's display name, `config.json` `name` in the directory
+ * holding `dbPath`, read at each render that needs it so a rename shows with no restart. Every boot
+ * path keeps `content.db` in its site directory (`tovu serve`/`tovu export` pass `<dir>/content.db`;
+ * the default boot and the agent daemon use `siteDir()`'s), so no caller has to thread it. Reads
+ * `undefined` while that directory holds no valid `config.json` (a bare `TOVU_CONTENT_DB`, a temp test
+ * database) and always for `:memory:`; the site title then falls back to `workspaces.name`.
+ */
+function createSiteDisplayNameSource({ dbPath }: { dbPath: string }, { siteDir }: { siteDir?: string } = {}): SiteDisplayNameSource {
+  if (dbPath === ":memory:") return { read: () => undefined };
+  // Database relocation must not relocate the site's name/configuration.
+  return createLiveSiteDisplayName({ dir: resolveSiteDirForDatabase({ dbPath, siteDir }) });
+}
+
+/** Resolve the served site's key candidates and retain its root for vault contribution discovery.
+ * @complexity O(1), one site-metadata read; never reads or creates key material. */
+function compositionSiteKeySources({ dbPath, runtimeMode, siteBinding }: {
+  dbPath: string; runtimeMode: ReturnType<typeof resolveRuntimeMode>; siteBinding: CreateSiteRouteDepsOverrides["siteBinding"] | undefined;
+}, _options = {}) {
+  // site-key plan §A3a: both site-key-backed keyrings below need this site's own ordered source
+  // list (per-site file first in local mode, mirroring `ensureSiteKey`'s own writer-side ordering —
+  // `site-key-sources.ts`). Computed once, here, rather than per-keyring: `dbPath !== ":memory:" ?
+  // resolveSiteDirForDatabase(...) : undefined` shares the site-root resolution used by
+  // `createSiteDisplayNameSource` above, so a `:memory:` boot (no site directory at all) correctly
+  // resolves no `siteKeyId` and therefore no per-site candidate. The database may now be outside
+  // that root; its parent must never establish the key's identity.
+  // Site keys/config/themes remain at the site root when SQLite is stored elsewhere.
+  const siteDirForKeyring = dbPath !== ":memory:" ? resolveSiteDirForDatabase({ dbPath, siteDir: siteBinding?.dir }) : undefined;
+  const siteKeyIdForKeyring = siteDirForKeyring ? resolveSiteKeyId({ siteDir: siteDirForKeyring }) : undefined;
+  const sources = siteKeySources({
+    mode: runtimeMode,
+    env: process.env,
+    home: homedir(),
+    cwd: process.cwd(),
+    siteKeyId: siteKeyIdForKeyring,
+  });
+  return { siteDirForKeyring, sources };
+}
+
+function compositionApprovalOverrides({ overrides }: { overrides: Partial<CreateSiteRouteDepsOverrides> }, _options = {}) {
+  return {
+    ...(overrides.nativeApprovalMemory ? { nativeApprovalMemory: overrides.nativeApprovalMemory } : {}),
+    ...(overrides.approvalIdentityForRun ? { approvalIdentityForRun: overrides.approvalIdentityForRun } : {}),
+  };
+}
+
+function prepareCompositionStorage({ dbPath, overrides }: {
+  dbPath: string; overrides: Partial<CreateSiteRouteDepsOverrides>;
+}, _options = {}) {
+  const anchor = isInMemoryDbPath({ dbPath }) ? ":memory:" : resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir });
+  const storage = resolveSiteStorage({ siteDir: anchor });
+  if (!isInMemoryDbPath({ dbPath }) && storage.kind === "sqlite" && !overrides.db) mkdirSync(dirname(dbPath), { recursive: true });
+  return storage;
+}
+
+/**
+ * What a composition hands its store's `onClose`: the disposer a `register*`/`subscribe` call
+ * returned, or the promise of one (`EventBusPort.subscribe` is async), so every registration goes
+ * through the one collector whatever its return shape.
+ */
+type StoreCloseRegistration = (() => unknown) | Promise<() => unknown>;
+
+/**
+ * The prelude's store step (R1 plan R1d): the site's storage choice from its `.site-meta.json`
+ * (absent = SQLite), then the content + chat store it names. When `overrides.db` is supplied (the
+ * install-dir `serve` path), that SAME handle is reused rather than opening/migrating a second db —
+ * `bootSiteDir` has already validated, migrated, and stamped it (BR-05/BR-06).
+ *
+ * The API process (`owner`) also starts the hourly guest-chat expiry sweep here, on the chat kernel
+ * of that store, plus daily form-submitter IP cleanup when the package/schema gates are ready;
+ * the agent daemon (`client`) leaves retention to it. The returned store's `close()`
+ * drains boot work before disposing registrations, then stops the sweeps (waiting for a pass in
+ * flight) before closing the underlying store, so no pass ever queries a closed store.
+ * `release` is what {@link createSiteRouteDeps} runs when the rest of
+ * the composition fails: close what this call opened, or only stop the sweep on a supplied store.
+ *
+ * `onClose` collects the composition's registrations (a resolve-phase handler or slot bound to this
+ * store's repos, a bus subscription) so both `close()` and `release` remove them first. Without it, a
+ * closed site's handler stays on every request's path, querying a database that is no longer open.
+ */
+async function openCompositionStore(
+  { dbPath }: { dbPath: string },
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
+): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void; beforeClose: (required: { drain: () => Promise<void> }, optional?: Record<string, never>) => void }> {
+  const storage = prepareCompositionStorage({ dbPath, overrides });
+  hydrateContentDbIfNeeded({ dbPath, storage }, { overrides });
+  const role = overrides.storeRole ?? "owner";
+  const supplied = overrides.store;
+  // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
+  // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
+  // directory is `dirname(dbPath)`, which the content open already required to exist.
+  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: resolveChatDbPath({ dbPath }, { overrides }), role }, { db: overrides.db, ...(overrides.sqliteOpen ? { sqliteOpen: overrides.sqliteOpen } : {}) }));
+  const { stopChatSweep, stopSubmissionIpSweep, stopMailRetention } = startOwnerSweeps({ role, opened }, { overrides });
+  const registrations: StoreCloseRegistration[] = [];
+  const bootDrains: Array<() => Promise<void>> = [];
+  const stopStoreUsers = async (): Promise<void> => {
+    // Boot still uses the inventory, journal and repos that the disposers below release.
+    await Promise.all(bootDrains.map((drain) => drain()));
+    await Promise.all(registrations.splice(0).map(async (registration) => (await registration)()));
+    await Promise.all([stopChatSweep(), stopSubmissionIpSweep(), stopMailRetention()]);
+  };
+  const store: SiteStore = {
+    ...opened,
+    close: async () => {
+      await stopStoreUsers();
+      await opened.close();
+    },
+  };
+  overrides.onStoreOpened?.({ store: store });
+  return {
+    store,
+    release: supplied === undefined ? store.close : stopStoreUsers,
+    onClose: ({ registration }, _optional = {}) => { registrations.push(registration); },
+    beforeClose: ({ drain }, _optional = {}) => { bootDrains.push(drain); },
+  };
+}
+
+/**
+ * Extracted from {@link composeSiteRouteDeps} and {@link openCompositionStore} to keep their
+ * complexity down: the chat database path, `overrides.chatDbPath` or `chat.db` beside the content db.
+ */
+function resolveChatDbPath(
+  { dbPath }: { dbPath: string },
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
+): string {
+  return overrides.chatDbPath ?? defaultChatDbPath({}, { contentDbPath: dbPath });
+}
+
+/**
+ * Extracted from {@link openCompositionStore} to keep its complexity down: the owner-only background
+ * sweeps (guest-chat expiry, submission-IP expiry, mail retention) and their stop functions, each a
+ * no-op on a client.
+ */
+function startOwnerSweeps(
+  { role, opened }: { role: SiteStoreRole; opened: SiteStore },
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
+): { stopChatSweep: () => Promise<void>; stopSubmissionIpSweep: () => Promise<void>; stopMailRetention: () => Promise<void> } {
+  const stopChatSweep = startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep });
+  // Owner only, just like chat retention. Stop both passes before closing the supplied/opened
+  // store, including composition-failure cleanup. Jini's export and migration 0006 gate the IP sweep.
+  const stopSubmissionIpSweep = role === "owner"
+    ? startSubmissionIpExpirySweep({ kernel: opened.content })
+    : async () => {};
+  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }) : async () => {};
+  return { stopChatSweep, stopSubmissionIpSweep, stopMailRetention };
+}
+
+/** The guest-chat expiry sweep, on the owner only; its stop function (a no-op on a client). */
+function startOwnerChatExpirySweep(
+  { role, chat }: { role: SiteStoreRole; chat: SiteStore["chat"] },
+  { timing = {} }: { timing?: CreateSiteRouteDepsOverrides["chatExpirySweep"] } = {}
+): () => Promise<void> {
+  return role === "owner" ? startChatExpirySweep({ store: chat }, timing) : async () => {};
+}
+
+/**
+ * 2026-09-03 (complexity pass) — `overrides.workspaceId ?? resolveWorkspace({ kernel }).id`, hoisted
+ * for the same reason {@link assertOverridesPairedOrAbsent} is. CIC U-001 (Workspace-id
+ * single-source-of-truth) still holds: this remains the sole `resolveWorkspace` call site: moving
+ * it into its own function does not add a second one.
+ */
+async function resolveWorkspaceIdOverride(kernel: ContentKernel, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<string> {
+  if (overrides?.workspaceId !== undefined) return overrides.workspaceId;
+  const requested = overrides?.requestedWorkspaceId;
+  return (await resolveWorkspace({ kernel }, requested === undefined ? {} : { workspaceId: requested })).id;
+}
+
+/**
+ * 2026-09-03 production incident recovery hook — opt-in ONLY: a no-op on every ordinary boot,
+ * because it does nothing at all unless the operator has explicitly set `TOVU_ADMIN_RESET_PASSWORD`
+ * (e.g. as a host secret) for this one deploy. That opt-in-via-env-var gate is what makes it safe to
+ * wire into every boot unconditionally, the same reasoning `hydrateContentDbIfNeeded` above follows
+ * for its own presence-not-contents gate.
+ *
+ * Exists because the admin UI's own reset-password route is not always trustworthy as a recovery
+ * path — it is exactly what failed in the incident this closes (see
+ * `features/identity/owner-reset-env.ts`'s own header for the full story) — so
+ * an operator locked out of the admin panel needs a way to fix the credential that does not depend
+ * on the admin panel already working. Jini owner recovery re-reads and verifies the
+ * write before this function ever reports success; a failure here is logged loudly but never
+ * crashes the boot (mirrors `hydrateBlobStoreFromSeed`'s own catch-and-log posture below) —
+ * crashing the ENTIRE public site over a failed ADMIN-only credential fix would be a strictly worse
+ * outcome than the incident it is trying to recover from.
+ *
+ * A no-op whenever `overrides.db` is supplied, same reason and same guard as
+ * `hydrateContentDbIfNeeded` above: that caller has already opened its own db (at a path this
+ * function cannot assume equals `dbPath`) before reaching here.
+ */
+function applyAdminPasswordResetFromEnvIfConfigured(required: {
+  beforeReset: () => Promise<unknown>;
+  workspaceId: string;
+  identity: IdentityRouteDepsSlice;
+  clock: ClockPort;
+  idGen: IdGeneratorPort;
+  overrides?: Partial<CreateSiteRouteDepsOverrides>;
+}): Promise<void> {
+  if (required.overrides?.db !== undefined || required.overrides?.store !== undefined) return Promise.resolve();
+
+  const password = process.env.TOVU_ADMIN_RESET_PASSWORD;
+  if (!password) return Promise.resolve();
+  const username = process.env.TOVU_ADMIN_RESET_USERNAME;
+  const { workspaceId, identity, clock, idGen } = required;
+  return identity.identityReady.then(async () => {
+    if (!identity.recoveryCodes) throw new Error("Owner recovery storage is unavailable");
+    // A secret left set after recovery must not re-salt the same credential, revoke sessions,
+    // or copy the whole database on every boot. Capture a backup only before an actual write.
+    return applyOwnerPasswordReset({ workspaceId, password, ...(username === undefined ? {} : { username }),
+      deps: { auth: identityServiceDepsFrom({ ...identity, clock: { nowMs: () => clock.nowMs(), nowIso: () => new Date(clock.nowMs()).toISOString() }, idGen }),
+        codes: identity.recoveryCodes, seededOwnerPrincipalId: await identity.ownerPrincipalId } }, { beforeReset: required.beforeReset });
+  }).then((resolvedUsername) => {
+    console.error(`[admin-password-reset] SUCCESS — username='${resolvedUsername}' configured password self-verified at boot. Unset TOVU_ADMIN_RESET_PASSWORD now.`);
+  }).catch((error: unknown) => {
+    const details = formatErrorForLog({ error }, { ...TOVU_ERROR_REDACTION_OPTIONS, exactSecrets: [password] });
+    console.error(`[admin-password-reset] FAILED: the owner password could not be reset. Check the owner username and identity database, then retry. Details: boot-owner-reset\n${details}`);
+  });
+}
+
+/**
+ * The site composition root: opens the site's store ({@link openCompositionStore}), then builds every
+ * `RouteDeps` service over it ({@link composeSiteRouteDeps}). Async so storage opening can await (R1
+ * plan). Bad overrides reject rather than throw. When anything after the open fails, the store this
+ * call opened is closed (and the chat sweep stopped) before the rejection propagates, so a failed
+ * boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
+ */
+export async function createSiteRouteDeps(
+  _required: Record<string, never> = {},
+  { dbPath = defaultContentDbPath(), overrides }: { dbPath?: string; overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
+): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
+  assertOverridesPairedOrAbsent(overrides);
+  assertContentDbFileName({ dbPath });
+  const opened = await openCompositionStore({ dbPath }, { overrides });
+  try {
+    return await composeSiteRouteDeps({ dbPath, opened: { store: opened.store, onStoreClose: opened.onClose, beforeStoreClose: opened.beforeClose } }, { overrides });
+  } catch (err) {
+    await opened.release();
+    throw err;
+  }
+}
+
+/** The provider-plugin boot to run: the test seam when supplied, else the real selection. */
+function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteDepsOverrides> }): typeof bootProviderPlugins {
+  return overrides.bootProviderPlugins ?? bootProviderPlugins;
+}
+
+/**
+ * Provider settings: the project store (closed with the site store) when one opens; the site vault
+ * when there is none (remote production). An unavailable owner store means no shared keys;
+ * independently owned local keys remain usable. No key rows are moved during boot.
+ */
+async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site, binding, references }: {
+  overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (required: { registration: () => void }, optional?: Record<string, never>) => void; site: ProviderConfigSource; binding: { dir: string; name: string }; references: SiteKeyReferences;
+}): Promise<{ siteId: string; projectStore?: ProjectStore; providerConfigSource: ProviderConfigSource; projectId: string | undefined; projectVault?: ProjectVaultScope }> {
+  const siteId = acceptedSiteId({ value: readSiteMetaId({ siteDir: binding.dir }), source: "site meta" }) ?? "";
+  if (!siteId) return { siteId, providerConfigSource: site, projectId: undefined };
+  const projectStore = await projectStoreFor({ overrides, runtimeMode });
+  if (!projectStore) return { siteId, providerConfigSource: site, projectId: undefined };
+  if ("unavailable" in projectStore) return { siteId, providerConfigSource: withUnavailableProject({ site, reason: projectStore.unavailable }), projectId: undefined };
+  onStoreClose({ registration: () => projectStore.close({}) });
+  if (siteId) await projectStore.attachments.renameSite({ siteId, siteName: binding.name }).catch(error => {
+    console.warn(`[project-store] Site name could not be refreshed; local keys remain available. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
+  });
+  const owner = projectStore.vault.repo;
+  const repo = attachedOnlyVault({ vault: owner, siteId, attachments: projectStore.attachments });
+  return { siteId, projectStore, providerConfigSource: withAttachedProject({ site }, { project: projectStore.config, attachments: projectStore.attachments, siteId, siteName: binding.name, references, transaction: input => projectStore.transaction(input) }),
+    projectId: projectStore.projectId, projectVault: { ...projectStore.vault, repo, createRepo: projectKeyCreateVault({ owner, view: repo }), replaceRepo: projectKeyCreateVault({ owner, view: repo }, { allowReplacement: true, transaction: input => projectStore.transaction(input) }), keyring: ownerKeyHandleOnly({ keyring: projectStore.vault.keyring }), sealer: siteGrantedSealer({ allowed: async ({ credentialId }) => projectStore.attachments.isAttached({ siteId, keyId: credentialId }), sealer: projectStore.vault.sealer }) } };
+}
+
+/**
+ * The project half of a credential store (owner 2026-10-25: keys save to the project by default;
+ * `features/custom-credentials/store.ts`'s and `features/deployments/publish-credentials/store.ts`'s
+ * scope rule): `repo` builds that store's own repo over the project's vault. Absent where no project
+ * store is configured — remote production keeps its site store. Unavailable Shared Keys contributes
+ * no shared half; local rows retain their independent ownership.
+ */
+function credentialProject<R>({ projectVault, repo }: { projectVault: ProjectVaultScope | undefined; repo: (vault: ProjectVaultScope["repo"]) => R }, _optional = {}): { project?: { workspaceId: string; repo: R; createRepo?: R; replaceRepo?: R; sealer: ProjectVaultScope["sealer"]; keyring: ProjectVaultScope["keyring"] } } {
+  if (!projectVault) return {};
+  const { workspaceId, sealer, keyring } = projectVault;
+  return { project: { workspaceId, repo: repo(projectVault.repo), ...(projectVault.createRepo ? { createRepo: repo(projectVault.createRepo) } : {}), ...(projectVault.replaceRepo ? { replaceRepo: repo(projectVault.replaceRepo) } : {}), sealer, keyring } };
+}
+
+/** A site id from `source`, or undefined (warned) when it is not a short token. */
+function acceptedSiteId({ value, source }: { value: string | undefined; source: string }, _optional = {}): string | undefined {
+  if (value === undefined || isSiteIdToken({ value })) return value;
+  console.warn(`[site-identity] ${source} holds ${JSON.stringify(value.slice(0, 80))}, which is not a valid site id; it is ignored`);
+  return undefined;
+}
+
+/**
+ * Which site sends every provider signal. NOT the workspace id: every starter-template site seeds the
+ * same one (`workspace-local`), so two sites would report as one. The site's own `.site-meta.json` id
+ * (`readSiteMetaId`) names it. A deployed server usually has no meta (production never mints one), so
+ * next comes `TOVU_SITE_ID`, which `tovu deploy config` sets from the local site's meta: the deployed
+ * copy reports as the same site. The meta wins over the env so one env shared by several local sites
+ * can never merge them. The workspace id is only the last resort. The slug is the site folder's name;
+ * Fly (production) has no project store, so its project is the site itself. Either source is taken
+ * only as a short token (`isSiteIdToken`); anything else is warned about and skipped.
+ */
+export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }: { workspaceId: string; binding: { name: string; dir: string }; runtimeMode: RuntimeMode; projectId: string | undefined }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): SiteIdentity {
+  const environment = telemetryEnvironment({ env, runtimeMode });
+  const siteId = acceptedSiteId({ value: readSiteMetaId({ siteDir: binding.dir }), source: `${binding.dir}/.site-meta.json` })
+    ?? acceptedSiteId({ value: env.TOVU_SITE_ID || undefined, source: "TOVU_SITE_ID" }) ?? workspaceId;
+  return { siteId, siteSlug: binding.name, environment, projectId: projectId ?? siteId };
+}
+
+/**
+ * The project store both local apps share (`project-store.ts`); production (Fly, single site) has
+ * none — the project is the site there. A store that cannot open (its folder can't be created, an
+ * unreadable key, a damaged file) is reported and returned as `unavailable`, so a project-level fault
+ * never stops a site booting, and its saves are refused rather than sent to the site vault.
+ */
+async function projectStoreFor({ overrides, runtimeMode }: { overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode }): Promise<ProjectStore | { unavailable: string } | undefined> {
+  const open = overrides.openProjectStore ?? (async () => {
+    if (!localOwnerStoreEnabled({ runtimeMode, env: process.env })) return undefined;
+    const workspace = createSitesWorkspace({});
+    return openProjectStore({ sitesHome: workspace.home({}), home: homedir(), appDataDir: workspace.config({}).appData });
+  });
+  return open().catch(error => {
+    const detail = formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS);
+    const reason = `Shared Keys could not open. Existing site keys remain available. Retry Shared Keys after reopening the app. Details: P25_OWNER_STORE_UNAVAILABLE; ${detail}`;
+    console.warn(`[project-store] ${reason}`);
+    return { unavailable: reason };
+  });
+}
+
+/**
+ * Logs each media-generation vendor the registry refused; a refusal is never fatal to boot.
+ * @complexity O(refusals).
+ */
+function logMediaProviderRefusals({ refusals }: { refusals: readonly string[] }, _optional = {}): void {
+  for (const refusal of refusals) console.error(`[media-providers] ${refusal}`);
+}
+
+type AgentPluginIdentityAdmission = NonNullable<NonNullable<Parameters<typeof createTovuAgentPluginLifecycle>[1]>["identityAdmission"]>;
+
+/** Admits an agent plugin's install identity through the plugin host, read lazily because the host is composed after the lifecycle. */
+function agentPluginIdentityAdmission({ pluginHost }: { pluginHost: () => RouteDeps["pluginHost"] }, _optional = {}): AgentPluginIdentityAdmission {
+  return ({ id, localId, run }) => {
+    const host = pluginHost();
+    if (!host) throw new Error("agent plugin installation has no plugin host");
+    return host.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run });
+  };
+}
+
+/**
+ * {@link createSiteRouteDeps}'s body, over the store it opened. Every `await` sits in the prelude
+ * (workspace → deny store → orphaned-chat check), before the body starts any fire-and-forget boot
+ * promise, so the body still runs to its return synchronously.
+ */
+async function composeSiteRouteDeps(
+  { dbPath, opened }: { dbPath: string; opened: { store: SiteStore; onStoreClose: (required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void; beforeStoreClose: (required: { drain: () => Promise<void> }, optional?: Record<string, never>) => void } },
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
+): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
+  const { store, onStoreClose } = opened;
+  // Plugin recovery may commit a quarantine while providers are still booting. Keep these small
+  // lifecycle summaries until the consenting facade exists, rather than reading an uninitialized
+  // tracker or sending around its guards. The queue is drained once after provider composition.
+  const pendingLifecycleEvents: Array<Parameters<RouteDeps['tracker']['capture']>> = [];
+  let lifecycleTracker: Pick<RouteDeps['tracker'], 'capture'> = { capture: (input, options = {}) => { pendingLifecycleEvents.push([input, options]); } };
+  const { assistantAgentInventory, resolvedSiteBinding, agentPluginLayout, agentPluginLifecycle, federatedMcpPresetRegistry, skillLayout, resolvedThemesDir } = composeAgentPluginBootstrap({ onStoreClose, overrides, lifecycleTracker: () => lifecycleTracker, routeDeps: () => routeDeps });
+  // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
+  // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
+  const kernel = store.content;
+  const { resolvedUploadsDir, provideMediaCredentials, mediaStorePorts, blobStore, mediaIsRemoteByEnv, isMediaRemote, storeBound } = composeMediaStorage({ overrides, resolvedSiteBinding, observability: () => observability, workspaceId: () => workspaceId, agentPluginLifecycle, settingsRepo: () => settingsRepo, store, dbPath });
+  // CIC U-001 (Workspace-id single-source-of-truth): ONE resolved variable, reused by every
+  // internal construction below that used to read the old seeded-workspace literal directly —
+  // this is the sole `resolveWorkspace` call site in this function's call graph
+  // (U-001-B1's grep-checkable invariant: zero remaining literal references outside this line;
+  // {@link resolveWorkspaceIdOverride} is the one place that calls it). The legacy default path
+  // (no overrides) resolves it dynamically too (rather than keeping the literal for that branch
+  // only), so both paths share one mechanism instead of two that could drift (REQ-06/REQ-10;
+  // every existing seeded fixture has exactly one workspace row, so this is behavior-identical to
+  // the old literal for every current caller — see CIC's Design Context).
+  const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);
+  // Proves the deny store is readable before anything else is built: a missing or inaccessible
+  // table stops boot rather than making every disconnected publisher silently look connected.
+  const publishTrustRevocations = await publishTrustRevocationStoreFor({ kernel });
+  // ADS-memory/reports/2026-09-05-db-split-scoping.md §6 — chat data lives in its own file,
+  // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
+  // erase) chat history" reason `databaseJournalDb` below is separate. Opened with the content
+  // store (`openCompositionStore`), so the orphaned-chat check below runs after it.
+  const chatDbPath = resolveChatDbPath({ dbPath }, { overrides });
+  const chat = store.chat;
+  await warnCompositionChatOrphans({ dbPath, store, kernel, chatDbPath });
+
+  // Media-generation vendors (built-in + Agent Plugin contributed), built ONCE here — see
+  // `features/media-generation/media-provider-registry.ts`. A refused plugin vendor is logged, never fatal.
+  // Awaited in the prelude, before the first fire-and-forget boot promise below (boot-order rule
+  // pinned by composition-boot-order.unit.test.ts); it needs only the workspace and plugin layout.
+  const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions });
+  logMediaProviderRefusals({ refusals: mediaProviders.refusals });
+  const { postSearchBackfillReady, clock, idGen, reportToolAuditError, pluginActivationRepo } = composeStoreBasics({ kernel, workspaceId, agentPluginLayout });
+  // Provider plugins load (and their SDK asks for the host) before `const routeDeps` below exists;
+  // reading `routeDeps` then is a temporal-dead-zone ReferenceError. Until `routeDeps` is built the
+  // answer is "no host yet" (the SDK then omits its `plugins` lookup facade).
+  let routeDepsBuiltForPluginHost: { readonly pluginHost?: RouteDeps["pluginHost"] } | undefined;
+  const { pluginRuntime } = composeSitePluginRuntime({ lifecycleTracker: () => lifecycleTracker, routeDepsBuiltForPluginHost: () => routeDepsBuiltForPluginHost, workspaceId, clock, pluginActivationRepo, resolvedSiteBinding, contentTypeRepo: () => contentTypeRepo, idGen, outbox: () => outbox, overrides });
+  const { identity, settingsPrincipals, adminPasswordResetReady, presentationRepo, settingsRepo, settingsReady, seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady, siteTitlePreservationStore, siteDisplayName, siteTimeZone, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady } = composeIdentitySettings({ kernel, workspaceId, clock, idGen, storeBound, overrides, dbPath });
+  const { menuRepo, navLocationBindingRepo, menuBindingsReady, newsletterListRepo, newsletterReady, commentsReady, transformDefinitionRepo, mediaTransformReady, blobHydrationReady } = startBootData({ kernel, clock, workspaceId, dbPath, idGen, resolvedSiteBinding, blobStore });
+  const { outbox, bus, devCapabilityScheme, originReady, originRegistry, redirectRepo, redirectHitSink, assetRenditionRepo } = composeEventsOrigin({ kernel, clock, workspaceId });
+  const { trashRegistry, sqliteTrashDb, trashRepo, taxonomyFollowUpTermRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, formDeliveryRepo } = composeTrashStores({ kernel, workspaceId, outbox, clock, idGen });
+  const { trashFollowUpHooks } = composeTrashFollowUpHooks({ kernel, mediaRepo: () => mediaRepo, workspaceId, postRepo: () => postRepo, clock, assetBlobRepo: () => assetBlobRepo, assetRenditionRepo, blobStore, entryRefsRepo: () => entryRefsRepo, outbox, formDeliveryRepo, routeDeps: () => routeDeps, menuRepo, idGen, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox });
+  const { pluginTrashAdapter, trashAdapters } = composeTrashAdapters({ pluginRuntime, pluginActivationRepo, kernel, mediaRepo: () => mediaRepo, entryRefsRepo: () => entryRefsRepo, postRepo: () => postRepo, assetBlobRepo: () => assetBlobRepo, assetRenditionRepo, blobStore, clock, identity, idGen, trashRegistry, sqliteTrashDb, trashFollowUpHooks });
+  const { trashTransaction, trash, removePlugin, removeUser, isInTrash } = composeTrashService({ kernel, trashRepo, trashAdapters, postRepo: () => postRepo, pluginTrashAdapter, workspaceId });
+  const { redirectsWriteDeps } = composeRedirects({ redirectRepo, trash, trashRepo, originRegistry, clock, idGen, outbox, onStoreClose, bus, redirectHitSink });
+  const { databaseLedgerRepo, migrationRunsRepo, publishContentRunRepo, restorePointsRepo, dbOps, databaseIntrospection } = composeDatabaseJournal({ dbPath, onStoreClose, workspaceId, kernel, storeBound });
+  const { entryRepo, sqliteEntryTermRepo, taxonomyRepo, termRepo, taxonomyRevisionRepo, stampWatermark, widgetBindingRepo, entryRefsRepo, formDefinitionRepo } = composeContentRepos({ kernel, workspaceId, storeBound });
+  let formCollectionProviders = () => createFormCollectionRegistry({});
+  const { formSubmissionRepo, contentTypeRepo, contentTypeIndexProvisioner, commentsModule, commentsCapability } = composeContentResolversComments({ kernel, siteTimeZone, entryRepo, mediaRepo: () => mediaRepo, transformDefinitionRepo, mediaContentTypeStore: () => mediaContentTypeStore, postRepo: () => postRepo, menuRepo, navLocationBindingRepo, formDefinitionRepo, formCollectionProviders: () => formCollectionProviders, routeDeps: () => routeDeps, outbox, clock, idGen, settingsRepo, workspaceId, trash, trashRepo, trashTransaction, commentsReady, commentsSettingsReady, identity, settingsPrincipals });
+  const { runtimeMode, siteDirForKeyring, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, siteAssistantSecretKeyring, siteAssistantSecretSealer } = composeSiteKeysMembers({ dbPath, overrides, kernel });
+  // 0012 retains legacy AAD until this fenced pass; no credential consumer may start first.
+  // Safe alongside the settings-ledger chain: SqlSettingsRepo.transaction delegates to this SAME
+  // kernel. Jini packages/db/src/kernel/kernel-core.ts takes an exclusive TurnLock through the awaited body;
+  // Jini packages/db/src/kernel/sqlite/driver.ts commits only after it resolves. The lock, not the sync driver alone,
+  // serializes BEGIN/COMMIT and prevents unrelated settings writes joining the vault transaction.
+  await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {
+    keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer,
+    loadContributions: agentPluginLifecycle.loadPluginContributions,
+  });
+  const { siteAssistantCredentialRepo, externalMcpServerRepo, externalMcpOAuthDevices, siteReferenceRepo, projectKeyReferences } = composeAssistantCredentials({ kernel, workspaceId, clock, siteAssistantSecretSealer, siteAssistantSecretKeyring });
+  const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding, references: projectKeyReferences,
+    site: createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
+      vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) });
+  const { providerConfigSource, customCredentialSetRepo } = composeProviderConfigSource({ savedProviderConfig, pluginRuntime, projectVault, kernel, projectStore });
+  const providerPlugins = await providerPluginBoot({ overrides })({
+    processRole: overrides.storeRole === 'client' ? 'daemon' : 'server',
+    runtime: pluginRuntime,
+    config: providerConfigSource,
+    serviceName: "tovu",
+    site: siteIdentityFor({ workspaceId, binding: resolvedSiteBinding, runtimeMode, projectId }),
+    ...createTelemetryConsent({ settingsRepo, workspaceId }),
+  });
+  onStoreClose({ registration: async () => {
+    // Provider disposal may perform late imports from its retained graph. Release copies only
+    // after those users have stopped; a failed teardown leaves them for a later dead-owner reap.
+    await providerPlugins.dispose({});
+    await pluginRuntime.dispose({});
+  } });
+  let bindSharedApiOAuth: ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined;
+  const projectKeys = compositionProjectKeys({ resolvedSiteBinding, kernel, clock, projectKeyReferences, projectSiteId, projectStore, providerConfigSource, providerPlugins, bindSharedApiOAuth: () => bindSharedApiOAuth });
+
+  onStoreClose({ registration: watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: projectSiteId }) ?? Promise.resolve([]),
+    pluginIdOf: providerPluginOf,
+    reapply: input => providerPlugins.reapply(input) }, {
+    readSite: () => siteProviderRevisions({ kernel: kernel as unknown as KyselyKernel<unknown>, workspaceId }),
+  }) });
+  const { observability, tracker, aiTraceSink } = providerPlugins;
+  formCollectionProviders = () => providerPlugins.formCollectionProviders?.() ?? createFormCollectionRegistry({});
+  // Local logging reads only the current site tracing scope, through the live gated provider ports.
+  setServerLogTraceReader({ traceIds: () => observability.activeTraceIds?.() });
+  lifecycleTracker = tracker;
+  flushLifecycleEvents({ pending: pendingLifecycleEvents, tracker });
+  instrumentStorageKernel({ kernel, observability });
+  instrumentStorageKernel({ kernel: chat, observability });
+  const { resolvedMailer, mailDurableOutboxReady, customCredentialsHttpClient, siteBackupHttpClient, outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient } = composeMailHttp({ workspaceId, customCredentialSetRepo, siteAssistantSecretSealer, observability, agentPluginLifecycle, externalMcpServerRepo, runtimeMode, settingsRepo, clock, idGen, settingsPrincipals, identity, siteTitleReady, kernel, originRegistry, overrides });
+  const { postRepo, changeSets, mediaRepo, assetBlobRepo } = composeContentStores({ kernel });
+  if ((overrides.storeRole ?? "owner") === "owner") await protectExistingFormFiles({ kernel, workspaceId, siteDir: resolvedSiteBinding.dir });
+  const { mediaContentTypeStore, publishContentBundleRepo, publishContentBaselineRepo, publishContentFileBlobIndex, publishContentPeerRepo, publishContentSeedHash, siteThemes, removeTheme } = composePublishingStoresThemes({ kernel, resolvedSiteBinding, workspaceId, clock, idGen, redirectsWriteDeps, resolvedThemesDir, trashAdapters, trash });
+  const { publishContentApplyPort } = composePublishContentApplyPort({ workspaceId, publishContentBundleRepo, publishContentBaselineRepo, publishContentRunRepo, clock, idGen, outbox, changeSets, identity, postRepo, trashRepo, trash, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, redirectsWriteDeps, menuRepo, navLocationBindingRepo, formDefinitionRepo, contentTypeRepo, contentTypeIndexProvisioner, taxonomyRepo, termRepo, sqliteEntryTermRepo, taxonomyRevisionRepo, stampWatermark, entryRepo, entryRefsRepo, widgetBindingRepo, settingsRepo, settingsPrincipals, presentationRepo, siteThemes, resolvedThemesDir, publishContentSeedHash });
+  const { guardedOutboundHttpClient, externalMcpOAuthHttpPorts, derivedPublicOrigin, agentPluginConnections } = composeOutboundConnections({ devCapabilityScheme, workspaceId, agentPluginLifecycle, kernel, siteAssistantSecretKeyring, siteAssistantSecretSealer, customCredentialSetRepo, clock, projectStore, projectSiteId, resolvedSiteBinding, identity, siteReferenceRepo, settingsRepo, idGen, settingsPrincipals, formDefinitionRepo });
+  bindSharedApiOAuth = agentPluginConnections.apiConnections.host.sharedOAuth?.bind;
+  const { adminSurfaceHandlersReady, siteAppBootWork, seoDeps, sitemapService, resolveRouteDeps, siteConsentReady, pluginExports, agentPluginMcp } = composePreAssembly({ agentPluginConnections, postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock, siteTitleSettingsDeps, siteSettingsReady, identity, workspaceId, routeDeps: () => routeDeps, agentPluginLifecycle, customCredentialSetRepo, siteAssistantSecretSealer, externalMcpServerRepo, siteAssistantSecretKeyring });
+  const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
+    ...routeDepsContentTrash({ assistantAgentInventory, resolvedSiteBinding, kernel, workspaceId, postSearchBackfillReady, trashRegistry, sqliteTrashDb, trashRepo, trashAdapters, trashTransaction, trash, postRepo, pluginExports }),
+    ...routeDepsChatAgents({ kernel, chat, clock, outbox, entryRefsRepo, tracker, postRepo, pluginExports }),
+    ...compositionApprovalOverrides({ overrides }),
+    ...routeDepsAssistantSettings({ agentPluginLayout, kernel, workspaceId, chat, clock, idGen, identity, settingsPrincipals, presentationRepo, settingsRepo, settingsReady, assistantSettingsReady, seoReady, siteAssistantSecretKeyring, siteAssistantSecretSealer, siteAssistantCredentialRepo, externalMcpServerRepo, siteThemes, seoDeps, sitemapService, agentPluginMcp, routeDeps: () => routeDeps }),
+    ...routeDepsExternalMcpOAuth({ resolvedSiteBinding, agentPluginLayout, workspaceId, clock, identity, siteAssistantSecretKeyring, siteAssistantSecretSealer, externalMcpServerRepo, externalMcpOAuthDevices, siteReferenceRepo, projectSiteId, projectStore, externalMcpOAuthHttpPorts, derivedPublicOrigin, agentPluginMcp, routeDeps: () => routeDeps }),
+    ...agentPluginConnections,
+    ...routeDepsExecutionPlugins({ kernel, workspaceId, analyticsSettingsReady, executionSettingsReady, settingsUiTabsReady, siteTitleReady, formCollectionProviders, siteConsentReady, pluginExports }),
+    ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),
+    ...routeDepsSiteThemesTelemetry({ dbPath, resolvedSiteBinding, agentPluginLayout, agentPluginLifecycle, federatedMcpPresetRegistry, skillLayout, resolvedThemesDir, kernel, resolvedUploadsDir, isMediaRemote, mediaIsRemoteByEnv, workspaceId, clock, idGen, pluginRuntime, siteTitlePreservationStore, siteDisplayName, siteTimeZone, menuRepo, outbox, bus, trashRepo, siteAssistantSecretSealer, providerConfigSource, customCredentialSetRepo, providerPlugins, aiTraceSink, observability, tracker, postRepo, siteThemes }),
+    ...routeDepsProviderAnalytics({ agentPluginLifecycle, kernel, workspaceId, publishTrustRevocations, clock, idGen, settingsRepo, siteAssistantSecretSealer, customCredentialSetRepo, providerPlugins, projectKeys, observability }),
+    ...identity,
+    ...routeDepsMembersMail({ kernel, settingsPrincipals, originRegistry, redirectRepo, redirectHitSink, trash, removeUser, isInTrash, redirectsWriteDeps, runtimeMode, memberRepo, resolvedMailer, mailDurableOutboxReady }),
+    // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the
+    // site's `core.mail.*` setting, read fresh per send, checked against the settled mailer.
+    ...resolvedMailer.operations,
+    ...routeDepsMailFormsNewsletter({ kernel, blobStore, clock, adminPasswordResetReady, menuRepo, navLocationBindingRepo, newsletterListRepo, newsletterReady, transformDefinitionRepo, blobHydrationReady, assetRenditionRepo, trash, formDefinitionRepo, formCollectionProviders, formSubmissionRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, mediaRepo, assetBlobRepo, mediaContentTypeStore }),
+    ...routeDepsTaxonomyComments({ kernel, workspaceId, clock, idGen, reportToolAuditError, identity, trash, databaseLedgerRepo, migrationRunsRepo, restorePointsRepo, dbOps, databaseIntrospection, entryRepo, sqliteEntryTermRepo, taxonomyRepo, termRepo, taxonomyRevisionRepo, stampWatermark, contentTypeRepo, contentTypeIndexProvisioner, commentsModule, commentsCapability, observability, tracker }),
+    ...routeDepsPluginsSiteApp({ resolvedSiteBinding, workspaceId, pluginActivationRepo, pluginRuntime, settingsRepo, commentsSettingsReady, commentsReady, removePlugin, publishContentRunRepo, widgetBindingRepo, entryRefsRepo, commentsCapability, providerPlugins, publishContentPeerHttpClient, publishContentBundleRepo, publishContentBaselineRepo, publishContentFileBlobIndex, publishContentPeerRepo, publishContentSeedHash, removeTheme, publishContentApplyPort, siteAppBootWork, routeDeps: () => routeDeps }),
+    ...routeDepsPublishCredentials({ resolvedSiteBinding, agentPluginLayout, agentPluginLifecycle, kernel, clock, idGen, siteAssistantSecretKeyring, siteAssistantSecretSealer, projectVault, customCredentialSetRepo, observability, customCredentialsHttpClient, siteBackupHttpClient, mediaImportHttpClient, routeDeps: () => routeDeps }),
+    ...(outboundTestOrigins.length > 0 ? { outboundTestOrigins } : {}),
+    mediaGenerationHttpClient: guardedOutboundHttpClient,
+    mediaProviderRegistry: mediaProviders.registry,
+    // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
+    // `apps/website/src/server/runtime/composition/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
+    // spread LAST, so it always wins over anything a caller's `opts` might also carry).
+    exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
+    staticSitePackager: createStaticSitePackager(),
+    ...bindCredentialsHostPorts({ readDeps: () => routeDeps }),
+    staticSiteContext: bindStaticSiteContext({ readDeps: () => routeDeps, siteName: resolvedSiteBinding.name }),
+  };
+  resolveRouteDeps(routeDeps);
+  const { widgetAdoptionReady } = wireFormsAndSearch({ siteTitleReady, menuBindingsReady, mediaTransformReady, routeDeps, workspaceId, kernel, outbox, bus, clock, idGen, customCredentialSetRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, agentPluginLifecycle, settingsRepo, observability, formDeliveryRepo, agentPluginConnections, identity, settingsPrincipals, agentPluginLayout });
+
+
+  const commerceBinding = compositionCommerce({ dbPath, overrides, resolvedSiteBinding, agentPluginLayout, kernel, workspaceId, clock, idGen, settingsRepo, siteSettingsReady, projectSiteId, providerConfigSource, providerPlugins, observability });
+
+  routeDeps.commerce = commerceBinding.commerce;
+  routeDeps.commerceCatalog = commerceBinding.commerceCatalog;
+  onStoreClose({ registration: () => commerceBinding.close() });
+
+  siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
+  routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
+  routeDepsBuiltForPluginHost = routeDeps;
+  // Start re-attachment only after its SDK's host getter is safe. Earlier composition awaits
+  // (including vault normalization) must never race this pass. Boot awaits this before serving.
+  routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
+  opened.beforeStoreClose({ drain: async () => {
+    await Promise.allSettled([
+      routeDeps.pluginRuntimeReady, widgetAdoptionReady, blobHydrationReady,
+      adminPasswordResetReady, postSearchBackfillReady, originReady, adminSurfaceHandlersReady,
+    ]);
+    // A boot pass can start another app (for example during export); drain until none remain.
+    while (siteAppBootWork.size > 0) await Promise.allSettled([...siteAppBootWork]);
+  } });
+  provideMediaCredentials(composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
+    dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } }));
+  // Shared by share capture/reveal and import restore; both nested configurators read this one port.
+  const savedKeys = composeSiteSavedKeys({ workspaceId, sealer: siteAssistantSecretSealer });
+  configureSiteSharing({ dbPath, resolvedSiteBinding, agentPluginLayout, skillLayout, resolvedThemesDir, resolvedUploadsDir, mediaStorePorts, blobStore, workspaceId, identity, settingsRepo, siteAssistantSecretKeyring, siteAssistantSecretSealer, publishContentPeerHttpClient, guardedOutboundHttpClient, routeDeps, savedKeys });
+
+  configureSiteImports({ resolvedSiteBinding, workspaceId, observability, tracker, routeDeps, savedKeys });
+
+  routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
+  configureVisitorConsentAnalytics({ routeDeps, workspaceId });
+  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });
+  return routeDeps;
+}
+
+function compositionSiteDisplaySources(
+  { dbPath, overrides, settingsRepo }: { dbPath: string; overrides: Partial<CreateSiteRouteDepsOverrides>; settingsRepo: RouteDeps["settingsRepo"] },
+  _optional = {},
+) {
+  const siteDisplayName = createSiteDisplayNameSource({ dbPath }, { siteDir: overrides.siteBinding?.dir });
+  // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
+  const siteTimeZone = createSiteTimeZonePort({
+    settingsRepo,
+    ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
+  });
+  return { siteDisplayName, siteTimeZone };
+}
+
+function flushLifecycleEvents(
+  { pending, tracker }: { pending: Array<Parameters<RouteDeps['tracker']['capture']>>; tracker: RouteDeps['tracker'] },
+  _optional = {},
+): void {
+  for (const [input, options] of pending.splice(0)) void tracker.capture(input, options);
+}
+
+function compositionConsentOptions(
+  { workspaceId, loadContributions }: Parameters<typeof createSiteCookieConsentDeps>[0],
+  { env }: { env: NodeJS.ProcessEnv },
+) {
+  return {
+    consentTrustedRegionHeader: env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
+    cookieConsent: createSiteCookieConsentDeps({ workspaceId, loadContributions }),
+  };
+}
+
+function configureVisitorConsentAnalytics({ routeDeps, workspaceId }: { routeDeps: RouteDeps; workspaceId: string }, _optional = {}): void {
+  // Site analytics off, or this visitor excluded (DNT/GPC/IP/host rules), means no visitor capture.
+  const analyticsExcluded = async (request: import('express').Request) => {
+    const config = await routeDeps.analyticsConfig.get({ workspaceId });
+    const beacon = { host: request.hostname, path: request.path, kind: 'pageview' as const, referrer: null,
+      dnt: request.get('dnt') === '1', gpc: request.get('sec-gpc') === '1' };
+    return !config.enabled || Boolean(findExclusionReason({ beacon, ip: resolveClientIp(request), config }));
+  };
+  bindCookieConsentAnalyticsGate({ deps: routeDeps }, { isExcluded: ({ request }) => analyticsExcluded(request) });
+}
+
+/**
+ * D10 fix — lets a second process (the agent daemon, `assistant/agent-daemon-server.ts`) bind to
+ * the SAME workspace the main server process already resolved, instead of independently
+ * re-resolving `resolveWorkspace`'s default (oldest-row) answer on its own connection. Without
+ * this, the two processes agree only because the default resolution happens to be
+ * time-invariant today (a newly created workspace can never become "the oldest") — correct by a
+ * coincidence of `resolveWorkspace`'s current semantics, not by construction, and the two
+ * processes have no way to agree at all once an explicit workspace choice enters the picture.
+ *
+ * `workspaceIdOverride` undefined reproduces `createSiteRouteDeps()`'s existing no-override
+ * behavior exactly (byte-identical for every current single-workspace caller). When supplied, it
+ * is validated against a real workspace row via {@link resolveWorkspace} BEFORE
+ * `createSiteRouteDeps` is called — CIC U-001's `overrides.db`/`overrides.workspaceId`
+ * "together or not at all" rule (`createSiteRouteDeps` above) means the caller cannot supply a
+ * bare workspaceId override without also supplying the db handle it was validated against, so
+ * this function opens that db handle itself rather than asking `createSiteRouteDeps` to do so
+ * twice. Its returned teardown hook closes that handle AFTER the composition's borrowed store.
+ *
+ * @throws {ValidationError} (as a rejection) `workspaceIdOverride` was supplied but names no real workspace row —
+ *   propagates uncaught (`resolveWorkspace`'s own error), which is deliberate: a caller (the
+ *   daemon) that silently fell back to the default workspace on a bad override would be a worse
+ *   failure mode than a loud boot-time crash naming the bad id.
+ * @param required.workspaceIdOverride workspace to validate on the opened database, or the default.
+ * @param optional.onStoreOpened receives the composition's owning teardown hook.
+ * @complexity O(1) beyond `resolveWorkspace`'s own cost (see that function's own complexity note).
+ * @overallScore 100
+ */
+export async function createSiteRouteDepsForWorkspace(
+  { workspaceIdOverride }: { workspaceIdOverride: string | undefined },
+  { dbPath = defaultContentDbPath(), storeRole = "owner", onStoreOpened }: {
+    dbPath?: string; storeRole?: SiteStoreRole; onStoreOpened?: (required: { store: SiteStore }, optional?: Record<string, never>) => void;
+  } = {}
+): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
+  // Before the workspace check below opens, migrates and seeds the file.
+  assertContentDbFileName({ dbPath });
+  if (workspaceIdOverride === undefined) return await createSiteRouteDeps({}, { dbPath, overrides: { onStoreOpened, storeRole } });
+  // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
+  // store it opens.
+  if (!isInMemoryDbPath({ dbPath }) && resolveSiteStorage({ siteDir: resolveSiteDirForDatabase({ dbPath }) }).kind !== "sqlite") {
+    return await createSiteRouteDeps({}, { dbPath, overrides: { onStoreOpened, requestedWorkspaceId: workspaceIdOverride, storeRole } });
+  }
+
+  const db = await openSiteContentDb({ dbPath });
+  try {
+    const workspace = await resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: workspaceIdOverride });
+    return await createSiteRouteDeps({}, { dbPath, overrides: { db, workspaceId: workspace.id, storeRole,
+      onStoreOpened: ({ store }, _optional = {}) => onStoreOpened?.({ store: {
+        ...store,
+        close: async () => {
+          try { await store.close(); }
+          finally { closeSqliteConnection(db); }
+        },
+      } }),
+    } });
+  } catch (error) {
+    // Validation/composition failure still belongs to this opener, not the borrowed store.
+    closeSqliteConnection(db);
+    throw error;
+  }
+}

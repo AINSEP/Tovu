@@ -44,7 +44,7 @@ A getter is required wherever the binding is declared after the range or is a ro
 | `resolveDevTlsCertPaths` | `../../../platform/dev-host/dev-tls.js` | **move** (delete from deps.ts) |
 | `seedDevCapabilityOrigin` | `#src/platform/db/sqlite/origin-repo.sqlite` | **move** (delete from deps.ts) |
 
-Relative specifiers (`./x.js`) become `../x.js` in `site-deps/`.
+Relative specifiers gain one `../` in `site-deps/` (`./x.js` → `../x.js`, `../../x.js` → `../../../x.js`); `#src/…` and package specifiers are unchanged.
 
 ## Importers to repoint
 None: no exported symbol of deps.ts moves (verify: `git grep -n "composeEventsOrigin" -- apps` returns only the two files of this slice after the commit).

@@ -67,7 +67,7 @@ A getter is required wherever the binding is declared after the range or is a ro
 |---|---|---|
 ${impRows||'| — | — | — |'}
 
-Relative specifiers (\`./x.js\`) become \`../x.js\` in \`site-deps/\`.
+Relative specifiers ${c.imports.some(m=>m.spec.startsWith('../'))?'gain one \`../\` in \`site-deps/\` (\`./x.js\` → \`../x.js\`, \`../../x.js\` → \`../../../x.js\`); \`#src/…\` and package specifiers are unchanged.':'(\`./x.js\`) become \`../x.js\` in \`site-deps/\`.'}
 
 ## Importers to repoint
 None: no exported symbol of deps.ts moves (verify: \`git grep -n "${c.fn}" -- apps\` returns only the two files of this slice after the commit).
