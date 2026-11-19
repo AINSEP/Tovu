@@ -38,7 +38,7 @@ export type FeaturedImageResolution =
 export async function resolveFeaturedImageRef(required: {
   deps: FeaturedImageDeps;
   input: { workspaceId: string; ref: string };
-}): Promise<FeaturedImageResolution> {
+}, _optional: Record<string, never> = {}): Promise<FeaturedImageResolution> {
   const { deps, input } = required;
   const ref = input.ref.trim();
   const asset = await findMediaByIdOrSlug({ deps: { mediaRepo: deps.mediaRepo }, input: { workspaceId: input.workspaceId, idOrSlug: ref } });
@@ -69,7 +69,7 @@ const FEATURED_MEDIA_ID_REFUSALS: Record<"missing" | "trashed" | "not-image", (r
 export async function resolveFeaturedMediaIdForWrite(required: {
   deps: FeaturedImageDeps;
   input: { workspaceId: string; featuredMediaId: string | null | undefined };
-}): Promise<string | null | undefined> {
+}, _optional: Record<string, never> = {}): Promise<string | null | undefined> {
   const { deps, input } = required;
   const value = input.featuredMediaId;
   if (typeof value !== "string" || value.trim() === "") return value;

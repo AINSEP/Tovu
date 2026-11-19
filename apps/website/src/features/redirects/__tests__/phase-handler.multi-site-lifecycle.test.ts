@@ -115,7 +115,7 @@ async function bootSite(t: TestContext, name: string): Promise<BootedSite> {
   } });
 
   let closing: Promise<void> | undefined;
-  const close = (): Promise<void> => closing ??= closeSiteDirBoot(boot, composed);
+  const close = (): Promise<void> => closing ??= closeSiteDirBoot(boot, { composed });
   // Settle the boot chain BEFORE anything closes the handle those promises are still writing
   // through, then close on the way out whether or not the test closed it itself.
   await drainBootReadiness(deps);

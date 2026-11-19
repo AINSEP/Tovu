@@ -158,7 +158,7 @@ export interface DuplicateContentDbRequired {
  *   fixed by how much content the site being duplicated actually holds, never by any
  *   caller-controlled input.
  */
-export async function duplicateContentDb(required: DuplicateContentDbRequired): Promise<void> {
+export async function duplicateContentDb(required: DuplicateContentDbRequired, _optional: Record<string, never> = {}): Promise<void> {
   const { sourceDbPath, targetDbPath } = required;
 
   const source = openSqliteFileKernel<ContentDatabase>({ filePath: sourceDbPath }, { readOnly: true });

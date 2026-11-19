@@ -24,9 +24,9 @@ function mediaRecord({ id, slug, workspaceId = "w" }: { id: string; slug: string
 test("shared content target input resolves preview slug, root id, and legacy postId in default batches", async () => {
   const { deps, writes } = bareDeps([{ ...barePost, slug: "/" }]);
   const rendered: string[] = [];
-  const registrations = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, {
+  const registrations = withContentTargets({ deps, registrations: buildPostPreviewRegistrations({ deps, renderer: {
     renderPostPreview: async ({ input: { post } }) => { rendered.push(post.id); return { html: "<p>Home</p>", templateChoice: "" }; },
-  }) });
+  } }) });
   const registration = applyBatchInputs({ registrations })[0]!;
   const input = { items: [{ slug: "/" }, { id: "/" }, { postId: "/" }, { id: "missing" }, { id: barePost.id, invented: true }] };
   const before = structuredClone(input);
@@ -72,9 +72,9 @@ test("shared lookup follows authorization for reads and writes", async () => {
   const { deps, repo } = bareDeps();
   const denied = { ...deps, authorize: async () => ({ allowed: false, reason: "denied" }) };
   repo.findById = repo.findBySlug = async () => assert.fail("permission must precede target lookup");
-  const registration = withContentTargets({ deps: denied, registrations: buildPostPreviewRegistrations(denied, {
+  const registration = withContentTargets({ deps: denied, registrations: buildPostPreviewRegistrations({ deps: denied, renderer: {
     renderPostPreview: async () => assert.fail("denied previews must not render"),
-  }) })[0]!;
+  } }) })[0]!;
   const result = await executeRegisteredTool({ registration, input: { slug: "/" } });
   assert.notEqual(result.status, "completed");
   assert.match(result.error!, /not authorized/);

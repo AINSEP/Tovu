@@ -89,7 +89,7 @@ const DEFAULT_DEFER_MS = 1_000;
 export async function authorizeSend(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
-}): Promise<{ campaign: CampaignRecord; launchGateSnapshot: Awaited<ReturnType<typeof evaluateLaunchGate>> }> {
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord; launchGateSnapshot: Awaited<ReturnType<typeof evaluateLaunchGate>> }> {
   const { deps, input } = required;
   return deps.campaignRepo.transaction({ fn: async () => {
     const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
@@ -126,7 +126,7 @@ export async function authorizeSend(required: {
 export async function freezeAudience(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string; listId: string };
-}): Promise<{ snapshot: AudienceSnapshotRow; sendIds: readonly string[] }> {
+}, _optional: Record<string, never> = {}): Promise<{ snapshot: AudienceSnapshotRow; sendIds: readonly string[] }> {
   const { deps, input } = required;
   const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
   if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
@@ -233,7 +233,7 @@ export async function dispatchRow(required: {
   message: { subject: string; text?: string; html?: string; fromName: string; fromEmail: string; replyTo: string };
   /** The subscription's consent revision, bound into the unsubscribe token (INV-04). */
   consentRevisionId?: string | null;
-}): Promise<{ outcome: "sent" | "suppressed" | "failed" | "deferred"; providerMessageId: string | null; error: string | null; retryAfterMs?: number }> {
+}, _optional: Record<string, never> = {}): Promise<{ outcome: "sent" | "suppressed" | "failed" | "deferred"; providerMessageId: string | null; error: string | null; retryAfterMs?: number }> {
   const { deps, row } = required;
 
   // REQ-10: crash-recovery / redelivery idempotency (INV-10, EC-04) — a row already terminal is
@@ -314,7 +314,7 @@ async function unsubscribeHeaders(required: {
 export async function recordResult(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; sendId: string; campaignId: string; outcome: "sent" | "suppressed" | "failed"; providerMessageId: string | null; error: string | null };
-}): Promise<{ sendRow: SendRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ sendRow: SendRow }> {
   const { deps, input } = required;
   const now = deps.clock.nowIso();
   const status = input.outcome === "sent" ? "delivered" : "failed";
@@ -341,7 +341,7 @@ export async function recordResult(required: {
 export async function completeIfDrained(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
-}): Promise<{ campaign: CampaignRecord | null }> {
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord | null }> {
   const { deps, input } = required;
   const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
   if (!campaign) return { campaign: null };
@@ -364,7 +364,7 @@ export async function completeIfDrained(required: {
 export async function pauseCampaign(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
-}): Promise<{ campaign: CampaignRecord }> {
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord }> {
   return transitionAndSave({ deps: required.deps, input: required.input, to: "paused" });
 }
 
@@ -377,7 +377,7 @@ export async function pauseCampaign(required: {
 export async function resumeCampaign(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
-}): Promise<{ campaign: CampaignRecord; requeueFailed?: true }> {
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord; requeueFailed?: true }> {
   const result = await transitionAndSave({ deps: required.deps, input: required.input, to: "sending" });
   // A paused batch may already have been acknowledged. Requeue its remaining ledger rows;
   // the existing per-row leases and idempotency keys make overlapping/redelivered jobs safe.
@@ -585,7 +585,7 @@ async function continueLater(required: { deps: SendPipelineDeps; job: SendBatchJ
  * run that died mid-batch (holding a lease) release its rows once the lease expires, instead of
  * stranding them.
  */
-export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps; job: SendBatchJob }): Promise<void> {
+export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps; job: SendBatchJob }, _optional: Record<string, never> = {}): Promise<void> {
   const { deps, job } = required;
   const campaign = await deps.campaignRepo.findById({ workspaceId: job.workspaceId, id: job.campaignId });
   if (!campaign) return;

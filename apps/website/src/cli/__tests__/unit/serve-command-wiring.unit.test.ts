@@ -186,7 +186,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     },
   });
   module("../../../platform/site-dir/boot-site-dir.ts", {
-    closeSiteDirBoot: async (boot: unknown, store: unknown) => {
+    closeSiteDirBoot: async (boot: unknown, { composed: store }: { composed?: unknown } = {}) => {
       assert.equal(boot, bootResult);
       assert.equal(store, composedStore);
       closeStarted = true;

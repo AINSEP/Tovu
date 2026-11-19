@@ -9,7 +9,7 @@ import type { DirectoryRunningRecord } from "@jini-ai/platform/fs";
 export function readSiteRunning({ dir }: { dir: string }, { workspace = createSitesWorkspace({}) }: { workspace?: SitesWorkspace } = {}): DirectoryRunningRecord | null {
   return workspace.running({ path: dir }).read({});
 }
-export function runningSiteUrl({ record }: { record: DirectoryRunningRecord }): string | null {
+export function runningSiteUrl({ record }: { record: DirectoryRunningRecord }, _optional: Record<string, never> = {}): string | null {
   return record.port > 0 ? `${record.scheme}://localhost:${record.port}/admin/` : null;
 }
 /** Must precede all database reads/writes; a concurrent loser cannot open content.db.

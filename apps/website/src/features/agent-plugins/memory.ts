@@ -13,8 +13,8 @@ const effects = {
     withFileLock({ lockPath, run }, { staleMs: Infinity, createParent: true }),
 };
 
-export function pluginMemory(required: Pick<PluginStateEffects, "contain"> & { workspaceId: string; pluginId: string }, optional: { layout: AgentPluginLayout }): PluginMemory {
-  const workspaceRoot = optional.layout.forWorkspace({ workspaceId: required.workspaceId }).root;
+export function pluginMemory(required: Pick<PluginStateEffects, "contain"> & { workspaceId: string; pluginId: string; layout: AgentPluginLayout }, _optional: Record<string, never> = {}): PluginMemory {
+  const workspaceRoot = required.layout.forWorkspace({ workspaceId: required.workspaceId }).root;
   return createPluginMemory({ ...effects, contain: required.contain, workspaceRoot, pluginId: required.pluginId });
 }
 export async function migrateAgentPluginLayout(required: Pick<PluginStateEffects, "contain"> & { layout: AgentPluginLayout; workspaceId: string }, _optional: {} = {}) {

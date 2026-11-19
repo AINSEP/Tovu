@@ -109,7 +109,7 @@ async function setup() {
 
 test("a token is sealed onto a row with no credential, and the plugin is switched on", async () => {
   const { deps, sealer, connected, readRow } = await setup();
-  const outcome = await importAgentPluginAccessToken(deps, { pluginId: "supabase", token: TOKEN });
+  const outcome = await importAgentPluginAccessToken({ deps, pluginId: "supabase", token: TOKEN });
   assert.equal(outcome, "saved");
   const row = await readRow();
   assert.equal(row?.authMode, "static_env");
@@ -121,10 +121,10 @@ test("a token is sealed onto a row with no credential, and the plugin is switche
 
 test("a row that already holds a saved token is never overwritten", async () => {
   const { deps, connected, readRow } = await setup();
-  await importAgentPluginAccessToken(deps, { pluginId: "supabase", token: TOKEN });
+  await importAgentPluginAccessToken({ deps, pluginId: "supabase", token: TOKEN });
   const before = (await readRow())?.sealedOAuth;
   connected.length = 0;
-  const outcome = await importAgentPluginAccessToken(deps, { pluginId: "supabase", token: "sbp_a_different_token" });
+  const outcome = await importAgentPluginAccessToken({ deps, pluginId: "supabase", token: "sbp_a_different_token" });
   assert.equal(outcome, "already-connected");
   assert.deepEqual((await readRow())?.sealedOAuth, before);
   // The switch-on is re-run (it finishes an interrupted import); the real one is a no-op on a row
@@ -135,7 +135,7 @@ test("a row that already holds a saved token is never overwritten", async () => 
 test("a plugin an operator turned off gets the token but stays off", async () => {
   const { deps, connected, readRow } = await setup();
   const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...deps, isPluginOffByOperator: async () => true });
-  assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "saved-left-off");
+  assert.equal(await importAgentPluginAccessToken({ deps: offDeps, pluginId: "supabase", token: TOKEN }), "saved-left-off");
   assert.equal((await readRow())?.authMode, "static_env");
   assert.equal((await readRow())?.enabled, false);
   assert.deepEqual(connected, [], "an operator's off switch must not be overridden");
@@ -149,11 +149,11 @@ test("a plugin an operator turned off gets the token but stays off", async () =>
 test("a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it)", async () => {
   const { deps, readRow } = await setup();
   const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...deps, isPluginOffByOperator: async () => true });
-  assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "saved-left-off");
+  assert.equal(await importAgentPluginAccessToken({ deps: offDeps, pluginId: "supabase", token: TOKEN }), "saved-left-off");
   const saved = await readRow();
   assert.equal(saved?.enabled, false);
 
-  const outcome = await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: "sbp_an_older_env_token" });
+  const outcome = await importAgentPluginAccessToken({ deps: offDeps, pluginId: "supabase", token: "sbp_an_older_env_token" });
   assert.equal(outcome, "already-connected");
   const after = await readRow();
   assert.equal(after?.authMode, "static_env");
@@ -457,12 +457,12 @@ test("a save whose switch-on failed is switched on by the next import, without t
       await deps.onConnected?.(serverId);
     },
   });
-  await assert.rejects(importAgentPluginAccessToken(flaky, { pluginId: "supabase", token: TOKEN }), /activations file busy/);
+  await assert.rejects(importAgentPluginAccessToken({ deps: flaky, pluginId: "supabase", token: TOKEN }), /activations file busy/);
   const saved = await readRow();
   assert.equal(saved?.authMode, "static_env");
   assert.equal(saved?.enabled, false);
 
-  assert.equal(await importAgentPluginAccessToken(flaky, { pluginId: "supabase", token: "sbp_other" }), "already-connected");
+  assert.equal(await importAgentPluginAccessToken({ deps: flaky, pluginId: "supabase", token: "sbp_other" }), "already-connected");
   assert.deepEqual(connected, ["supabase"], "the retry must run the switch-on the first attempt missed");
   const after = await readRow();
   assert.equal(after?.enabled, true);
@@ -472,8 +472,8 @@ test("a save whose switch-on failed is switched on by the next import, without t
 test("an already-connected row is not switched on when an operator turned the plugin off", async () => {
   const { deps, connected, readRow } = await setup();
   const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...deps, isPluginOffByOperator: async () => true });
-  await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN });
-  assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "already-connected");
+  await importAgentPluginAccessToken({ deps: offDeps, pluginId: "supabase", token: TOKEN });
+  assert.equal(await importAgentPluginAccessToken({ deps: offDeps, pluginId: "supabase", token: TOKEN }), "already-connected");
   assert.deepEqual(connected, []);
   assert.equal((await readRow())?.enabled, false);
 });
@@ -483,7 +483,7 @@ test("a row an operator already set up and switched on still gets its plugin swi
   const row = await readRow();
   assert.ok(row);
   await deps.mcp.repo.updateIfVersion({ record: { ...row, enabled: true, allowedToolNames: '["list_projects"]' }, expectedVersion: row.version, replaces: { sealedEnv: row.sealedEnv, sealedOAuth: row.sealedOAuth } });
-  assert.equal(await importAgentPluginAccessToken(deps, { pluginId: "supabase", token: TOKEN }), "saved");
+  assert.equal(await importAgentPluginAccessToken({ deps, pluginId: "supabase", token: TOKEN }), "saved");
   assert.deepEqual(connected, ["supabase"]);
   assert.deepEqual(pluginsSwitchedOn, ["supabase"], "the plugin's own activation must be switched on too");
 
@@ -492,7 +492,7 @@ test("a row an operator already set up and switched on still gets its plugin swi
   assert.ok(refusedRow);
   await refusedDeps.mcp.repo.updateIfVersion({ record: { ...refusedRow, enabled: true, allowedToolNames: '["list_projects"]' }, expectedVersion: refusedRow.version, replaces: { sealedEnv: refusedRow.sealedEnv, sealedOAuth: refusedRow.sealedOAuth } });
   const refused: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...refusedDeps, switchPluginOn: async () => false });
-  assert.equal(await importAgentPluginAccessToken(refused, { pluginId: "supabase", token: TOKEN }), "saved-left-off", "an operator's off switch that won the race is reported");
+  assert.equal(await importAgentPluginAccessToken({ deps: refused, pluginId: "supabase", token: TOKEN }), "saved-left-off", "an operator's off switch that won the race is reported");
 });
 
 // L025a: retirement notices precede skip decisions, and failures remain isolated.

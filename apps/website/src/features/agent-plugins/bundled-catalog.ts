@@ -96,7 +96,7 @@ export const RETIRED_PLUGIN_REPLACEMENTS: ReadonlyMap<string, string> = new Map(
 /** Maps each pinned ref through {@link RETIRED_PLUGIN_REPLACEMENTS}, keeping order and dropping a
  *  duplicate the translation creates (`deploy` and `fly` both pinned).
  *  @complexity O(n) in ref count. */
-export function translateRetiredPluginRefs(pluginRefIds: readonly string[]): readonly string[] {
+export function translateRetiredPluginRefs({ pluginRefIds }: { pluginRefIds: readonly string[] }, _optional: Record<string, never> = {}): readonly string[] {
   return [...new Set(pluginRefIds.map((id) => RETIRED_PLUGIN_REPLACEMENTS.get(id) ?? id))];
 }
 

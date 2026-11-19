@@ -67,7 +67,7 @@ export async function requestConsent(required: {
     evidence: ConsentEvidence;
     originModule: string;
   };
-}): Promise<{ consent: MemberConsentRecord }> {
+}, _optional: Record<string, never> = {}): Promise<{ consent: MemberConsentRecord }> {
   const { deps, input } = required;
   await assertMemberExists({ deps, workspaceId: input.workspaceId, memberId: input.memberId });
 
@@ -134,7 +134,7 @@ export async function confirmConsent(required: {
     evidence: ConsentEvidence;
     originModule: string;
   };
-}): Promise<{ consent: MemberConsentRecord }> {
+}, _optional: Record<string, never> = {}): Promise<{ consent: MemberConsentRecord }> {
   const { deps, input } = required;
   await assertMemberExists({ deps, workspaceId: input.workspaceId, memberId: input.memberId });
 
@@ -193,7 +193,7 @@ export async function confirmConsent(required: {
 export async function revokeConsent(required: {
   deps: ConsentServiceDeps;
   input: { workspaceId: string; memberId: string; purpose: ConsentPurpose };
-}): Promise<{ consent: MemberConsentRecord }> {
+}, _optional: Record<string, never> = {}): Promise<{ consent: MemberConsentRecord }> {
   const { deps, input } = required;
   const existing = await deps.consents.findByMemberAndPurpose({
     workspaceId: input.workspaceId,
@@ -250,7 +250,7 @@ export async function revokeConsent(required: {
 export async function checkConsent(required: {
   deps: ConsentServiceDeps;
   input: { workspaceId: string; memberId: string; purpose: ConsentPurpose };
-}): Promise<{ status: MemberConsentRecord["status"] | "none" }> {
+}, _optional: Record<string, never> = {}): Promise<{ status: MemberConsentRecord["status"] | "none" }> {
   const { deps, input } = required;
   const existing = await deps.consents.findByMemberAndPurpose({
     workspaceId: input.workspaceId,

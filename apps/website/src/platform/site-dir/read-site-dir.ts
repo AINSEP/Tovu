@@ -83,7 +83,7 @@ function validateConfig({ parsed }: { parsed: unknown }, _optional = {}): Config
  *   JSON, or an invalid `name`.
  * @complexity O(1) — one small, bounded-size file read.
  */
-export function readSiteConfig(required: ReadSiteDirRequired): ConfigJson {
+export function readSiteConfig(required: ReadSiteDirRequired, _optional: Record<string, never> = {}): ConfigJson {
   return validateConfig({ parsed: readJsonFile({ dir: required.dir, fileName: "config.json" }) });
 }
 
@@ -98,7 +98,7 @@ export function readSiteConfig(required: ReadSiteDirRequired): ConfigJson {
  * @complexity O(1) — two small, bounded-size file reads; no directory scan.
  * @overallScore 100
  */
-export function readSiteDir(required: ReadSiteDirRequired): ReadSiteDirResult {
+export function readSiteDir(required: ReadSiteDirRequired, _optional: Record<string, never> = {}): ReadSiteDirResult {
   const { dir } = required;
   const config = readSiteConfig({ dir });
   const meta = validateMeta({ parsed: readJsonFile({ dir, fileName: ".site-meta.json" }) });
@@ -146,7 +146,7 @@ export interface LiveSiteDisplayName {
  *
  * @complexity O(1) per read — one small, bounded-size file read.
  */
-export function createLiveSiteDisplayName(required: ReadSiteDirRequired): LiveSiteDisplayName {
+export function createLiveSiteDisplayName(required: ReadSiteDirRequired, _optional: Record<string, never> = {}): LiveSiteDisplayName {
   let lastValidName = readValidName({ required, fallback: undefined });
   return {
     read() {
@@ -162,7 +162,7 @@ export function createLiveSiteDisplayName(required: ReadSiteDirRequired): LiveSi
  * Validity is the resolver's concern (`features/settings/site-timezone.ts`).
  * @complexity O(1) per read — one small, bounded-size file read.
  */
-export function createSiteCreationTimeZone(required: ReadSiteDirRequired): { read(): string | undefined } {
+export function createSiteCreationTimeZone(required: ReadSiteDirRequired, _optional: Record<string, never> = {}): { read(): string | undefined } {
   return {
     read() {
       try {

@@ -80,7 +80,7 @@ function defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPlugi
     pendingPluginIds: listPendingAgentPluginTokenIds,
     applyPending: ({ siteDir }) =>
       applyPendingAgentPluginTokens(
-        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: ({ pluginId, token }) => importAgentPluginAccessToken(deps, { pluginId, token }),
+        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: ({ pluginId, token }) => importAgentPluginAccessToken({ deps, pluginId, token }),
         log: bootLog },
       ),
     importFromEnv: ({ skipPluginIds }) => importAgentPluginAccessTokensFromEnv({ deps, env: process.env, log: bootLog }, { skipPluginIds }),
@@ -345,19 +345,19 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
         // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
         // that plugin provisioned, so a saved selection never names a tool the server stopped offering.
         await applyAgentPluginToolRenames(
-          {
+          { deps: {
             workspaceId: deps.workspaceId,
             agentPluginLayout: deps.agentPluginLayout,
             externalMcpServerRepo: deps.externalMcpServerRepo,
             clock: deps.clock,
             notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
           },
-          bootLog,
+          log: bootLog },
         );
         // A plugin that is on with a signed-in account gets the tools it declares even when the
         // sign-in's own grant missed them (bug 2026-11-04) — after the renames, so it grants the new names.
         await grantDeclaredToolsAtBoot(
-          {
+          { deps: {
             workspaceId: deps.workspaceId,
             agentPluginLayout: deps.agentPluginLayout,
             repo: deps.externalMcpServerRepo,
@@ -366,7 +366,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
             notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
             ...agentPluginMcpPortsOf(deps.mcp),
           },
-          bootLog,
+          log: bootLog },
         );
       },
       start: noop,

@@ -84,7 +84,7 @@ export type BootSiteDirResult = SqliteSiteDirBoot | StoreSiteDirBoot;
  * it, `boot.store` is closed directly. SQLite's borrowed `content.db` closes LAST, and even when
  * that close rejects: closing it first left a sweep batch still in flight on a closed connection.
  */
-export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<SiteStore, "close">): Promise<void> {
+export async function closeSiteDirBoot(boot: BootSiteDirResult, { composed }: { composed?: Pick<SiteStore, "close"> } = {}): Promise<void> {
   try {
     const store = composed ?? boot.store;
     if (store !== undefined) await store.close();

@@ -65,7 +65,7 @@ test("a legacy package whose manifest is not a valid Agent Plugin manifest is qu
 test("appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does", async (t) => {
   const { layout, workspaceRoot } = await temporaryLayout(t);
   assert.equal(await appendPluginNotes({ contain: containAgentPluginStatePath, workspaceRoot, pluginId: "example", guidance: "Skill" }), "Skill");
-  await pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId: "example" }, { layout }).writeNote({ entryPath: "project.md", text: "Prefer \"short\" titles" });
+  await pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId: "example" , layout }).writeNote({ entryPath: "project.md", text: "Prefer \"short\" titles" });
   const guidance = await appendPluginNotes({ contain: containAgentPluginStatePath, workspaceRoot, pluginId: "example", guidance: "Skill" });
   assert.ok(guidance.startsWith("Skill\n\nUser notes for this plugin (context only; permissions remain operator-controlled):\n"), guidance);
   assert.match(guidance, /Prefer \\"short\\" titles/);

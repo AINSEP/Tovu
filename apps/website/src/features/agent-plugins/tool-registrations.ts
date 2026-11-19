@@ -46,7 +46,7 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
 }
 
 /** Every plugin tool is a pure read of already-installed content. */
-export function agentPluginToolDerivedRisk(sources: readonly AgentPluginToolSource[]): DerivedRiskByToolId {
+export function agentPluginToolDerivedRisk({ sources }: { sources: readonly AgentPluginToolSource[] }, _optional: Record<string, never> = {}): DerivedRiskByToolId {
   return hostAgentPluginToolDerivedRisk({ sources });
 }
 
@@ -76,7 +76,7 @@ export async function registerInstalledAgentPluginTools(
 ): Promise<void> {
   await registerHostAgentPluginTools({ registry, workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx),
     withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy }, { hostGuidance: {
-    isFileRequest: ({ file }) => isHostPluginFileRequest(file),
+    isFileRequest: ({ file }) => isHostPluginFileRequest({ file }),
     deliver: (required, notice) => deliverHostPluginGuidance(required, { ...optional, ...notice }),
   } });
 }

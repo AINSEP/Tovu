@@ -113,7 +113,7 @@ function installShutdown({ context, server, daemonCallback }: { context: ServeLi
   const stopOutbox = () => outboxDrainer.stop();
   const stopTrash = () => trashSweeper.stop({});
   closeStoreOnShutdown({
-    store: { storage: owned.bootResult.storage, close: () => closeSiteDirBoot(owned.bootResult, owned.composedStore) },
+    store: { storage: owned.bootResult.storage, close: () => closeSiteDirBoot(owned.bootResult, { composed: owned.composedStore }) },
     onShutdown: shutdownAssistantDaemon,
   }, {
     registerStop: ({ stop }, _optional = {}) => { stopRef.requestStop = stop; },

@@ -63,7 +63,7 @@ async function signature(keyring: KeyringPort, claims: UnsubscribeTokenClaims): 
 export async function buildUnsubscribeLink(required: {
   deps: UnsubscribeDeps;
   claims: UnsubscribeTokenClaims;
-}): Promise<string> {
+}, _optional: Record<string, never> = {}): Promise<string> {
   const { deps, claims } = required;
   const sig = await signature(deps.keyring, claims);
   const token = `${Buffer.from(JSON.stringify(claims)).toString("base64url")}.${sig}`;
@@ -87,7 +87,7 @@ function decodeClaims({ encoded }: { encoded: string }, _options = {}): Unsubscr
 export async function processUnsubscribe(required: {
   deps: UnsubscribeDeps;
   input: { rawToken: string };
-}): Promise<{ outcome: "unsubscribed" | "already-unsubscribed" }> {
+}, _optional: Record<string, never> = {}): Promise<{ outcome: "unsubscribed" | "already-unsubscribed" }> {
   const { deps, input } = required;
   const [encoded, providedSig] = input.rawToken.split(".");
   if (!encoded || !providedSig) {

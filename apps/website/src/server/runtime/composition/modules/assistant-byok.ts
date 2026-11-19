@@ -619,7 +619,7 @@ export function createAssistantByokModule(
       plugins: { controller: automaticPluginRuns, emit: publishDaemonPluginEvent,
         pinnedPrefix: async ({ pluginRefIds }) => {
           await Promise.all([routeDeps.pluginRuntimeReady, routeDeps.siteTitleReady]);
-          const result = await resolveAgentPluginRefs({ pluginRefIds: translateRetiredPluginRefs(pluginRefIds), workspaceLayout: routeDeps.agentPluginLayout.forWorkspace({ workspaceId: routeDeps.workspaceId }) }, { deliveryMode: 'inject' });
+          const result = await resolveAgentPluginRefs({ pluginRefIds: translateRetiredPluginRefs({ pluginRefIds }), workspaceLayout: routeDeps.agentPluginLayout.forWorkspace({ workspaceId: routeDeps.workspaceId }) }, { deliveryMode: 'inject' });
           return result.ok ? result.promptPrefix : null;
         },
         refusalPrefix: () => resolvedToolSurface.federation?.refusalPrefix() ?? "",

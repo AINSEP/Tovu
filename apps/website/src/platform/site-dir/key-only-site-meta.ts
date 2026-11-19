@@ -103,7 +103,7 @@ export function readKeyOnlySiteMeta({ dir }: { dir: string }, _optional = {}): K
 
 /** The identity part every completion of `keyOnly` carries: `siteId` = `siteKeyId`, and the key
  *  fields (plus `storage`) exactly as they were. See this file's header for why. */
-export function carriedKeyFields(keyOnly: KeyOnlySiteMeta): Pick<SiteMetaJson, "siteId" | "siteKeyId" | "siteKeyFingerprint" | "storage"> {
+export function carriedKeyFields(keyOnly: KeyOnlySiteMeta, _optional: Record<string, never> = {}): Pick<SiteMetaJson, "siteId" | "siteKeyId" | "siteKeyFingerprint" | "storage"> {
   return {
     siteId: keyOnly.siteKeyId,
     siteKeyId: keyOnly.siteKeyId,
@@ -121,7 +121,7 @@ function dirCreatedAt({ dir }: { dir: string }, _optional = {}): string {
 
 /** The pure choice behind {@link dirCreatedAt}: birth time when the filesystem reports one
  *  (`birthtimeMs > 0`), otherwise modification time. @complexity O(1). */
-export function createdAtFromStat(stat: Pick<fs.Stats, "birthtimeMs" | "birthtime" | "mtime">): string {
+export function createdAtFromStat(stat: Pick<fs.Stats, "birthtimeMs" | "birthtime" | "mtime">, _optional: Record<string, never> = {}): string {
   return (stat.birthtimeMs > 0 ? stat.birthtime : stat.mtime).toISOString();
 }
 
@@ -158,7 +158,7 @@ async function deriveSchemaStamp({ dir, storage }: { dir: string; storage: SiteS
  * @throws {SiteDirInvalidError} an invalid `storage`, or see {@link deriveSchemaStamp}.
  * @complexity O(m) in the bundled journal's entry count (one read-only db open), else O(1).
  */
-export async function planKeyOnlySiteMetaCompletion(required: { dir: string }): Promise<SiteMetaJson | undefined> {
+export async function planKeyOnlySiteMetaCompletion(required: { dir: string }, _optional: Record<string, never> = {}): Promise<SiteMetaJson | undefined> {
   const keyOnly = readKeyOnlySiteMeta({ dir: required.dir });
   return keyOnly === undefined ? undefined : buildCompletedMeta({ dir: required.dir, keyOnly });
 }
@@ -190,7 +190,7 @@ function assembleMeta({ dir, keyOnly, stamp }: { dir: string; keyOnly: KeyOnlySi
  *
  * @complexity O(m) in the bundled journal's entry count — one read-only db open.
  */
-export async function buildSiteMetaForNewKey(required: { dir: string; siteKeyId: string }): Promise<SiteMetaJson | undefined> {
+export async function buildSiteMetaForNewKey(required: { dir: string; siteKeyId: string }, _optional: Record<string, never> = {}): Promise<SiteMetaJson | undefined> {
   const dbPath = resolveSiteDatabasePaths({ dir: required.dir, siteId: required.siteKeyId }).contentDbPath;
   if (!fs.existsSync(dbPath)) return undefined;
   let identity: Awaited<ReturnType<typeof readAppliedSchemaIdentityOfFile>>;

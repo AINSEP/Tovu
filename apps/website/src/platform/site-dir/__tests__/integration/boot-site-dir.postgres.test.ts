@@ -89,7 +89,7 @@ test("bootSiteDir honors an explicit Postgres workspace instead of the oldest", 
 
 test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass it as overrides.store)", async (t) => {
   const boot = await bootSiteDir({ dir });
-  let composed: Parameters<typeof closeSiteDirBoot>[1];
+  let composed: NonNullable<Parameters<typeof closeSiteDirBoot>[1]>["composed"];
   const sweeps: ReturnType<typeof setInterval>[] = [];
   const cleared: Parameters<typeof clearInterval>[0][] = [];
   const realSetInterval = globalThis.setInterval;
@@ -120,7 +120,7 @@ test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass
     assert.equal(sweeps.length, 1, "the owner composition starts its guest-chat sweep");
   } finally {
     try {
-      await closeSiteDirBoot(boot, composed);
+      await closeSiteDirBoot(boot, { composed });
     } finally {
       intervalSpy.mock.restore();
       clearSpy.mock.restore();

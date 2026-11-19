@@ -38,7 +38,7 @@ export interface SubscriptionsDeps {
 export async function saveSubscription(required: {
   deps: SubscriptionsDeps;
   input: { workspaceId: UUID; listId: UUID; subscriberId: UUID; source: SubscriptionRow["source"] };
-}): Promise<{ subscription: SubscriptionRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ subscription: SubscriptionRow }> {
   const { deps, input } = required;
 
   const list = await deps.listRepo.findById({ workspaceId: input.workspaceId, id: input.listId });
@@ -100,7 +100,7 @@ export interface UnsubscribeSubscriptionDeps {
 export async function unsubscribeSubscription(required: {
   deps: UnsubscribeSubscriptionDeps;
   input: { workspaceId: UUID; id: UUID };
-}): Promise<{ subscription: SubscriptionRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ subscription: SubscriptionRow }> {
   const { deps, input } = required;
   const existing = await deps.subscriptionRepo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing) {

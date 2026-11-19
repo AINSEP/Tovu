@@ -178,7 +178,7 @@ export type PublishablePostState = Pick<PostRecord, (typeof PACKED_POST_FIELDS)[
  *
  * @complexity O(1) — a fixed field count, no iteration over anything caller-controlled.
  */
-export function toPublishableState(post: PostRecord): Record<string, unknown> {
+export function toPublishableState(post: PostRecord, _optional: Record<string, never> = {}): Record<string, unknown> {
   const state: Record<string, unknown> = {};
   for (const field of PACKED_POST_FIELDS) {
     const absent = OMIT_WHEN_ABSENT.has(field) && post[field] === undefined;

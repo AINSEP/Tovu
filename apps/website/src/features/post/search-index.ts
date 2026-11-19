@@ -20,7 +20,7 @@ import { sqlitePostSearch } from "./search-index.sqlite.js";
 export { toPostSearchHit, type PostSearchDialect, type PostSearchRow, type SearchProjectionTables } from "./search-index.contract.js";
 
 /** The post search for `kernel`'s dialect. */
-export function postSearchFor(kernel: ContentKernel): PostSearchDialect {
+export function postSearchFor(kernel: ContentKernel, _optional: Record<string, never> = {}): PostSearchDialect {
   return kernel.dialect === "sqlite" ? sqlitePostSearch : pgPostSearch;
 }
 

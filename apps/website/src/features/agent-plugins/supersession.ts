@@ -66,7 +66,7 @@ function declaredSupersedes({ manifest }: { manifest: unknown }, _optional: Reco
 /** The manifest's declaration, or `undefined` when it has none or any part is malformed — a
  *  half-understood declaration must never refuse contributions it did not clearly name.
  *  @complexity O(n) in the declaration's entries. */
-export function parseSupersedes(required: { readonly manifestText: string | undefined }): Omit<PluginSupersession, "successorId"> | undefined {
+export function parseSupersedes(required: { readonly manifestText: string | undefined }, _optional: Record<string, never> = {}): Omit<PluginSupersession, "successorId"> | undefined {
   const declared = declaredSupersedes({ manifest: required.manifestText === undefined ? undefined : parseJson({ text: required.manifestText }) });
   if (!isRecord(declared)) return undefined;
   const packages = stringList({ value: declared.packages ?? [] });

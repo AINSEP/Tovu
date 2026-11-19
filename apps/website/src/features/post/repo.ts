@@ -357,6 +357,6 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
 }
 
 /** The post repo for `kernel`, with its dialect's search projection. */
-export function postRepoFor(kernel: ContentKernel): SqlPostRepo {
+export function postRepoFor(kernel: ContentKernel, _optional: Record<string, never> = {}): SqlPostRepo {
   return new SqlPostRepo(kernel, postSearchFor(kernel));
 }

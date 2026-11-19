@@ -200,5 +200,5 @@ async function closeExportBoot(
   await awaitBootWorkWithinBound({
     work: [...(legacyPublishCredentialsReady ? [legacyPublishCredentialsReady] : []), ...(siteAppBootWork ?? [])],
   });
-  await (optional.closeSiteDirBoot ?? closeSiteDirBoot)(bootResult, composedStore);
+  await (optional.closeSiteDirBoot ?? closeSiteDirBoot)(bootResult, { composed: composedStore });
 }

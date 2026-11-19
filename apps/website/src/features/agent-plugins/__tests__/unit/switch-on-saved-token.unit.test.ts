@@ -228,9 +228,9 @@ test("injected activation ports decide the outcome: an operator-off check short-
 
 test("describeSavedTokenSwitch names the screen that turns each kind of 'off' back on", () => {
   const names = { displayName: "Some Plugin", connectionId: "remote" };
-  assert.equal(describeSavedTokenSwitch({ state: "on" }, names), "Some Plugin is connected and switched on. Its tools are ready to use.");
-  assert.equal(describeSavedTokenSwitch({ state: "plugin-off-by-operator" }, names),
+  assert.equal(describeSavedTokenSwitch({ outcome: { state: "on" }, ...names }), "Some Plugin is connected and switched on. Its tools are ready to use.");
+  assert.equal(describeSavedTokenSwitch({ outcome: { state: "plugin-off-by-operator" }, ...names }),
     `Token saved. Some Plugin stays off because an operator turned it off. To use it, switch 'Some Plugin' on in ${AGENT_PLUGINS_SCREEN}.`);
-  assert.equal(describeSavedTokenSwitch({ state: "connection-off-by-operator" }, names),
+  assert.equal(describeSavedTokenSwitch({ outcome: { state: "connection-off-by-operator" }, ...names }),
     `Token saved. The 'remote' connection stays off because an operator changed its settings. To use it, switch it on in ${EXTERNAL_MCP_SCREEN}.`);
 });

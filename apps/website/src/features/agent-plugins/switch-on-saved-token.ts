@@ -45,7 +45,7 @@ export function switchOnSavedTokenConnection(
 }
 
 /** The plain next-step line for each outcome. Never carries a token. */
-export function describeSavedTokenSwitch(outcome: SavedTokenSwitchOutcome, names: { readonly displayName: string; readonly connectionId: string }): string {
+export function describeSavedTokenSwitch({ outcome, ...names }: { outcome: SavedTokenSwitchOutcome; readonly displayName: string; readonly connectionId: string }, _optional: Record<string, never> = {}): string {
   const messages = {
     on: `${names.displayName} is connected and switched on. Its tools are ready to use.`,
     'plugin-off-by-operator': `Token saved. ${names.displayName} stays off because an operator turned it off. To use it, switch '${names.displayName}' on in ${AGENT_PLUGINS_SCREEN}.`,

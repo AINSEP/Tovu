@@ -34,7 +34,7 @@ for (const root of ["memory", "sqlite"] as const) {
       await initSite({ dir: siteDir, name: "Publish test" });
       const boot = await bootSiteDir({ dir: siteDir });
       let composed: { close(): Promise<void> } | undefined;
-      release = () => closeSiteDirBoot(boot, composed);
+      release = () => closeSiteDirBoot(boot, { composed });
       deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
         db: boot.db, workspaceId: boot.workspaceId,
         onStoreOpened: ({ store }, _optional = {}) => { composed = store; },

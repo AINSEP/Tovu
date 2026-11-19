@@ -30,7 +30,7 @@ export interface ListsDeps {
 export async function saveList(required: {
   deps: ListsDeps;
   input: { workspaceId: UUID; id?: UUID; name: string; slug: string };
-}): Promise<{ list: NewsletterListRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ list: NewsletterListRow }> {
   const { deps, input } = required;
   if (input.name.trim().length === 0) {
     throw new NewsletterValidationError({ message: "name must not be empty", field: "name", reason: "required" });
@@ -74,7 +74,7 @@ export async function saveList(required: {
 export async function archiveList(required: {
   deps: ListsDeps;
   input: { workspaceId: UUID; id: UUID };
-}): Promise<{ list: NewsletterListRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ list: NewsletterListRow }> {
   const { deps, input } = required;
   const existing = await deps.listRepo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing) throw new NewsletterListNotFoundError(`list ${input.id} was not found`);
@@ -94,7 +94,7 @@ export async function archiveList(required: {
 export async function ensureDefaultList(required: {
   deps: ListsDeps;
   input: { workspaceId: UUID };
-}): Promise<{ list: NewsletterListRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ list: NewsletterListRow }> {
   const { deps, input } = required;
   const existing = await deps.listRepo.findDefault({ workspaceId: input.workspaceId });
   if (existing) return { list: existing };

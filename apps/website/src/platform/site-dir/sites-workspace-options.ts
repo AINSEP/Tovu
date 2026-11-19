@@ -16,7 +16,7 @@ export function ownerStorageOverrides(
 }
 
 /** A Tovu checkout keeps its legacy `sites` folder discoverable; any other cwd adds no source root. */
-export function defaultSourceRoots({ cwd }: { cwd: string }): string[] {
+export function defaultSourceRoots({ cwd }: { cwd: string }, _optional: Record<string, never> = {}): string[] {
   return fs.existsSync(path.join(cwd, "apps", "website", "src")) ? [path.join(cwd, "sites")] : [];
 }
 

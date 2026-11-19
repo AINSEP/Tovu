@@ -30,5 +30,5 @@ export function previewAgentPluginEnableAccess(
   input: Omit<Parameters<typeof previewWithPorts>[0], 'projections' | 'classifyError' | 'classifyTrust' | 'messages'> & AgentPluginMcpContext,
   _options = {},
 ): ReturnType<typeof previewWithPorts> {
-  return previewWithPorts(withOverrides(withAgentPluginMcpPorts(input), { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages }));
+  return previewWithPorts(withOverrides({ target: withAgentPluginMcpPorts(input), overrides: { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages } }));
 }

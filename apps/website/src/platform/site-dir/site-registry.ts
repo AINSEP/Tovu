@@ -503,7 +503,7 @@ export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBindi
  *
  * @complexity O(1) — path arithmetic only.
  */
-export function switcherBaseForBinding(binding: SiteBinding): string | null {
+export function switcherBaseForBinding(binding: SiteBinding, _optional: Record<string, never> = {}): string | null {
   return binding.switcherCompatible ? binding.switcherBase ?? path.dirname(path.dirname(binding.dir)) : null;
 }
 

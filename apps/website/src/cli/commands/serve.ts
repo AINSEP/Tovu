@@ -252,7 +252,7 @@ async function releaseServeOwnership(owned: ServeOwnership): Promise<void> {
  *  `awaitBootWorkWithinBound`), so a site stopped seconds after boot does not close under it. */
 async function closeOwnedStore(owned: ServeOwnership): Promise<void> {
   await awaitBootWorkWithinBound({ work: owned.bootWork });
-  await closeSiteDirBoot(owned.bootResult, owned.composedStore);
+  await closeSiteDirBoot(owned.bootResult, { composed: owned.composedStore });
 }
 
 /** Writes the per-site key before anything reads it, then warns when a local boot has none. */

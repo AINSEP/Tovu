@@ -137,7 +137,7 @@ export function toCampaignRecord(row: CampaignTableRow & { editorial_state_json?
 }
 
 /** The `newsletter_campaigns` row an INSERT writes. */
-export function toCampaignRow(c: CampaignRecord): Insertable<ContentDatabase["newsletter_campaigns"]> {
+export function toCampaignRow(c: CampaignRecord, _optional: Record<string, never> = {}): Insertable<ContentDatabase["newsletter_campaigns"]> {
   return {
     id: c.id,
     workspace_id: c.workspaceId,
@@ -163,7 +163,7 @@ export function toCampaignRow(c: CampaignRecord): Insertable<ContentDatabase["ne
  * The columns a re-save overwrites: everything except the key and the counters, which are
  * insert-only here (`incrementCounter` owns them afterwards, see `ports.ts`).
  */
-export function updatableCampaignColumns(row: Insertable<ContentDatabase["newsletter_campaigns"]>) {
+export function updatableCampaignColumns(row: Insertable<ContentDatabase["newsletter_campaigns"]>, _optional: Record<string, never> = {}) {
   const { id: _id, counters_json: _counters, ...updatable } = row;
   return updatable;
 }
@@ -195,7 +195,7 @@ export function toListRecord(row: Selectable<ListTableRow>): NewsletterListRow {
 }
 
 /** The `p_newsletter__lists` row an INSERT writes. */
-export function toListRow(row: NewsletterListRow): Insertable<ListTableRow> {
+export function toListRow(row: NewsletterListRow, _optional: Record<string, never> = {}): Insertable<ListTableRow> {
   return {
     id: row.id,
     workspace_id: row.workspaceId,
@@ -209,7 +209,7 @@ export function toListRow(row: NewsletterListRow): Insertable<ListTableRow> {
 }
 
 /** The columns a re-save of a list overwrites: everything except the key, workspace and creation time. */
-export function updatableListColumns(row: Insertable<ListTableRow>) {
+export function updatableListColumns(row: Insertable<ListTableRow>, _optional: Record<string, never> = {}) {
   const { id: _id, workspace_id: _workspace, created_at: _created, ...updatable } = row;
   return updatable;
 }
@@ -232,7 +232,7 @@ export function toSubscriptionRecord(row: Selectable<SubscriptionTableRow>): Sub
 }
 
 /** The `p_newsletter__subscriptions` row an INSERT writes. */
-export function toSubscriptionRow(row: SubscriptionRow): Insertable<SubscriptionTableRow> {
+export function toSubscriptionRow(row: SubscriptionRow, _optional: Record<string, never> = {}): Insertable<SubscriptionTableRow> {
   return {
     id: row.id,
     workspace_id: row.workspaceId,
@@ -249,7 +249,7 @@ export function toSubscriptionRow(row: SubscriptionRow): Insertable<Subscription
 }
 
 /** The columns a re-save of a subscription overwrites: its lifecycle, not its identity (list, subscriber, source, creation). */
-export function updatableSubscriptionColumns(row: Insertable<SubscriptionTableRow>) {
+export function updatableSubscriptionColumns(row: Insertable<SubscriptionTableRow>, _optional: Record<string, never> = {}) {
   return {
     status: row.status,
     consent_revision_id_at_subscribe: row.consent_revision_id_at_subscribe,
@@ -260,7 +260,7 @@ export function updatableSubscriptionColumns(row: Insertable<SubscriptionTableRo
 }
 
 /** One `p_newsletter__audience_snapshots` row as an {@link AudienceSnapshotRow}. */
-export function toAudienceSnapshotRecord(row: Selectable<AudienceSnapshotTableRow>): AudienceSnapshotRow {
+export function toAudienceSnapshotRecord(row: Selectable<AudienceSnapshotTableRow>, _optional: Record<string, never> = {}): AudienceSnapshotRow {
   return {
     id: row.id,
     workspaceId: row.workspace_id,
@@ -272,7 +272,7 @@ export function toAudienceSnapshotRecord(row: Selectable<AudienceSnapshotTableRo
 }
 
 /** The `p_newsletter__audience_snapshots` row an INSERT writes. */
-export function toAudienceSnapshotRow(row: AudienceSnapshotRow): Insertable<AudienceSnapshotTableRow> {
+export function toAudienceSnapshotRow(row: AudienceSnapshotRow, _optional: Record<string, never> = {}): Insertable<AudienceSnapshotTableRow> {
   return {
     id: row.id,
     workspace_id: row.workspaceId,
@@ -304,7 +304,7 @@ export function toSendRecord(row: Selectable<SendTableRow>): SendRow {
 }
 
 /** The `p_newsletter__sends` row an INSERT writes. */
-export function toSendRow(row: SendRow): Insertable<SendTableRow> {
+export function toSendRow(row: SendRow, _optional: Record<string, never> = {}): Insertable<SendTableRow> {
   return {
     id: row.id,
     workspace_id: row.workspaceId,
@@ -324,7 +324,7 @@ export function toSendRow(row: SendRow): Insertable<SendTableRow> {
 }
 
 /** The columns a re-save of a send overwrites: its delivery state, not its identity (campaign, snapshot, subscriber, key). */
-export function updatableSendColumns(row: Insertable<SendTableRow>) {
+export function updatableSendColumns(row: Insertable<SendTableRow>, _optional: Record<string, never> = {}) {
   return {
     status: row.status,
     attempts: row.attempts,
@@ -351,7 +351,7 @@ export function toConfirmationTokenRecord(row: Selectable<ConfirmationTokenTable
 }
 
 /** The `p_newsletter__confirmation_tokens` row an INSERT writes. */
-export function toConfirmationTokenRow(row: ConfirmationTokenRecord): Insertable<ConfirmationTokenTableRow> {
+export function toConfirmationTokenRow(row: ConfirmationTokenRecord, _optional: Record<string, never> = {}): Insertable<ConfirmationTokenTableRow> {
   return {
     id: row.id,
     workspace_id: row.workspaceId,

@@ -43,18 +43,18 @@ export function planAgentPluginMcpFederation(input: { readonly servers: Readonly
 
 export function resolveAgentPluginMcpServers(input: Omit<Parameters<typeof resolveWithReads>[0], "lifecycle">, _optional = {}): Promise<Readonly<Record<string, McpServerConfig>>> {
   // Descriptor-preserving: a fixture's lazy layout getter is read only where the body reads it.
-  return resolveWithReads(withOverrides(input, { lifecycle: tovuInstalledMcpReads }));
+  return resolveWithReads(withOverrides({ target: input, overrides: { lifecycle: tovuInstalledMcpReads } }));
 }
 
 export function resolveAgentPluginReadOnlyRemoteNames(input: Omit<Parameters<typeof readOnlyNamesWithReads>[0], "lifecycle">, _optional = {}): Promise<ReadonlySet<string>> {
-  return readOnlyNamesWithReads(withOverrides(input, { lifecycle: tovuInstalledMcpReads }));
+  return readOnlyNamesWithReads(withOverrides({ target: input, overrides: { lifecycle: tovuInstalledMcpReads } }));
 }
 
 export function provisionAgentPluginMcpServers(
   deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
-  return provisionWithPorts(withAgentPluginMcpPorts(deps), withOverrides(input, { classifyTrust: input.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages }));
+  return provisionWithPorts(withAgentPluginMcpPorts(deps), withOverrides({ target: input, overrides: { classifyTrust: input.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages } }));
 }
 
 /** Keep the host entry points bound to the portable implementations. */

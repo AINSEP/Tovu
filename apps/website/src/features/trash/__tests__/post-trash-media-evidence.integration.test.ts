@@ -27,7 +27,7 @@ test("Trash hide and restore clear the media access evidence once they commit", 
     uploadsDir: path.join(dir, "uploads"), themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "Trash Evidence Site", dirOverridden: true, switcherCompatible: false },
   } });
-  t.after(async () => { await closeSiteDirBoot(boot, composed); fs.rmSync(parent, { recursive: true, force: true }); });
+  t.after(async () => { await closeSiteDirBoot(boot, { composed }); fs.rmSync(parent, { recursive: true, force: true }); });
 
   const workspaceId = boot.workspaceId;
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId, id: "gated-post", title: "Gated", slug: "gated-post", kind: "post" } });

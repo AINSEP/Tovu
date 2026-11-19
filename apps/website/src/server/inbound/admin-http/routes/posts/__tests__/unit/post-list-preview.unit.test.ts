@@ -119,7 +119,7 @@ test("editor Preview route includes the draft listing and retains no-store and i
 
 test("content_post_preview returns real list cards and See more for an unsaved page", async () => {
   const { deps, post, repo, writes } = postListPreviewDeps({ count: 25, slug: "writing" });
-  const [registration] = buildPostPreviewRegistrations(deps, { renderPostPreview });
+  const [registration] = buildPostPreviewRegistrations({ deps, renderer: { renderPostPreview } });
   const result = await registration!.handler({
     principal: { id: "p" }, input: { id: post.id, bodyHtml: PENDING_BODY }, signal: new AbortController().signal,
   } as never) as { body: string; truncated: boolean };

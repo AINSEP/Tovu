@@ -12,7 +12,7 @@ function context(input: unknown) { return { principal: { id: 'p' }, input, signa
 test("preview passes unsaved fields, shapes the page and is readOnly with no repo writes", async () => {
   const { deps, repo, writes } = bareDeps();
   const bodyJson = { type: 'doc', content: [] }; let received: unknown;
-  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, { renderPostPreview: async ({ input }) => { received = input; return { html: '<style>hidden</style><p>Needle &amp; Pending</p>', templateChoice: 'other.html' }; } }) })[0]!;
+  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations({ deps, renderer: { renderPostPreview: async ({ input }) => { received = input; return { html: '<style>hidden</style><p>Needle &amp; Pending</p>', templateChoice: 'other.html' }; } } }) })[0]!;
   assert.equal(registration.descriptor.readOnly, true); assert.equal(postPreviewDerivedRisk.get('content_post_preview'), 'none');
   const result = await registration.handler(context({ postId: 'draft-slug', templateChoice: 'other.html', bodyJson, bodyHtml: '<p>pending</p>', find: 'needle', textOnly: true }));
   assert.deepEqual(received, { post: barePost, templateChoice: 'other.html', bodyJson, bodyHtml: '<p>pending</p>' });
@@ -21,12 +21,12 @@ test("preview passes unsaved fields, shapes the page and is readOnly with no rep
 });
 test("permission denied prevents lookup and rendering", async () => {
   let calls = 0;
-  const registration = buildPostPreviewRegistrations({ workspaceId: 'w', authorize: async () => ({ allowed: false, reason: 'denied' }), postRepo: { findById: async () => { calls++; return barePost; }, findBySlug: async () => { calls++; return barePost; } } } as never, { renderPostPreview: async () => { calls++; return { html: '', templateChoice: '' }; } })[0]!;
+  const registration = buildPostPreviewRegistrations({ deps: { workspaceId: 'w', authorize: async () => ({ allowed: false, reason: 'denied' }), postRepo: { findById: async () => { calls++; return barePost; }, findBySlug: async () => { calls++; return barePost; } } } as never, renderer: { renderPostPreview: async () => { calls++; return { html: '', templateChoice: '' }; } } })[0]!;
   await assert.rejects(registration.handler(context({ postId: 'draft-1' })), { message: "principal 'p' is not authorized for 'content.read' (denied)" }); assert.equal(calls, 0);
 });
 test("unknown posts and invalid optional inputs are actionable refusals", async () => {
   const { deps } = bareDeps();
-  const registration = buildPostPreviewRegistrations(deps, { renderPostPreview })[0]!;
+  const registration = buildPostPreviewRegistrations({ deps, renderer: { renderPostPreview } })[0]!;
   await assert.rejects(registration.handler(context({ postId: 'missing' })), { message: "content_post_preview: no post or page with id or slug 'missing'. Use content_read.content_post to find it." });
   for (const [input, message] of [
     [{ postId: '' }, 'content_post_preview: id must be a non-empty id or slug (postId is a legacy alias).'],
@@ -41,10 +41,10 @@ test("unknown posts and invalid optional inputs are actionable refusals", async 
 test("preview body output strips before capping and preserves explicit empty unsaved fields", async () => {
   const { deps, writes } = bareDeps();
   const received: unknown[] = [];
-  const registration = buildPostPreviewRegistrations(deps, { renderPostPreview: async ({ input }) => {
+  const registration = buildPostPreviewRegistrations({ deps, renderer: { renderPostPreview: async ({ input }) => {
     received.push(input);
     return { html: '<script>' + 'hidden'.repeat(100) + '</script><p>Hello there</p>', templateChoice: '' };
-  } })[0]!;
+  } } })[0]!;
   assert.deepEqual(await registration.handler(context({ postId: 'draft-1', templateChoice: '', bodyHtml: '', textOnly: true, maxBytes: 5 })), {
     postId: 'draft-1', title: 'Draft title', status: 'draft', templateChoice: '', availableTemplates: [], body: 'Hello', bodyBytes: 5, truncated: true,
   });
@@ -53,7 +53,7 @@ test("preview body output strips before capping and preserves explicit empty uns
 });
 test("tool uses the REAL extracted renderer for an unsaved bare-page draft", async () => {
   const { deps, repo, writes } = bareDeps();
-  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, { renderPostPreview }) })[0]!;
+  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations({ deps, renderer: { renderPostPreview } }) })[0]!;
   const html = '<!doctype html><html><body><p>New text</p></body></html>';
   assert.deepEqual(await registration.handler(context({ postId: 'draft-slug', bodyHtml: html })), { postId: 'draft-1', title: 'Draft title', status: 'draft', templateChoice: '', availableTemplates: [], bodyBytes: Buffer.byteLength(html), truncated: false, body: html });
   assert.equal(writes(), 0); assert.deepEqual(await repo.findById({ workspaceId: 'w', id: 'draft-1' }), barePost);
@@ -61,7 +61,7 @@ test("tool uses the REAL extracted renderer for an unsaved bare-page draft", asy
 
 test("preview accepts id or legacy postId; id takes precedence and invalid id never falls back", async () => {
   const { deps, writes } = bareDeps();
-  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, { renderPostPreview }) })[0]!;
+  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations({ deps, renderer: { renderPostPreview } }) })[0]!;
   const expected = await registration.handler(context({ postId: "draft-slug", find: "<p>" }));
   assert.deepEqual(await registration.handler(context({ id: "draft-1", find: "<p>" })), expected);
   assert.deepEqual(await registration.handler(context({ id: "draft-slug", postId: "missing", find: "<p>" })), expected);
@@ -76,7 +76,7 @@ test("preview exposes the active theme's page templates using the admin applicab
   const { deps } = bareDeps();
   deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "w", activeThemeId: "chosen", updatedAt: "2026-10-01T00:00:00Z" }] });
   deps.themes.push({ status: "valid", manifest: { id: "chosen", templates: ["post.html", "page.html", "shared.html"], templateFor: { "post.html": ["post"], "page.html": ["page"] } } } as never);
-  const registration = buildPostPreviewRegistrations(deps, { renderPostPreview })[0]!;
+  const registration = buildPostPreviewRegistrations({ deps, renderer: { renderPostPreview } })[0]!;
   const result = await registration.handler(context({ id: "draft-1" })) as { availableTemplates: string[] };
   assert.deepEqual(result.availableTemplates, ["page.html", "shared.html"]);
 });
@@ -84,12 +84,12 @@ test("preview exposes the active theme's page templates using the admin applicab
 test("L156 preview rejects every malformed override before authorization and keeps omitted keys absent", async () => {
   const { deps } = bareDeps();
   let reads = 0;
-  const registration = buildPostPreviewRegistrations({ ...deps, authorize: async () => {
+  const registration = buildPostPreviewRegistrations({ deps: { ...deps, authorize: async () => {
     reads++; return { allowed: true, reason: "test" };
-  } }, { renderPostPreview: async ({ input }) => {
+  } }, renderer: { renderPostPreview: async ({ input }) => {
     assert.deepEqual(Object.keys(input), ["post"]);
     return { html: "", templateChoice: null };
-  } })[0]!;
+  } } })[0]!;
   for (const bodyJson of [null, [], "text", 0, false]) {
     await assert.rejects(registration.handler(context({ id: "draft-1", bodyJson })),
       { message: "content_post_preview: bodyJson must be a JSON object." });
@@ -104,7 +104,7 @@ test("L156 preview rejects every malformed override before authorization and kee
 });
 test("a repository failure other than not-found propagates unchanged rather than being reworded as a missing post", async () => {
   const outage = new Error("post store unavailable");
-  const registration = buildPostPreviewRegistrations({ workspaceId: 'w', authorize: async () => ({ allowed: true, reason: 'matched' }), postRepo: { findById: async () => { throw outage; }, findBySlug: async () => { throw outage; } } } as never, { renderPostPreview })[0]!;
+  const registration = buildPostPreviewRegistrations({ deps: { workspaceId: 'w', authorize: async () => ({ allowed: true, reason: 'matched' }), postRepo: { findById: async () => { throw outage; }, findBySlug: async () => { throw outage; } } } as never, renderer: { renderPostPreview } })[0]!;
   await assert.rejects(registration.handler(context({ postId: 'draft-1' })), (error: unknown) => error === outage);
 });
 test("the preview contributor builds the same read-only preview tool with the renderer it was given", async () => {

@@ -114,7 +114,7 @@ export function transitionCampaignStatus(input: {
   from: CampaignStatus;
   to: CampaignStatus;
   actorTier: CampaignActorTier;
-}): TransitionResult {
+}, _optional: Record<string, never> = {}): TransitionResult {
   const { from, to, actorTier } = input;
 
   if (from === to) {

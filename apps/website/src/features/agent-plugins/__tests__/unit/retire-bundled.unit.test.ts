@@ -566,5 +566,5 @@ test('Cloudflare retirement and pinned references translate plugin IDs while pre
   const { RETIRED_PLUGIN_REPLACEMENTS, translateRetiredPluginRefs } = await import('../../bundled-catalog.js');
   assert.equal(RETIRED_BUNDLED_AGENT_PLUGINS.get('cloudflare-pages'), 'cloudflare');
   assert.equal(RETIRED_PLUGIN_REPLACEMENTS.get('cloudflare-pages'), 'cloudflare');
-  assert.deepEqual(translateRetiredPluginRefs(['cloudflare-pages', 'cloudflare', 'deploy']), ['cloudflare', 'fly']);
+  assert.deepEqual(translateRetiredPluginRefs({ pluginRefIds: ['cloudflare-pages', 'cloudflare', 'deploy'] }), ['cloudflare', 'fly']);
 });

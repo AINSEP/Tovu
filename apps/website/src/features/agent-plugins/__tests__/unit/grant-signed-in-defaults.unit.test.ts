@@ -59,8 +59,8 @@ async function bootWith(input: { activation: Activation; signedIn?: boolean; wri
     let rosterNotifications = 0;
     const log = { info: [] as string[], warn: [] as string[] };
     await grantDeclaredToolsAtBoot(
-      { workspaceId: WORKSPACE, agentPluginLayout, repo, applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }), clock, notifyRosterChanged: async () => { rosterNotifications += 1; } },
-      { info: (message) => log.info.push(message), warn: (message) => log.warn.push(message) },
+      { deps: { workspaceId: WORKSPACE, agentPluginLayout, repo, applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }), clock, notifyRosterChanged: async () => { rosterNotifications += 1; } },
+      log: { info: (message) => log.info.push(message), warn: (message) => log.warn.push(message) } },
     );
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "media" }))!;
     const activationAfter = (await agentPluginActivations.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN];

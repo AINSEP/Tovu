@@ -109,7 +109,7 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   let composed: SiteStore | undefined;
   let closed = false;
   t.after(async () => {
-    if (!closed) await closeSiteDirBoot(boot, composed).catch(() => undefined);
+    if (!closed) await closeSiteDirBoot(boot, { composed }).catch(() => undefined);
   });
   const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
     store: boot.store,
@@ -136,7 +136,7 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   assert.deepEqual(rows.rows, [{ one: 1 }]);
 
   await drainBootReadiness(deps);
-  await closeSiteDirBoot(boot, composed);
+  await closeSiteDirBoot(boot, { composed });
   closed = true;
   assert.equal(runningPgliteOwner(dataDir), undefined, "a clean close unregisters the owner");
   assert.equal(fs.existsSync(path.join(dataDir, "PG_VERSION")), true, "the data dir itself is kept");

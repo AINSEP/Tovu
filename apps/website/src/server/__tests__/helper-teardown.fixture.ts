@@ -78,7 +78,7 @@ const bindings = {
     if (fault === "login") throw new Error("login failed after listening");
     return { baseUrl: "http://fixture", cookie: "session" };
   },
-  closeSiteDirBoot: async (_boot: unknown, composed: { marker: string }) => {
+  closeSiteDirBoot: async (_boot: unknown, { composed }: { composed?: { marker: string } } = {}) => {
     if (composed?.marker !== "composed") throw new Error("composed store was not retained");
     console.log("database closed");
     if (fault === "close") throw new Error("database close failed");

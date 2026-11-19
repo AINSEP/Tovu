@@ -56,7 +56,7 @@ export async function evaluateLaunchGate(required: {
   deps: LaunchGateDeps;
   workspaceId: UUID;
   isTestSend: boolean;
-}): Promise<LaunchGateResult> {
+}, _optional: Record<string, never> = {}): Promise<LaunchGateResult> {
   const { deps, workspaceId, isTestSend } = required;
   const unmet: LaunchGatePrecondition[] = [];
 
