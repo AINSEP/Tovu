@@ -1,13 +1,13 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 import type { DocRenderOptions, WidgetDocRendering } from "./doc/doc-render-contract.js";
-import { renderDocNodeWith, renderNodes } from "./doc/doc-nodes.js";
+import { renderDocNodeWith, renderNodes, MAX_RENDER_DEPTH } from "./doc/doc-nodes.js";
 import { randomUUID } from "node:crypto";
-import { swapManagedDocNodes } from "./doc/managed-markers.js";
+import { renderDocWithManagedMarkers } from "@jini-ai/cms/widgets/document-markers";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { escapeHtml } from "#src/platform/html/escape";
 import { str, isObject } from "./value-readers.js";
 import { renderWidgetSocialLinks, renderWidgetRecentEntries, renderWidgetEntrySummary } from "./widgets/social-entries.js";
-import { renderWidgetMenu } from "./widgets/menu.js";
+import { renderWidgetMenu } from "@jini-ai/cms/navigation/menu-render";
 import { renderHtmlTaxonomy } from "#src/features/taxonomy/render-entry";
 import { renderWidgetContactForm } from "./contact-form-widget.js";
 import { renderWidgetMediaImage, renderMediaWidget } from "./widgets/media.js";
@@ -34,9 +34,7 @@ export function renderDocNode({ node }: { node: JsonValue }, options: DocRenderO
  */
 export function renderDocBodyAsPageHtml({ bodyJson }: { bodyJson: unknown }, _optional = {}): string {
   const token = `DOCMARKER${randomUUID().replace(/-/g, "")}N`;
-  const markers: string[] = [];
-  const html = renderDocNode({ node: swapManagedDocNodes({ node: bodyJson as JsonValue, token, markers, depth: 0 }) });
-  return html.replace(new RegExp(`${token}(\\d+)X`, "g"), (_match, index: string) => markers[Number(index)] ?? "");
+  return renderDocWithManagedMarkers({ bodyJson, token, maxDepth: MAX_RENDER_DEPTH, renderDocNode });
 }
 
 /** The widget renderers' way back into the doc renderer ({@link WidgetDocRendering}), built once here
@@ -58,7 +56,7 @@ const WIDGET_IR_RENDERERS: Record<string, (required: { ir: WidgetRenderIR }, opt
   "social-links": ({ ir }) => renderWidgetSocialLinks(ir.props),
   "recent-entries": ({ ir }) => renderWidgetRecentEntries(ir),
   "entry-summary": ({ ir }) => renderWidgetEntrySummary(ir.props),
-  menu: ({ ir }) => renderWidgetMenu(ir.props),
+  menu: ({ ir }) => renderWidgetMenu({ props: ir.props }),
   "taxonomy-list": ({ ir }) => renderHtmlTaxonomy({
     id: str({ value: ir.props.id }), name: str({ value: ir.props.name }), hierarchical: ir.props.hierarchical === true,
     terms: (Array.isArray(ir.props.terms) ? ir.props.terms : []).filter(isObject).map((term) => ({

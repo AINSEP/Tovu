@@ -2,11 +2,11 @@ import type { MemberContext, MemberAccessResolver } from "#src/features/members/
 import type { ListingBatchRequest } from "@jini-ai/cms/listing";
 import type { RouteDeps } from "#src/server/routes/types";
 
-/** The narrow dependency slice {@link resolveHtmlFormatContentMarkers} actually needs — a `Pick` of
+/** The narrow dependency slice {@link contentMarkerPorts} actually needs — a `Pick` of
  * `RouteDeps` rather than the whole route-composition-root shape, so a direct unit test (guard 3's
  * termination property) can construct a minimal, real (`InMemoryPostRepo`-backed) deps object instead
  * of a full server boot's worth of repos it would never touch. `RouteDeps` remains a structural
- * supertype of this, so every real call site passes its own full `deps` through unchanged. */
+ * supertype of this, so every real call site binds its own full `deps` through `contentMarkerPorts`. */
 export type ContentMarkerResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "mediaContentTypeStore"

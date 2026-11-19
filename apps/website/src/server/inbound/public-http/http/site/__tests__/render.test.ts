@@ -1430,7 +1430,7 @@ test("menu widget: a new-tab link with no authored rel still gets rel=\"noopener
     componentId: "menu",
     props: { items: [{ label: "Out", href: "https://example.com/", available: true, attrs: { openInNewTab: true }, children: [] }] },
   });
-  assert.match(html, /<a href="https:\/\/example\.com\/" rel="noopener noreferrer" target="_blank">/);
+  assert.equal(html, '<nav class="widget widget-menu"><ul><li><a href="https://example.com/" rel="noopener noreferrer" target="_blank">Out</a></li></ul></nav>');
 });
 
 test("menu widget: an item with no attrs at all renders exactly as before this feature existed (no stray class/rel/target attributes)", () => {

@@ -10,7 +10,8 @@ import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from '
 import { InMemoryPresentationSettingsRepo } from '#src/features/presentation/index';
 import { renderStaticPage } from '#src/features/theme/static-render';
 import type { DiscoveredTheme } from '#src/features/theme/index';
-import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "#src/server/inbound/public-http/routes/site/pages/render-context/content-markers";
+import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "@jini-ai/cms/widgets/content-markers";
+import { contentMarkerPorts } from "#src/server/inbound/public-http/routes/site/pages/render-context/content-marker-ports";
 import type { ContentMarkerResolutionDeps } from "#src/server/inbound/public-http/routes/site/pages/render-context/deps";
 import { renderWidgetPreview } from '#src/server/inbound/admin-http/routes/widgets/preview-render';
 import { createGalleryWidgetResolver } from '@jini-ai/cms/widgets/resolvers';
@@ -47,7 +48,8 @@ test('page and post body rendering retains every leading stylesheet byte', async
 });
 
 test('static content splicing retains the leading stylesheet in saved and pending HTML bodies', async () => {
-  const post = buildPostRecord({ workspaceId, kind: 'page', bodyFormat: 'html', bodyHtml: body });
+  const bodyHtml = body + '<script>window.contentReady = "$&";</script>';
+  const post = buildPostRecord({ workspaceId, kind: 'page', bodyFormat: 'html', bodyHtml });
   const deps: ContentMarkerResolutionDeps = {
     workspaceId, postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     entryRepo: trashAwareEntryRepo(), mediaRepo: new InMemoryVersionedMediaRepo({}),
@@ -55,10 +57,10 @@ test('static content splicing retains the leading stylesheet in saved and pendin
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
   };
   const shell = `<main data-embed-config='{"type":"content","id":"${post.id}"}'></main>`;
-  const expected = `<main>${body}</main>`;
-  const saved = await resolveHtmlFormatContentMarkers({ deps, html: shell, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } });
+  const expected = `<main>${bodyHtml}</main>`;
+  const saved = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps }), html: shell, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } });
   assert.equal(saved, expected);
-  const pending = await resolveHtmlFormatContentMarkers({ deps, html: shell, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: { id: post.id, slug: post.slug, bodyHtml: body } });
+  const pending = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps }), html: shell, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: { id: post.id, slug: post.slug, bodyHtml } });
   assert.equal(pending, expected);
   const html = renderStaticPage({ theme, pageId: 'test', htmlOverride: `<!doctype html><html><head></head><body>${saved}</body></html>` });
   assert.equal(html?.includes(expected), true);

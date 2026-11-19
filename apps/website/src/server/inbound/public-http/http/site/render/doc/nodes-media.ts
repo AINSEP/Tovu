@@ -1,14 +1,16 @@
 import type { DocNodeHandlerRequired } from "./doc-render-contract.js";
 import { isObject } from "../value-readers.js";
-import { tryRenderRefImage, plausibleMediaRefId, mediaNodeStyleOverride } from "./media-ref.js";
+import { tryRenderRefImage, mediaNodeStyleOverride } from "./media-ref.js";
+import { plausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
 import { mediaPlaceholder } from "../media-placeholder.js";
 import { safeImageSrc, extractYoutubeVideoId } from "#src/platform/html/safe-url";
 import { escapeHtml } from "#src/platform/html/escape";
 import { formatHtmlAttributes } from "@jini-ai/cms/widgets/media-attributes";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { MediaAssetRenderMeta } from "../../render-context.js";
-import { mediaUrlKey } from "#src/features/media/public-path";
-import { renderVideoTag } from "./media-tags.js";
+import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
+import { renderVideoTag } from "@jini-ai/cms/widgets/media-tags";
+import { MEDIA_PLAYBACK_COPY } from "../media-playback-copy.js";
 
 /**
  * D7 (original), extended under ADR-027 §4 and this task's quick-and-dirty sizing fix: a
@@ -140,15 +142,23 @@ function renderDocMediaPlayer(
     nodeStyle: { cssClass: string | null; htmlAttributes: string | null };
   },
 ): string | null {
+  /** Same `mediaUrlKey`-built `/m/...` key {@link renderImageTag}'s own `urlKey` documents —
+   *  readable-slugs S3. */
+  const urlKey = mediaUrlKey({ id: assetId, slug: meta.slug });
+  const sha256 = meta.sha256;
   const style = {
-    urlKey: mediaUrlKey({ id: assetId, slug: meta.slug }),
-    sha256: meta.sha256,
     alt,
     cssClass: mediaNodeStyleOverride({ nodeValue: nodeStyle.cssClass, assetValue: meta.cssClass }),
     htmlAttributes: mediaNodeStyleOverride({ nodeValue: nodeStyle.htmlAttributes, assetValue: meta.htmlAttributes }),
   };
-  if (meta.contentType?.startsWith("video/")) return renderVideoTag({ contentType: meta.contentType, ...style, width: meta.width, height: meta.height });
-  if (meta.contentType?.startsWith("audio/")) return renderVideoTag({ kind: "audio", contentType: meta.contentType, ...style, width: null, height: null });
+  /**
+   * points `src` at `/m/{assetId}/original` (`routes/site/media-rendition.ts`'s
+   * `registerMediaOriginalVideoRoute`) instead of the versioned transform URL: video has no
+   * transform/version to template in, since it bypasses the image-transform pipeline entirely (see
+   * that route's own doc for why).
+   */
+  if (meta.contentType?.startsWith("video/")) return renderVideoTag({ src: mediaPublicPath({ key: urlKey, sha256, variant: { kind: "original", contentType: meta.contentType } }), fallbackText: MEDIA_PLAYBACK_COPY.video, ...style, width: meta.width, height: meta.height });
+  if (meta.contentType?.startsWith("audio/")) return renderVideoTag({ kind: "audio", src: mediaPublicPath({ key: urlKey, sha256, variant: { kind: "original", contentType: meta.contentType } }), fallbackText: MEDIA_PLAYBACK_COPY.audio, ...style, width: null, height: null });
   return null;
 }
 

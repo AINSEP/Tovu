@@ -1,27 +1,9 @@
-import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
+import type { JsonObject } from "@jini-ai/core/primitives";
 import type { MediaAssetRenderMeta } from "../../render-context.js";
-import { renderImageTag } from "./media-tags.js";
+import { renderImageTag } from "@jini-ai/cms/widgets/media-tags";
 import type { DocNodeRenderDeps } from "./doc-render-contract.js";
-import { mediaUrlKey } from "#src/features/media/public-path";
-
-/** `assetId`/`transformName` become `/m/` URL path segments (`media-rendition.ts`), so — same
- * discipline `html-embeds.ts`'s `MAX_EMBED_ID_LENGTH` applies to its own author-supplied ids —
- * shape is checked before either value is trusted into a path: non-empty, bounded, and free of
- * `/`/whitespace so an author-authored ref can never smuggle an extra path segment. An id that
- * fails this is treated exactly like a name absent from `mediaTransformVersions`: safe
- * placeholder degrade, never a malformed URL. */
-const MAX_MEDIA_REF_ID_LENGTH = 200;
-
-const PLAUSIBLE_MEDIA_REF_ID_PATTERN = /^[^\s/]+$/;
-
-export function isPlausibleMediaRefId({ value }: { value: string }, _optional = {}): boolean {
-  return value.length > 0 && value.length <= MAX_MEDIA_REF_ID_LENGTH && PLAUSIBLE_MEDIA_REF_ID_PATTERN.test(value);
-}
-
-/** `value` when it is a string passing {@link isPlausibleMediaRefId}; `undefined` otherwise. */
-export function plausibleMediaRefId({ value }: { value: JsonValue | undefined }, _optional = {}): string | undefined {
-  return typeof value === "string" && isPlausibleMediaRefId({ value }) ? value : undefined;
-}
+import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
+import { isPlausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
 
 /** The `assetId`/`transformName` pair a ref-shaped image node's `attrs` must carry, or `null` when
  *  either is absent or fails {@link isPlausibleMediaRefId}'s shape check — split out of
@@ -100,5 +82,9 @@ export function tryRenderRefImage(
       }
     : assetOverrides;
   const urlKey = mediaUrlKey({ id: ids.assetId, slug: meta?.slug ?? null });
-  return renderImageTag({ urlKey, sha256: meta?.sha256, transformName: ids.transformName, version, alt, ...overrides });
+  /** The `/m/...` path segment to serve this asset at — its slug when it has one, otherwise its id.
+   *  Built by every caller via `mediaUrlKey` (readable-slugs S3); this function only templates
+   *  whatever key it is handed, same as before this field was renamed from `assetId`. */
+  const src = mediaPublicPath({ key: urlKey, sha256: meta?.sha256, variant: { kind: "transform", name: ids.transformName, version, ext: "jpg" } });
+  return renderImageTag({ src, alt, ...overrides });
 }

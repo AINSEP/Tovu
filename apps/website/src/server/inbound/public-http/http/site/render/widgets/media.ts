@@ -2,10 +2,11 @@ import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
 import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
 import { NO_MARKER_ATTRIBUTES } from "@jini-ai/cms/widgets/media-attributes";
 import { isObject, str } from "../value-readers.js";
-import { plausibleMediaRefId } from "../doc/media-ref.js";
+import { plausibleMediaRefId } from "@jini-ai/cms/widgets/markers";
 import { renderWidgetPlaceholder } from "./placeholder.js";
-import { mediaUrlKey } from "#src/features/media/public-path";
-import { renderVideoTag, renderImageTag } from "../doc/media-tags.js";
+import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
+import { renderVideoTag, renderImageTag } from "@jini-ai/cms/widgets/media-tags";
+import { MEDIA_PLAYBACK_COPY } from "../media-playback-copy.js";
 import { type GalleryImageRenderer, renderGallery } from "@jini-ai/cms/widgets/html/gallery-render";
 import type { WidgetDocRendering } from "../doc/doc-render-contract.js";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
@@ -86,11 +87,17 @@ export function renderWidgetMediaImage(props: JsonObject): string {
   const urlKey = mediaUrlKey({ id: assetId, slug: typeof props.slug === "string" ? props.slug : null });
   const sha256 = typeof props.sha256 === "string" ? props.sha256 : undefined;
 
+  /**
+   * points `src` at `/m/{assetId}/original` (`routes/site/media-rendition.ts`'s
+   * `registerMediaOriginalVideoRoute`) instead of the versioned transform URL: video has no
+   * transform/version to template in, since it bypasses the image-transform pipeline entirely (see
+   * that route's own doc for why).
+   */
   if (typeof props.contentType === "string" && props.contentType.startsWith("audio/")) {
-    return renderVideoTag({ kind: "audio", contentType: props.contentType, sha256, urlKey, alt, width: null, height: null, cssClass, htmlAttributes, markerAttributes, controls });
+    return renderVideoTag({ kind: "audio", src: mediaPublicPath({ key: urlKey, sha256, variant: { kind: "original", contentType: props.contentType } }), fallbackText: MEDIA_PLAYBACK_COPY.audio, alt, width: null, height: null, cssClass, htmlAttributes, markerAttributes, controls });
   }
   if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {
-    return renderVideoTag({ contentType: props.contentType, sha256, urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
+    return renderVideoTag({ src: mediaPublicPath({ key: urlKey, sha256, variant: { kind: "original", contentType: props.contentType } }), fallbackText: MEDIA_PLAYBACK_COPY.video, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
   }
 
   const transformName = plausibleMediaRefId({ value: props.transformName });
@@ -98,7 +105,11 @@ export function renderWidgetMediaImage(props: JsonObject): string {
   if (!transformName || typeof version !== "number") {
     return renderWidgetPlaceholder();
   }
-  return renderImageTag({ urlKey, sha256, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes, responsive: props.galleryResponsive === true });
+  /** The `/m/...` path segment to serve this asset at — its slug when it has one, otherwise its id.
+   *  Built by every caller via `mediaUrlKey` (readable-slugs S3); this function only templates
+   *  whatever key it is handed, same as before this field was renamed from `assetId`. */
+  const src = mediaPublicPath({ key: urlKey, sha256, variant: { kind: "transform", name: transformName, version, ext: "jpg" } });
+  return renderImageTag({ src, alt, width, height, cssClass, htmlAttributes, markerAttributes, responsive: props.galleryResponsive === true });
 }
 
 /** Gallery image adapter: managed media uses the canonical renderer; URL images retain the
