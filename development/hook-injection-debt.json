@@ -85,6 +85,30 @@
         "apps/admin/src/components/AdminByokKeyPanel.tsx"
       ]
     },
+    "AdminExecutionMode::useAdminExecutionCredentialHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AdminExecutionMode::useAdminExecutionModeHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AdminExecutionMode::useAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AdminExecutionMode::useTovuSettingsExecution": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
     "AdminShell::useCollapsibleNavGroupLabels": {
       "count": 1,
       "files": [
@@ -131,6 +155,72 @@
       "count": 1,
       "files": [
         "apps/admin/src/components/AssistantDock/AgentFailureCard.tsx"
+      ]
+    },
+    "AgentPluginDetailsModal::useAgentPluginDetailsView": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx"
+      ]
+    },
+    "AgentPluginDetailsModal::useAgentPluginSurfaces": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx"
+      ]
+    },
+    "AgentPluginDetailsModal::useWiredAgentPluginMemory": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx"
+      ]
+    },
+    "AgentPluginUpdateSlot::useAgentPluginUpdate": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AgentPlugins::useAdminThemeBoundary": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AgentPlugins::useAgentPluginConfirmation": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AgentPlugins::useAgentPluginInstall": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AgentPlugins::useAgentPluginTab": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AiAssistant::useAdminThemeBoundary": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AiAssistant::useAiAssistantTab": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AiAssistant::useWiredAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
       ]
     },
     "App::useAddSite": {
@@ -229,16 +319,52 @@
         "apps/admin/src/App.tsx"
       ]
     },
+    "AssistantDaemonRestart::useAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AssistantDaemonRestart::useAssistantDaemonRestartHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AssistantDaemonRestart::usePolicy": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "CollectionEntryEditor::useCollectionEntryEditorHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/collections/CollectionEntryEditor.tsx"
+      ]
+    },
     "CredentialHint::useCredentialHint": {
       "count": 1,
       "files": [
         "apps/admin/src/components/CredentialHint.tsx"
       ]
     },
+    "Database::useAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/database/Database.tsx"
+      ]
+    },
     "DesktopOwnerReset::useDesktopOwnerReset": {
       "count": 1,
       "files": [
         "apps/admin/src/features/security/RecoveryCodesCard.tsx"
+      ]
+    },
+    "EditMediaPanel::useEditMediaPanelHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
       ]
     },
     "EditorTabs::useTabBarKeyboard": {
@@ -361,6 +487,12 @@
         "apps/admin/src/features/settings/ExternalMcpToolsModal.tsx"
       ]
     },
+    "ExternalProvidersPanel::useAdminThemeBoundary": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
     "FolderDropConfirmation::useT": {
       "count": 1,
       "files": [
@@ -403,10 +535,22 @@
         "apps/desktop/src/renderer/ImportWebsite.tsx"
       ]
     },
+    "JsonFieldControl::useJsonFieldControl": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/collections/CollectionEntryEditor.tsx"
+      ]
+    },
     "LoadedSitesStepper::useLoadedSitesStepper": {
       "count": 1,
       "files": [
         "apps/desktop/src/renderer/app/LoadedSitesStepper.tsx"
+      ]
+    },
+    "Login::useWiredAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/auth/Login.tsx"
       ]
     },
     "MailStatusBanner::useMailStatusBanner": {
@@ -415,10 +559,46 @@
         "apps/admin/src/components/MailStatusBanner/MailStatusBanner.tsx"
       ]
     },
+    "Media::useMediaHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "Media::useMediaItemLink": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "Media::useMediaTabsHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "MediaCard::useWiredMediaPreview": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "MediaCardMetadata::useMediaCardMetadata": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
     "MediaEmbedNodeView::useWiredMediaEmbedNodeView": {
       "count": 1,
       "files": [
         "apps/admin/src/lib/media-embed-extension.tsx"
+      ]
+    },
+    "MediaGridOrEmpty::useMediaCardDetails": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
       ]
     },
     "MediaImageNodeView::useWiredAdminLocale": {
@@ -427,10 +607,22 @@
         "apps/admin/src/lib/media-image-extension.tsx"
       ]
     },
+    "MediaLibraryPanel::useMediaGridSize": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
     "MediaPickerDialog::useJiniMediaPicker": {
       "count": 1,
       "files": [
         "apps/admin/src/components/MediaPickerDialog/MediaPickerDialog.tsx"
+      ]
+    },
+    "MediaPreview::useMediaPreviewHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
       ]
     },
     "MergeTermSection::useWiredMergeTermSection": {
@@ -475,6 +667,18 @@
         "apps/admin/src/components/AssistantDock/OverflowAwareMcpUiSurfaceCard.tsx"
       ]
     },
+    "PageEditor::useTabBarKeyboard": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx"
+      ]
+    },
+    "PagePreviewFrame::useThemePreviewFrame": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx"
+      ]
+    },
     "PanelRouteLoading::useWiredAdminLocale": {
       "count": 1,
       "files": [
@@ -485,6 +689,12 @@
       "count": 1,
       "files": [
         "apps/admin/src/components/Placeholder.tsx"
+      ]
+    },
+    "PluginProviderSettingsDialog::useProviderSettingsFocus": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/PluginProviderSettingsDialog.tsx"
       ]
     },
     "PluginProviderSettingsDialog::useSavedKey": {
@@ -539,6 +749,12 @@
       "count": 1,
       "files": [
         "apps/admin/src/__measurements__/redirects-harness.tsx"
+      ]
+    },
+    "RemoteImageImport::useRemoteImageImport": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/RemoteImageImport.tsx"
       ]
     },
     "RemoveConfirmDialog::useAdminLocale": {
@@ -929,6 +1145,12 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/settings/UserInterfaceSettingsPanel.tsx"
+      ]
+    },
+    "VisitorCredentialForm::useStoredCredentialHint": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
       ]
     },
     "WidgetEmbedInsertControlEnabled::useWiredAdminLocale": {

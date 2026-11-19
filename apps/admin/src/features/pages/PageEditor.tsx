@@ -73,7 +73,6 @@ import { type Translate } from '@jini-ai/core/text';
  * would fork that conversation for no gain.
  */
 export interface PageEditorProps {
-  hooks?: { useTabBarKeyboard: typeof useTabBarKeyboard };
   /** The page's slug, as it appears in the URL. Also accepts a legacy id — see `usePageEditor`. */
   slug: string;
   /** DI seam for tests — same convention as `Pages.tsx`'s `usePagesHook`. */
@@ -727,7 +726,7 @@ function PageEditorTemplateModalGate({
   );
 }
 
-export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEditor, hooks = { useTabBarKeyboard } }: PageEditorProps) {
+export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEditor }: PageEditorProps) {
   const {
     page,
     error,
@@ -800,7 +799,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
   } = usePageEditorHook({ routeSlug });
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
-  const { onKeyDown: onViewTabsKeyDown } = hooks.useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PageEditorView) });
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PageEditorView) });
 
   if (error && !page) return <div className="notice error">{error}</div>;
   if (!page) return <div className="notice">{t("Loading editor…")}</div>;
@@ -1369,7 +1368,6 @@ function PagePreviewFrame({
   previewFormTarget,
   onFrameLoad,
   t,
-  hooks = { useThemePreviewFrame },
 }: {
   canShowLiveSite: boolean;
   slug: string;
@@ -1384,9 +1382,8 @@ function PagePreviewFrame({
    *  branches' `onLoad` below: cross-origin (the live-site branch) it silently does nothing. */
   onFrameLoad: (iframe: HTMLIFrameElement) => void;
   t: Translate;
-  hooks?: { useThemePreviewFrame: typeof useThemePreviewFrame };
 }) {
-  const fresh = hooks.useThemePreviewFrame({
+  const fresh = useThemePreviewFrame({
     // Opaque-origin previews cannot save consent; the authenticated route already excludes its gate.
     liveUrl: templatePreviewUrl,
     templateUrl: templatePreviewUrl,

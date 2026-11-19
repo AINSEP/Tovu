@@ -177,7 +177,6 @@ function PlayIcon() {
 }
 
 interface MediaPreviewProps {
-  hooks?: { useMediaPreviewHook: typeof useWiredMediaPreview };
   item: AdminMedia;
   onExpand?: () => void;
   /** This card's own expand-button handle, or `undefined` when this instance has no expand button
@@ -234,8 +233,8 @@ interface MediaPreviewProps {
  * that stage already renders a "Download original" link, and the lightbox would show nothing more
  * than the exact same placeholder, just bigger. */
 function MediaPreview(props: MediaPreviewProps) {
-  const { hooks = { useMediaPreviewHook: props.useMediaPreviewHook ?? useWiredMediaPreview }, t } = props;
-  const preview = hooks.useMediaPreviewHook(props.item, t);
+  const { useMediaPreviewHook = useWiredMediaPreview, t } = props;
+  const preview = useMediaPreviewHook(props.item, t);
   const { stage, src, altText, handleImageError, handleVideoError } = preview;
 
   // Computed ahead of the stage branches (unlike `expandButton` below, which the `"unsupported"`
@@ -336,7 +335,6 @@ function MediaCardStage({ preview, title, onExpand, agentExpandHandle, editButto
 }
 
 interface EditMediaPanelProps {
-  hooks?: { useEditMediaPanelHook: typeof useWiredEditMediaPanel };
   item: AdminMedia;
   onSaved: () => void;
   onCancel: () => void;
@@ -359,7 +357,7 @@ interface EditMediaPanelProps {
  *  its own card chrome: the dialog itself supplies the surface/border/shadow (`media.css`'s
  *  `.media-edit-dialog`), so this component's own root is a plain content wrapper. */
 function EditMediaPanel(props: EditMediaPanelProps) {
-  const { item, onSaved, onCancel, hooks = { useEditMediaPanelHook: props.useEditMediaPanelHook ?? useWiredEditMediaPanel }, t, titleId } = props;
+  const { item, onSaved, onCancel, useEditMediaPanelHook = useWiredEditMediaPanel, t, titleId } = props;
   const {
     draft,
     setTitle,
@@ -384,7 +382,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
     copyEmbedCode,
     createdByLabel,
     save,
-  } = hooks.useEditMediaPanelHook({ item, onSaved, onCancel });
+  } = useEditMediaPanelHook({ item, onSaved, onCancel });
 
   return (
     <div
@@ -982,7 +980,6 @@ function MediaPurgeDialog({
 }
 
 export interface MediaProps {
-  hooks?: { useMediaHook: typeof useWiredMedia; useMediaTabsHook: typeof useMediaTabs; useMediaItemLink: typeof useMediaItemLink };
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
@@ -1004,9 +1001,8 @@ export interface MediaProps {
  *  (owner design, 2026-11-01 — the shape and length used to be badges on the picture). Parts that
  *  do not apply are left out, so an image has no length and an unloaded one no size yet. Each part
  *  stays its own element so a part can be found by its text. */
-function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: MediaShape | null; t: (key: string) => string; useMediaCardMetadata?: typeof useMediaCardMetadata; }) {
-  const { useMediaCardMetadata: useMediaCardMetadataHook = useMediaCardMetadata } = props;
-  const metadata = useMediaCardMetadataHook({ item: props.item }, { locale: props.locale });
+function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: MediaShape | null; t: (key: string) => string }) {
+  const metadata = useMediaCardMetadata({ item: props.item }, { locale: props.locale });
   const parts = mediaShapeParts({ shape: props.shape, t: props.t });
   if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
   // The date sits alone on the right edge of the row (owner design, 2026-11-01), under the menu.
@@ -1037,11 +1033,10 @@ interface MediaCardMenuProps {
  * loaded shape feeds two places: how the picture fits, and the "1440×900 · 0:38" part of the card's
  * second info row (owner design, 2026-11-01 — they were badges on the picture).
  */
-function MediaCard({ item, handle, onExpand, menu, t, hooks = { useWiredMediaPreview } }: {
+function MediaCard({ item, handle, onExpand, menu, t }: {
   item: AdminMedia; handle: string | undefined; onExpand: () => void; menu: MediaCardMenuProps; t: (key: string) => string;
-  hooks?: { useWiredMediaPreview: typeof useWiredMediaPreview };
 }) {
-  const preview = hooks.useWiredMediaPreview(item, t);
+  const preview = useWiredMediaPreview(item, t);
   return (
     <div className="media-card">
       <div className="media-card-preview">
@@ -1102,7 +1097,6 @@ function MediaGridOrEmpty({
   onRestore,
   rowSavingId,
   onRequestPurge,
-  hooks = { useMediaCardDetails },
 }: {
   gridSize: MediaGridSize;
   activeTab: MediaContentTabId;
@@ -1117,9 +1111,8 @@ function MediaGridOrEmpty({
   onRestore: (item: AdminMedia) => void;
   rowSavingId: string | null;
   onRequestPurge: (item: AdminMedia | null) => void;
-  hooks?: { useMediaCardDetails: typeof useMediaCardDetails };
 }) {
-  const { isPhone, openDetails } = hooks.useMediaCardDetails({ onToggleEdit });
+  const { isPhone, openDetails } = useMediaCardDetails({ onToggleEdit });
   if (visibleMedia.length === 0) {
     if (activeTab === "all") {
       return (
@@ -1188,10 +1181,8 @@ function MediaLibraryPanel(
     activeTab: MediaContentTabId;
     visibleMedia: AdminMedia[];
     mediaExpandHandles: string[];
-    hooks?: { useMediaGridSize: typeof useMediaGridSize };
   },
 ) {
-  const { hooks = { useMediaGridSize } } = props;
   const {
     media,
     error,
@@ -1228,7 +1219,7 @@ function MediaLibraryPanel(
     t,
     locale,
   } = props;
-  const [gridSize, setGridSize] = hooks.useMediaGridSize();
+  const [gridSize, setGridSize] = useMediaGridSize();
 
   return (
     <>
@@ -1387,8 +1378,8 @@ function UntypedMediaNote({ t }: { t: (key: string) => string }) {
  * tokens" section targets — kept byte-for-byte through both moves so that CSS keeps applying
  * unmoved. Glass follows the document scheme through the shared controller boundary instead.
  */
-function ExternalProvidersPanel({ locale, hooks = { useAdminThemeBoundary } }: { locale: string; hooks?: { useAdminThemeBoundary: typeof useAdminThemeBoundary }; }) {
-  const themeBoundary = hooks.useAdminThemeBoundary({}, {});
+function ExternalProvidersPanel({ locale }: { locale: string }) {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   return (
     <I18nProvider
       initialLocale={locale}
@@ -1466,7 +1457,6 @@ function MediaPageShell({
 }
 
 export function Media(props: MediaProps) {
-  const { hooks = { useMediaHook: props.useMediaHook ?? useWiredMedia, useMediaTabsHook: props.useMediaTabsHook ?? useMediaTabs, useMediaItemLink } } = props;
   // No `MediaProps = {}` default on the parameter itself (same reasoning as `App.tsx`'s own
   // `AppProps` — see that file's comment): every real call site is JSX (`<Media />` in
   // `panels.tsx`/tests), and JSX's `createElement`/`jsx` runtime always constructs an actual props
@@ -1476,10 +1466,12 @@ export function Media(props: MediaProps) {
   // call site.
   // Keep both injection seams. Forwarding resolvers previously isolated the default branches
   // for the complexity gate; Media is small enough to resolve them directly.
-  const controller = hooks.useMediaHook();
+  const useMediaHook = props.useMediaHook ?? useWiredMedia;
+  const useMediaTabsHook = props.useMediaTabsHook ?? useMediaTabs;
+  const controller = useMediaHook();
   const { media, error, t } = controller;
-  const { activeTab, setActiveTab } = hooks.useMediaTabsHook(props.tabId);
-  const { notFound } = hooks.useMediaItemLink({
+  const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
+  const { notFound } = useMediaItemLink({
     itemId: props.itemId,
     activeTab,
     media,

@@ -93,16 +93,15 @@ function AgentPluginsStatus({
  * each operator-installed row composes its update state (`useAgentPluginUpdate`) here and
  * `AgentPluginUpdateControl` only renders what it is handed.
  */
-export function AgentPluginUpdateSlot({ plugin, expectedOldDigest, t, agentHandleBase, onUpdated, port, useAgentPluginUpdate: useAgentPluginUpdateHook = useAgentPluginUpdate }: {
+export function AgentPluginUpdateSlot({ plugin, expectedOldDigest, t, agentHandleBase, onUpdated, port }: {
   plugin: AdminAgentPlugin;
   expectedOldDigest: string;
   t: Translate;
   agentHandleBase: string;
   onUpdated: (plugin: AdminAgentPlugin) => void;
   port: AgentPluginInstallPort;
-  useAgentPluginUpdate?: typeof useAgentPluginUpdate;
 }) {
-  const update = useAgentPluginUpdateHook({ plugin, expectedOldDigest, port, t, onUpdated });
+  const update = useAgentPluginUpdate({ plugin, expectedOldDigest, port, t, onUpdated });
   return <AgentPluginUpdateControl update={update} t={t} agentHandleBase={agentHandleBase} />;
 }
 
@@ -350,7 +349,6 @@ function MarketplacePanel({ t }: { t: Translate }) {
 }
 
 export interface AgentPluginsProps {
-  hooks?: { useAdminThemeBoundary: typeof useAdminThemeBoundary; useAgentPluginConfirmation: typeof useAgentPluginConfirmation; useAgentPluginInstall: typeof useAgentPluginInstall; useAgentPluginTab: typeof useAgentPluginTab };
   /** The route's guarded `?tab=` value, matching the sibling Plugins screen. */
   tabId?: string | null;
   /**
@@ -398,19 +396,18 @@ export function AgentPlugins({
   tabId,
   useAgentPluginsHook = useWiredAgentPlugins,
   agentPluginInstallPort = defaultAgentPluginInstallPort,
-  hooks = { useAdminThemeBoundary, useAgentPluginConfirmation, useAgentPluginInstall, useAgentPluginTab },
 }: AgentPluginsProps = {}) {
-  const themeBoundary = hooks.useAdminThemeBoundary({}, {});
-  const tab = hooks.useAgentPluginTab({ tabId });
+  const themeBoundary = useAdminThemeBoundary({}, {});
+  const tab = useAgentPluginTab({ tabId });
   const controller = useAgentPluginsHook();
   const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
-  const installController = hooks.useAgentPluginInstall({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
+  const installController = useAgentPluginInstall({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
   // One id, referenced by every row's disabled uninstall control — see `AgentPluginRow`'s header
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();
 
   const { pendingDisable, setPendingDisable, pendingDisablePlugin, onRequestToggleEnabled, onRequestRemove } =
-    hooks.useAgentPluginConfirmation({ agentPlugins, onToggleEnabled });
+    useAgentPluginConfirmation({ agentPlugins, onToggleEnabled });
 
   const tabs: SettingsDialogTab[] = [
     {
