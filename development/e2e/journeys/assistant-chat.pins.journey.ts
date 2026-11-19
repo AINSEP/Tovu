@@ -15,42 +15,15 @@ test.use({ viewport: { width: 1280, height: 720 } });
 
 // Migrated from assistant-chat-regressions.spec.ts; original pin intent and why comments follow.
 // Real turns can outlive a browser context; teardown must stop this pin's whole daemon tree.
-test.describe("Bug pin: assistant-chat-regressions", { tag: ["@real-service", "@isolated-site"] }, () => {
+{
+
+function configureChatRegressionPins() {
+
   // Preserve the retired config budget for hooks as well as the test body.
   base.describe.configure({ timeout: 360_000 });
-// @unrun: authored under an edit-only dispatch; coordinator owns execution.
+}
 
-
-
-
-/**
- * Real Local CLI regressions: Jini 3a9a086a (separate attachment batches), video classification,
- * Tovu 8a8e48b1f (remember the open conversation), and the durable-runs design at
- * ADS-memory/.local-artifacts/codex/2026-10-06-durable-runs/design/.
- *
- * Why live-only: harness/fake-model-server.ts exercises BYOK's provider HTTP protocol. The
- * current startByokRun serializes text history, not attachments, and reattachRun(byok:...) simply
- * calls onDone([]). site-assistant-fixtures.ts intercepts the public widget's unrelated endpoint.
- * assistant.journey.ts intercepts /api/runs in the browser, bypassing attachment claim, real run
- * admission, durable checkpoints and recovery. None can prove these bugs. What is missing is a
- * controllable Local CLI executor/provider stub behind the REAL daemon admission, attachment
- * claim and durable event/store paths, able to hold a text delta before releasing the terminal.
- *
- * Until that port exists, this suite starts its own seeded SQLite site, API/admin/daemon, using
- * Claude Code Local CLI and its existing machine login. TOVU_E2E_ADMIN_CHAT=1 opts in to charges.
- * The journeys globalSetup logs in once; no owner's site or password is used. No endpoint is mocked. The
- * reload prompt requests a long streamed answer between two markers. Tovu forbids the CLI's Bash
- * tool, so a shell `sleep` cannot hold a real assistant run. This is live timing, not deterministic
- * provider timing: the test fails if the provider finishes before reload; it never quietly tests
- * reload AFTER completion instead.
- */
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-  "base64",
-);
-const VIDEO = path.join(import.meta.dirname, "../fixtures/video/iris-ai-motion.mp4");
-const START_MARKER = "CHAT_RELOAD_STARTED";
-const END_MARKER = "CHAT_RELOAD_COMPLETE";
+function createChatRegressionFixtures() {
 
 const test = base.extend<{ chat: AdminChatDriver }>({
   chat: async ({ page, baseURL, journeySite: site }, use) => {
@@ -74,6 +47,10 @@ const test = base.extend<{ chat: AdminChatDriver }>({
     }
   },
 });
+  return { test };
+}
+
+function createStreamingReloadCheck({ START_MARKER, END_MARKER }: { START_MARKER: string; END_MARKER: string }) {
 
 /** Reproduce (c) independently for both reload and follow-up tests; no test-order dependency. */
 async function reloadStreamingAnswer({ chat }: { chat: AdminChatDriver }, _optional = {}): Promise<string> {
@@ -100,8 +77,11 @@ async function reloadStreamingAnswer({ chat }: { chat: AdminChatDriver }, _optio
   await expect(chat.ui.messageErrors).toHaveCount(0);
   return conversationId;
 }
+  return reloadStreamingAnswer;
+}
 
-test.describe("admin assistant chat regressions", { tag: ["@live", "@unrun"] }, () => {
+function registerAttachmentAndReloadPins({ test, PNG, VIDEO, reloadStreamingAnswer }: { test: ReturnType<typeof createChatRegressionFixtures>["test"]; PNG: ReturnType<typeof Buffer.from>; VIDEO: ReturnType<typeof path.join>; reloadStreamingAnswer: ReturnType<typeof createStreamingReloadCheck> }) {
+
   test.skip(process.env.TOVU_E2E_REAL_SERVICES !== "1", "opt in with TOVU_E2E_ADMIN_CHAT=1; requires authenticated Claude Code CLI");
 
   test("two images uploaded in two separate batches both survive send", async ({ chat }) => {
@@ -144,6 +124,10 @@ test.describe("admin assistant chat regressions", { tag: ["@live", "@unrun"] }, 
   test("reload during streaming reopens the same conversation and finishes its answer", async ({ chat }) => {
     await reloadStreamingAnswer({ chat });
   });
+}
+
+function registerReloadFollowupPin({ test, reloadStreamingAnswer }: { test: ReturnType<typeof createChatRegressionFixtures>["test"]; reloadStreamingAnswer: ReturnType<typeof createStreamingReloadCheck> }) {
+
 
   test("a follow-up succeeds in the same conversation after a streaming reload", async ({ chat }) => {
     const conversationId = await reloadStreamingAnswer({ chat });
@@ -159,5 +143,54 @@ test.describe("admin assistant chat regressions", { tag: ["@live", "@unrun"] }, 
     await expect(chat.ui.errors).toHaveCount(0);
     await expect(chat.ui.messageErrors).toHaveCount(0);
   });
+}
+
+function registerChatRegressionSuite({ test, PNG, VIDEO, reloadStreamingAnswer }: { test: ReturnType<typeof createChatRegressionFixtures>["test"]; PNG: ReturnType<typeof Buffer.from>; VIDEO: ReturnType<typeof path.join>; reloadStreamingAnswer: ReturnType<typeof createStreamingReloadCheck> }) {
+
+
+test.describe("admin assistant chat regressions", { tag: ["@live", "@unrun"] }, () => {
+registerAttachmentAndReloadPins({ test, PNG, VIDEO, reloadStreamingAnswer });
+registerReloadFollowupPin({ test, reloadStreamingAnswer });
 });
+}
+
+test.describe("Bug pin: assistant-chat-regressions", { tag: ["@real-service", "@isolated-site"] }, () => {
+configureChatRegressionPins();
+// @unrun: authored under an edit-only dispatch; coordinator owns execution.
+
+
+
+
+/**
+ * Real Local CLI regressions: Jini 3a9a086a (separate attachment batches), video classification,
+ * Tovu 8a8e48b1f (remember the open conversation), and the durable-runs design at
+ * ADS-memory/.local-artifacts/codex/2026-10-06-durable-runs/design/.
+ *
+ * Why live-only: harness/fake-model-server.ts exercises BYOK's provider HTTP protocol. The
+ * current startByokRun serializes text history, not attachments, and reattachRun(byok:...) simply
+ * calls onDone([]). site-assistant-fixtures.ts intercepts the public widget's unrelated endpoint.
+ * assistant.journey.ts intercepts /api/runs in the browser, bypassing attachment claim, real run
+ * admission, durable checkpoints and recovery. None can prove these bugs. What is missing is a
+ * controllable Local CLI executor/provider stub behind the REAL daemon admission, attachment
+ * claim and durable event/store paths, able to hold a text delta before releasing the terminal.
+ *
+ * Until that port exists, this suite starts its own seeded SQLite site, API/admin/daemon, using
+ * Claude Code Local CLI and its existing machine login. TOVU_E2E_ADMIN_CHAT=1 opts in to charges.
+ * The journeys globalSetup logs in once; no owner's site or password is used. No endpoint is mocked. The
+ * reload prompt requests a long streamed answer between two markers. Tovu forbids the CLI's Bash
+ * tool, so a shell `sleep` cannot hold a real assistant run. This is live timing, not deterministic
+ * provider timing: the test fails if the provider finishes before reload; it never quietly tests
+ * reload AFTER completion instead.
+ */
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64",
+);
+const VIDEO = path.join(import.meta.dirname, "../fixtures/video/iris-ai-motion.mp4");
+const START_MARKER = "CHAT_RELOAD_STARTED";
+const END_MARKER = "CHAT_RELOAD_COMPLETE";
+const { test } = createChatRegressionFixtures();
+const reloadStreamingAnswer = createStreamingReloadCheck({ START_MARKER, END_MARKER });
+registerChatRegressionSuite({ test, PNG, VIDEO, reloadStreamingAnswer });
 });
+}

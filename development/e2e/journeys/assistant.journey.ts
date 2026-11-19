@@ -73,7 +73,10 @@ function confirmPayloads(expiresAtMs?: number): Payload[] {
   ];
 }
 
-test.describe("assistant ask_choice typed answer", () => {
+{
+
+function registerTypedAnswerPins() {
+
   test("typing while the question card is open delivers one typed answer and starts no second run", { tag: ["@unrun"] }, async ({ page }) => {
     test.skip(CODEX_JOURNEY, "Requires a scripted pending card, delivery status, or fake clock; live Codex cannot guarantee these conditions.");
     const stub = await stubPendingRun({ page, payloads: askChoicePayloads(), toolCallStatus: 202 });
@@ -115,6 +118,10 @@ test.describe("assistant ask_choice typed answer", () => {
     expect(stub.toolCalls).toHaveLength(1);
     expect(stub.runStarts).toHaveLength(1);
   });
+}
+
+function registerDeliveryAndBaselinePins() {
+
 
   test("a failed delivery (500) says so and keeps the draft for a retry", { tag: ["@unrun"] }, async ({ page }) => {
     test.skip(CODEX_JOURNEY, "Requires a scripted pending card, delivery status, or fake clock; live Codex cannot guarantee these conditions.");
@@ -152,9 +159,18 @@ test.describe("assistant ask_choice typed answer", () => {
     await expect(page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/ask-choice/"] iframe').locator("h1.mcpui-title")).toBeVisible();
     await expect(chat.ui.dock).toHaveScreenshot("dock-ask-choice-card.png");
   });
-});
+}
 
-test.describe("assistant confirm card", () => {
+test.describe("assistant ask_choice typed answer", () => {
+registerTypedAnswerPins();
+registerDeliveryAndBaselinePins();
+});
+}
+
+{
+
+function registerConfirmationInputPins() {
+
   test("typing while a CONFIRM card is pending steers the run instead of posting it as a typed answer", { tag: ["@unrun"] }, async ({ page }) => {
     test.skip(CODEX_JOURNEY, "Requires a scripted pending card, delivery status, or fake clock; live Codex cannot guarantee these conditions.");
     const stub = await stubPendingRun({ page, payloads: confirmPayloads(), toolCallStatus: 202 });
@@ -189,6 +205,10 @@ test.describe("assistant confirm card", () => {
     await expect.poll(() => stub.toolCalls.length).toBe(1);
     expect(stub.toolCalls[0]).toMatchObject({ toolName: "content_post_delete", params: { __exchangeId: "ex-1", decision: "confirm" } });
   });
+}
+
+function registerConfirmationExpiryPin() {
+
 
   test("the approval countdown ticks under a fake clock and the card closes as expired at the deadline", { tag: ["@unrun"] }, async ({ page }) => {
     test.skip(CODEX_JOURNEY, "Requires a scripted confirmation deadline under page.clock; live Codex has no deterministic deadline.");
@@ -218,4 +238,10 @@ test.describe("assistant confirm card", () => {
     await expect(chat.ui.dock).toHaveScreenshot("dock-confirm-card-expired.png");
     expect(stub.toolCalls, "expiry must not auto-confirm").toEqual([]);
   });
+}
+
+test.describe("assistant confirm card", () => {
+registerConfirmationInputPins();
+registerConfirmationExpiryPin();
 });
+}

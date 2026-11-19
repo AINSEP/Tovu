@@ -98,7 +98,10 @@ function createPrompt(title: string): string {
     : `Create a draft post titled ${title}`;
 }
 
-test.describe("assistant real tool call (fake BYOK by default; opt-in Codex Local CLI)", () => {
+{
+
+function registerDraftCreationPin() {
+
   test("a scripted tool_use creates a real draft post, visible in the API and on the Posts screen", { tag: ["@unrun"] }, async ({ page }) => {
     const fake = CODEX_JOURNEY ? undefined : await startFakeModelServer("anthropic");
     const title = uniq("Agent draft");
@@ -146,6 +149,10 @@ test.describe("assistant real tool call (fake BYOK by default; opt-in Codex Loca
       if (fake) await restoreLocalCli(page).finally(() => fake.close());
     }
   });
+}
+
+function registerInvalidToolInputPin() {
+
 
   test("a tool call with invalid input is refused to the model, writes no row, and the turn still finishes", { tag: ["@unrun"] }, async ({ page }) => {
     test.skip(CODEX_JOURNEY, "Requires a scripted invalid tool_use and exact model error; live Codex may ask for a title or repair the input.");
@@ -177,6 +184,10 @@ test.describe("assistant real tool call (fake BYOK by default; opt-in Codex Loca
       await restoreLocalCli(page).finally(() => fake.close());
     }
   });
+}
+
+function registerDoubleSendPin() {
+
 
   test("double-clicking Send runs one turn and creates one post", { tag: ["@unrun"] }, async ({ page }) => {
     const fake = CODEX_JOURNEY ? undefined : await startFakeModelServer("anthropic");
@@ -204,4 +215,11 @@ test.describe("assistant real tool call (fake BYOK by default; opt-in Codex Loca
       if (fake) await restoreLocalCli(page).finally(() => fake.close());
     }
   });
+}
+
+test.describe("assistant real tool call (fake BYOK by default; opt-in Codex Local CLI)", () => {
+registerDraftCreationPin();
+registerInvalidToolInputPin();
+registerDoubleSendPin();
 });
+}
