@@ -254,10 +254,11 @@ test("a theme batch validates every destination before writing, then reads the c
     assert.equal(fs.existsSync(path.join(dir, 'assets', 'b.css')), false);
     const written = await invokeRegistration(byId.get('theme_write_file')!, executionContext({ themeId: 'plain',
       items: [{ path: 'assets/a.css', content: 'a{}' }, { path: 'assets/b.css', content: 'b{}' }],
-    })) as { batch: boolean; total: number; results: { path: string }[] };
+    })) as { batch: boolean; total: number; results: { ok: boolean; result: { path: string } }[] };
     assert.equal(written.batch, true);
     assert.equal(written.total, 2);
-    assert.deepEqual(written.results.map(result => result.path), ['assets/a.css', 'assets/b.css']);
+    // Jini's chained batch reports each item as { index, ok, result } (createChainedBatchHandler).
+    assert.deepEqual(written.results.map(item => item.ok && item.result.path), ['assets/a.css', 'assets/b.css']);
     assert.equal(fs.readFileSync(path.join(dir, "assets", "b.css"), "utf8"), "b{}");
     assert.equal(fs.existsSync(path.join(root, "escape.css")), false);
 
