@@ -124,13 +124,13 @@ test("deployment_execute_static_publish waits for one human approval over HTTP b
   let routeExecutions = 0;
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, surfaceExchanges, toolExecutor: {
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, surfaceExchanges, toolExecutor: {
     ...toolExecutor,
     execute: (...args: Parameters<typeof toolExecutor.execute>) => {
       routeExecutions += 1;
       return toolExecutor.execute(...args);
     },
-  } });
+  } } });
   const baseUrl = await startTestServer(app, t);
   let approvalCards = 0;
   let completePublish!: () => void;
@@ -189,7 +189,7 @@ test("SECURITY: a surface callback cannot run deployment_execute_static_publish 
   };
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor: countingExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: countingExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -211,7 +211,7 @@ test("SECURITY: deployment_get_static_publish_capabilities is refused by this sa
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
 
   // Shape 2 framing (no exchangeId) — the closest thing to "just call it through this route" a

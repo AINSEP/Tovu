@@ -404,7 +404,7 @@ const frontendControl = createFrontendControl({
 // full rationale. Every other registration passes through unchanged.
 // `withReadOnlyFrontendCapabilities` marks page.find_elements and admin.capture_screenshot read-only,
 // so the read-only delegated-tool gateway runs them (see `frontend-control-capabilities.ts`).
-for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations))) {
+for (const registration of withPageNavigateErrorRewrap({ registrations: withReadOnlyFrontendCapabilities({ registrations: frontendControl.toolRegistrations }) })) {
   // Page clicks carry arbitrary UI effects; apply the same reviewed host policy as WebMCP.
   // Every frontend registration needs a classification, including local chat operations.
   // The server's human chat-card exchange owns page approval for every transport. The browser
@@ -428,10 +428,10 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // complete stack; the outer descriptor gate verifies read-only authority before either route.
 const localToolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges,
   toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId } }, {});
-const toolExecutor = withReadOnlyToolConstraint(createRoutingToolExecutor({
+const toolExecutor = withReadOnlyToolConstraint({ inner: createRoutingToolExecutor({
   local: localToolExecutor, remote: siteTools.remote,
   isLocal: ({ toolId }) => registry.has({ toolId }),
-}, { acquireActivity: () => idlePark.hold({}, {}) }), { registry: siteTools.registry });
+}, { acquireActivity: () => idlePark.hold({}, {}) }), deps: { registry: siteTools.registry } });
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
@@ -1035,7 +1035,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
       // prepended BEFORE the plugin prefix. Off by default; a no-op unless a probe sets
       // `TOVU_CAPABILITY_MANIFEST_ARM` for this process.
-      prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildCapabilityManifestPrefix(resolveCapabilityManifestArm(env)) });
+      prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildCapabilityManifestPrefix({ arm: resolveCapabilityManifestArm(env) }) });
       // What this boot REFUSED to admit from external MCP servers, in the one channel a model does
       // not have to go looking for. Not a tool, deliberately: a model that does not know it is
       // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
@@ -1477,7 +1477,7 @@ mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted,
 mountJiniRoutes({ app, routes: agentRoutes({ deps: { listAgents: assistantInventory.listAssistantAgents, rescanAgents: assistantInventory.rescanAssistantAgents }, host: routeHost }) });
 // `GET /api/active` — the one route `jini-mcp` calls (`get_active_context`) that this daemon never
 // served, so it answered 404. Behind the bearer gate above like every route but the delegated one.
-registerRunActiveContextRoute(app, runActiveContexts);
+registerRunActiveContextRoute({ app, store: runActiveContexts });
 // `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
 // gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
 // omitting it silently disables the gateway rather than silently widening it.
@@ -1529,14 +1529,14 @@ mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDep
 // `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
 // `ToolExecutor`/`SurfaceExchangeStore` an exchange delivery actually needs) and
 // `apps/website/src/server/runtime/composition/modules/assistant.ts` for the proxy half.
-registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler });
+registerMcpUiToolCallsRoute({ app, deps: { toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler } });
 // A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/
 // `functionResponse`/`error` re-entering the process that holds the exchange it answers. Unlike
 // the MCP-UI route above, this never touches `toolExecutor` at all (there is no tool-call shape to
 // fall back to for A2UI) — see `a2ui-actions-route.ts`'s own module doc. Same non-exemption
 // reasoning: reached only through Tovu's session-authenticated proxy, which attaches the bearer
 // token like every other forwarded route.
-registerA2uiActionsRoute(app, { surfaceExchanges });
+registerA2uiActionsRoute({ app, deps: { surfaceExchanges } });
 // The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
 // admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
 // `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`

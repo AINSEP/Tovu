@@ -94,7 +94,7 @@ test("withPageNavigateErrorRewrap: a rejecting page.navigate registration's hand
   const upstream = new Error(`"pricing" is not a published page. Available: posts, pages`);
   const registrations = [fakeRegistration(PAGE_NAVIGATE_TOOL_ID, async () => { throw upstream; })];
 
-  const wrapped = withPageNavigateErrorRewrap(registrations);
+  const wrapped = withPageNavigateErrorRewrap({ registrations });
   assert.equal(wrapped.length, 1, "must not add or drop registrations");
 
   await assert.rejects(wrapped[0]!.handler(fakeCtx()), (err: unknown) => {
@@ -106,20 +106,20 @@ test("withPageNavigateErrorRewrap: a rejecting page.navigate registration's hand
 
 test("withPageNavigateErrorRewrap: a SUCCESSFUL page.navigate call is untouched", async () => {
   const registrations = [fakeRegistration(PAGE_NAVIGATE_TOOL_ID, async () => ({ navigatedTo: "posts" }))];
-  const wrapped = withPageNavigateErrorRewrap(registrations);
+  const wrapped = withPageNavigateErrorRewrap({ registrations });
   assert.deepEqual(await wrapped[0]!.handler(fakeCtx()), { navigatedTo: "posts" });
 });
 
 test("withPageNavigateErrorRewrap: every OTHER tool's registration is passed through completely untouched", async () => {
   const original = fakeRegistration("chat.send_message", async () => ({ sent: true }));
-  const wrapped = withPageNavigateErrorRewrap([original]);
+  const wrapped = withPageNavigateErrorRewrap({ registrations: [original] });
   assert.equal(wrapped[0], original, "a non-page.navigate registration must be the SAME object, not rebuilt");
 });
 
 test("withPageNavigateErrorRewrap: an unrelated page.navigate failure is rewrapped unchanged (rewrapPageNavigateError's own pass-through)", async () => {
   const other = new Error("some unrelated internal failure");
   const registrations = [fakeRegistration(PAGE_NAVIGATE_TOOL_ID, async () => { throw other; })];
-  const wrapped = withPageNavigateErrorRewrap(registrations);
+  const wrapped = withPageNavigateErrorRewrap({ registrations });
 
   await assert.rejects(wrapped[0]!.handler(fakeCtx()), (err: unknown) => err === other);
 });

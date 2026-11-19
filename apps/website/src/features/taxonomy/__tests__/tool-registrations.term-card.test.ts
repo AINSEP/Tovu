@@ -9,7 +9,7 @@ test("term card owns a single-item read with the taxonomy permission and full te
   let reads = 0;
   const deps = { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }),
     termRepo: { findByIdFull: async ({ id }: { id: string }) => { reads++; return id === "t" ? term : null; } } } as unknown as TaxonomyToolDeps;
-  const card = () => deriveContentReadRegistrations(buildTaxonomyRegistrations(deps)).find(r => r.descriptor.id === "content_read.term")!;
+  const card = () => deriveContentReadRegistrations({ sourceRegistrations: buildTaxonomyRegistrations(deps) }).find(r => r.descriptor.id === "content_read.term")!;
   assert.ok(card());
   assert.deepEqual(await card().handler({ input: { termId: "t" }, principal: { id: "owner" } } as ToolExecutionContext), { term });
   await assert.rejects(card().handler({ input: { termId: "gone" }, principal: { id: "owner" } } as ToolExecutionContext),

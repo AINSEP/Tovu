@@ -580,7 +580,7 @@ function unionInputSchema(
  * @complexity O(t) in total tool count — one pass to index, one pass over the cards, one filter.
  * @overallScore 100
  */
-export function deriveContentReadRegistrations(sourceRegistrations: readonly ToolRegistration[]): ToolRegistration[] {
+export function deriveContentReadRegistrations({ sourceRegistrations }: { sourceRegistrations: readonly ToolRegistration[] }, _optional: Record<string, never> = {}): ToolRegistration[] {
   const byId = new Map(sourceRegistrations.map((registration) => [registration.descriptor.id, registration] as const));
   const retiredIds = new Set<string>();
   const catalog = new Map<string, AgentToolDefinition>();

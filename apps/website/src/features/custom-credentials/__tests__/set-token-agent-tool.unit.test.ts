@@ -279,7 +279,7 @@ test("a token submitted through the delivery route never enters the durable tool
     assert.equal(routePath, MCP_UI_TOOL_CALLS_PATH);
     route = handler;
   } } as unknown as Express;
-  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges } });
   const sentinel = "sentinel-rotation-secret-do-not-audit-20260930";
   const req = {
     get: (name: string) => name === RUN_PRINCIPAL_HEADER ? PRINCIPAL_ID : undefined,

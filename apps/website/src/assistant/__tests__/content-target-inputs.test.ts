@@ -48,7 +48,7 @@ test("shared content target input handles media card reads and list batches, met
   await mediaRepo.save(mediaRecord({ id: "foreign", slug: "private", workspaceId: "other" }));
   const site = { ...deps, mediaRepo };
   const raw = buildMediaRegistrations(site);
-  const cards = deriveContentReadRegistrations(raw);
+  const cards = deriveContentReadRegistrations({ sourceRegistrations: raw });
   const registrations = applyBatchInputs({ registrations: withContentTargets({ registrations: cards, deps: site }) });
   const registration = registrations.find(tool => tool.descriptor.id === "content_read.media_asset")!;
   const result = await executeRegisteredTool({ registration, input: { items: [{ id: "dashboard" }, { slug: "logo" }, { id: "missing" }, {}, { id: "private" }, { id: "asset-1" }] } });

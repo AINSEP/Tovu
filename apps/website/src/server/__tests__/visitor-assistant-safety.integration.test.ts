@@ -153,7 +153,7 @@ test("visitorsafe: preflight errors preserve 413/429 friendly text, codes, retry
   assert.match(lengthError.error, /message is too long/);
   assert.ok(f.logs.some(entry => entry.errorId === lengthError.errorId));
   // A failing configuration still spends only the existing IP request slot, never provider tokens.
-  await deleteSiteAssistantCredential({ repo: f.deps.siteAssistantCredentialRepo, clock: f.deps.clock }, { workspaceId: f.deps.workspaceId });
+  await deleteSiteAssistantCredential({ deps: { repo: f.deps.siteAssistantCredentialRepo, clock: f.deps.clock }, workspaceId: f.deps.workspaceId });
   for (let i = 0; i < 10; i++) {
     const unavailable = await post(f);
     assert.equal(unavailable.status, 503);

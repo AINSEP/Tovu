@@ -63,7 +63,7 @@ function recordingList(result: unknown): { handler: ToolHandler; inputs: unknown
 }
 
 function card(registrations: readonly ToolRegistration[], id: string): ToolRegistration {
-  const found = deriveContentReadRegistrations(registrations).find((registration) => registration.descriptor.id === id);
+  const found = deriveContentReadRegistrations({ sourceRegistrations: registrations }).find((registration) => registration.descriptor.id === id);
   assert.ok(found, `expected '${id}' to be derived`);
   return found;
 }

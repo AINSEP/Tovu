@@ -4,7 +4,8 @@ import { type UIResource } from "@jini-ai/protocol/mcp-ui";
 const HTML_MIME_TYPES: ReadonlySet<string> = new Set(["text/html", "text/html;profile=mcp-app", "text/html+skybridge"]);
 
 /** Narrows the renderer's unknown package boundary without casting a required presentation port. */
-export function isAskChoiceUiResource(ui: unknown): ui is UIResource {
+export function isAskChoiceUiResource(required: { ui: unknown }, _optional: Record<string, never> = {}): required is { ui: UIResource } {
+  const { ui } = required;
   if (!isRecord(ui) || ui.type !== "resource" || !isRecord(ui.resource)) return false;
   return hasUiUri({ resource: ui.resource }) && hasHtmlText({ resource: ui.resource });
 }
@@ -27,7 +28,7 @@ function hasHtmlText({ resource }: { resource: Record<string, unknown> }): boole
 
 /** The ask-choice tool result for a rendered form; the renderer's output crosses an unknown package boundary.
  * @throws Error when the renderer returned anything other than an HTML `ui://` resource. @complexity O(1). */
-export function askChoiceToolResult({ modelText, ui }: { modelText: string; ui: unknown }, _options = {}) {
-  if (!isAskChoiceUiResource(ui)) throw new Error("ask-choice renderer returned an invalid UI resource");
-  return { ...buildUIToolResult({ modelText, ui }) };
+export function askChoiceToolResult(required: { modelText: string; ui: unknown }, _options = {}) {
+  if (!isAskChoiceUiResource(required)) throw new Error("ask-choice renderer returned an invalid UI resource");
+  return { ...buildUIToolResult({ modelText: required.modelText, ui: required.ui }) };
 }

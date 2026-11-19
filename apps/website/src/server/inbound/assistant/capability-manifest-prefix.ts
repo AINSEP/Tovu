@@ -84,7 +84,7 @@ This applies EVEN IF:
 A plausible answer you reached on your own is NOT evidence that nothing is installed for this. Search first, then answer. Briefly state what you searched for and what came back.`;
 
 /** Returns `""` for `off` — today's behavior, no manifest text at all. */
-export function buildCapabilityManifestPrefix(arm: CapabilityManifestArm): string {
+export function buildCapabilityManifestPrefix({ arm }: { arm: CapabilityManifestArm }, _optional: Record<string, never> = {}): string {
   if (arm === "off") return "";
   if (arm === "passive") return CAPABILITY_MANIFEST_TEXT;
   if (arm === "mandate") return `${CAPABILITY_MANIFEST_TEXT}\n\n${MANDATE_INSTRUCTION}`;

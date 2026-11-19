@@ -17,10 +17,10 @@ export const registerAdminAssistantDeleteExecutionCredentialRoute: AssistantSett
 
     try {
       const principal = getAuthedPrincipal(res);
-      const view = await deleteExecutionCredential(
-        { repo: deps.adminExecutionCredentialRepo, clock: deps.clock },
-        { workspaceId: deps.workspaceId, principalId: principal.id }
-      );
+      const view = await deleteExecutionCredential({
+        deps: { repo: deps.adminExecutionCredentialRepo, clock: deps.clock },
+        workspaceId: deps.workspaceId, principalId: principal.id
+      });
       res.json({ data: view });
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/assistant/delete-execution-credential", code: "INTERNAL_ERROR" });

@@ -145,8 +145,8 @@ export function readA2uiAction({ rawBody }: { rawBody: unknown }, _options = {})
  * @complexity O(1).
  */
 export function deliverA2uiAction(
-  store: SurfaceExchangeStore,
-  action: { exchangeId: string; principalId: string; message: RendererToAgentMessage },
+  { store, ...action }: { store: SurfaceExchangeStore } & { exchangeId: string; principalId: string; message: RendererToAgentMessage },
+  _optional: Record<string, never> = {},
 ): DeliverResult {
   return store.deliver({ exchangeId: action.exchangeId, principalId: action.principalId, params: { message: action.message } }, { channel: "a2ui" });
 }
@@ -157,7 +157,7 @@ export function deliverA2uiAction(
  * such exchange" and "already closed" both mean "this surface is no longer the one waiting on you",
  * which the human cannot act on differently.
  */
-export function a2uiNotPendingBody(reason: SurfaceDeliveryRejectionReason) {
+export function a2uiNotPendingBody({ reason }: { reason: SurfaceDeliveryRejectionReason }, _optional: Record<string, never> = {}) {
   return { error: "that surface is no longer waiting for an answer", code: "SURFACE_NOT_PENDING", reason } as const;
 }
 
@@ -168,7 +168,7 @@ export function a2uiNotPendingBody(reason: SurfaceDeliveryRejectionReason) {
  * own, which is O(1) (a `Map` lookup).
  * @overallScore 100
  */
-export function registerA2uiActionsRoute(app: Express, deps: A2uiActionsRouteDeps): void {
+export function registerA2uiActionsRoute({ app, deps }: { app: Express; deps: A2uiActionsRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response) => {
     const principalId = readPrincipalId(req);
     if (!principalId) {
@@ -182,9 +182,9 @@ export function registerA2uiActionsRoute(app: Express, deps: A2uiActionsRouteDep
       return;
     }
 
-    const delivered = deliverA2uiAction(deps.surfaceExchanges, { exchangeId: action.exchangeId, principalId, message: action.message });
+    const delivered = deliverA2uiAction({ store: deps.surfaceExchanges, exchangeId: action.exchangeId, principalId, message: action.message });
     if (!delivered.ok) {
-      res.status(409).json(a2uiNotPendingBody(delivered.reason));
+      res.status(409).json(a2uiNotPendingBody({ reason: delivered.reason }));
       return;
     }
 

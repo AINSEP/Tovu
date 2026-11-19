@@ -161,7 +161,7 @@ export async function setExecutionCredential(deps: ExecutionCredentialWriteDeps,
 }
 
 /** Clears the envelope through the compatibility port; settings and scope remain intact. */
-export async function deleteExecutionCredential(deps: ExecutionCredentialReadDeps & { clock: ClockPort }, input: { workspaceId: UUID; principalId: UUID }): Promise<AdminExecutionCredentialView> {
+export async function deleteExecutionCredential({ deps, ...input }: { deps: ExecutionCredentialReadDeps & { clock: ClockPort } } & { workspaceId: UUID; principalId: UUID }, _optional: Record<string, never> = {}): Promise<AdminExecutionCredentialView> {
   await deps.repo.clearKey({ ...input, updatedAt: readNowIso({ clock: deps.clock }) });
   return getExecutionCredential(deps, input);
 }

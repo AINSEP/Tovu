@@ -97,7 +97,7 @@ test("SECURITY: a surface callback cannot run media_trash_asset — the route re
   };
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor: countingExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: countingExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {

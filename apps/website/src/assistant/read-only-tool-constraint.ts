@@ -165,7 +165,7 @@ export interface ReadOnlyToolConstraintDeps {
  *   straight through, matching `withToolAttemptAudit`'s own shape.
  * @complexity One extra property read per unconstrained call; one registry scan per constrained one.
  */
-export function withReadOnlyToolConstraint(inner: ToolExecutor, deps: ReadOnlyToolConstraintDeps): ToolExecutor {
+export function withReadOnlyToolConstraint({ inner, deps }: { inner: ToolExecutor; deps: ReadOnlyToolConstraintDeps }, _optional: Record<string, never> = {}): ToolExecutor {
   return withDaemonReadOnlyToolConstraint({
     inner,
     registry: deps.registry,

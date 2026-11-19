@@ -132,7 +132,7 @@ export async function setSiteAssistantCredential(deps: SiteAssistantCredentialWr
 }
 
 /** Clears the envelope through the compatibility port; settings and scope remain intact. */
-export async function deleteSiteAssistantCredential(deps: SiteAssistantCredentialReadDeps & { clock: ClockPort }, input: { workspaceId: UUID }): Promise<SiteAssistantCredentialView> {
+export async function deleteSiteAssistantCredential({ deps, ...input }: { deps: SiteAssistantCredentialReadDeps & { clock: ClockPort } } & { workspaceId: UUID }, _optional: Record<string, never> = {}): Promise<SiteAssistantCredentialView> {
   await deps.repo.clearKey({ ...input, updatedAt: readNowIso({ clock: deps.clock }) });
   return getSiteAssistantCredential(deps, input);
 }

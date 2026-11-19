@@ -58,7 +58,7 @@ test("ok renders a null output as the JSON text null", () => {
 });
 
 test("isRecord rejects arrays and null but accepts a plain object", () => {
-  assert.deepEqual([isRecord([]), isRecord(null), isRecord("x"), isRecord({})], [false, false, false, true]);
+  assert.deepEqual([isRecord({ value: [] }), isRecord({ value: null }), isRecord({ value: "x" }), isRecord({ value: {} })], [false, false, false, true]);
 });
 
 test("resolveDelegatedInput treats a blank string as no input", () => {

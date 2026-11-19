@@ -367,7 +367,7 @@ function prepareReadRegistrations({ registrations, ownerByToolId, routeDeps, opt
   options: { includeContentReadCollapse?: boolean; contributions?: AssistantToolContributions };
   beforeLookup: ChatDeleteSurfaceDeps["assertChatDeleteAllowed"];
 }, _optional = {}): ToolRegistration[] {
-  const readRegistrations = options.includeContentReadCollapse === false ? [...registrations] : deriveContentReadRegistrations(registrations);
+  const readRegistrations = options.includeContentReadCollapse === false ? [...registrations] : deriveContentReadRegistrations({ sourceRegistrations: registrations });
   for (const [toolId, owner] of [...ownerByToolId]) ownerByToolId.set(currentToolIdFor({ toolId: toolId }), owner);
   return options.contributions?.contentTargetInputs?.({ registrations: readRegistrations, routeDeps, beforeLookup }) ?? readRegistrations;
 }
@@ -395,7 +395,7 @@ function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadabl
   // A peer bag is cached across callers using raw or collapsed catalogs. Retain both
   // names over the same domain handlers instead of making the first caller choose its ABI.
   const rawIds = new Set(raw.map(tool => tool.descriptor.id));
-  const combined = [...raw, ...deriveContentReadRegistrations(raw).filter(tool => !rawIds.has(tool.descriptor.id))];
+  const combined = [...raw, ...deriveContentReadRegistrations({ sourceRegistrations: raw }).filter(tool => !rawIds.has(tool.descriptor.id))];
   const adapted = options.contributions?.contentTargetInputs?.({ registrations: combined, routeDeps: peerDeps }) ?? combined;
   return adapted.filter(registration => peerReadable({ registration }));
 }

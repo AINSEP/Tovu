@@ -134,7 +134,7 @@ test('mixed-scope card does not advertise a site supported by only one dispatch 
     descriptor: { id, readOnly: true, inputSchema: { type: 'object', properties: site ? { site: { type: 'string' } } : {} } },
     policy: { authorize: () => 'allow' }, handler: async () => ({}),
   });
-  const card = deriveContentReadRegistrations([registration('redirects_get', true), registration('redirects_list', false)]).find(tool => tool.descriptor.id === 'content_read.redirect');
+  const card = deriveContentReadRegistrations({ sourceRegistrations: [registration('redirects_get', true), registration('redirects_list', false)] }).find(tool => tool.descriptor.id === 'content_read.redirect');
   assert.ok(card); assert.equal(Object.hasOwn(properties(card), 'site'), false);
 });
 

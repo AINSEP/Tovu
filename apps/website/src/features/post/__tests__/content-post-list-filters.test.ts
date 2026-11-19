@@ -69,7 +69,7 @@ function fixture({ rows = [record()] }: { rows?: PostRecord[] }, { allow = true 
     (r) => r.descriptor.id === "content_post_list",
   );
   assert.ok(registration);
-  const card = deriveContentReadRegistrations(registrations).find(tool => tool.descriptor.id === "content_read.content_post");
+  const card = deriveContentReadRegistrations({ sourceRegistrations: registrations }).find(tool => tool.descriptor.id === "content_read.content_post");
   assert.ok(card);
   return { registration, card, reads };
 }
@@ -258,10 +258,10 @@ test("t02: invalid status and projection inputs refuse with ToolInputError", asy
 
 test("chat-input regression: comma-separated fields project the same rows through the merged read card", async () => {
   const { registration } = fixture({});
-  const [card] = deriveContentReadRegistrations([
+  const [card] = deriveContentReadRegistrations({ sourceRegistrations: [
     registration,
     { ...registration, descriptor: { ...registration.descriptor, id: "content_post_get" } },
-  ]);
+  ] });
   assert.ok(card);
   const input = { kind: "page", fields: " title, slug, title " };
   const result = await executeRegisteredTool({ registration: card, input });

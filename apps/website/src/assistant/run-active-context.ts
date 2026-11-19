@@ -115,7 +115,7 @@ export function createRunActiveContextStore(options: { readonly now?: () => numb
  * Mounts `GET /api/active` on the daemon app. Mount it AFTER `requireAgentDaemonToken`: `jini-mcp`
  * sends the daemon token (`mcp-injection.ts`), and nothing else may read the operator's screen.
  */
-export function registerRunActiveContextRoute(app: Pick<Express, "get">, store: RunActiveContextStore): void {
+export function registerRunActiveContextRoute({ app, store }: { app: Pick<Express, "get">; store: RunActiveContextStore }, _optional: Record<string, never> = {}): void {
   app.get(ACTIVE_CONTEXT_PATH, (_req, res) => {
     res.json(store.read());
   });

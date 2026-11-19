@@ -21,10 +21,10 @@ export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsR
       const params = { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId, entityType: "assistant-settings" };
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const view = await deleteSiteAssistantCredential(
-        { repo: deps.siteAssistantCredentialRepo, clock: deps.clock },
-        { workspaceId: deps.workspaceId }
-      );
+      const view = await deleteSiteAssistantCredential({
+        deps: { repo: deps.siteAssistantCredentialRepo, clock: deps.clock },
+        workspaceId: deps.workspaceId
+      });
       res.json({ data: view });
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/assistant/delete-site-credential", code: "INTERNAL_ERROR" });

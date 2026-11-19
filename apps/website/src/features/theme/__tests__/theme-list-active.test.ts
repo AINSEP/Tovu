@@ -38,7 +38,7 @@ function fixture({ activeThemeId, themes = [theme({ id: "first" }), theme({ id: 
   };
   const registrations = buildThemesRegistrations(deps);
   const list = registrations.find(tool => tool.descriptor.id === "theme_list");
-  const card = deriveContentReadRegistrations(registrations).find(tool => tool.descriptor.id === "content_read.theme");
+  const card = deriveContentReadRegistrations({ sourceRegistrations: registrations }).find(tool => tool.descriptor.id === "content_read.theme");
   assert.ok(list);
   assert.ok(card);
   return { deps, presentationRepo, reads, list, card };

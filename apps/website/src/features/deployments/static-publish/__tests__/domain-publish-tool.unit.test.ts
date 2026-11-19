@@ -282,9 +282,9 @@ for (const noPreview of [false, true]) test(`assembled custom-domain publish (pr
   let routeExecutions = 0;
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaceExchanges, toolExecutor: {
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaceExchanges, toolExecutor: {
     ...executor, execute: (...args) => { routeExecutions++; return executor.execute(...args); },
-  } });
+  } } });
   const baseUrl = await startTestServer(app, t);
   let approvalCards = 0;
   const executed = await executor.execute({ principal: f.ctx.principal, run: f.ctx.run,

@@ -30,7 +30,7 @@ test('the release journey creates an admitted site attempt before catalog discov
     config: { allowedOriginsEnvVar: 'JINI_ALLOWED_ORIGINS', webPortEnvVar: 'JINI_WEB_PORT', bindHostEnvVar: 'JINI_BIND_HOST' } }) };
   // 100 KiB: the default limit of the `express.json()` parser above.
   mountJiniRoutes({ app: daemon, routes: runRoutes({ deps: { lifecycle }, host: daemonRouteHost({ context, parserLimitBytes: 100 * 1024 }) }) });
-  registerRunActiveContextRoute(daemon, createRunActiveContextStore());
+  registerRunActiveContextRoute({ app: daemon, store: createRunActiveContextStore() });
   const daemonUrl = await startTestServer(daemon, t);
   resolvedPortRef.current = Number(new URL(daemonUrl).port);
   const previousUrl = process.env.JINI_AGENT_DAEMON_URL;

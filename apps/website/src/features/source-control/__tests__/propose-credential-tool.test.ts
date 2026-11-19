@@ -46,12 +46,12 @@ test('t10 source callback delivers a human token only to its parked call, reject
   // Invoke the registered production handler directly: no HTTP listener or transport mock.
   // why: the route is wrapped in asyncRoute (b394c8ca8), whose wrapper returns before the work ends;
   // `.handler` is the original async handler, so each call is awaited before its response is read.
-  registerMcpUiToolCallsRoute({ post: (path: string, route: { handler: typeof handler }) => {
+  registerMcpUiToolCallsRoute({ app: { post: (path: string, route: { handler: typeof handler }) => {
     assert.equal(path, MCP_UI_TOOL_CALLS_PATH); handler = route.handler;
-  } } as unknown as Express, {
+  } } as unknown as Express, deps: {
     scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaces,
     toolExecutor: { execute: async () => assert.fail('human secrets must never enter a fresh tool execution') } as unknown as ToolExecutor,
-  });
+  } });
   async function callback(principal: string, params: Record<string, unknown>) {
     let status = 200; let body: unknown;
     const response = Object.assign(new EventEmitter(), { status: (value: number) => { status = value; return response; }, json: (value: unknown) => { body = value; return response; } });

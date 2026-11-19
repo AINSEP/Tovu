@@ -155,7 +155,7 @@ test("visitorai: imported enabled state with no credential emits no widget and c
   assert.match(publicError.error, /^The assistant couldn't answer right now/);
   assert.ok(publicError.errorId);
   assert.equal(f.providerCalls(), 0);
-  await deleteSiteAssistantCredential({ repo: f.deps.siteAssistantCredentialRepo, clock: f.deps.clock }, { workspaceId: f.deps.workspaceId });
+  await deleteSiteAssistantCredential({ deps: { repo: f.deps.siteAssistantCredentialRepo, clock: f.deps.clock }, workspaceId: f.deps.workspaceId });
   const off = await put({ ...f, path: "/assistant/settings", body: { publicEnabled: false } });
   assert.equal(off.status, 200, "an operator can always turn the stale flag off");
   const disabled = await fetch(f.baseUrl + "/api/site-assistant/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: "Hello" }) });

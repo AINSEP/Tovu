@@ -22,7 +22,7 @@ const TOKEN = "test-daemon-token";
 function buildApp(reload: () => Promise<{ newlyAdmittedConnectionIds: readonly string[] }>): express.Express {
   const app = express();
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }, {}));
-  registerFederationReloadRoute(app, { reload });
+  registerFederationReloadRoute({ app, deps: { reload } });
   return app;
 }
 

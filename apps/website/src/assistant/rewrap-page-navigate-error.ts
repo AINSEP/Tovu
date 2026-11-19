@@ -79,7 +79,7 @@ export function rewrapPageNavigateError({ err }: { err: unknown }, _optional = {
  * @complexity O(n) in `registrations.length` to build the wrapped array; each wrapped handler adds
  * O(1) overhead (one `try`/`catch`) per invocation.
  */
-export function withPageNavigateErrorRewrap(registrations: readonly ToolRegistration[]): readonly ToolRegistration[] {
+export function withPageNavigateErrorRewrap({ registrations }: { registrations: readonly ToolRegistration[] }, _optional: Record<string, never> = {}): readonly ToolRegistration[] {
   return registrations.map((registration) => {
     if (registration.descriptor.id !== PAGE_NAVIGATE_TOOL_ID) return registration;
     return {

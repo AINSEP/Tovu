@@ -341,7 +341,7 @@ test("FAIL CLOSED: a gate wired without a registry refuses every constrained dis
     cancel: () => {},
     getAuditRecord: () => null,
   };
-  const gated = withReadOnlyToolConstraint(inner, { registry: undefined });
+  const gated = withReadOnlyToolConstraint({ inner, deps: { registry: undefined } });
 
   const refused = await gated.execute({ principal: READ_ONLY, run:  RUN, toolId:  "anything_at_all", input:  {} });
   assert.equal(refused.status, "denied");

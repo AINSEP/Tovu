@@ -142,9 +142,9 @@ async function clickDialogAction(html: string, action: "confirm" | "cancel", sur
     addEventListener(name: string, fn: (event: unknown) => void) { this.listeners.set(name, fn); },
   }));
   let route!: (req: unknown, res: unknown) => Promise<void>;
-  registerMcpUiToolCallsRoute({ post: (_path: string, handler: typeof route) => { route = handler; } } as never, {
+  registerMcpUiToolCallsRoute({ app: { post: (_path: string, handler: typeof route) => { route = handler; } } as never, deps: {
     scheduler: nodeIntervalScheduler, surfaceExchanges, toolExecutor: { execute: async () => { assert.fail("an exchange answer must not execute a fresh tool"); } } as never,
-  });
+  } });
   const routed: Promise<void>[] = [];
   let time = 0;
   const api = {

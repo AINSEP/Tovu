@@ -44,7 +44,7 @@ function fixture() {
       return r.handler(ctx);
     },
   }));
-  const card = deriveContentReadRegistrations(wrapped).find(
+  const card = deriveContentReadRegistrations({ sourceRegistrations: wrapped }).find(
     (r) => r.descriptor.id === "content_read.content_post",
   );
   assert.ok(card);

@@ -81,7 +81,7 @@ export const BATCH_GUIDANCE =
  *  an argument so both arms are verifiable: today's grant always disallows Bash, which would
  *  otherwise leave the narrow-purpose text untestable until the grant changes.
  *  @complexity O(n) in the disallow-list length. */
-export function buildBashGuidanceBlock(disallowedTools: readonly string[]): string {
+export function buildBashGuidanceBlock({ disallowedTools }: { disallowedTools: readonly string[] }, _optional: Record<string, never> = {}): string {
   return disallowedTools.includes("Bash")
   ? "Bash is unavailable because it is disabled for this assistant. " +
     "Read remains available for reading Tovu's own source to answer a code-level question, and for supplied attachment or CLI saved-result paths. " +
@@ -98,7 +98,7 @@ export function buildBashGuidanceBlock(disallowedTools: readonly string[]): stri
 }
 
 /** The default guidance for the actual host-CLI tool grant. */
-export const BASH_GUIDANCE_BLOCK = buildBashGuidanceBlock(ASSISTANT_DISALLOWED_TOOLS);
+export const BASH_GUIDANCE_BLOCK = buildBashGuidanceBlock({ disallowedTools: ASSISTANT_DISALLOWED_TOOLS });
 
 /**
  * Which of the `claude` CLI's own settings layers an assistant run loads — forwarded to

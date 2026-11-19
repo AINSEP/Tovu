@@ -15,7 +15,7 @@ test("workspace card lists only the boot-addressable workspace through its exist
   } });
   deps.workspaceRepo.findById = async ({ id }) => { reads++; assert.equal(id, "ws"); return workspace; };
   deps.workspaceRepo.list = async () => { throw new Error("must not disclose inaccessible workspace rows"); };
-  const card = () => deriveContentReadRegistrations(contributeWorkspaceTools().build(deps)).find(r => r.descriptor.id === "content_read.workspace")!;
+  const card = () => deriveContentReadRegistrations({ sourceRegistrations: contributeWorkspaceTools().build(deps) }).find(r => r.descriptor.id === "content_read.workspace")!;
   const ctx = (input: unknown) => ({ input, principal: { id: "owner" } } as ToolExecutionContext);
   assert.deepEqual(await card().handler(ctx({})), { workspaces: [workspace] });
   assert.deepEqual(await card().handler(ctx({ workspaceId: "ws" })), { workspace });
@@ -31,7 +31,7 @@ test("workspace list reports the missing current workspace with its real safe er
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } });
   deps.workspaceRepo.findById = async () => null;
-  const card = deriveContentReadRegistrations(contributeWorkspaceTools().build(deps)).find(r => r.descriptor.id === "content_read.workspace");
+  const card = deriveContentReadRegistrations({ sourceRegistrations: contributeWorkspaceTools().build(deps) }).find(r => r.descriptor.id === "content_read.workspace");
   assert.ok(card);
   await assert.rejects(card.handler({ input: {}, principal: { id: "owner" } } as ToolExecutionContext),
     { message: "WORKSPACE_NOT_FOUND: workspace 'missing' was not found" });

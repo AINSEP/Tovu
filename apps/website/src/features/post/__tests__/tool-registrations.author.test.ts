@@ -21,9 +21,9 @@ function fixture() {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     userRepo: { findByPrincipalId: async () => ({ username: "admin" }) },
   } as unknown as PostToolDeps;
-  const registrations = deriveContentReadRegistrations(buildPostRegistrations(deps, {
+  const registrations = deriveContentReadRegistrations({ sourceRegistrations: buildPostRegistrations(deps, {
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
-  }));
+  }) });
   function call(id: string, input: unknown) {
     const registration: ToolRegistration | undefined = registrations.find(tool => tool.descriptor.id === id);
     assert.ok(registration, `missing tool ${id}`);

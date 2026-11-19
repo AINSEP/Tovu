@@ -318,7 +318,7 @@ async function executeMcpUiToolCall(
   respondToExecutionResult({ res: res, toolName: input.toolName, principalId: input.principalId, result: result });
 }
 
-export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRouteDeps): void {
+export function registerMcpUiToolCallsRoute({ app, deps }: { app: Express; deps: McpUiToolCallsRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post(MCP_UI_TOOL_CALLS_PATH, asyncRoute({ handler: async (req: Request, res: Response) => {
     const principalId = readPrincipalId(req);
     if (!principalId) {
