@@ -28,6 +28,12 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import {
+  isIntegrationTestFile as isSharedIntegrationTestFile,
+  loadLcov as loadSharedLcov,
+  type FileCoverage,
+  type SourceReaderPort,
+} from "@jini-ai/devops/checks/coverage";
 
 export const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 export const LCOV_PATH = path.join(REPO_ROOT, "development/coverage/lcov.info");
@@ -37,21 +43,6 @@ export const LCOV_UNIT_PATH = path.join(REPO_ROOT, "development/coverage/lcov.un
 /** Produced by `npm run test:cov:server:integration` — only files matching `isIntegrationTestFile`.
  *  Read by `check-route-coverage-diff.ts`'s integration tier. */
 export const LCOV_INTEGRATION_PATH = path.join(REPO_ROOT, "development/coverage/lcov.integration.info");
-
-export interface FileCoverage {
-  /** repo-relative, forward-slash path, e.g. "src/server/inbound/admin-http/routes/assistant/test-agent.ts" */
-  file: string;
-  lf: number;
-  lh: number;
-  brf: number;
-  brh: number;
-  fnf: number;
-  fnh: number;
-}
-
-export function pct(hit: number, found: number): number {
-  return found === 0 ? 100 : (100 * hit) / found;
-}
 
 /** True for files either gate should evaluate: real `src/server/routes/**` source, excluding test
  *  files (co-located `__tests__/` dirs, `*.test.ts`, `*.spec.ts`) and this repo's established
@@ -70,9 +61,7 @@ export function pct(hit: number, found: number): number {
  *  `node --test`) and, implicitly, by which of `LCOV_UNIT_PATH`/`LCOV_INTEGRATION_PATH` a given
  *  test's coverage ends up in. */
 export function isIntegrationTestFile(relPath: string): boolean {
-  const normalized = relPath.replace(/\\/g, "/");
-  if (/\.integration\.test\.ts$/.test(normalized)) return true;
-  return normalized.includes("/__tests__/integration/");
+  return isSharedIntegrationTestFile({ file: relPath, suffixes: [".integration.test.ts"], directories: ["__tests__/integration"] });
 }
 
 /** Repo-relative directory prefixes (trailing `/` kept, so a prefix can never accidentally match a
@@ -114,46 +103,24 @@ export function isMeasurableRouteFile(relPath: string): boolean {
   return true;
 }
 
-function toRepoRelative(sourceFilePath: string): string {
-  const abs = sourceFilePath.trim();
-  const rel = abs.startsWith(REPO_ROOT) ? path.relative(REPO_ROOT, abs) : abs;
-  return rel.split(path.sep).join("/");
-}
-
-/** Pulls a single `KEY:123` numeric field out of one lcov record block; 0 if the key is absent
- *  (lcov omits BRF/BRH entirely for a file with no branches, for example). */
-function lcovField(record: string, key: string): number {
-  const match = record.match(new RegExp(`^${key}:(\\d+)$`, "m"));
-  return Number(match?.[1] ?? 0);
-}
+/** Reads one LCOV artifact; a missing file names the command that produces it. */
+const lcovReader: SourceReaderPort = {
+  readText: ({ path: lcovPath }) => {
+    if (!existsSync(lcovPath)) {
+      throw new Error(
+        `${lcovPath} does not exist. Run \`npm run test:cov\` first — these gates only parse its output, they do not run tests themselves.`
+      );
+    }
+    return readFileSync(lcovPath, "utf8");
+  },
+};
 
 /** Parses every `SF:`/`end_of_record` block in the lcov file into a `FileCoverage` row, with no
  *  filtering — callers that want only route files should use `loadRouteCoverage()` below. */
 export function loadLcov(lcovPath: string = LCOV_PATH): FileCoverage[] {
-  if (!existsSync(lcovPath)) {
-    throw new Error(
-      `${lcovPath} does not exist. Run \`npm run test:cov\` first — these gates only parse its output, they do not run tests themselves.`
-    );
-  }
-  const text = readFileSync(lcovPath, "utf8");
-  const records = text.split(/^end_of_record$/m);
-  const out: FileCoverage[] = [];
-  for (const rec of records) {
-    const sf = rec.match(/^SF:(.+)$/m);
-    if (!sf) continue;
-    out.push({
-      file: toRepoRelative(sf[1]),
-      lf: lcovField(rec, "LF"),
-      lh: lcovField(rec, "LH"),
-      brf: lcovField(rec, "BRF"),
-      brh: lcovField(rec, "BRH"),
-      fnf: lcovField(rec, "FNF"),
-      fnh: lcovField(rec, "FNH"),
-    });
-  }
-  return out;
+  return loadSharedLcov({ lcovPath, repoRoot: REPO_ROOT, reader: lcovReader });
 }
 
 export function loadRouteCoverage(lcovPath: string = LCOV_PATH): FileCoverage[] {
-  return loadLcov(lcovPath).filter((f) => isMeasurableRouteFile(f.file));
+  return loadLcov(lcovPath).filter((record) => isMeasurableRouteFile(record.file));
 }

@@ -21,7 +21,8 @@
  * Exit codes: 0 = at/above floor on all three axes. 1 = below floor on at least one, or lcov.info
  * is missing/unreadable.
  */
-import { loadRouteCoverage, pct } from "./route-coverage-lib.js";
+import { evaluateFloor } from "@jini-ai/devops/checks/coverage";
+import { loadRouteCoverage } from "./route-coverage-lib.js";
 
 const FLOOR = { line: 99, branch: 68, funcs: 93 };
 
@@ -39,33 +40,12 @@ function main(): void {
     );
     process.exit(1);
   }
-  let lf = 0,
-    lh = 0,
-    brf = 0,
-    brh = 0,
-    fnf = 0,
-    fnh = 0;
-  for (const f of files) {
-    lf += f.lf;
-    lh += f.lh;
-    brf += f.brf;
-    brh += f.brh;
-    fnf += f.fnf;
-    fnh += f.fnh;
-  }
-  const line = pct(lh, lf);
-  const branch = pct(brh, brf);
-  const funcs = pct(fnh, fnf);
+  const { line, branch, funcs, failures } = evaluateFloor({ files, floors: FLOOR });
 
   console.log(`check:route-coverage-floor — ${files.length} measurable src/server/routes/** files`);
   console.log(`  line:   ${line.toFixed(2)}% (floor ${FLOOR.line}%)`);
   console.log(`  branch: ${branch.toFixed(2)}% (floor ${FLOOR.branch}%)`);
   console.log(`  funcs:  ${funcs.toFixed(2)}% (floor ${FLOOR.funcs}%)`);
-
-  const failures: string[] = [];
-  if (line < FLOOR.line) failures.push(`line ${line.toFixed(2)}% < floor ${FLOOR.line}%`);
-  if (branch < FLOOR.branch) failures.push(`branch ${branch.toFixed(2)}% < floor ${FLOOR.branch}%`);
-  if (funcs < FLOOR.funcs) failures.push(`funcs ${funcs.toFixed(2)}% < floor ${FLOOR.funcs}%`);
 
   if (failures.length > 0) {
     console.error(`check:route-coverage-floor — FAIL:`);

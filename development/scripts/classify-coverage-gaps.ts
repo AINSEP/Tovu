@@ -59,13 +59,13 @@
  *   CLASSIFY_UNIT_LCOV, CLASSIFY_INTEGRATION_LCOV
  */
 import { pathToFileURL } from "node:url";
+import type { FileTierEvaluation, FileCoverage } from "@jini-ai/devops/checks/coverage";
 import {
   LCOV_INTEGRATION_PATH,
   LCOV_UNIT_PATH,
   loadRouteCoverage,
-  type FileCoverage,
 } from "./route-coverage-lib.js";
-import { evaluateFileTiers, type FileTierEvaluation } from "./check-route-coverage-diff.js";
+import { evaluateFileTiers } from "./check-route-coverage-diff.js";
 import { findViolations } from "./check-src-complexity-drift.js";
 
 const PHANTOM_TAX_BRANCH_CEILING = 40;

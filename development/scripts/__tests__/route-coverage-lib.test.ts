@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-import { isIntegrationTestFile, isMeasurableRouteFile, loadLcov, loadRouteCoverage, pct } from "../route-coverage-lib.js";
+import { pct } from "@jini-ai/devops/checks/coverage";
+import { isIntegrationTestFile, isMeasurableRouteFile, loadLcov, loadRouteCoverage } from "../route-coverage-lib.js";
 
 /**
  * @file Direct coverage for `isIntegrationTestFile` and `isMeasurableRouteFile` — the canonical
@@ -108,8 +109,8 @@ test("loadLcov normalizes records and counters; loadRouteCoverage filters source
       { file: "apps/website/src/server/routes/__tests__/helpers.ts", lf: 1, lh: 1, brf: 0, brh: 0, fnf: 0, fnh: 0 },
     ]);
     assert.deepEqual(loadRouteCoverage(fixture), [route]);
-    assert.equal(pct(3, 8), 37.5);
-    assert.equal(pct(0, 0), 100);
+    assert.equal(pct({ hit: 3, found: 8 }), 37.5);
+    assert.equal(pct({ hit: 0, found: 0 }), 100);
     const missing = path.join(dir, "missing.info");
     assert.throws(() => loadLcov(missing), {
       message: `${missing} does not exist. Run \`npm run test:cov\` first — these gates only parse its output, they do not run tests themselves.`,
@@ -117,4 +118,8 @@ test("loadLcov normalizes records and counters; loadRouteCoverage filters source
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("isIntegrationTestFile: a repo-relative path that starts at __tests__/integration/ is integration (shared classifier)", () => {
+  assert.equal(isIntegrationTestFile("__tests__/integration/boot.test.ts"), true);
 });
