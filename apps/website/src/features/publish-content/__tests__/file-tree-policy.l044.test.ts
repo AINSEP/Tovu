@@ -1,9 +1,7 @@
 /** L044 characterization: preserve first-refusal order and enforce secret scans. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkTreePath } from "../file-tree-path-policy.js";
-import { checkTreeFiles, FILE_TREE_LIMITS, MAX_SECRET_SCAN_BYTES } from "../file-tree-policy.js";
-import { checkMcpJsonSecretPlaceholders } from "../file-tree-mcp-policy.js";
+import { checkTreePath, checkTreeFiles, checkMcpJsonSecretPlaceholders, FILE_TREE_LIMITS, MAX_SECRET_SCAN_BYTES } from "../file-tree-policy.js";
 
 test("L044 path checks preserve shape, segment, name and extension precedence", () => {
   const cases: readonly [string, string | null][] = [

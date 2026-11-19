@@ -260,7 +260,7 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/roles/hooks/use-roles.hooks.ts",
+    "file": "apps/admin/src/features/roles/hooks/roles-row-actions.ts",
     "rule": "catch-reads-error",
     "value": 2
   },
@@ -620,7 +620,7 @@
     "value": 1
   },
   {
-    "file": "apps/desktop/src/renderer/use-find-in-page.hooks.ts",
+    "file": "apps/desktop/src/renderer/find-target.ts",
     "rule": "catch-reads-error",
     "value": 2
   },

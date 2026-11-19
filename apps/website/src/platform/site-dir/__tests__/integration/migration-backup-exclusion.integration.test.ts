@@ -11,7 +11,7 @@ import { minimatch } from "minimatch";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { isDeniedFsFileName } from "#src/features/fs-files/fs-files";
-import { checkTreePath } from "#src/features/publish-content/file-tree-path-policy";
+import { checkTreePath } from "#src/features/publish-content/file-tree-policy";
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
 import { MIGRATION_BACKUP_PREFIX } from "#src/platform/db/sqlite/content-db";
 import { duplicateSite } from "../../duplicate-site.js";

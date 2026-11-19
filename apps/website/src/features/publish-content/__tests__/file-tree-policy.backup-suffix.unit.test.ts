@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { checkRawFilePath } from "../backstop-policy.js";
-import { checkTreePath } from "../file-tree-path-policy.js";
+import { checkTreePath } from "../file-tree-policy.js";
 
 /**
  * @file Owner-approved FU-A 2c (2026-10-25): a credential-config file keeps its meaning under an

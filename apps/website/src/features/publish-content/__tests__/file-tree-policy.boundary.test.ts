@@ -7,9 +7,19 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { checkMcpJsonSecretPlaceholders } from "../file-tree-mcp-policy.js";
-import { checkTreeFiles, FILE_TREE_KINDS, FILE_TREE_LIMITS, normalizeMode, resolveTreeRelativePath, THEME_FILE_TREE_ALLOWED_EXTENSIONS, wrapTreePolicyReason, type FileTreeFileInput } from "../file-tree-policy.js";
-import { checkTreePath, isIgnoredTreeFileName } from "../file-tree-path-policy.js";
+import {
+  checkMcpJsonSecretPlaceholders,
+  checkTreeFiles,
+  checkTreePath,
+  FILE_TREE_KINDS,
+  FILE_TREE_LIMITS,
+  isIgnoredTreeFileName,
+  normalizeMode,
+  resolveTreeRelativePath,
+  THEME_FILE_TREE_ALLOWED_EXTENSIONS,
+  wrapTreePolicyReason,
+  type FileTreeFileInput,
+} from "../file-tree-policy.js";
 
 // (a) The kind set is exactly these 4, and never silently gains/loses one.
 test("FILE_TREE_KINDS is exactly the 4 kinds from §1's inventory table", () => {
