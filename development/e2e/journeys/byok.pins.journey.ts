@@ -1017,7 +1017,7 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
 });
 
 // Migrated from byok-empty-key-guard.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: byok-empty-key-guard", () => {
+{
 /**
  * @file BYOK empty-key guard — zero network reaches the provider (2026-08-04 dispatch, Item
  * 2 of the original brief, promoted to the adversarial floor by MSG-1).
@@ -1052,33 +1052,37 @@ async function login(request: APIRequestContext): Promise<Record<string, string>
 
 const MODELS_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/execution/models";
 const TEST_CONN_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/execution/test-connection";
+function registerEmptyKeyGuards() {
+  test("empty-key guard: local rejection for every key-requiring protocol, both routes", async ({ request }) => {
+    const headers = await login(request);
 
-test("empty-key guard: local rejection for every key-requiring protocol, both routes", async ({ request }) => {
-  const headers = await login(request);
+    const protocols: Array<{ protocol: string; baseUrl: string }> = [
+      { protocol: "anthropic", baseUrl: "https://api.anthropic.com" },
+      { protocol: "openai", baseUrl: "https://api.openai.com" },
+      { protocol: "google", baseUrl: "https://generativelanguage.googleapis.com" },
+    ];
 
-  const protocols: Array<{ protocol: string; baseUrl: string }> = [
-    { protocol: "anthropic", baseUrl: "https://api.anthropic.com" },
-    { protocol: "openai", baseUrl: "https://api.openai.com" },
-    { protocol: "google", baseUrl: "https://generativelanguage.googleapis.com" },
-  ];
+    for (const { protocol, baseUrl } of protocols) {
+      for (const apiKey of ["", "   \t  "]) {
+        const label = `${protocol} apiKey=${JSON.stringify(apiKey)}`;
+        const modelsRes = await request.post(MODELS_PATH, { headers, data: { protocol, baseUrl, apiKey } });
+        const modelsBody = await modelsRes.json();
+        expect(modelsBody.ok, `models: ${label}`).toBe(false);
+        expect(modelsBody.message, `models: ${label}`).toBe("No API key saved on the server. Save one first.");
 
-  for (const { protocol, baseUrl } of protocols) {
-    for (const apiKey of ["", "   \t  "]) {
-      const label = `${protocol} apiKey=${JSON.stringify(apiKey)}`;
-      const modelsRes = await request.post(MODELS_PATH, { headers, data: { protocol, baseUrl, apiKey } });
-      const modelsBody = await modelsRes.json();
-      expect(modelsBody.ok, `models: ${label}`).toBe(false);
-      expect(modelsBody.message, `models: ${label}`).toBe("No API key saved on the server. Save one first.");
-
-      const testConnRes = await request.post(TEST_CONN_PATH, { headers,
-        data: { protocol, baseUrl, apiKey, model: "some-model" },
-      });
-      const testConnBody = await testConnRes.json();
-      expect(testConnBody.ok, `test-connection: ${label}`).toBe(false);
-      expect(testConnBody.message, `test-connection: ${label}`).toBe("No API key saved. Save one to test the connection.");
+        const testConnRes = await request.post(TEST_CONN_PATH, { headers,
+          data: { protocol, baseUrl, apiKey, model: "some-model" },
+        });
+        const testConnBody = await testConnRes.json();
+        expect(testConnBody.ok, `test-connection: ${label}`).toBe(false);
+        expect(testConnBody.message, `test-connection: ${label}`).toBe("No API key saved. Save one to test the connection.");
+      }
     }
-  }
-});
+  });
+}
+
+test.describe("Bug pin: byok-empty-key-guard", () => {
+registerEmptyKeyGuards();
 
 test("zero-network proof: an empty key never reaches a real listener, even one the SSRF guard allows (loopback)", async ({
   request,
@@ -1130,10 +1134,11 @@ test("zero-network proof: an empty key never reaches a real listener, even one t
   }
 });
 });
+}
 
 // Migrated from byok-google-live-smoke.spec.ts; original pin intent and why comments follow.
 // Live Gemini credentials/requests must never share a warm daemon with an offline pin.
-test.describe("Bug pin: byok-google-live-smoke", { tag: ["@real-service", "@isolated-site"] }, () => {
+{
 /**
  * @file The real thing, once: an actual chat turn against the real Google Gemini API through
  * Tovu's live admin UI, using a real operator-supplied key. Companion to
@@ -1191,15 +1196,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ADMIN_ORIGIN_PATH = "/admin/";
 /** The exact model the owner reported using live — not substituted for a guess. */
 const LIVE_MODEL = "gemini-3.6-flash";
-
-// trace/screenshot/video are off via the journeys config's "real-service" project: they are
-// worker-scoped, so a `test.use` inside this describe group cannot set them.
-
-test("real Gemini BYOK turn: the admin chat actually completes and renders a reply", async ({ page }) => {
-  test.skip(!GEMINI_API_KEY, "GEMINI_API_KEY not set (checked process.env and repo-root .env) — skipping the live Gemini smoke test");
-  test.setTimeout(90_000);
-
-  await loginAsAdmin(page);
+async function saveLiveGeminiCredential(page: Page) {
   const credentialPath = "/api/admin/v1/workspaces/workspace-local/assistant/execution-credential";
   const cleared = await page.request.delete(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) });
   expect(cleared.ok()).toBe(true);
@@ -1259,6 +1256,19 @@ test("real Gemini BYOK turn: the admin chat actually completes and renders a rep
   expect(stored.protocol).toBe("google");
   expect(stored.baseUrl).toBe("https://generativelanguage.googleapis.com");
   expect(stored.model).toBe(LIVE_MODEL);
+}
+
+test.describe("Bug pin: byok-google-live-smoke", { tag: ["@real-service", "@isolated-site"] }, () => {
+
+// trace/screenshot/video are off via the journeys config's "real-service" project: they are
+// worker-scoped, so a `test.use` inside this describe group cannot set them.
+
+test("real Gemini BYOK turn: the admin chat actually completes and renders a reply", async ({ page }) => {
+  test.skip(!GEMINI_API_KEY, "GEMINI_API_KEY not set (checked process.env and repo-root .env) — skipping the live Gemini smoke test");
+  test.setTimeout(90_000);
+
+  await loginAsAdmin(page);
+  await saveLiveGeminiCredential(page);
 
   // Reload so `AssistantDock`'s own `useExecutionConfig` (no live subscription to the settings
   // save) picks up the just-persisted BYOK mode/credential — same reasoning as the deputy spec.
@@ -1311,9 +1321,10 @@ test("real Gemini BYOK turn: the admin chat actually completes and renders a rep
   expect(replyText.trim().length).toBeGreaterThan(0);
 });
 });
+}
 
 // Migrated from byok-google-tool-schema.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: byok-google-tool-schema", () => {
+{
 /**
  * @file Permanent regression guard for the Gemini BYOK tool-schema bug (2026-08-04 dispatch).
  *
@@ -1358,20 +1369,7 @@ interface Deputy {
   readonly close: () => Promise<void>;
   readonly streamRequests: () => readonly CapturedStreamRequest[];
 }
-
-/**
- * Starts the confused-deputy "Google Gemini" server this spec fully controls. Answers BOTH surfaces
- * the real BYOK code path can reach for a `protocol: 'google'` config:
- *  - `GET /v1beta/models?key=...` — `ExecutionTab`'s own automatic model-discovery effect (fires as
- *    soon as the Google Gemini preset is selected, before this spec even types a base URL into the
- *    field — see that effect's own comment in `ExecutionTab.tsx`). Answered blandly; nothing in this
- *    spec asserts on it.
- *  - `POST /v1beta/models/<model>:streamGenerateContent?alt=sse` — the actual chat turn. Every such
- *    request is captured (method, url, headers, parsed JSON body) for the real assertions below.
- */
-async function startGeminiDeputy(): Promise<Deputy> {
-  const streamRequests: CapturedStreamRequest[] = [];
-
+function createGeminiDeputyServer(streamRequests: CapturedStreamRequest[]) {
   const server = http.createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -1419,6 +1417,22 @@ async function startGeminiDeputy(): Promise<Deputy> {
       res.end(JSON.stringify({ error: { message: "unhandled path in deputy" } }));
     });
   });
+  return server;
+}
+
+/**
+ * Starts the confused-deputy "Google Gemini" server this spec fully controls. Answers BOTH surfaces
+ * the real BYOK code path can reach for a `protocol: 'google'` config:
+ *  - `GET /v1beta/models?key=...` — `ExecutionTab`'s own automatic model-discovery effect (fires as
+ *    soon as the Google Gemini preset is selected, before this spec even types a base URL into the
+ *    field — see that effect's own comment in `ExecutionTab.tsx`). Answered blandly; nothing in this
+ *    spec asserts on it.
+ *  - `POST /v1beta/models/<model>:streamGenerateContent?alt=sse` — the actual chat turn. Every such
+ *    request is captured (method, url, headers, parsed JSON body) for the real assertions below.
+ */
+async function startGeminiDeputy(): Promise<Deputy> {
+  const streamRequests: CapturedStreamRequest[] = [];
+  const server = createGeminiDeputyServer(streamRequests);
 
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as AddressInfo).port;
@@ -1573,6 +1587,50 @@ async function configureGoogleByokAgainstDeputy(page: Page, baseUrl: string): Pr
   const stored = await pinSessionRequest({ page, url: "/api/admin/v1/workspaces/workspace-local/assistant/execution-credential" }).then((r) => r.json());
   expect(stored.data).toMatchObject({ protocol: "google", baseUrl, model: "gemini-2.5-flash", isSet: true });
 }
+async function assertGeminiToolSchema(deputy: Deputy) {
+  // The real assertions: wait for the deputy to have actually received the turn, then inspect the
+  // literal bytes it captured — not a re-derivation of the sanitizer's own rules.
+  await expect.poll(() => deputy.streamRequests().length, { timeout: 30_000 }).toBeGreaterThan(0);
+  const [captured] = deputy.streamRequests();
+
+  // Bonus, documented correction (`google-messages.ts#googleRequestUrl`'s own doc): auth travels
+  // as the `x-goog-api-key` header, never a `?key=` query param, on the chat endpoint.
+  expect(captured.headers["x-goog-api-key"]).toBe(FAKE_GEMINI_KEY);
+  expect(new URL(`http://x${captured.url}`).searchParams.has("key")).toBe(false);
+
+  const body = captured.body as { tools?: unknown };
+  expect(Array.isArray(body.tools), `tools was not an array: ${JSON.stringify(body.tools)}`).toBe(true);
+  const tools = body.tools as Array<{ functionDeclarations?: unknown }>;
+  expect(tools.length).toBeGreaterThan(0);
+  expect(Array.isArray(tools[0]?.functionDeclarations)).toBe(true);
+  const declarations = tools[0]!.functionDeclarations as Array<{ name?: unknown; parameters?: unknown }>;
+  // Exactly the 3 meta-tools, not the 131 real ones. This assertion INVERTED on 2026-08-05: it
+  // used to demand >50 declarations as proof the real catalog was being sent, which was the right
+  // check while the route published every descriptor. It no longer does — `assistant-byok.ts`
+  // sends `toolSurface.metaTools` (see `META_TOOL_DESCRIPTORS`), and the real catalog is reached
+  // through `execute_delegated_tool` instead. Pinned to the exact set rather than a loose bound,
+  // because "3 tools go out" is now the property worth protecting: a regression that quietly
+  // reintroduced the full catalog would restore ~119 KB per message and would otherwise pass.
+  expect(declarations.map((d) => d.name)).toEqual(["search_tools", "describe_tool", "execute_delegated_tool"]);
+  const requiredFields = [["query"], ["id"], ["toolId"]];
+  const propertyNames = [["limit", "query"], ["id"], ["input", "toolId"]];
+  declarations.forEach((decl, i) => {
+    expect(decl.parameters).toMatchObject({ type: "object", required: requiredFields[i] });
+    const properties = (decl.parameters as { properties: Record<string, { type?: string }> }).properties;
+    expect(Object.keys(properties).sort()).toEqual(propertyNames[i]);
+    expect(properties[requiredFields[i]![0]!]?.type).toBe("string");
+  });
+  expect((declarations[2]!.parameters as { properties: { input: { type: string } } }).properties.input.type).toBe("object");
+
+  const violations: SchemaViolation[] = [];
+  declarations.forEach((decl, i) => {
+    const name = typeof decl.name === "string" ? decl.name : `#${i}`;
+    collectGoogleSchemaViolations(decl.parameters, `tools[0].functionDeclarations[${i}](${name}).parameters`, violations);
+  });
+  expect(violations, `Gemini-incompatible schema fields found:\n${JSON.stringify(violations, null, 2)}`).toEqual([]);
+}
+
+test.describe("Bug pin: byok-google-tool-schema", () => {
 
 test("BYOK Gemini: the real outbound tool schema is Gemini-clean at every depth, and the turn renders a reply", async ({
   page,
@@ -1597,47 +1655,7 @@ test("BYOK Gemini: the real outbound tool schema is Gemini-clean at every depth,
     await composer.waitFor({ state: "visible", timeout: 10_000 });
     await composer.fill("Say hello in one short sentence.");
     await dock.locator(".jini-composer-send").click();
-
-    // The real assertions: wait for the deputy to have actually received the turn, then inspect the
-    // literal bytes it captured — not a re-derivation of the sanitizer's own rules.
-    await expect.poll(() => deputy.streamRequests().length, { timeout: 30_000 }).toBeGreaterThan(0);
-    const [captured] = deputy.streamRequests();
-
-    // Bonus, documented correction (`google-messages.ts#googleRequestUrl`'s own doc): auth travels
-    // as the `x-goog-api-key` header, never a `?key=` query param, on the chat endpoint.
-    expect(captured.headers["x-goog-api-key"]).toBe(FAKE_GEMINI_KEY);
-    expect(new URL(`http://x${captured.url}`).searchParams.has("key")).toBe(false);
-
-    const body = captured.body as { tools?: unknown };
-    expect(Array.isArray(body.tools), `tools was not an array: ${JSON.stringify(body.tools)}`).toBe(true);
-    const tools = body.tools as Array<{ functionDeclarations?: unknown }>;
-    expect(tools.length).toBeGreaterThan(0);
-    expect(Array.isArray(tools[0]?.functionDeclarations)).toBe(true);
-    const declarations = tools[0]!.functionDeclarations as Array<{ name?: unknown; parameters?: unknown }>;
-    // Exactly the 3 meta-tools, not the 131 real ones. This assertion INVERTED on 2026-08-05: it
-    // used to demand >50 declarations as proof the real catalog was being sent, which was the right
-    // check while the route published every descriptor. It no longer does — `assistant-byok.ts`
-    // sends `toolSurface.metaTools` (see `META_TOOL_DESCRIPTORS`), and the real catalog is reached
-    // through `execute_delegated_tool` instead. Pinned to the exact set rather than a loose bound,
-    // because "3 tools go out" is now the property worth protecting: a regression that quietly
-    // reintroduced the full catalog would restore ~119 KB per message and would otherwise pass.
-    expect(declarations.map((d) => d.name)).toEqual(["search_tools", "describe_tool", "execute_delegated_tool"]);
-    const requiredFields = [["query"], ["id"], ["toolId"]];
-    const propertyNames = [["limit", "query"], ["id"], ["input", "toolId"]];
-    declarations.forEach((decl, i) => {
-      expect(decl.parameters).toMatchObject({ type: "object", required: requiredFields[i] });
-      const properties = (decl.parameters as { properties: Record<string, { type?: string }> }).properties;
-      expect(Object.keys(properties).sort()).toEqual(propertyNames[i]);
-      expect(properties[requiredFields[i]![0]!]?.type).toBe("string");
-    });
-    expect((declarations[2]!.parameters as { properties: { input: { type: string } } }).properties.input.type).toBe("object");
-
-    const violations: SchemaViolation[] = [];
-    declarations.forEach((decl, i) => {
-      const name = typeof decl.name === "string" ? decl.name : `#${i}`;
-      collectGoogleSchemaViolations(decl.parameters, `tools[0].functionDeclarations[${i}](${name}).parameters`, violations);
-    });
-    expect(violations, `Gemini-incompatible schema fields found:\n${JSON.stringify(violations, null, 2)}`).toEqual([]);
+    await assertGeminiToolSchema(deputy);
 
     // The turn actually completing: no failed-run marker, and the deputy's own reply text renders.
     await expect(dock.locator(".jini-message-error")).toHaveCount(0, { timeout: 20_000 });
@@ -1656,9 +1674,10 @@ test("BYOK Gemini: the real outbound tool schema is Gemini-clean at every depth,
   }
 });
 });
+}
 
 // Migrated from byok-hostile-provider.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: byok-hostile-provider", () => {
+{
 /**
  * @file BYOK hostile-provider adversarial battery (2026-08-04 dispatch, item #7).
  *
@@ -1729,338 +1748,352 @@ async function startDeputy(
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
+function registerMalformedProviderResponses() {
+  test.describe("malformed / truncated / empty response bodies", () => {
+    test("malformed JSON, a truncated body, and a valid-but-empty model array each get a distinct, legible failure — never a crash or a raw parser exception", async ({
+      request,
+    }) => {
+      const headers = await login(request);
 
-test.describe("malformed / truncated / empty response bodies", () => {
-  test("malformed JSON, a truncated body, and a valid-but-empty model array each get a distinct, legible failure — never a crash or a raw parser exception", async ({
-    request,
-  }) => {
-    const headers = await login(request);
+      // Malformed JSON: not even close to valid — `JSON.parse` throws, caught, and reported as
+      // its own `parseError` detail (truncated to 240 chars), never an uncaught 500.
+      const malformed = await startDeputy((_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end("{this is not json at all <<<>>>");
+      });
+      try {
+        const res = await request.post(MODELS_PATH, { headers, data: modelsBody(malformed.baseUrl) });
+        expect(res.status()).toBe(200);
+        const body = await res.json();
+        expect(body.ok).toBe(false);
+        expect(body.models).toEqual([]);
+        // The exact V8 JSON.parse error text, not a generic "bad response" — legible to
+        // whoever's debugging, not a leaked stack trace either.
+        expect(body.message).toBe("Expected property name or '}' in JSON at position 1 (line 1 column 2)");
+      } finally {
+        await malformed.close();
+      }
 
-    // Malformed JSON: not even close to valid — `JSON.parse` throws, caught, and reported as
-    // its own `parseError` detail (truncated to 240 chars), never an uncaught 500.
-    const malformed = await startDeputy((_req, res) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end("{this is not json at all <<<>>>");
+      // Truncated: a real-shaped OpenAI catalog envelope cut off mid-object. Same JSON.parse
+      // failure path as above — the point of a SEPARATE case is proving the app doesn't try
+      // anything cleverer (partial-parse, best-effort recovery) that could silently drop or
+      // corrupt data; it fails closed like any other malformed body.
+      const truncated = await startDeputy((_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end('{"data":[{"id":"gpt-4o","object":"mod');
+      });
+      try {
+        const res = await request.post(MODELS_PATH, { headers, data: modelsBody(truncated.baseUrl) });
+        const body = await res.json();
+        expect(body.ok).toBe(false);
+        expect(body.models).toEqual([]);
+        expect(body.message).toBe("Unterminated string in JSON at position 37 (line 1 column 38)");
+      } finally {
+        await truncated.close();
+      }
+
+      // Valid, well-formed, genuinely empty: `{"data":[]}` is not an error at the transport or
+      // parse level — the provider is behaving correctly and truthfully reporting zero models.
+      // Classified as `ok:false, kind:'no_models'` (a real, distinct case, not folded into a
+      // generic error) with its own message, matching `model-catalog.ts`'s own contract.
+      const empty = await startDeputy((_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: [] }));
+      });
+      try {
+        const res = await request.post(MODELS_PATH, { headers, data: modelsBody(empty.baseUrl) });
+        const body = await res.json();
+        expect(body).toEqual({ ok: false, models: [], message: "Provider returned no usable text-generation models." });
+      } finally {
+        await empty.close();
+      }
     });
-    try {
-      const res = await request.post(MODELS_PATH, { headers, data: modelsBody(malformed.baseUrl) });
-      expect(res.status()).toBe(200);
-      const body = await res.json();
-      expect(body.ok).toBe(false);
-      expect(body.models).toEqual([]);
-      // The exact V8 JSON.parse error text, not a generic "bad response" — legible to
-      // whoever's debugging, not a leaked stack trace either.
-      expect(body.message).toBe("Expected property name or '}' in JSON at position 1 (line 1 column 2)");
-    } finally {
-      await malformed.close();
-    }
-
-    // Truncated: a real-shaped OpenAI catalog envelope cut off mid-object. Same JSON.parse
-    // failure path as above — the point of a SEPARATE case is proving the app doesn't try
-    // anything cleverer (partial-parse, best-effort recovery) that could silently drop or
-    // corrupt data; it fails closed like any other malformed body.
-    const truncated = await startDeputy((_req, res) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end('{"data":[{"id":"gpt-4o","object":"mod');
-    });
-    try {
-      const res = await request.post(MODELS_PATH, { headers, data: modelsBody(truncated.baseUrl) });
-      const body = await res.json();
-      expect(body.ok).toBe(false);
-      expect(body.models).toEqual([]);
-      expect(body.message).toBe("Unterminated string in JSON at position 37 (line 1 column 38)");
-    } finally {
-      await truncated.close();
-    }
-
-    // Valid, well-formed, genuinely empty: `{"data":[]}` is not an error at the transport or
-    // parse level — the provider is behaving correctly and truthfully reporting zero models.
-    // Classified as `ok:false, kind:'no_models'` (a real, distinct case, not folded into a
-    // generic error) with its own message, matching `model-catalog.ts`'s own contract.
-    const empty = await startDeputy((_req, res) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ data: [] }));
-    });
-    try {
-      const res = await request.post(MODELS_PATH, { headers, data: modelsBody(empty.baseUrl) });
-      const body = await res.json();
-      expect(body).toEqual({ ok: false, models: [], message: "Provider returned no usable text-generation models." });
-    } finally {
-      await empty.close();
-    }
   });
-});
+}
+function registerProviderHttpErrors() {
+  test.describe("HTTP error statuses", () => {
+    test("500 and 429 are classified into distinct, correct kinds with the provider's own error text carried through", async ({
+      request,
+    }) => {
+      const headers = await login(request);
 
-test.describe("HTTP error statuses", () => {
-  test("500 and 429 are classified into distinct, correct kinds with the provider's own error text carried through", async ({
-    request,
-  }) => {
-    const headers = await login(request);
+      const serverError = await startDeputy((_req, res) => {
+        res.writeHead(500, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: { message: "internal provider explosion" } }));
+      });
+      try {
+        const res = await request.post(MODELS_PATH, { headers, data: modelsBody(serverError.baseUrl) });
+        const body = await res.json();
+        expect(body.ok).toBe(false);
+        expect(body.message).toBe("internal provider explosion");
+      } finally {
+        await serverError.close();
+      }
 
-    const serverError = await startDeputy((_req, res) => {
-      res.writeHead(500, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: { message: "internal provider explosion" } }));
+      const rateLimited = await startDeputy((_req, res) => {
+        res.writeHead(429, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: { message: "rate limit exceeded, slow down" } }));
+      });
+      try {
+        const res = await request.post(MODELS_PATH, { headers, data: modelsBody(rateLimited.baseUrl) });
+        const body = await res.json();
+        expect(body.ok).toBe(false);
+        expect(body.message).toBe("rate limit exceeded, slow down");
+      } finally {
+        await rateLimited.close();
+      }
     });
-    try {
-      const res = await request.post(MODELS_PATH, { headers, data: modelsBody(serverError.baseUrl) });
-      const body = await res.json();
-      expect(body.ok).toBe(false);
-      expect(body.message).toBe("internal provider explosion");
-    } finally {
-      await serverError.close();
-    }
-
-    const rateLimited = await startDeputy((_req, res) => {
-      res.writeHead(429, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: { message: "rate limit exceeded, slow down" } }));
-    });
-    try {
-      const res = await request.post(MODELS_PATH, { headers, data: modelsBody(rateLimited.baseUrl) });
-      const body = await res.json();
-      expect(body.ok).toBe(false);
-      expect(body.message).toBe("rate limit exceeded, slow down");
-    } finally {
-      await rateLimited.close();
-    }
   });
-});
+}
+function registerProviderTimeouts() {
+  test.describe("hung / slow providers — the 12s hard timeout actually fires", () => {
+    test("a response that never arrives, and one that arrives 1s after the timeout, both abort at the 12s ceiling instead of hanging forever", async ({
+      request,
+    }) => {
+      test.setTimeout(60_000);
+      const headers = await login(request);
 
-test.describe("hung / slow providers — the 12s hard timeout actually fires", () => {
-  test("a response that never arrives, and one that arrives 1s after the timeout, both abort at the 12s ceiling instead of hanging forever", async ({
-    request,
-  }) => {
-    test.setTimeout(60_000);
-    const headers = await login(request);
+      // Never responds at all: holds the connection open, writes nothing, never calls `.end()`.
+      const neverStart = Date.now();
+      const never = await startDeputy((_req, _res) => {
+        /* deliberately never respond */
+      });
+      try {
+        const res = await request.post(MODELS_PATH, { headers, data: modelsBody(never.baseUrl) });
+        const elapsedMs = Date.now() - neverStart;
+        const body = await res.json();
+        expect(body.ok).toBe(false);
+        // Aborted, not "eventually gave up some other way" — the real signal that
+        // `PROVIDER_MODELS_TIMEOUT_MS`'s `AbortController` actually fired.
+        expect(body.message).toMatch(/abort/i);
+        // Bounded near the 12s ceiling, not left open indefinitely and not suspiciously instant
+        // (which would mean some OTHER guard rejected it before ever reaching the timeout path).
+        expect(elapsedMs).toBeGreaterThan(11_000);
+        expect(elapsedMs).toBeLessThan(16_000);
+      } finally {
+        await never.close();
+      }
 
-    // Never responds at all: holds the connection open, writes nothing, never calls `.end()`.
-    const neverStart = Date.now();
-    const never = await startDeputy((_req, _res) => {
-      /* deliberately never respond */
+      // Slow: DOES eventually respond with a perfectly valid body — 1 full second past the 12s
+      // ceiling. Proves the timeout is enforced on its own clock, not "whichever comes first, a
+      // real response or 12s" with some slack for an almost-there provider.
+      const slowStart = Date.now();
+      const slow = await startDeputy((_req, res) => {
+        setTimeout(() => {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({ data: [{ id: "gpt-4o", object: "model" }] }));
+        }, 13_000);
+      });
+      try {
+        const res = await request.post(MODELS_PATH, { headers, data: modelsBody(slow.baseUrl) });
+        const elapsedMs = Date.now() - slowStart;
+        const body = await res.json();
+        expect(body.ok).toBe(false);
+        expect(body.message).toMatch(/abort/i);
+        expect(elapsedMs).toBeLessThan(16_000);
+      } finally {
+        await slow.close();
+      }
     });
-    try {
-      const res = await request.post(MODELS_PATH, { headers, data: modelsBody(never.baseUrl) });
-      const elapsedMs = Date.now() - neverStart;
-      const body = await res.json();
-      expect(body.ok).toBe(false);
-      // Aborted, not "eventually gave up some other way" — the real signal that
-      // `PROVIDER_MODELS_TIMEOUT_MS`'s `AbortController` actually fired.
-      expect(body.message).toMatch(/abort/i);
-      // Bounded near the 12s ceiling, not left open indefinitely and not suspiciously instant
-      // (which would mean some OTHER guard rejected it before ever reaching the timeout path).
-      expect(elapsedMs).toBeGreaterThan(11_000);
-      expect(elapsedMs).toBeLessThan(16_000);
-    } finally {
-      await never.close();
-    }
+  });
+}
+function registerProviderVolumeAttacks() {
+  test.describe("volume attacks: an oversized body and 10,000 models — the soft spot", () => {
+    test("a multi-MB body and a 10,000-model catalog are both accepted and forwarded whole — NO size or count cap anywhere in the pipeline (flagged, not fixed)", async ({
+      request,
+    }) => {
+      test.setTimeout(45_000);
+      const headers = await login(request);
 
-    // Slow: DOES eventually respond with a perfectly valid body — 1 full second past the 12s
-    // ceiling. Proves the timeout is enforced on its own clock, not "whichever comes first, a
-    // real response or 12s" with some slack for an almost-there provider.
-    const slowStart = Date.now();
-    const slow = await startDeputy((_req, res) => {
-      setTimeout(() => {
+      // ~6MB of padding inside a single model's `id` string — still technically one "model", but
+      // proves an oversized BODY (not just a long list) is read to completion and parsed rather
+      // than rejected or truncated at any layer.
+      const bigPayload = "A".repeat(6 * 1024 * 1024);
+      const oversized = await startDeputy((_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: [{ id: `gpt-4o-${bigPayload}`, object: "model" }] }));
+      });
+      try {
+        const res = await request.post(MODELS_PATH, { headers, data: modelsBody(oversized.baseUrl) });
+        expect(res.status()).toBe(200);
+        const body = await res.json();
+        expect(body.ok).toBe(true);
+        expect(body.models).toHaveLength(1);
+        expect(body.models[0].length).toBeGreaterThan(6 * 1024 * 1024);
+      } finally {
+        await oversized.close();
+      }
+
+      // 10,000 distinct models: no server-side cap truncates this before it reaches the browser.
+      const many = Array.from({ length: 10_000 }, (_, i) => ({ id: `hostile-model-${i}`, object: "model" }));
+      const flood = await startDeputy((_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: many }));
+      });
+      try {
+        const start = Date.now();
+        const res = await request.post(MODELS_PATH, { headers, data: modelsBody(flood.baseUrl) });
+        const elapsedMs = Date.now() - start;
+        const body = await res.json();
+        expect(body.ok).toBe(true);
+        // The measured fact this test exists to pin: ALL 10,000 come back, unbounded. A future
+        // fix that caps this (a real, reasonable hardening) would fail this assertion — that's
+        // the intended tripwire, not a claim that 10,000 is a correct or desired behavior.
+        expect(body.models).toHaveLength(10_000);
+        expect([...body.models].sort()).toEqual(many.map((model) => model.id).sort());
+        expect(elapsedMs).toBeLessThan(20_000);
+      } finally {
+        await flood.close();
+      }
+    });
+  });
+}
+function registerProviderBrowserRecovery() {
+  test.describe("the real operator path in the browser: does the UI hang, stay usable, and recover", () => {
+    test("a malformed discovery response shows a parsing error without wedging the form, and editing the endpoint to a healthy deputy recovers the model picker", async ({
+      page,
+    }) => {
+      await loginPage(page);
+      await page.route("**/settings/events", (route) => route.abort());
+
+      const malformedKeys: Array<string | undefined> = [];
+      const malformed = await startDeputy((req, res) => {
+        malformedKeys.push(req.headers.authorization);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end("{not json");
+      });
+      try {
+        await gotoByok(page);
+        // Default protocol is Anthropic; switch to OpenAI (the protocol every deputy in this
+        // file speaks) and point its baseUrl at the hostile deputy.
+        await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+        const apiKeyInput = page.locator('.jini-byok-card .jini-field-input-row input');
+        await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
+        await page.locator('label:has-text("Base URL") input').fill(malformed.baseUrl);
+        await expect.poll(() => malformedKeys.includes("Bearer sk-openai-test-FAKE-KEY-NOT-REAL")).toBe(true);
+        await expect(page.locator(".jini-field-hint.is-error[role='status']")).toContainText("Expected property name or '}' in JSON at position 1 (line 1 column 2)", { timeout: 10_000 });
+
+        // The form stays fully interactive while that error is showing — a hostile response
+        // must not disable or freeze anything else on the page.
+        await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
+        await expect(apiKeyInput).toHaveValue("sk-openai-test-FAKE-KEY-NOT-REAL");
+        await setByokModel(page, "gpt-4o");
+        await expect(page.locator('button:has-text("Test connection")')).toBeEnabled();
+      } finally {
+        await malformed.close();
+      }
+
+      // Recovery: swap in a well-behaved deputy at the SAME baseUrl port is not possible (ports
+      // differ), so instead point at a fresh healthy deputy — this is
+      // exactly `byok-model-discovery-self-heal.spec.ts`'s own proven re-fire mechanism, now
+      // proven to also clear a HOSTILE-origin error, not just a benign one.
+      const healthy = await startDeputy((_req, res) => {
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify({ data: [{ id: "gpt-4o", object: "model" }] }));
-      }, 13_000);
+      });
+      try {
+        await page.locator('label:has-text("Base URL") input').fill(healthy.baseUrl);
+        await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveCount(0, { timeout: 10_000 });
+        await expect(byokModelPicker(page)).toBeVisible({ timeout: 10_000 });
+        expect(await readByokModelOptions(page)).toEqual(["gpt-4o"]);
+      } finally {
+        await healthy.close();
+      }
     });
-    try {
-      const res = await request.post(MODELS_PATH, { headers, data: modelsBody(slow.baseUrl) });
-      const elapsedMs = Date.now() - slowStart;
-      const body = await res.json();
-      expect(body.ok).toBe(false);
-      expect(body.message).toMatch(/abort/i);
-      expect(elapsedMs).toBeLessThan(16_000);
-    } finally {
-      await slow.close();
-    }
   });
-});
+}
+function registerLargeModelPicker() {
+  test.describe("10,000 models rendered in the real browser: no hang", () => {
+    test("the model picker renders all 10,000 options and the page stays interactive", async ({
+      page,
+    }) => {
+      test.setTimeout(45_000);
+      await loginPage(page);
 
-test.describe("volume attacks: an oversized body and 10,000 models — the soft spot", () => {
-  test("a multi-MB body and a 10,000-model catalog are both accepted and forwarded whole — NO size or count cap anywhere in the pipeline (flagged, not fixed)", async ({
-    request,
-  }) => {
-    test.setTimeout(45_000);
-    const headers = await login(request);
-
-    // ~6MB of padding inside a single model's `id` string — still technically one "model", but
-    // proves an oversized BODY (not just a long list) is read to completion and parsed rather
-    // than rejected or truncated at any layer.
-    const bigPayload = "A".repeat(6 * 1024 * 1024);
-    const oversized = await startDeputy((_req, res) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ data: [{ id: `gpt-4o-${bigPayload}`, object: "model" }] }));
-    });
-    try {
-      const res = await request.post(MODELS_PATH, { headers, data: modelsBody(oversized.baseUrl) });
-      expect(res.status()).toBe(200);
-      const body = await res.json();
-      expect(body.ok).toBe(true);
-      expect(body.models).toHaveLength(1);
-      expect(body.models[0].length).toBeGreaterThan(6 * 1024 * 1024);
-    } finally {
-      await oversized.close();
-    }
-
-    // 10,000 distinct models: no server-side cap truncates this before it reaches the browser.
-    const many = Array.from({ length: 10_000 }, (_, i) => ({ id: `hostile-model-${i}`, object: "model" }));
-    const flood = await startDeputy((_req, res) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ data: many }));
-    });
-    try {
-      const start = Date.now();
-      const res = await request.post(MODELS_PATH, { headers, data: modelsBody(flood.baseUrl) });
-      const elapsedMs = Date.now() - start;
-      const body = await res.json();
-      expect(body.ok).toBe(true);
-      // The measured fact this test exists to pin: ALL 10,000 come back, unbounded. A future
-      // fix that caps this (a real, reasonable hardening) would fail this assertion — that's
-      // the intended tripwire, not a claim that 10,000 is a correct or desired behavior.
-      expect(body.models).toHaveLength(10_000);
-      expect([...body.models].sort()).toEqual(many.map((model) => model.id).sort());
-      expect(elapsedMs).toBeLessThan(20_000);
-    } finally {
-      await flood.close();
-    }
-  });
-});
-
-test.describe("the real operator path in the browser: does the UI hang, stay usable, and recover", () => {
-  test("a malformed discovery response shows a parsing error without wedging the form, and editing the endpoint to a healthy deputy recovers the model picker", async ({
-    page,
-  }) => {
-    await loginPage(page);
-    await page.route("**/settings/events", (route) => route.abort());
-
-    const malformedKeys: Array<string | undefined> = [];
-    const malformed = await startDeputy((req, res) => {
-      malformedKeys.push(req.headers.authorization);
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end("{not json");
-    });
-    try {
-      await gotoByok(page);
-      // Default protocol is Anthropic; switch to OpenAI (the protocol every deputy in this
-      // file speaks) and point its baseUrl at the hostile deputy.
-      await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
-      const apiKeyInput = page.locator('.jini-byok-card .jini-field-input-row input');
-      await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
-      await page.locator('label:has-text("Base URL") input').fill(malformed.baseUrl);
-      await expect.poll(() => malformedKeys.includes("Bearer sk-openai-test-FAKE-KEY-NOT-REAL")).toBe(true);
-      await expect(page.locator(".jini-field-hint.is-error[role='status']")).toContainText("Expected property name or '}' in JSON at position 1 (line 1 column 2)", { timeout: 10_000 });
-
-      // The form stays fully interactive while that error is showing — a hostile response
-      // must not disable or freeze anything else on the page.
-      await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
-      await expect(apiKeyInput).toHaveValue("sk-openai-test-FAKE-KEY-NOT-REAL");
-      await setByokModel(page, "gpt-4o");
-      await expect(page.locator('button:has-text("Test connection")')).toBeEnabled();
-    } finally {
-      await malformed.close();
-    }
-
-    // Recovery: swap in a well-behaved deputy at the SAME baseUrl port is not possible (ports
-    // differ), so instead point at a fresh healthy deputy — this is
-    // exactly `byok-model-discovery-self-heal.spec.ts`'s own proven re-fire mechanism, now
-    // proven to also clear a HOSTILE-origin error, not just a benign one.
-    const healthy = await startDeputy((_req, res) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ data: [{ id: "gpt-4o", object: "model" }] }));
-    });
-    try {
-      await page.locator('label:has-text("Base URL") input').fill(healthy.baseUrl);
-      await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveCount(0, { timeout: 10_000 });
-      await expect(byokModelPicker(page)).toBeVisible({ timeout: 10_000 });
-      expect(await readByokModelOptions(page)).toEqual(["gpt-4o"]);
-    } finally {
-      await healthy.close();
-    }
-  });
-});
-
-test.describe("10,000 models rendered in the real browser: no hang", () => {
-  test("the model picker renders all 10,000 options and the page stays interactive", async ({
-    page,
-  }) => {
-    test.setTimeout(45_000);
-    await loginPage(page);
-
-    // Isolate the settings CHANGE FEED, and only that. This test is about the model catalog under
-    // a hostile provider; it is not about cross-tab settings propagation, and leaving that
-    // subsystem in makes the control under test disappear mid-assertion.
-    //
-    // The chain, measured 2026-08-05: editing Base URL writes a ledger field, the server emits a
-    // `settings-changed` SSE frame on this endpoint, `settings-events.ts` calls
-    // `publishSettingsRefresh`, and `useSettingsSlice.refresh()` reloads the whole config through
-    // `loadExecutionConfig` — which is contractually always `apiKey: ""` (write-only server store,
-    // ADR-058). The live key is wiped, `hasApiKey` flips false, discovery re-fires and is refused
-    // with "No API key", `showModelPicker` goes false, and the picker UNMOUNTS with its portalled
-    // menu. Three measured attempts without this line all failed on that: a one-shot read returned
-    // `[]` (menu detached mid-read), a plain poll returned `4` (the preset's static
-    // `preferredModels`, i.e. the datalist fallback), and a poll that re-typed the key each
-    // iteration never landed 10,000 inside 30s.
-    //
-    // What this does NOT do is paper over the wipe. The wipe is by design — "Save key" is the only
-    // control that persists the credential (`AdminByokKeyPanel.tsx`) — and it is unrelated to the
-    // property under test here. Blocking the feed removes an unrelated subsystem; it does not
-    // change how the catalog is fetched, parsed, or rendered.
-    await page.route("**/settings/events", (route) => route.abort());
-
-    const many = Array.from({ length: 10_000 }, (_, i) => ({ id: `flood-model-${i}`, object: "model" }));
-    const flood = await startDeputy((_req, res) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ data: many }));
-    });
-    try {
-      await gotoByok(page);
-      await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
-      // The key comes FIRST, and it is load-bearing rather than incidental setup. Browser-side
-      // model discovery refuses outright without one — measured verbatim, 2026-08-05: "Could not
-      // load live models: No API key — model discovery needs the key from this browser." Without
-      // this line the deputy below is never contacted at all and the test measures nothing.
+      // Isolate the settings CHANGE FEED, and only that. This test is about the model catalog under
+      // a hostile provider; it is not about cross-tab settings propagation, and leaving that
+      // subsystem in makes the control under test disappear mid-assertion.
       //
-      // It used to pass regardless, which is the part worth recording: this test typed no key of
-      // its own and depended on one left behind by an earlier test in the same file. That made a
-      // 10,000-model rendering test silently order-dependent, and it is why the same test failed
-      // the moment it was run under `--grep` on its own.
-      const apiKeyInput = page.locator(".jini-byok-card .jini-field-input-row input");
-      await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
-      await page.locator('label:has-text("Base URL") input').fill(flood.baseUrl);
-
-      // The picker only exists when `liveModels.length > 0` (`ByokProviderForm.tsx`'s
-      // `showModelPicker`), so its presence alone proves the 10k-item response was fully
-      // processed and reached the form, not stuck/dropped mid-flight. This replaces an
-      // assertion on `list="jini-byok-model-options"`, which post-`3b5d648d` is the marker of
-      // discovery having FAILED — the exact inverse of what this test needs to observe.
-      await expect(byokModelPicker(page)).toBeVisible({ timeout: 20_000 });
-
-      // Every one of the 10,000 options is really in the document. These nodes, unlike the old
-      // `<datalist>`'s, are built only when the menu opens, so opening it and reading every label
-      // is what pins "10,000 options RENDER in a real browser" rather than "10,000 arrived".
+      // The chain, measured 2026-08-05: editing Base URL writes a ledger field, the server emits a
+      // `settings-changed` SSE frame on this endpoint, `settings-events.ts` calls
+      // `publishSettingsRefresh`, and `useSettingsSlice.refresh()` reloads the whole config through
+      // `loadExecutionConfig` — which is contractually always `apiKey: ""` (write-only server store,
+      // ADR-058). The live key is wiped, `hasApiKey` flips false, discovery re-fires and is refused
+      // with "No API key", `showModelPicker` goes false, and the picker UNMOUNTS with its portalled
+      // menu. Three measured attempts without this line all failed on that: a one-shot read returned
+      // `[]` (menu detached mid-read), a plain poll returned `4` (the preset's static
+      // `preferredModels`, i.e. the datalist fallback), and a poll that re-typed the key each
+      // iteration never landed 10,000 inside 30s.
       //
-      // Untimed on purpose. An earlier revision wrapped this in a 20s wall-clock bound; most of
-      // that budget was Playwright traversing 10,000 nodes, so the assertion's numerator was the
-      // harness rather than the product and a loaded machine would have failed it and blamed this
-      // migration. The hang guard is the `test.setTimeout` above — which is what a test timeout is
-      // for — and the product-side bound is the locator timeout on the picker appearing.
-      const options = await readByokModelOptions(page);
-      expect(options).toHaveLength(10_000); // uncapped — see the API-level test's own flag on this
-      expect([...options].sort()).toEqual(many.map((model) => model.id).sort());
-      await chooseByokModelFromPicker(page, "flood-model-9999");
-      await expect(byokModelPickerTrigger(page)).toHaveAttribute("aria-label", "Model: flood-model-9999");
+      // What this does NOT do is paper over the wipe. The wipe is by design — "Save key" is the only
+      // control that persists the credential (`AdminByokKeyPanel.tsx`) — and it is unrelated to the
+      // property under test here. Blocking the feed removes an unrelated subsystem; it does not
+      // change how the catalog is fetched, parsed, or rendered.
+      await page.route("**/settings/events", (route) => route.abort());
 
-      // The page is still responsive after handling a 10,000-model response — proves "doesn't
-      // hang", not just "eventually finishes": a real keystroke into an unrelated field still
-      // lands.
-      // A DIFFERENT value from the one typed above, so this cannot pass on the earlier write.
-      await apiKeyInput.fill("sk-openai-test-STILL-RESPONSIVE-NOT-REAL");
-      await expect(apiKeyInput).toHaveValue("sk-openai-test-STILL-RESPONSIVE-NOT-REAL");
-    } finally {
-      await flood.close();
-    }
+      const many = Array.from({ length: 10_000 }, (_, i) => ({ id: `flood-model-${i}`, object: "model" }));
+      const flood = await startDeputy((_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: many }));
+      });
+      try {
+        await gotoByok(page);
+        await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+        // The key comes FIRST, and it is load-bearing rather than incidental setup. Browser-side
+        // model discovery refuses outright without one — measured verbatim, 2026-08-05: "Could not
+        // load live models: No API key — model discovery needs the key from this browser." Without
+        // this line the deputy below is never contacted at all and the test measures nothing.
+        //
+        // It used to pass regardless, which is the part worth recording: this test typed no key of
+        // its own and depended on one left behind by an earlier test in the same file. That made a
+        // 10,000-model rendering test silently order-dependent, and it is why the same test failed
+        // the moment it was run under `--grep` on its own.
+        const apiKeyInput = page.locator(".jini-byok-card .jini-field-input-row input");
+        await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
+        await page.locator('label:has-text("Base URL") input').fill(flood.baseUrl);
+
+        // The picker only exists when `liveModels.length > 0` (`ByokProviderForm.tsx`'s
+        // `showModelPicker`), so its presence alone proves the 10k-item response was fully
+        // processed and reached the form, not stuck/dropped mid-flight. This replaces an
+        // assertion on `list="jini-byok-model-options"`, which post-`3b5d648d` is the marker of
+        // discovery having FAILED — the exact inverse of what this test needs to observe.
+        await expect(byokModelPicker(page)).toBeVisible({ timeout: 20_000 });
+
+        // Every one of the 10,000 options is really in the document. These nodes, unlike the old
+        // `<datalist>`'s, are built only when the menu opens, so opening it and reading every label
+        // is what pins "10,000 options RENDER in a real browser" rather than "10,000 arrived".
+        //
+        // Untimed on purpose. An earlier revision wrapped this in a 20s wall-clock bound; most of
+        // that budget was Playwright traversing 10,000 nodes, so the assertion's numerator was the
+        // harness rather than the product and a loaded machine would have failed it and blamed this
+        // migration. The hang guard is the `test.setTimeout` above — which is what a test timeout is
+        // for — and the product-side bound is the locator timeout on the picker appearing.
+        const options = await readByokModelOptions(page);
+        expect(options).toHaveLength(10_000); // uncapped — see the API-level test's own flag on this
+        expect([...options].sort()).toEqual(many.map((model) => model.id).sort());
+        await chooseByokModelFromPicker(page, "flood-model-9999");
+        await expect(byokModelPickerTrigger(page)).toHaveAttribute("aria-label", "Model: flood-model-9999");
+
+        // The page is still responsive after handling a 10,000-model response — proves "doesn't
+        // hang", not just "eventually finishes": a real keystroke into an unrelated field still
+        // lands.
+        // A DIFFERENT value from the one typed above, so this cannot pass on the earlier write.
+        await apiKeyInput.fill("sk-openai-test-STILL-RESPONSIVE-NOT-REAL");
+        await expect(apiKeyInput).toHaveValue("sk-openai-test-STILL-RESPONSIVE-NOT-REAL");
+      } finally {
+        await flood.close();
+      }
+    });
   });
-});
+}
+
+test.describe("Bug pin: byok-hostile-provider", () => {
+registerMalformedProviderResponses();
+registerProviderHttpErrors();
+registerProviderTimeouts();
+registerProviderVolumeAttacks();
+registerProviderBrowserRecovery();
+registerLargeModelPicker();
 
 test.describe("XSS in model ids — highest severity item in this file", () => {
   test("a model id containing a live <img onerror> payload renders as inert text/attribute value; it never executes", async ({
@@ -2133,9 +2166,10 @@ test.describe("XSS in model ids — highest severity item in this file", () => {
   });
 });
 });
+}
 
 // Migrated from byok-key-handling.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: byok-key-handling", () => {
+{
 /**
  * @file BYOK key-handling edge cases + leakage battery (2026-08-04 dispatch, Item 6).
  *
@@ -2173,20 +2207,6 @@ const A2UI_LOGIN = { username: "admin", password: PIN_PASSWORD };
  */
 let sharedApi: APIRequestContext;
 let sharedApiHeaders: Record<string, string>;
-
-test.beforeEach(async ({ playwright, baseURL }) => {
-  sharedApi = await playwright.request.newContext({ ...(baseURL ? { baseURL } : {}) });
-  const res = await sharedApi.post("/api/admin/v1/auth/login", { data: A2UI_LOGIN });
-  expect(
-    res.status(),
-    `shared API login returned ${res.status()}; 429 means this file exceeded LOGIN_STRICT (10/60s).`,
-  ).toBe(200);
-  sharedApiHeaders = await pinSessionHeaders({ request: sharedApi });
-});
-
-test.afterEach(async () => {
-  await sharedApi?.dispose();
-});
 
 const ADMIN_ORIGIN_PATH = "/admin/";
 
@@ -2359,8 +2379,167 @@ async function assertPortIsDialable(port: number): Promise<void> {
       + `port is on the WHATWG Fetch blocked list; pick a different one.`,
   ).toBe("dialable");
 }
+async function assertGoogleQuerySecretRedacted() {
+  const googleKey = "AIzaGoogleQueryCanary9f3a7c";
+  const googleEcho = await startDeputy((req, res) => {
+    res.writeHead(401, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: { message: `Google rejected request URL ${req.url}` } }));
+  });
+  try {
+    const response = await sharedApi.post(MODELS_PATH, { headers: sharedApiHeaders,
+      data: { protocol: "google", baseUrl: `http://127.0.0.1:${googleEcho.port}`, apiKey: googleKey },
+    });
+    expect(response.status()).toBe(200);
+    expect(googleEcho.hits()).toBe(1);
+    expect(googleEcho.lastUrl()).toBe(`/v1beta/models?key=${googleKey}`);
+    const body = await response.json();
+    expect(body.ok).toBe(false);
+    expect(body.message).toContain("Google rejected request URL /v1beta/models?key=");
+    expect(body.message).toContain("[REDACTED:");
+    expect(body.message).not.toContain(googleKey);
+  } finally {
+    await googleEcho.close();
+  }
+}
+function registerDraftKeyEndpointEdits() {
+  test("typing into Base URL sends the draft API key only to the finished endpoint", async ({
+    page,
+  }) => {
+    test.slow();
+    await pageLogin(page);
+    await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
+    // The Execution section is reached through the settings dialog's own left nav (a plain
+    // button, `data-testid="settings-dialog-nav-<tab.id>"`), not by landing on it. Without
+    // this click the BYOK tab below is not mounted yet and the spec times out.
+    await page.getByTestId("settings-dialog-nav-execution").click();
+    await page.getByRole("tab", { name: "BYOK" }).click();
+    await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
 
-test.describe("byok key-handling edge cases", () => {
+    const canaryKey = "sk-ant-KEYSTROKE-LEAK-CANARY";
+    await fillApiKeyAndAwaitCommit(page, canaryKey);
+
+    const captured: Array<{ baseUrl: string; apiKey: string }> = [];
+    page.on("request", (req) => {
+      if (req.method() === "POST" && req.url().includes("/assistant/execution/models")) {
+        const data = req.postDataJSON() as { baseUrl?: string; apiKey?: string } | null;
+        if (data) captured.push({ baseUrl: data.baseUrl ?? "", apiKey: data.apiKey ?? "" });
+      }
+    });
+
+    const baseUrlInput = page.locator('label:has-text("Base URL") input');
+    await baseUrlInput.fill("");
+    const finalUrl = "http://ab.cd.ef.example";
+    await baseUrlInput.pressSequentially(finalUrl, { delay: 80 });
+    // Prove the final edit reached discovery before marking the known gap. A broken setup must
+    // fail normally, rather than satisfy test.fail by never issuing a request.
+    await expect.poll(() => captured.some((call) => call.baseUrl === finalUrl && call.apiKey === canaryKey)).toBe(true);
+    const hasGenuinePrefix = captured.some(
+      (c) => c.baseUrl.length > 0 && c.baseUrl !== finalUrl && finalUrl.startsWith(c.baseUrl),
+    );
+    // PRODUCT-SUSPECT: retained original desired-behavior pin; setup must succeed before expecting failure.
+    test.fail(true, "ExecutionTab sends discovery for intermediate Base URL edits.");
+    expect(captured).toHaveLength(1);
+    expect(hasGenuinePrefix).toBe(false);
+    expect(captured[0]).toEqual({ baseUrl: finalUrl, apiKey: canaryKey });
+  });
+}
+function registerDraftKeyPrefixPorts() {
+  test("a prefix-port listener receives no draft key while editing toward the final endpoint", async ({
+    page,
+  }) => {
+    test.slow();
+    // Fixed (not OS-assigned) ports, chosen so one's decimal string is a literal prefix of the
+    // other's — `3600` sits inside `36000` — mirroring an operator pausing partway through typing
+    // a port number and briefly landing on a DIFFERENT real local service.
+    //
+    // The pair is `3600`/`36000` and NOT the more obvious `6000`/`60000` because 6000 (X11) is on
+    // the WHATWG Fetch blocked-port list — see `assertPortIsDialable`. Both of these are off that
+    // list AND below macOS's ephemeral range (49152+), so neither can be transiently squatted by an
+    // outbound connection from an unrelated process mid-run.
+    const PREFIX_PORT = 3600;
+    const FINAL_PORT = 36000;
+    const echoAuth = (req: http.IncomingMessage, res: http.ServerResponse) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ data: [] }));
+    };
+    const deputyPrefix = await startFixedDeputy(PREFIX_PORT, echoAuth);
+    const deputyFinal = await startFixedDeputy(FINAL_PORT, echoAuth);
+
+    try {
+      // Before trusting a "the deputy received nothing" reading, prove the deputy is reachable at
+      // all. Without this, an unusable port and a genuinely blocked request are the same observation.
+      await assertPortIsDialable(PREFIX_PORT);
+      await assertPortIsDialable(FINAL_PORT);
+
+      await pageLogin(page);
+      await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
+      // The Execution section is reached through the settings dialog's own left nav (a plain
+      // button, `data-testid="settings-dialog-nav-<tab.id>"`), not by landing on it. Without
+      // this click the BYOK tab below is not mounted yet and the spec times out.
+      await page.getByTestId("settings-dialog-nav-execution").click();
+      await page.getByRole("tab", { name: "BYOK" }).click();
+      await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
+
+      const canaryKey = "sk-ant-PORT-WALK-CANARY";
+      await fillApiKeyAndAwaitCommit(page, canaryKey);
+
+      const baseUrlInput = page.locator('label:has-text("Base URL") input');
+
+      // Two edits in succession: neither an already-completed prefix request nor its key can
+      // be recalled by cancelling a later request. Discovery must wait for the edit to settle.
+      await baseUrlInput.fill(`http://localhost:${PREFIX_PORT}`);
+      await baseUrlInput.fill(`http://localhost:${FINAL_PORT}`);
+      await expect.poll(() => deputyFinal.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
+
+      // PRODUCT-SUSPECT: retained original desired-behavior pin; setup must succeed before expecting failure.
+      test.fail(true, "Discovery sends the draft key to an intermediate prefix endpoint.");
+      expect(deputyPrefix.lastHeaders()?.["x-api-key"]).not.toBe(canaryKey);
+    } finally {
+      await deputyPrefix.close();
+      await deputyFinal.close();
+    }
+  });
+}
+function registerDraftKeyErrorRedaction() {
+  test("open question 1 (MSG-1): redactSecrets DOES cover an error surfaced from one of these unintended prefix requests", async ({
+    page,
+  }) => {
+    test.slow();
+    const canaryKey = "sk-ant-ECHO-FROM-PREFIX-CANARY";
+    const deputy = await startFixedDeputy(6100, (req, res) => {
+      res.writeHead(401, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: { message: `bad credentials: ${req.headers["x-api-key"]}` } }));
+    });
+
+    try {
+      await pageLogin(page);
+      await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
+      // The Execution section is reached through the settings dialog's own left nav (a plain
+      // button, `data-testid="settings-dialog-nav-<tab.id>"`), not by landing on it. Without
+      // this click the BYOK tab below is not mounted yet and the spec times out.
+      await page.getByTestId("settings-dialog-nav-execution").click();
+      await page.getByRole("tab", { name: "BYOK" }).click();
+      await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
+
+      await fillApiKeyAndAwaitCommit(page, canaryKey);
+      await page.locator('label:has-text("Base URL") input').fill("http://localhost:6100");
+
+      // ANSWER: yes — `listProviderModels`'s `!response.ok` branch redacts before this ever
+      // reaches the UI (`model-catalog.ts`: `detail: redactSecrets(detail, [input.apiKey])`).
+      const errorHint = page.locator(".jini-field-hint.is-error[role='status']");
+      await expect(errorHint).toBeVisible({ timeout: 15_000 });
+      await expect.poll(() => deputy.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
+      await expect.poll(() => deputy.hits()).toBeGreaterThanOrEqual(1);
+      await expect(errorHint).toContainText("bad credentials:");
+      await expect(errorHint).toContainText("[REDACTED:");
+      const errorText = await errorHint.innerText();
+      expect(errorText).not.toContain(canaryKey);
+    } finally {
+      await deputy.close();
+    }
+  });
+}
+function registerBlankAndEncodedKeys() {
   test("client-side: a whitespace-only API key keeps Test Connection disabled, matching the server's own guard", async ({
     page,
   }) => {
@@ -2408,7 +2587,8 @@ test.describe("byok key-handling edge cases", () => {
       await deputy.close();
     }
   });
-
+}
+function registerUntrimmedKeys() {
   test("an API key with leading/trailing whitespace is sent to the provider BYTE-FOR-BYTE — no client or server-side trim", async () => {
     const deputy = await startDeputy((_req, res) => {
       res.writeHead(200, { "content-type": "application/json" });
@@ -2487,7 +2667,8 @@ test.describe("byok key-handling edge cases", () => {
       await deputy.close();
     }
   });
-
+}
+function registerHeaderInjectionKeys() {
   test("a key containing CRLF never achieves header injection, and the route degrades to ok:false rather than a 500", async () => {
     const deputy = await startDeputy((_req, res) => {
       res.writeHead(200, { "content-type": "application/json" });
@@ -2518,7 +2699,8 @@ test.describe("byok key-handling edge cases", () => {
       await deputy.close();
     }
   });
-
+}
+function registerOversizedKeys() {
   test("a 10,000-character API key does not hang or crash discovery or test-connection", async () => {
     const deputy = await startDeputy((req, res) => {
       res.writeHead(200, { "content-type": "application/json" });
@@ -2558,7 +2740,8 @@ test.describe("byok key-handling edge cases", () => {
       await deputy.close();
     }
   });
-
+}
+function registerUpstreamKeyRedaction() {
   test("redactSecrets scrubs the real API key out of an upstream error that echoes it back — both the non-2xx and the 2xx-bad-reply branches", async () => {
     const canaryKey = "sk-test-ECHO-CANARY-9f3a7c";
 
@@ -2607,89 +2790,98 @@ test.describe("byok key-handling edge cases", () => {
     } finally {
       await deputy200Echo.close();
     }
-    const googleKey = "AIzaGoogleQueryCanary9f3a7c";
-    const googleEcho = await startDeputy((req, res) => {
-      res.writeHead(401, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: { message: `Google rejected request URL ${req.url}` } }));
-    });
-    try {
-      const response = await sharedApi.post(MODELS_PATH, { headers: sharedApiHeaders,
-        data: { protocol: "google", baseUrl: `http://127.0.0.1:${googleEcho.port}`, apiKey: googleKey },
+    await assertGoogleQuerySecretRedacted();
+  });
+}
+function registerSharedApiSessionHooks() {
+  test.beforeEach(async ({ playwright, baseURL }) => {
+    sharedApi = await playwright.request.newContext({ ...(baseURL ? { baseURL } : {}) });
+    const res = await sharedApi.post("/api/admin/v1/auth/login", { data: A2UI_LOGIN });
+    expect(
+      res.status(),
+      `shared API login returned ${res.status()}; 429 means this file exceeded LOGIN_STRICT (10/60s).`,
+    ).toBe(200);
+    sharedApiHeaders = await pinSessionHeaders({ request: sharedApi });
+  });
+
+  test.afterEach(async () => {
+    await sharedApi?.dispose();
+  });
+}
+function registerKeyHandlingBattery() {
+  test.describe("byok key-handling edge cases", () => {
+    registerBlankAndEncodedKeys();
+    registerUntrimmedKeys();
+    registerHeaderInjectionKeys();
+    registerOversizedKeys();
+    registerUpstreamKeyRedaction();
+
+    test("browser-level: an endpoint that echoes the API key in its error body never shows the raw key anywhere in the settings UI", async ({
+      page,
+    }) => {
+      test.slow();
+      const canaryKey = "sk-test-DOM-CANARY-4b1e";
+      const deputy = await startDeputy((req, res) => {
+        res.writeHead(401, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: { message: `Access denied for ${req.headers.authorization}` } }));
       });
-      expect(response.status()).toBe(200);
-      expect(googleEcho.hits()).toBe(1);
-      expect(googleEcho.lastUrl()).toBe(`/v1beta/models?key=${googleKey}`);
-      const body = await response.json();
-      expect(body.ok).toBe(false);
-      expect(body.message).toContain("Google rejected request URL /v1beta/models?key=");
-      expect(body.message).toContain("[REDACTED:");
-      expect(body.message).not.toContain(googleKey);
-    } finally {
-      await googleEcho.close();
-    }
-  });
 
-  test("browser-level: an endpoint that echoes the API key in its error body never shows the raw key anywhere in the settings UI", async ({
-    page,
-  }) => {
-    test.slow();
-    const canaryKey = "sk-test-DOM-CANARY-4b1e";
-    const deputy = await startDeputy((req, res) => {
-      res.writeHead(401, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: { message: `Access denied for ${req.headers.authorization}` } }));
+      try {
+        await pageLogin(page);
+        // Stubbed so mount-time model discovery (which fires automatically the instant BYOK mode is
+        // selected — see `byok-model-discovery-self-heal.spec.ts`'s header) never reaches the real
+        // anthropic.com/openai.com default endpoints before this test points the base URL at the
+        // deputy below.
+        //
+        // **The non-empty list used to be justified backwards here.** The previous comment claimed an
+        // EMPTY `models` array was the thing that "strips the `list=\"jini-byok-model-options\"`
+        // attribute this file's model-field selector depends on". As of `ByokProviderForm`'s
+        // `3b5d648d` refactor the opposite holds: `showModelPicker = liveModels.length > 0`, so a
+        // NON-empty list is what replaces the plain `list=`-bearing input with a `SearchableModelSelect`
+        // — and this stub is what produced it. That is what made this test spend 90s waiting on a field
+        // that was on screen the whole time. It also made the test FLAKY rather than reliably broken:
+        // before discovery resolves the plain input does render, so whichever side won the race decided
+        // the result, and it could go green while asserting against a UI shape that no longer exists.
+        //
+        // The stub stays non-empty (its real job is keeping the request off the public internet); the
+        // model field is now reached through `byok-model-field.ts`, which handles both shapes.
+        await page.route("**/assistant/execution/models", (route) =>
+          route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, models: ["stub-model"] }) }),
+        );
+        await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
+        // The Execution section is reached through the settings dialog's own left nav (a plain
+        // button, `data-testid="settings-dialog-nav-<tab.id>"`), not by landing on it. Without
+        // this click the BYOK tab below is not mounted yet and the spec times out.
+        await page.getByTestId("settings-dialog-nav-execution").click();
+        await page.getByRole("tab", { name: "BYOK" }).click();
+        await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+
+        await fillApiKeyAndAwaitCommit(page, canaryKey);
+        await page.locator('label:has-text("Base URL") input').fill(`http://127.0.0.1:${deputy.port}`);
+        await setByokModel(page, "gpt-4o");
+
+        const consoleMessages: string[] = [];
+        page.on("console", (msg) => consoleMessages.push(msg.text()));
+
+        await page.locator('button:has-text("Test connection")').click();
+        await expect(page.locator(".jini-byok-test-status.is-error")).toBeVisible({ timeout: 15_000 });
+        await expect.poll(() => deputy.lastHeaders()?.authorization).toBe(`Bearer ${canaryKey}`);
+        await expect(page.locator(".jini-byok-test-status.is-error")).toContainText("Access denied for");
+        await expect(page.locator(".jini-byok-test-status.is-error")).toContainText("[REDACTED:");
+
+        const bodyText = await page.locator("body").innerText();
+        expect(bodyText).not.toContain(canaryKey);
+        expect(consoleMessages.join("\n")).not.toContain(canaryKey);
+      } finally {
+        await deputy.close();
+      }
     });
-
-    try {
-      await pageLogin(page);
-      // Stubbed so mount-time model discovery (which fires automatically the instant BYOK mode is
-      // selected — see `byok-model-discovery-self-heal.spec.ts`'s header) never reaches the real
-      // anthropic.com/openai.com default endpoints before this test points the base URL at the
-      // deputy below.
-      //
-      // **The non-empty list used to be justified backwards here.** The previous comment claimed an
-      // EMPTY `models` array was the thing that "strips the `list=\"jini-byok-model-options\"`
-      // attribute this file's model-field selector depends on". As of `ByokProviderForm`'s
-      // `3b5d648d` refactor the opposite holds: `showModelPicker = liveModels.length > 0`, so a
-      // NON-empty list is what replaces the plain `list=`-bearing input with a `SearchableModelSelect`
-      // — and this stub is what produced it. That is what made this test spend 90s waiting on a field
-      // that was on screen the whole time. It also made the test FLAKY rather than reliably broken:
-      // before discovery resolves the plain input does render, so whichever side won the race decided
-      // the result, and it could go green while asserting against a UI shape that no longer exists.
-      //
-      // The stub stays non-empty (its real job is keeping the request off the public internet); the
-      // model field is now reached through `byok-model-field.ts`, which handles both shapes.
-      await page.route("**/assistant/execution/models", (route) =>
-        route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, models: ["stub-model"] }) }),
-      );
-      await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
-      // The Execution section is reached through the settings dialog's own left nav (a plain
-      // button, `data-testid="settings-dialog-nav-<tab.id>"`), not by landing on it. Without
-      // this click the BYOK tab below is not mounted yet and the spec times out.
-      await page.getByTestId("settings-dialog-nav-execution").click();
-      await page.getByRole("tab", { name: "BYOK" }).click();
-      await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
-
-      await fillApiKeyAndAwaitCommit(page, canaryKey);
-      await page.locator('label:has-text("Base URL") input').fill(`http://127.0.0.1:${deputy.port}`);
-      await setByokModel(page, "gpt-4o");
-
-      const consoleMessages: string[] = [];
-      page.on("console", (msg) => consoleMessages.push(msg.text()));
-
-      await page.locator('button:has-text("Test connection")').click();
-      await expect(page.locator(".jini-byok-test-status.is-error")).toBeVisible({ timeout: 15_000 });
-      await expect.poll(() => deputy.lastHeaders()?.authorization).toBe(`Bearer ${canaryKey}`);
-      await expect(page.locator(".jini-byok-test-status.is-error")).toContainText("Access denied for");
-      await expect(page.locator(".jini-byok-test-status.is-error")).toContainText("[REDACTED:");
-
-      const bodyText = await page.locator("body").innerText();
-      expect(bodyText).not.toContain(canaryKey);
-      expect(consoleMessages.join("\n")).not.toContain(canaryKey);
-    } finally {
-      await deputy.close();
-    }
   });
-});
+}
+
+test.describe("Bug pin: byok-key-handling", () => {
+registerSharedApiSessionHooks();
+registerKeyHandlingBattery();
 
 /**
  * MSG-1: discovery currently runs on each Base URL edit and passes the typed draft key.
@@ -2724,140 +2916,9 @@ test.describe("byok key-handling edge cases", () => {
  * `e2e-test-architecture`'s "tests must pass in any order" property.
  */
 test.describe("Base URL edits settle before sending a draft API key (MSG-1 known gap)", () => {
-  test("typing into Base URL sends the draft API key only to the finished endpoint", async ({
-    page,
-  }) => {
-    test.slow();
-    await pageLogin(page);
-    await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
-    // The Execution section is reached through the settings dialog's own left nav (a plain
-    // button, `data-testid="settings-dialog-nav-<tab.id>"`), not by landing on it. Without
-    // this click the BYOK tab below is not mounted yet and the spec times out.
-    await page.getByTestId("settings-dialog-nav-execution").click();
-    await page.getByRole("tab", { name: "BYOK" }).click();
-    await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
-
-    const canaryKey = "sk-ant-KEYSTROKE-LEAK-CANARY";
-    await fillApiKeyAndAwaitCommit(page, canaryKey);
-
-    const captured: Array<{ baseUrl: string; apiKey: string }> = [];
-    page.on("request", (req) => {
-      if (req.method() === "POST" && req.url().includes("/assistant/execution/models")) {
-        const data = req.postDataJSON() as { baseUrl?: string; apiKey?: string } | null;
-        if (data) captured.push({ baseUrl: data.baseUrl ?? "", apiKey: data.apiKey ?? "" });
-      }
-    });
-
-    const baseUrlInput = page.locator('label:has-text("Base URL") input');
-    await baseUrlInput.fill("");
-    const finalUrl = "http://ab.cd.ef.example";
-    await baseUrlInput.pressSequentially(finalUrl, { delay: 80 });
-    // Prove the final edit reached discovery before marking the known gap. A broken setup must
-    // fail normally, rather than satisfy test.fail by never issuing a request.
-    await expect.poll(() => captured.some((call) => call.baseUrl === finalUrl && call.apiKey === canaryKey)).toBe(true);
-    const hasGenuinePrefix = captured.some(
-      (c) => c.baseUrl.length > 0 && c.baseUrl !== finalUrl && finalUrl.startsWith(c.baseUrl),
-    );
-    // PRODUCT-SUSPECT: retained original desired-behavior pin; setup must succeed before expecting failure.
-    test.fail(true, "ExecutionTab sends discovery for intermediate Base URL edits.");
-    expect(captured).toHaveLength(1);
-    expect(hasGenuinePrefix).toBe(false);
-    expect(captured[0]).toEqual({ baseUrl: finalUrl, apiKey: canaryKey });
-  });
-
-  test("a prefix-port listener receives no draft key while editing toward the final endpoint", async ({
-    page,
-  }) => {
-    test.slow();
-    // Fixed (not OS-assigned) ports, chosen so one's decimal string is a literal prefix of the
-    // other's — `3600` sits inside `36000` — mirroring an operator pausing partway through typing
-    // a port number and briefly landing on a DIFFERENT real local service.
-    //
-    // The pair is `3600`/`36000` and NOT the more obvious `6000`/`60000` because 6000 (X11) is on
-    // the WHATWG Fetch blocked-port list — see `assertPortIsDialable`. Both of these are off that
-    // list AND below macOS's ephemeral range (49152+), so neither can be transiently squatted by an
-    // outbound connection from an unrelated process mid-run.
-    const PREFIX_PORT = 3600;
-    const FINAL_PORT = 36000;
-    const echoAuth = (req: http.IncomingMessage, res: http.ServerResponse) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ data: [] }));
-    };
-    const deputyPrefix = await startFixedDeputy(PREFIX_PORT, echoAuth);
-    const deputyFinal = await startFixedDeputy(FINAL_PORT, echoAuth);
-
-    try {
-      // Before trusting a "the deputy received nothing" reading, prove the deputy is reachable at
-      // all. Without this, an unusable port and a genuinely blocked request are the same observation.
-      await assertPortIsDialable(PREFIX_PORT);
-      await assertPortIsDialable(FINAL_PORT);
-
-      await pageLogin(page);
-      await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
-      // The Execution section is reached through the settings dialog's own left nav (a plain
-      // button, `data-testid="settings-dialog-nav-<tab.id>"`), not by landing on it. Without
-      // this click the BYOK tab below is not mounted yet and the spec times out.
-      await page.getByTestId("settings-dialog-nav-execution").click();
-      await page.getByRole("tab", { name: "BYOK" }).click();
-      await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
-
-      const canaryKey = "sk-ant-PORT-WALK-CANARY";
-      await fillApiKeyAndAwaitCommit(page, canaryKey);
-
-      const baseUrlInput = page.locator('label:has-text("Base URL") input');
-
-      // Two edits in succession: neither an already-completed prefix request nor its key can
-      // be recalled by cancelling a later request. Discovery must wait for the edit to settle.
-      await baseUrlInput.fill(`http://localhost:${PREFIX_PORT}`);
-      await baseUrlInput.fill(`http://localhost:${FINAL_PORT}`);
-      await expect.poll(() => deputyFinal.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
-
-      // PRODUCT-SUSPECT: retained original desired-behavior pin; setup must succeed before expecting failure.
-      test.fail(true, "Discovery sends the draft key to an intermediate prefix endpoint.");
-      expect(deputyPrefix.lastHeaders()?.["x-api-key"]).not.toBe(canaryKey);
-    } finally {
-      await deputyPrefix.close();
-      await deputyFinal.close();
-    }
-  });
-
-  test("open question 1 (MSG-1): redactSecrets DOES cover an error surfaced from one of these unintended prefix requests", async ({
-    page,
-  }) => {
-    test.slow();
-    const canaryKey = "sk-ant-ECHO-FROM-PREFIX-CANARY";
-    const deputy = await startFixedDeputy(6100, (req, res) => {
-      res.writeHead(401, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: { message: `bad credentials: ${req.headers["x-api-key"]}` } }));
-    });
-
-    try {
-      await pageLogin(page);
-      await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
-      // The Execution section is reached through the settings dialog's own left nav (a plain
-      // button, `data-testid="settings-dialog-nav-<tab.id>"`), not by landing on it. Without
-      // this click the BYOK tab below is not mounted yet and the spec times out.
-      await page.getByTestId("settings-dialog-nav-execution").click();
-      await page.getByRole("tab", { name: "BYOK" }).click();
-      await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
-
-      await fillApiKeyAndAwaitCommit(page, canaryKey);
-      await page.locator('label:has-text("Base URL") input').fill("http://localhost:6100");
-
-      // ANSWER: yes — `listProviderModels`'s `!response.ok` branch redacts before this ever
-      // reaches the UI (`model-catalog.ts`: `detail: redactSecrets(detail, [input.apiKey])`).
-      const errorHint = page.locator(".jini-field-hint.is-error[role='status']");
-      await expect(errorHint).toBeVisible({ timeout: 15_000 });
-      await expect.poll(() => deputy.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
-      await expect.poll(() => deputy.hits()).toBeGreaterThanOrEqual(1);
-      await expect(errorHint).toContainText("bad credentials:");
-      await expect(errorHint).toContainText("[REDACTED:");
-      const errorText = await errorHint.innerText();
-      expect(errorText).not.toContain(canaryKey);
-    } finally {
-      await deputy.close();
-    }
-  });
+  registerDraftKeyEndpointEdits();
+  registerDraftKeyPrefixPorts();
+  registerDraftKeyErrorRedaction();
 
   test("rapid Base URL edits contact only the final endpoint", async ({
     page,
@@ -2902,9 +2963,10 @@ test.describe("Base URL edits settle before sending a draft API key (MSG-1 known
   });
 });
 });
+}
 
 // Migrated from byok-model-discovery-self-heal.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: byok-model-discovery-self-heal", () => {
+{
 /**
  * @file BYOK model-discovery self-heal regression (2026-08-04 dispatch, Item 1).
  *
@@ -2949,6 +3011,21 @@ async function gotoByok(page: Page): Promise<void> {
   await page.getByTestId("settings-dialog-nav-execution").click();
   await page.getByRole("tab", { name: "BYOK" }).click();
 }
+async function assertRecoveredModelDiscovery(page: Page, testConnCallCount: number) {
+  expect(testConnCallCount).toBe(1);
+  // The stale error is gone and the model list is populated from the fresh call.
+  await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveCount(0);
+  await expect(page.locator(".jini-byok-test-status")).toHaveText("stubbed connection ok");
+  // Read through the helper rather than off the `<datalist>` directly: the second discovery
+  // SUCCEEDS, and a successful discovery is exactly when `ByokProviderForm.tsx` stops
+  // rendering a datalist and renders the picker instead. The old direct read returned `null`
+  // here — a silent `null`, which `toEqual` then reported as an ordinary value mismatch
+  // rather than as "you are reading a control that no longer exists".
+  const options = await readByokModelOptions(page);
+  expect(options).toEqual(["connection-refresh-model-a", "connection-refresh-model-b"]);
+}
+
+test.describe("Bug pin: byok-model-discovery-self-heal", () => {
 
 test.describe("byok model-discovery self-heal (REQ: Test Connection re-fires stale discovery)", () => {
   test("a discovery error from before a key existed clears the moment Test Connection succeeds", async ({
@@ -3044,24 +3121,14 @@ test.describe("byok model-discovery self-heal (REQ: Test Connection re-fires sta
     // fixes that: only the click's own `loadModels(config.byok)` can produce a discovery request
     // that still carries the key, because the wipe's request by definition does not.
     await expect.poll(() => keyedCalls.filter(Boolean).length).toBe(keyedBeforeClick + 1);
-    expect(testConnCallCount).toBe(1);
-
-    // The stale error is gone and the model list is populated from the fresh call.
-    await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveCount(0);
-    await expect(page.locator(".jini-byok-test-status")).toHaveText("stubbed connection ok");
-    // Read through the helper rather than off the `<datalist>` directly: the second discovery
-    // SUCCEEDS, and a successful discovery is exactly when `ByokProviderForm.tsx` stops
-    // rendering a datalist and renders the picker instead. The old direct read returned `null`
-    // here — a silent `null`, which `toEqual` then reported as an ordinary value mismatch
-    // rather than as "you are reading a control that no longer exists".
-    const options = await readByokModelOptions(page);
-    expect(options).toEqual(["connection-refresh-model-a", "connection-refresh-model-b"]);
+    await assertRecoveredModelDiscovery(page, testConnCallCount);
   });
 });
 });
+}
 
 // Migrated from byok-ssrf-guard.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: byok-ssrf-guard", () => {
+{
 /**
  * @file BYOK SSRF-guard adversarial battery (2026-08-04 dispatch, MSG-1 item 1 — "highest
  * value").
@@ -3117,75 +3184,91 @@ const CONNECTION_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/exec
 function modelsBody(baseUrl: string, apiKey = "sk-test-FAKE-KEY-NOT-REAL") {
   return { protocol: "openai", baseUrl, apiKey, model: "deputy-marker-model" };
 }
+async function closeLoopbackDeputies(deputy: http.Server, ipv6Deputy: http.Server) {
+  await new Promise<void>((resolve) => deputy.close(() => resolve()));
+  await new Promise<void>((resolve) => ipv6Deputy.close(() => resolve()));
+}
+function registerSsrfBoundaryCases() {
+  test("ssrf-guard blocks every documented private/reserved range and non-http(s) scheme", async ({ request }) => {
+    const headers = await login(request);
 
-test("ssrf-guard blocks every documented private/reserved range and non-http(s) scheme", async ({ request }) => {
-  const headers = await login(request);
+    const blockedCases: Array<{ name: string; baseUrl: string; expectMessage: string }> = [
+      {
+        name: "cloud metadata service (169.254.169.254)",
+        baseUrl: "http://169.254.169.254/latest/meta-data/",
+        expectMessage: "Internal IPs blocked",
+      },
+      { name: "0.0.0.0", baseUrl: "http://0.0.0.0", expectMessage: "Internal IPs blocked" },
+      { name: "RFC1918 10.x", baseUrl: "http://10.0.0.5", expectMessage: "Internal IPs blocked" },
+      { name: "RFC1918 192.168.x", baseUrl: "http://192.168.1.1", expectMessage: "Internal IPs blocked" },
+      { name: "RFC1918 172.16-31.x", baseUrl: "http://172.16.0.1", expectMessage: "Internal IPs blocked" },
+      { name: "CGNAT 100.64/10", baseUrl: "http://100.64.0.1", expectMessage: "Internal IPs blocked" },
+      {
+        name: "decimal-encoded 10.x (167772165 = 10.0.0.5)",
+        baseUrl: "http://167772165",
+        expectMessage: "Internal IPs blocked",
+      },
+      { name: "hex-encoded private IP (0xac100001 = 172.16.0.1)", baseUrl: "http://0xac100001", expectMessage: "Internal IPs blocked" },
+      { name: "IPv6 ULA fc00", baseUrl: "http://[fc00::1]", expectMessage: "Internal IPs blocked" },
+      { name: "IPv6 ULA fd00", baseUrl: "http://[fd00::1]", expectMessage: "Internal IPs blocked" },
+      { name: "IPv6 link-local", baseUrl: "http://[fe80::1]", expectMessage: "Internal IPs blocked" },
+      { name: "IPv4-mapped private IPv6", baseUrl: "http://[::ffff:10.0.0.5]", expectMessage: "Internal IPs blocked" },
+      { name: "userinfo hiding a private host", baseUrl: "http://public.example@10.0.0.5", expectMessage: "Internal IPs blocked" },
+      { name: "file://", baseUrl: "file:///etc/passwd", expectMessage: "Only http/https allowed" },
+      { name: "gopher://", baseUrl: "gopher://127.0.0.1:70/_test", expectMessage: "Only http/https allowed" },
+    ];
 
-  const blockedCases: Array<{ name: string; baseUrl: string; expectMessage: string }> = [
-    {
-      name: "cloud metadata service (169.254.169.254)",
-      baseUrl: "http://169.254.169.254/latest/meta-data/",
-      expectMessage: "Internal IPs blocked",
-    },
-    { name: "0.0.0.0", baseUrl: "http://0.0.0.0", expectMessage: "Internal IPs blocked" },
-    { name: "RFC1918 10.x", baseUrl: "http://10.0.0.5", expectMessage: "Internal IPs blocked" },
-    { name: "RFC1918 192.168.x", baseUrl: "http://192.168.1.1", expectMessage: "Internal IPs blocked" },
-    { name: "RFC1918 172.16-31.x", baseUrl: "http://172.16.0.1", expectMessage: "Internal IPs blocked" },
-    { name: "CGNAT 100.64/10", baseUrl: "http://100.64.0.1", expectMessage: "Internal IPs blocked" },
-    {
-      name: "decimal-encoded 10.x (167772165 = 10.0.0.5)",
-      baseUrl: "http://167772165",
-      expectMessage: "Internal IPs blocked",
-    },
-    { name: "hex-encoded private IP (0xac100001 = 172.16.0.1)", baseUrl: "http://0xac100001", expectMessage: "Internal IPs blocked" },
-    { name: "IPv6 ULA fc00", baseUrl: "http://[fc00::1]", expectMessage: "Internal IPs blocked" },
-    { name: "IPv6 ULA fd00", baseUrl: "http://[fd00::1]", expectMessage: "Internal IPs blocked" },
-    { name: "IPv6 link-local", baseUrl: "http://[fe80::1]", expectMessage: "Internal IPs blocked" },
-    { name: "IPv4-mapped private IPv6", baseUrl: "http://[::ffff:10.0.0.5]", expectMessage: "Internal IPs blocked" },
-    { name: "userinfo hiding a private host", baseUrl: "http://public.example@10.0.0.5", expectMessage: "Internal IPs blocked" },
-    { name: "file://", baseUrl: "file:///etc/passwd", expectMessage: "Only http/https allowed" },
-    { name: "gopher://", baseUrl: "gopher://127.0.0.1:70/_test", expectMessage: "Only http/https allowed" },
-  ];
-
-  for (const path of [MODELS_PATH, CONNECTION_PATH]) {
-    for (const { name, baseUrl, expectMessage } of blockedCases) {
-      const start = Date.now();
-      const res = await request.post(path, { headers, data: modelsBody(baseUrl) });
-      const elapsedMs = Date.now() - start;
-      expect(res.status(), name).toBe(200); // route always 200s; `ok:false` carries the failure
-      const body = await res.json();
-      expect(body.ok, name).toBe(false);
-      expect(body.message, `${path}: ${name}`).toBe(expectMessage);
-      // A guard rejection is a synchronous hostname/DNS check, not a real connection attempt —
-      // it should return fast. Loose smoke bound, not a precise SLA (shared dev machine, real
-      // multi-second jitter observed even on passing cases) — the signal it guards against is
-      // the guard letting a request through and something downstream hitting ITS OWN
-      // multi-second timeout (`PROVIDER_MODELS_TIMEOUT_MS` is 12s), which this sits well under.
-      expect(elapsedMs, name).toBeLessThan(10_000);
+    for (const path of [MODELS_PATH, CONNECTION_PATH]) {
+      for (const { name, baseUrl, expectMessage } of blockedCases) {
+        const start = Date.now();
+        const res = await request.post(path, { headers, data: modelsBody(baseUrl) });
+        const elapsedMs = Date.now() - start;
+        expect(res.status(), name).toBe(200); // route always 200s; `ok:false` carries the failure
+        const body = await res.json();
+        expect(body.ok, name).toBe(false);
+        expect(body.message, `${path}: ${name}`).toBe(expectMessage);
+        // A guard rejection is a synchronous hostname/DNS check, not a real connection attempt —
+        // it should return fast. Loose smoke bound, not a precise SLA (shared dev machine, real
+        // multi-second jitter observed even on passing cases) — the signal it guards against is
+        // the guard letting a request through and something downstream hitting ITS OWN
+        // multi-second timeout (`PROVIDER_MODELS_TIMEOUT_MS` is 12s), which this sits well under.
+        expect(elapsedMs, name).toBeLessThan(10_000);
+      }
     }
-  }
-});
+  });
 
-test("a hostname that DNS-resolves to a private IP is blocked (rebinding defense) — one-off, not through the route", async () => {
-  // The production route always uses real DNS (`defaultDnsLookup`) with no override surface
-  // — no request param lets a client inject a fake resolver. To exercise this branch
-  // deterministically (without depending on controlling a real public DNS record that
-  // resolves to a private IP, which this environment cannot guarantee), this calls
-  // `validateBaseUrlResolved` directly with an injected resolver. This is a genuine one-off
-  // measurement of the function's own contract, NOT a route-level proof — flagged as such in
-  // the final report. No login needed; this test never touches the HTTP route.
-  //
-  // Imported from the installed `@jini-ai/agent-runtime` package (top of file), not — as this line
-  // used to — a dynamic `import()` of a hardcoded absolute path into a sibling checkout
-  // (`/Users/la/Programming/Jini/...`). That path only ever existed on the one laptop that wrote it
-  // (`876b4fed`, 2026-08-05): a real `TS2307: Cannot find module` in CI, where the Jini sibling is
-  // cloned to a different path, confirmed live against run `31998106661`. The package export is the
-  // same function Tovu's own production code already resolves this same way elsewhere.
-  const fakeLookup = async () => [{ address: "10.0.0.5", family: 4 }];
-  const result = await validateBaseUrlResolved({ baseUrl: "http://internal.example.com", lookup: fakeLookup });
-  expect(result.error).toBe("Internal IPs blocked");
-  expect(result.forbidden).toBe(true);
-});
+  test("a hostname that DNS-resolves to a private IP is blocked (rebinding defense) — one-off, not through the route", async () => {
+    // The production route always uses real DNS (`defaultDnsLookup`) with no override surface
+    // — no request param lets a client inject a fake resolver. To exercise this branch
+    // deterministically (without depending on controlling a real public DNS record that
+    // resolves to a private IP, which this environment cannot guarantee), this calls
+    // `validateBaseUrlResolved` directly with an injected resolver. This is a genuine one-off
+    // measurement of the function's own contract, NOT a route-level proof — flagged as such in
+    // the final report. No login needed; this test never touches the HTTP route.
+    //
+    // Imported from the installed `@jini-ai/agent-runtime` package (top of file), not — as this line
+    // used to — a dynamic `import()` of a hardcoded absolute path into a sibling checkout
+    // (`/Users/la/Programming/Jini/...`). That path only ever existed on the one laptop that wrote it
+    // (`876b4fed`, 2026-08-05): a real `TS2307: Cannot find module` in CI, where the Jini sibling is
+    // cloned to a different path, confirmed live against run `31998106661`. The package export is the
+    // same function Tovu's own production code already resolves this same way elsewhere.
+    const fakeLookup = async () => [{ address: "10.0.0.5", family: 4 }];
+    const result = await validateBaseUrlResolved({ baseUrl: "http://internal.example.com", lookup: fakeLookup });
+    expect(result.error).toBe("Internal IPs blocked");
+    expect(result.forbidden).toBe(true);
+  });
+}
+async function listenLoopbackDeputy(deputy: http.Server) {
+  await new Promise<void>((resolve, reject) => {
+    deputy.once("error", reject);
+    deputy.listen(0, "127.0.0.1", resolve);
+  });
+  const port = (deputy.address() as AddressInfo).port;
+  return port;
+}
+
+test.describe("Bug pin: byok-ssrf-guard", () => {
+registerSsrfBoundaryCases();
 
 test("ssrf-guard: loopback is allowed BY DESIGN, with no port restriction — the real blast radius", async ({
   request,
@@ -3207,11 +3290,7 @@ test("ssrf-guard: loopback is allowed BY DESIGN, with no port restriction — th
   };
   const deputy = http.createServer(handler);
   const ipv6Deputy = http.createServer(handler);
-  await new Promise<void>((resolve, reject) => {
-    deputy.once("error", reject);
-    deputy.listen(0, "127.0.0.1", resolve);
-  });
-  const port = (deputy.address() as AddressInfo).port;
+  const port = await listenLoopbackDeputy(deputy);
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -3241,14 +3320,14 @@ test("ssrf-guard: loopback is allowed BY DESIGN, with no port restriction — th
       expect(body.models, baseUrl).toContain("deputy-marker-model");
     }
   } finally {
-    await new Promise<void>((resolve) => deputy.close(() => resolve()));
-    await new Promise<void>((resolve) => ipv6Deputy.close(() => resolve()));
+    await closeLoopbackDeputies(deputy, ipv6Deputy);
   }
 });
 });
+}
 
 // Migrated from byok-state-races.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: byok-state-races", () => {
+{
 /**
  * @file BYOK stale-state / cross-provider race battery (2026-08-04 dispatch, Item 5).
  *
@@ -3328,8 +3407,7 @@ async function gotoByok(page: Page): Promise<void> {
 function jsonRoute(body: unknown) {
   return { status: 200, contentType: "application/json", body: JSON.stringify(body) };
 }
-
-test.describe("byok state races (REQ: async state must be scoped to the provider it came from)", () => {
+function registerProviderFailureSwitch() {
   test("a Test Connection failure for Anthropic survives a switch to a never-tested OpenAI, mislabeling OpenAI as broken", async ({
     page,
   }) => {
@@ -3368,7 +3446,8 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
     test.fail();
     await expect(page.locator(".jini-byok-test-status")).toHaveCount(0);
   });
-
+}
+function registerProviderInFlightSwitch() {
   test("an in-flight Test Connection response for Anthropic, resolved AFTER switching to OpenAI, still paints OpenAI's card with Anthropic's verdict", async ({
     page,
   }) => {
@@ -3422,7 +3501,8 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
     test.fail();
     await expect(page.locator(".jini-byok-test-status")).toHaveCount(0);
   });
-
+}
+function registerStaleModelDiscovery() {
   test("HELD: an in-flight model-discovery response for OpenAI, resolved after switching to Google, does NOT clobber Google's fresh model list", async ({
     page,
   }) => {
@@ -3490,6 +3570,14 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     expect(await readOptions()).toEqual(["fresh-google-model"]);
   });
+}
+
+test.describe("Bug pin: byok-state-races", () => {
+
+test.describe("byok state races (REQ: async state must be scoped to the provider it came from)", () => {
+  registerProviderFailureSwitch();
+  registerProviderInFlightSwitch();
+  registerStaleModelDiscovery();
 
   test("HELD: a fast provider switch, before the 600ms settings-save debounce fires, never leaks the typed key into localStorage", async ({
     page,
@@ -3558,3 +3646,4 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
   });
 });
 });
+}

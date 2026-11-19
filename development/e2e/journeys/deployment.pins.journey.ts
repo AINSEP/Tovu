@@ -25,20 +25,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Migrated from access-tokens.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: access-tokens", () => {
+{
 const CREDENTIALS_PATH = "/api/admin/v1/workspaces/workspace-local/system";
-
-/**
- * @file Regression/verification suite for the Security page's Access Tokens tab
- * (`apps/admin/src/features/security/`, `/admin/access-tokens`) — the centralized place to Create,
- * Replace, and Remove named tokens across `publish_credential_sets`/`source_control_credential_sets`,
- * per `development/todos.md:1208` and its 2026-08-16 supersessions.
- *
- * No `waitForLoadState("networkidle")` anywhere here — confirmed live (project memory) that it never
- * resolves against this admin app. Every wait is an explicit element/state wait instead.
- */
-
-test.describe("Access Tokens tab", () => {
+function registerAccessTokenListing() {
   test("renders all six installed providers and the current saved-token count", async ({ page }) => {
     await loginAsAdmin(page);
     const snapshots = ["publish", "source-control", "custom"].map((kind) =>
@@ -107,7 +96,8 @@ test.describe("Access Tokens tab", () => {
     // Providers this query does not match are hidden, not just filtered-empty.
     await expect(page.getByRole("heading", { name: /^Vercel/, level: 3 })).toHaveCount(0);
   });
-
+}
+function registerAccessTokenWriteRecovery() {
   test("source-control writes recover after rejection, and custom providers persist", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/admin/access-tokens", { waitUntil: "domcontentloaded" });
@@ -154,7 +144,8 @@ test.describe("Access Tokens tab", () => {
     await expect(page.locator(".access-tokens-row-name").filter({ hasText: customName })).toHaveCount(1);
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   });
-
+}
+function registerAccessTokenRenameRemoval() {
   test("rename an existing token without retyping it, and Remove reads 'Remove from Tovu' with the non-revocation disclosure", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/admin/access-tokens", { waitUntil: "domcontentloaded" });
@@ -199,7 +190,8 @@ test.describe("Access Tokens tab", () => {
     await expect(netlifyGroup.getByText("Renamed token", { exact: true })).toHaveCount(0);
     await expect(netlifyGroup.getByText("Not connected")).toBeVisible();
   });
-
+}
+function registerAccessTokenDefaultsMigration() {
   test("a second named token for the same provider shows a Default pill and a Make default link", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/admin/access-tokens", { waitUntil: "domcontentloaded" });
@@ -275,11 +267,31 @@ test.describe("Access Tokens tab", () => {
     await page.getByRole("tab", { name: /^Vercel/ }).click();
     await expect(page.locator('[data-agent-element="deployment-static-site-credentials-row-vercel"] > summary .deployment-step-summary-text')).toContainText("Vercel connected");
   });
+}
+
+test.describe("Bug pin: access-tokens", () => {
+
+/**
+ * @file Regression/verification suite for the Security page's Access Tokens tab
+ * (`apps/admin/src/features/security/`, `/admin/access-tokens`) — the centralized place to Create,
+ * Replace, and Remove named tokens across `publish_credential_sets`/`source_control_credential_sets`,
+ * per `development/todos.md:1208` and its 2026-08-16 supersessions.
+ *
+ * No `waitForLoadState("networkidle")` anywhere here — confirmed live (project memory) that it never
+ * resolves against this admin app. Every wait is an explicit element/state wait instead.
+ */
+
+test.describe("Access Tokens tab", () => {
+  registerAccessTokenListing();
+  registerAccessTokenWriteRecovery();
+  registerAccessTokenRenameRemoval();
+  registerAccessTokenDefaultsMigration();
 });
 });
+}
 
 // Migrated from deployment-overview.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: deployment-overview", () => {
+{
 const WARNING = "Still the default — set TOVU_ADMIN_PASSWORD.";
 const EPS = 1; // Allow subpixel rounding when comparing containment edges.
 const snapshot = {
@@ -291,6 +303,70 @@ const snapshot = {
   uploadsDir: "/tmp/tovu-deployment-overview/uploads",
   envVars: [{ name: "TOVU_ADMIN_PASSWORD", set: true }],
 };
+async function assertFactWarningVisible(warning: import("@playwright/test").Locator) {
+  // DOM visibility alone permits clipped text. Check every rendered text fragment
+  // against the badge, content scroller, and viewport after scrolling it into view.
+  const textGeometry = await warning.evaluate((badge) => {
+    const rect = badge.getBoundingClientRect();
+    const content = badge.closest(".admin-content");
+    if (!content) throw new Error("Missing admin content scroller");
+    const contentRect = content.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(badge);
+    return {
+      fragments: Array.from(range.getClientRects(), (fragment) => ({
+        left: fragment.left, top: fragment.top, right: fragment.right, bottom: fragment.bottom,
+      })),
+      visible: {
+        left: Math.max(0, rect.left, contentRect.left),
+        top: Math.max(0, rect.top, contentRect.top),
+        right: Math.min(innerWidth, rect.right, contentRect.right),
+        bottom: Math.min(innerHeight, rect.bottom, contentRect.bottom),
+      },
+      overflowX: badge.scrollWidth - badge.clientWidth,
+      overflowY: badge.scrollHeight - badge.clientHeight,
+    };
+  });
+  expect(textGeometry.fragments.length).toBeGreaterThan(0);
+  expect(textGeometry.overflowX).toBeLessThanOrEqual(EPS);
+  expect(textGeometry.overflowY).toBeLessThanOrEqual(EPS);
+  for (const fragment of textGeometry.fragments) {
+    expect(fragment.left).toBeGreaterThanOrEqual(textGeometry.visible.left - EPS);
+    expect(fragment.top).toBeGreaterThanOrEqual(textGeometry.visible.top - EPS);
+    expect(fragment.right).toBeLessThanOrEqual(textGeometry.visible.right + EPS);
+    expect(fragment.bottom).toBeLessThanOrEqual(textGeometry.visible.bottom + EPS);
+  }
+}
+async function assertFactBadgeBounds(badges: import("@playwright/test").Locator) {
+  const boxes = await badges.evaluateAll((elements) => elements.map((badge) => {
+    const cell = badge.parentElement;
+    if (!cell?.matches(".deployment-fact-value")) throw new Error("Missing fact value cell");
+    const rect = badge.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    return {
+      text: badge.textContent?.trim(),
+      badge: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+      cell: { left: cellRect.left, top: cellRect.top, right: cellRect.right, bottom: cellRect.bottom },
+    };
+  }));
+  for (const { text, badge, cell } of boxes) {
+    expect(badge.left, `${text}: left edge`).toBeGreaterThanOrEqual(cell.left - EPS);
+    expect(badge.top, `${text}: top edge`).toBeGreaterThanOrEqual(cell.top - EPS);
+    expect(badge.right, `${text}: right edge`).toBeLessThanOrEqual(cell.right + EPS);
+    expect(badge.bottom, `${text}: bottom edge`).toBeLessThanOrEqual(cell.bottom + EPS);
+  }
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i].badge;
+      const b = boxes[j].badge;
+      const intersects = Math.min(a.right, b.right) > Math.max(a.left, b.left)
+        && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
+      expect(intersects, `${boxes[i].text} overlaps ${boxes[j].text}`).toBe(false);
+    }
+  }
+}
+
+test.describe("Bug pin: deployment-overview", () => {
 
 // jsdom cannot observe this overflow. Mock only the diagnostic response so the real
 // Overview component and stylesheet always render the long default-password warning.
@@ -319,73 +395,16 @@ test("Overview fact badges fit their cells and keep the full password warning vi
       await page.setViewportSize({ width, height: 900 });
       await warning.scrollIntoViewIfNeeded();
       await expect(warning).toBeVisible();
-
-      const boxes = await badges.evaluateAll((elements) => elements.map((badge) => {
-        const cell = badge.parentElement;
-        if (!cell?.matches(".deployment-fact-value")) throw new Error("Missing fact value cell");
-        const rect = badge.getBoundingClientRect();
-        const cellRect = cell.getBoundingClientRect();
-        return {
-          text: badge.textContent?.trim(),
-          badge: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
-          cell: { left: cellRect.left, top: cellRect.top, right: cellRect.right, bottom: cellRect.bottom },
-        };
-      }));
-      for (const { text, badge, cell } of boxes) {
-        expect(badge.left, `${text}: left edge`).toBeGreaterThanOrEqual(cell.left - EPS);
-        expect(badge.top, `${text}: top edge`).toBeGreaterThanOrEqual(cell.top - EPS);
-        expect(badge.right, `${text}: right edge`).toBeLessThanOrEqual(cell.right + EPS);
-        expect(badge.bottom, `${text}: bottom edge`).toBeLessThanOrEqual(cell.bottom + EPS);
-      }
-      for (let i = 0; i < boxes.length; i++) {
-        for (let j = i + 1; j < boxes.length; j++) {
-          const a = boxes[i].badge;
-          const b = boxes[j].badge;
-          const intersects = Math.min(a.right, b.right) > Math.max(a.left, b.left)
-            && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
-          expect(intersects, `${boxes[i].text} overlaps ${boxes[j].text}`).toBe(false);
-        }
-      }
-
-      // DOM visibility alone permits clipped text. Check every rendered text fragment
-      // against the badge, content scroller, and viewport after scrolling it into view.
-      const textGeometry = await warning.evaluate((badge) => {
-        const rect = badge.getBoundingClientRect();
-        const content = badge.closest(".admin-content");
-        if (!content) throw new Error("Missing admin content scroller");
-        const contentRect = content.getBoundingClientRect();
-        const range = document.createRange();
-        range.selectNodeContents(badge);
-        return {
-          fragments: Array.from(range.getClientRects(), (fragment) => ({
-            left: fragment.left, top: fragment.top, right: fragment.right, bottom: fragment.bottom,
-          })),
-          visible: {
-            left: Math.max(0, rect.left, contentRect.left),
-            top: Math.max(0, rect.top, contentRect.top),
-            right: Math.min(innerWidth, rect.right, contentRect.right),
-            bottom: Math.min(innerHeight, rect.bottom, contentRect.bottom),
-          },
-          overflowX: badge.scrollWidth - badge.clientWidth,
-          overflowY: badge.scrollHeight - badge.clientHeight,
-        };
-      });
-      expect(textGeometry.fragments.length).toBeGreaterThan(0);
-      expect(textGeometry.overflowX).toBeLessThanOrEqual(EPS);
-      expect(textGeometry.overflowY).toBeLessThanOrEqual(EPS);
-      for (const fragment of textGeometry.fragments) {
-        expect(fragment.left).toBeGreaterThanOrEqual(textGeometry.visible.left - EPS);
-        expect(fragment.top).toBeGreaterThanOrEqual(textGeometry.visible.top - EPS);
-        expect(fragment.right).toBeLessThanOrEqual(textGeometry.visible.right + EPS);
-        expect(fragment.bottom).toBeLessThanOrEqual(textGeometry.visible.bottom + EPS);
-      }
+      await assertFactBadgeBounds(badges);
+      await assertFactWarningVisible(warning);
     });
   }
 });
 });
+}
 
 // Migrated from deployment-static-site-token-picker.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: deployment-static-site-token-picker", () => {
+{
 /**
  * @file Coverage for the Static Site tab's "which saved token publishes" picker
  * (`CredentialTokenPicker`, `StaticSiteTab.tsx`) — the owner's own original ask, per
@@ -406,8 +425,7 @@ test.describe("Bug pin: deployment-static-site-token-picker", () => {
 
 const WORKSPACE_ID = "workspace-local";
 const CREDENTIALS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/system/publish/credentials`;
-
-test.describe("Deployment > Static Site > GitHub Pages: choosing which saved token publishes", () => {
+function registerPublishTokenSelection() {
   test("two saved credentials for one provider render a picker; choosing the other one promotes it to default", async ({ page }) => {
     await loginAsAdmin(page);
 
@@ -474,6 +492,12 @@ test.describe("Deployment > Static Site > GitHub Pages: choosing which saved tok
     // The picker itself reflects the new default once the hook's own refetch resolves.
     await expect(picker).toHaveValue(backup.id);
   });
+}
+
+test.describe("Bug pin: deployment-static-site-token-picker", () => {
+
+test.describe("Deployment > Static Site > GitHub Pages: choosing which saved token publishes", () => {
+  registerPublishTokenSelection();
 
   test("a provider with only one saved credential renders no picker — nothing to choose between", async ({ page }) => {
     await loginAsAdmin(page);
@@ -492,9 +516,10 @@ test.describe("Deployment > Static Site > GitHub Pages: choosing which saved tok
   });
 });
 });
+}
 
 // Migrated from deployment-static-site-verify-gap.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: deployment-static-site-verify-gap", () => {
+{
 /**
  * @file Regression test for a gap found live during the A1 re-verification pass (2026-08-16, see
  * `ADS-memory/reports/verification/2026-08-16-live-publish-through-assistant.md`).
@@ -523,8 +548,7 @@ test.describe("Bug pin: deployment-static-site-verify-gap", () => {
 
 const WORKSPACE_ID = "workspace-local";
 const CREDENTIALS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/system/publish/credentials`;
-
-test.describe("Deployment > Static Site > GitHub Pages: re-verifying an already-saved credential", () => {
+function registerSavedTokenVerification() {
   test("a connected-but-unverified credential can be re-verified without re-entering the token", async ({
     page,
   }) => {
@@ -571,6 +595,12 @@ test.describe("Deployment > Static Site > GitHub Pages: re-verifying an already-
     await expect(verifyControl).toBeEnabled();
     await expect(row).not.toHaveAttribute("open", "");
   });
+}
+
+test.describe("Bug pin: deployment-static-site-verify-gap", () => {
+
+test.describe("Deployment > Static Site > GitHub Pages: re-verifying an already-saved credential", () => {
+  registerSavedTokenVerification();
 
   test("the backend verify route reports a failed check for a synthetic token", async ({
     page,
@@ -601,9 +631,10 @@ test.describe("Deployment > Static Site > GitHub Pages: re-verifying an already-
   });
 });
 });
+}
 
 // Migrated from deployment-tabbar-scroll.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: deployment-tabbar-scroll", () => {
+{
 /**
  * @file Regression test for `.tab-bar`'s narrow-viewport overflow bug, found live (owner UI/UX
  * pass on the Deployment panel, 2026-08-15): `.tab-bar` (`components/TabBar.tsx`,
@@ -681,60 +712,64 @@ async function isFullyWithinTabBarContainer(page: Page, tab: ReturnType<Page["ge
     box.y + box.height <= containerBox.y + containerBox.height + EPS
   );
 }
+function registerDeploymentTabScrollCases() {
+  test.describe(".tab-bar stays reachable at a 390px viewport (narrow-width regression)", () => {
+    test("Deployment: the last tab (History) is reachable and clicking it navigates there", async ({ page }) => {
+      await loginAsAdmin(page);
+      await page.setViewportSize(NARROW_VIEWPORT);
+      await page.goto("/admin/deployment", { waitUntil: "domcontentloaded" });
+      await page.locator(".tab-bar").first().waitFor({ state: "visible", timeout: 10_000 });
 
-test.describe(".tab-bar stays reachable at a 390px viewport (narrow-width regression)", () => {
-  test("Deployment: the last tab (History) is reachable and clicking it navigates there", async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.setViewportSize(NARROW_VIEWPORT);
-    await page.goto("/admin/deployment", { waitUntil: "domcontentloaded" });
-    await page.locator(".tab-bar").first().waitFor({ state: "visible", timeout: 10_000 });
+      const tabs = await page.getByRole("tab").allTextContents();
+      // e47adfe0b deliberately retired Full Site; keep testing reachability of every live tab.
+      expect(tabs).toEqual(["Overview", "Static Site", "Dockerfile", "History"]);
 
-    const tabs = await page.getByRole("tab").allTextContents();
-    // e47adfe0b deliberately retired Full Site; keep testing reachability of every live tab.
-    expect(tabs).toEqual(["Overview", "Static Site", "Dockerfile", "History"]);
+      await scrollTabBarToEnd(page);
+      const historyTab = page.getByRole("tab", { name: "History" });
+      await expect(historyTab).toBeVisible();
+      expect(await isFullyOnscreenHorizontally(page, historyTab)).toBe(true);
 
-    await scrollTabBarToEnd(page);
-    const historyTab = page.getByRole("tab", { name: "History" });
-    await expect(historyTab).toBeVisible();
-    expect(await isFullyOnscreenHorizontally(page, historyTab)).toBe(true);
+      await historyTab.click();
+      await expect(page).toHaveURL(/\?tab=history/);
+      await expect(historyTab).toHaveAttribute("aria-selected", "true");
+    });
 
-    await historyTab.click();
-    await expect(page).toHaveURL(/\?tab=history/);
-    await expect(historyTab).toHaveAttribute("aria-selected", "true");
+    test("Themes: the last tab (Code) is reachable and clicking it activates it — confirms the shared fix doesn't regress this other TabBar consumer", async ({
+      page,
+    }) => {
+      await loginAsAdmin(page);
+      await page.setViewportSize(NARROW_VIEWPORT);
+      await page.goto("/admin/themes", { waitUntil: "domcontentloaded" });
+      await page.locator(".tab-bar").first().waitFor({ state: "visible", timeout: 10_000 });
+
+      await scrollTabBarToEnd(page);
+      const codeTab = page.getByRole("tab", { name: /^Code/ });
+      await expect(codeTab).toBeVisible();
+      expect(await isFullyOnscreenHorizontally(page, codeTab)).toBe(true);
+
+      await codeTab.click();
+      await expect(codeTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    test("Pages: unaffected at 390px — its two tabs never overflowed, so the fix must not change their layout", async ({
+      page,
+    }) => {
+      await loginAsAdmin(page);
+      await page.setViewportSize(NARROW_VIEWPORT);
+      await page.goto("/admin/pages", { waitUntil: "domcontentloaded" });
+      await page.locator(".tab-bar").first().waitFor({ state: "visible", timeout: 10_000 });
+
+      const bar = page.locator(".tab-bar").first();
+      const metrics = await bar.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
+      // Confirms the premise of this test's own name — if Pages' tabs ever grow to overflow, this
+      // assertion (not a silent pass) is what should catch it.
+      expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth);
+    });
   });
+}
 
-  test("Themes: the last tab (Code) is reachable and clicking it activates it — confirms the shared fix doesn't regress this other TabBar consumer", async ({
-    page,
-  }) => {
-    await loginAsAdmin(page);
-    await page.setViewportSize(NARROW_VIEWPORT);
-    await page.goto("/admin/themes", { waitUntil: "domcontentloaded" });
-    await page.locator(".tab-bar").first().waitFor({ state: "visible", timeout: 10_000 });
-
-    await scrollTabBarToEnd(page);
-    const codeTab = page.getByRole("tab", { name: /^Code/ });
-    await expect(codeTab).toBeVisible();
-    expect(await isFullyOnscreenHorizontally(page, codeTab)).toBe(true);
-
-    await codeTab.click();
-    await expect(codeTab).toHaveAttribute("aria-selected", "true");
-  });
-
-  test("Pages: unaffected at 390px — its two tabs never overflowed, so the fix must not change their layout", async ({
-    page,
-  }) => {
-    await loginAsAdmin(page);
-    await page.setViewportSize(NARROW_VIEWPORT);
-    await page.goto("/admin/pages", { waitUntil: "domcontentloaded" });
-    await page.locator(".tab-bar").first().waitFor({ state: "visible", timeout: 10_000 });
-
-    const bar = page.locator(".tab-bar").first();
-    const metrics = await bar.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
-    // Confirms the premise of this test's own name — if Pages' tabs ever grow to overflow, this
-    // assertion (not a silent pass) is what should catch it.
-    expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth);
-  });
-});
+test.describe("Bug pin: deployment-tabbar-scroll", () => {
+registerDeploymentTabScrollCases();
 
 test.describe("Deployment: tab row stays fully visible with the admin chat pane open (2026-08-16 regression)", () => {
   test("all four tabs, including History, are reachable without scrolling once the dock narrows the content column", async ({
@@ -786,6 +821,7 @@ test.describe("Deployment: tab row stays fully visible with the admin chat pane 
   });
 });
 });
+}
 
 // Migrated from dockerfile-tab-editable.spec.ts; original pin intent and why comments follow.
 // These routes resolve cwd; boot them in a disposable checkout rather than the shared runtime.
@@ -895,32 +931,7 @@ test.describe("Dockerfile tab is editable", () => {
 
 // Migrated from static-site-tab-credentials.spec.ts; original pin intent and why comments follow.
 // hosted-api-only is read during composition/import, so this pin requires its own boot env.
-test.describe("Bug pin: static-site-tab-credentials", { tag: "@isolated-site" }, () => {
-/**
- * @file Deployment panel → Static Site tab → credential section, driven through the REAL admin SPA
- * against the REAL Tovu API (`../playwright.static-site-tab-credentials.config.ts`'s hermetic
- * two-server harness, `TOVU_DB=memory`, `TOVU_EXECUTION_MODE=hosted-api-only`). No route stubbing.
- *
- * 2026-08-15 redesign: this section used to be an add/edit/delete list of user-named connections
- * (an "Add credential" button, a provider `<select>`, a `Label` field). The owner's own read: "'Add
- * credential' should be gone. Just list the providers, labels, and access token space, and that's
- * it." This suite was rewritten to pin the NEW shape — one always-visible row per provider, each
- * with its own token input and Save action — against the same real CRUD routes the old suite proved
- * (create/list/update), driven by real clicks, persisting to the real (in-memory) database.
- *
- * ## This suite never reaches the real internet
- *
- * A saved credential here is a Vercel connection with a placeholder token — the CRUD routes under
- * test (create/list/update) only persist an ENCRYPTED row; none of them ever construct a provider
- * API client or make an outbound call. `GITHUB_TOKEN`/`VERCEL_TOKEN` are never set for this harness's
- * API server either (this config's own `env` block does not mention them), so even a publish attempt
- * would settle without leaving the process — this suite does not trigger one.
- */
-
-test.beforeEach(async ({ page }) => {
-  await loginAsAdmin(page);
-  await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
-});
+{
 
 /** Scope to the selected host's credential step, excluding the provider picker and target fields. */
 // 571852cf4 / 57bb8d261 intentionally replaced four simultaneous credential rows with
@@ -929,28 +940,7 @@ function credentialRow(page: Page, providerLabel: string) {
   const ids: Record<string, string> = { "GitHub Pages": "github-pages", Vercel: "vercel", Netlify: "netlify", "Cloudflare Pages": "cloudflare-pages" };
   return page.locator(`[data-agent-element="deployment-static-site-credentials-row-${ids[providerLabel]}"]`);
 }
-
-test.describe("Static Site tab — credentials, hosted-api-only disclosure", () => {
-  test("shows the plain-language hosted notice OPEN, never the collapsed self-hosted Advanced disclosure", async ({ page }) => {
-    await expect(
-      page.getByText(
-        "This workspace can't use your computer's terminal — connecting here is the only way to publish."
-      )
-    ).toBeVisible();
-    await expect(page.getByText("Advanced: publish with server-side provider credentials")).toHaveCount(0);
-    // Each host exposes its credential step when selected; hosted mode needs no Advanced disclosure.
-    await expect(page.getByRole("button", { name: "Add credential" })).toHaveCount(0);
-    for (const provider of ["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages"]) {
-      await page.getByRole("tab", { name: new RegExp(`^${provider}`) }).click();
-      const row = credentialRow(page, provider);
-      await expect(row).toBeVisible();
-      await expect(row.getByRole("heading", { name: `Connect ${provider}` })).toBeVisible();
-      await expect(page.locator('[data-agent-element^="deployment-static-site-credentials-row-"]')).toHaveCount(1);
-    }
-  });
-});
-
-test.describe("Static Site tab — credentials, real CRUD round trip", () => {
+function registerStaticSiteCredentialCases() {
   test("save, reload, then replace the token — every step through a real route, no label ever typed", async ({ page }) => {
     await page.getByRole("tab", { name: /^Vercel/ }).click();
     const row = credentialRow(page, "Vercel");
@@ -1008,76 +998,136 @@ test.describe("Static Site tab — credentials, real CRUD round trip", () => {
     await row.getByRole("button", { name: "Save" }).click();
     await expect(row.locator("summary .deployment-step-summary-text")).toBeVisible({ timeout: 10_000 });
   });
+}
 
-  test("cloudflare-pages requires BOTH a token and an Account ID before Save enables", async ({ page }) => {
-    await page.getByRole("tab", { name: /^Cloudflare Pages/ }).click();
-    const row = credentialRow(page, "Cloudflare Pages");
-    await expect(row.getByRole("button", { name: "Save" })).toBeDisabled();
+test.describe("Bug pin: static-site-tab-credentials", { tag: "@isolated-site" }, () => {
 
-    await row.getByLabel("API token", { exact: true }).fill("fake-cf-token-for-e2e");
-    await expect(row.getByRole("button", { name: "Save" })).toBeDisabled(); // account id still blank
-
-    await row.getByLabel("Account ID").fill("acct-e2e-123");
-    await expect(row.getByRole("button", { name: "Save" })).toBeEnabled();
-    await row.getByRole("button", { name: "Save" }).click();
-    await expect(row.locator("summary .deployment-step-summary-text")).toBeVisible({ timeout: 10_000 });
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  /**
+   * @file Deployment panel → Static Site tab → credential section, driven through the REAL admin SPA
+   * against the REAL Tovu API (`../playwright.static-site-tab-credentials.config.ts`'s hermetic
+   * two-server harness, `TOVU_DB=memory`, `TOVU_EXECUTION_MODE=hosted-api-only`). No route stubbing.
+   *
+   * 2026-08-15 redesign: this section used to be an add/edit/delete list of user-named connections
+   * (an "Add credential" button, a provider `<select>`, a `Label` field). The owner's own read: "'Add
+   * credential' should be gone. Just list the providers, labels, and access token space, and that's
+   * it." This suite was rewritten to pin the NEW shape — one always-visible row per provider, each
+   * with its own token input and Save action — against the same real CRUD routes the old suite proved
+   * (create/list/update), driven by real clicks, persisting to the real (in-memory) database.
+   *
+   * ## This suite never reaches the real internet
+   *
+   * A saved credential here is a Vercel connection with a placeholder token — the CRUD routes under
+   * test (create/list/update) only persist an ENCRYPTED row; none of them ever construct a provider
+   * API client or make an outbound call. `GITHUB_TOKEN`/`VERCEL_TOKEN` are never set for this harness's
+   * API server either (this config's own `env` block does not mention them), so even a publish attempt
+   * would settle without leaving the process — this suite does not trigger one.
+   */
+  
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
   });
+  
+  test.describe("Static Site tab — credentials, hosted-api-only disclosure", () => {
+    test("shows the plain-language hosted notice OPEN, never the collapsed self-hosted Advanced disclosure", async ({ page }) => {
+      await expect(
+        page.getByText(
+          "This workspace can't use your computer's terminal — connecting here is the only way to publish."
+        )
+      ).toBeVisible();
+      await expect(page.getByText("Advanced: publish with server-side provider credentials")).toHaveCount(0);
+      // Each host exposes its credential step when selected; hosted mode needs no Advanced disclosure.
+      await expect(page.getByRole("button", { name: "Add credential" })).toHaveCount(0);
+      for (const provider of ["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages"]) {
+        await page.getByRole("tab", { name: new RegExp(`^${provider}`) }).click();
+        const row = credentialRow(page, provider);
+        await expect(row).toBeVisible();
+        await expect(row.getByRole("heading", { name: `Connect ${provider}` })).toBeVisible();
+        await expect(page.locator('[data-agent-element^="deployment-static-site-credentials-row-"]')).toHaveCount(1);
+      }
+    });
+  });
+
+  
+  test.describe("Static Site tab — credentials, real CRUD round trip", () => {
+    registerStaticSiteCredentialCases();
+  
+    test("cloudflare-pages requires BOTH a token and an Account ID before Save enables", async ({ page }) => {
+      await page.getByRole("tab", { name: /^Cloudflare Pages/ }).click();
+      const row = credentialRow(page, "Cloudflare Pages");
+      await expect(row.getByRole("button", { name: "Save" })).toBeDisabled();
+  
+      await row.getByLabel("API token", { exact: true }).fill("fake-cf-token-for-e2e");
+      await expect(row.getByRole("button", { name: "Save" })).toBeDisabled(); // account id still blank
+  
+      await row.getByLabel("Account ID").fill("acct-e2e-123");
+      await expect(row.getByRole("button", { name: "Save" })).toBeEnabled();
+      await row.getByRole("button", { name: "Save" }).click();
+      await expect(row.locator("summary .deployment-step-summary-text")).toBeVisible({ timeout: 10_000 });
+    });
+  });
+
 });
-});
-
-// Migrated from static-site-tab.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: static-site-tab", () => {
-/**
- * @file Deployment panel → Static Site tab, driven through the REAL admin SPA against the REAL Tovu
- * API (`../playwright.static-site-tab.config.ts`'s hermetic two-server harness, `TOVU_DB=memory`).
- * No route stubbing.
- *
- * This tab's "Build static export" button used to be permanently `aria-disabled`, with no
- * `onClick` at all — the exporter existed (`tovu export <dir>` from a terminal) but no admin route
- * could start one. This spec pins the fix at the browser level: a real click, through the real
- * `POST`/`GET .../system/export` routes, producing a real folder of files on disk (into
- * `TOVU_EXPORT_DIR`, a scratch temp dir this suite's own config points at — never this repo's own
- * `infra/export`). A passing unit test against a fake port does not by itself prove a real click
- * reaches a real route and a real export actually runs; this does.
- *
- * It also pins the "Getting it online" card's provider split: switching the picker between GitHub
- * Pages and Vercel must show ONE provider's CLI row and form at a time, never both, and the CLI
- * row's detected/not-detected pill must reflect the REAL `deployClis` the server computed (this
- * suite's config prepends a fake `gh` onto the API server's own `PATH`, so `gh` reports installed
- * for real over the HTTP route — see that config's own header for the exact mechanism and its one
- * documented caveat).
- *
- * `vercel`'s own pill is asserted ADAPTIVELY, not hardcoded to "not detected" — {@link
- * fetchDeployClis} reads the SAME live `deployClis` the UI itself is fetching, over the same
- * authenticated route, and the assertion below matches whatever that says. Confirmed necessary, not
- * theoretical: an earlier draft of this spec hardcoded "not detected" and failed on the machine this
- * suite was written on, because that machine has a REAL `vercel` CLI on its own PATH — the exact
- * "real system PATH may already have vercel" caveat `../playwright.static-site-tab.config.ts`'s own
- * header warns about. Asserting against the live route instead of a guess is what makes this
- * portable across whatever the runner's own PATH actually contains.
- *
- * ## This suite never reaches the real internet
- *
- * `GITHUB_TOKEN`/`VERCEL_TOKEN` are explicitly blanked for this harness's API server, including
- * credentials inherited from the runner. `publishStaticSite` (`static-publish/
- * adapter.ts`) resolves credentials BEFORE ever constructing a real GitHub/Vercel API client, so a
- * triggered publish with no token configured returns `NO_CREDENTIALS_CONFIGURED` and settles WITHOUT
- * any outbound call — the exact same guarantee `publish-site-route.test.ts` already proves
- * server-side. This spec exercises a real Publish click for the Vercel target (no owner/repo
- * needed) specifically BECAUSE that failure mode is structurally incapable of leaving this process,
- * and asserts the honest error the UI shows once it settles.
- */
-
-test.beforeEach(async ({ page }) => {
-  await loginAsAdmin(page);
-});
-
-/** Reads the SAME `deployClis` the admin UI itself fetches from `GET .../system/deployment-
- *  overview`, through the browser-session transport (carries the Secure cookie from login) — see this
- *  file's own header for why the Vercel assertions below read this instead of assuming an install
- *  state. */
-
-test.describe("Static Site tab — build export", () => {
+}
+function registerStaticExportCases() {
   test("the Build button starts a real export and the run settles to a real, non-fabricated result", async ({ page }) => {
     await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
 
@@ -1109,93 +1159,155 @@ test.describe("Static Site tab — build export", () => {
     await checkbox.waitFor({ state: "visible", timeout: 10_000 });
     await expect(checkbox).not.toBeChecked();
   });
+}
+function registerStaticExportSuite() {
+  /**
+   * @file Deployment panel → Static Site tab, driven through the REAL admin SPA against the REAL Tovu
+   * API (`../playwright.static-site-tab.config.ts`'s hermetic two-server harness, `TOVU_DB=memory`).
+   * No route stubbing.
+   *
+   * This tab's "Build static export" button used to be permanently `aria-disabled`, with no
+   * `onClick` at all — the exporter existed (`tovu export <dir>` from a terminal) but no admin route
+   * could start one. This spec pins the fix at the browser level: a real click, through the real
+   * `POST`/`GET .../system/export` routes, producing a real folder of files on disk (into
+   * `TOVU_EXPORT_DIR`, a scratch temp dir this suite's own config points at — never this repo's own
+   * `infra/export`). A passing unit test against a fake port does not by itself prove a real click
+   * reaches a real route and a real export actually runs; this does.
+   *
+   * It also pins the "Getting it online" card's provider split: switching the picker between GitHub
+   * Pages and Vercel must show ONE provider's CLI row and form at a time, never both, and the CLI
+   * row's detected/not-detected pill must reflect the REAL `deployClis` the server computed (this
+   * suite's config prepends a fake `gh` onto the API server's own `PATH`, so `gh` reports installed
+   * for real over the HTTP route — see that config's own header for the exact mechanism and its one
+   * documented caveat).
+   *
+   * `vercel`'s own pill is asserted ADAPTIVELY, not hardcoded to "not detected" — {@link
+   * fetchDeployClis} reads the SAME live `deployClis` the UI itself is fetching, over the same
+   * authenticated route, and the assertion below matches whatever that says. Confirmed necessary, not
+   * theoretical: an earlier draft of this spec hardcoded "not detected" and failed on the machine this
+   * suite was written on, because that machine has a REAL `vercel` CLI on its own PATH — the exact
+   * "real system PATH may already have vercel" caveat `../playwright.static-site-tab.config.ts`'s own
+   * header warns about. Asserting against the live route instead of a guess is what makes this
+   * portable across whatever the runner's own PATH actually contains.
+   *
+   * ## This suite never reaches the real internet
+   *
+   * `GITHUB_TOKEN`/`VERCEL_TOKEN` are explicitly blanked for this harness's API server, including
+   * credentials inherited from the runner. `publishStaticSite` (`static-publish/
+   * adapter.ts`) resolves credentials BEFORE ever constructing a real GitHub/Vercel API client, so a
+   * triggered publish with no token configured returns `NO_CREDENTIALS_CONFIGURED` and settles WITHOUT
+   * any outbound call — the exact same guarantee `publish-site-route.test.ts` already proves
+   * server-side. This spec exercises a real Publish click for the Vercel target (no owner/repo
+   * needed) specifically BECAUSE that failure mode is structurally incapable of leaving this process,
+   * and asserts the honest error the UI shows once it settles.
+   */
 
-  test("the overwrite checkbox sends clean and controls preservation of existing files", async ({ page }) => {
-    await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
-    const checkbox = page.getByRole("checkbox", { name: /overwrite existing files/i });
-    await expect(checkbox).not.toBeChecked();
-    const exportPath = "/api/admin/v1/workspaces/workspace-local/system/export";
-    const build = async (clean: boolean) => {
-      const trigger = page.waitForRequest((request) => request.method() === "POST" && new URL(request.url()).pathname === exportPath);
-      const accepted = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === exportPath);
-      await page.getByRole("button", { name: "Build static export" }).click();
-      expect((await trigger).postDataJSON().clean).toBe(clean);
-      expect((await accepted).status()).toBe(202);
-      await expect.poll(async () => {
-        const response = await deploymentRequest({ page, url: exportPath });
-        expect(response.ok).toBe(true);
-        return (await response.json()).status;
-      }, { timeout: 30_000 }).toBe("completed");
-      const snapshot = await (await deploymentRequest({ page, url: exportPath })).json();
-      expect(snapshot.ok).toBe(true);
-      await expect(page.getByRole("button", { name: "Build static export" })).toBeEnabled();
-      return snapshot.outputDir as string;
-    };
-    const outputDir = await build(false);
-    const sentinel = path.join(outputDir, "e2e-clean-sentinel.txt");
-    try {
-      fs.writeFileSync(sentinel, "preserve unless overwrite is selected");
-      await build(false);
-      expect(fs.readFileSync(sentinel, "utf8")).toBe("preserve unless overwrite is selected");
-      await checkbox.check();
-      await expect(checkbox).toBeChecked();
-      await build(true);
-      expect(fs.existsSync(sentinel)).toBe(false);
-    } finally {
-      fs.rmSync(sentinel, { force: true });
-    }
-  });
-});
-
-test.describe("Static Site tab — provider split (GitHub Pages vs Vercel)", () => {
-  test("Cloudflare Pages is the default; selecting GitHub Pages shows its descriptor fields, no CLI detection, and no Vercel fields", async ({
-    page,
-  }) => {
-    await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
-
-    // 0030358d7 orders providers by plugin id; the split makes Cloudflare Pages the first target.
-    await expect(page.getByRole("tab", { name: "Cloudflare Pages" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "false");
-    await expect(page.getByLabel("Project name", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Owner")).toHaveCount(0);
-    await expect(page.getByLabel("Repository")).toHaveCount(0);
-    await expect(page.getByLabel("Branch (optional)")).toHaveCount(0);
-    await expect(page.getByLabel(/Team ID/)).toHaveCount(0);
-    // fe035388c removed CLI detection from Static Site; publishing uses saved credentials.
-    await expect(page.getByText(/^(?:Not )?Detected on this server$/i)).toHaveCount(0);
-    await page.getByRole("tab", { name: "GitHub Pages" }).click();
-    await expect(page.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByLabel("Owner")).toBeVisible();
-    await expect(page.getByLabel("Repository")).toBeVisible();
-    await expect(page.getByLabel("Branch (optional)")).toBeVisible();
-    await expect(page.getByLabel(/Team ID/)).toHaveCount(0);
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
   });
 
-  test("switching to Vercel shows its descriptor fields, no CLI detection, and preserves the GitHub draft", async ({
-    page,
-  }) => {
-    await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
-    await page.getByRole("tab", { name: "GitHub Pages" }).click();
-    await page.getByLabel("Owner").fill("octo");
-    // fe035388c removed the CLI-first branch and its deployment-overview deployClis field.
-    await expect(page.getByText(/^(?:Not )?Detected on this server$/i)).toHaveCount(0);
+  /** Reads the SAME `deployClis` the admin UI itself fetches from `GET .../system/deployment-
+   *  overview`, through the browser-session transport (carries the Secure cookie from login) — see this
+   *  file's own header for why the Vercel assertions below read this instead of assuming an install
+   *  state. */
 
-    await page.getByRole("tab", { name: "Vercel" }).click();
+  test.describe("Static Site tab — build export", () => {
+    registerStaticExportCases();
 
-    await expect(page.getByRole("tab", { name: "Vercel" })).toHaveAttribute("aria-selected", "true");
-    // Switching providers must not bring the retired CLI-detection row back.
-    await expect(page.getByText(/^(?:Not )?Detected on this server$/i)).toHaveCount(0);
-    await expect(page.getByLabel(/Team ID/)).toBeVisible();
-    await expect(page.getByLabel("Owner")).toHaveCount(0);
-    await expect(page.getByLabel("Repository")).toHaveCount(0);
 
-    // Switching back proves the earlier typed value survived — the hook keeps both targets' fields
-    // in state at once (see `use-static-publish.hooks.ts`'s own header) rather than discarding one
-    // side's work whenever the operator is still deciding between the two.
-    await page.getByRole("tab", { name: "GitHub Pages" }).click();
-    await expect(page.getByLabel("Owner")).toHaveValue("octo");
+    test("the overwrite checkbox sends clean and controls preservation of existing files", async ({ page }) => {
+      await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
+      const checkbox = page.getByRole("checkbox", { name: /overwrite existing files/i });
+      await expect(checkbox).not.toBeChecked();
+      const exportPath = "/api/admin/v1/workspaces/workspace-local/system/export";
+      const build = async (clean: boolean) => {
+        const trigger = page.waitForRequest((request) => request.method() === "POST" && new URL(request.url()).pathname === exportPath);
+        const accepted = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === exportPath);
+        await page.getByRole("button", { name: "Build static export" }).click();
+        expect((await trigger).postDataJSON().clean).toBe(clean);
+        expect((await accepted).status()).toBe(202);
+        await expect.poll(async () => {
+          const response = await deploymentRequest({ page, url: exportPath });
+          expect(response.ok).toBe(true);
+          return (await response.json()).status;
+        }, { timeout: 30_000 }).toBe("completed");
+        const snapshot = await (await deploymentRequest({ page, url: exportPath })).json();
+        expect(snapshot.ok).toBe(true);
+        await expect(page.getByRole("button", { name: "Build static export" })).toBeEnabled();
+        return snapshot.outputDir as string;
+      };
+      const outputDir = await build(false);
+      const sentinel = path.join(outputDir, "e2e-clean-sentinel.txt");
+      try {
+        fs.writeFileSync(sentinel, "preserve unless overwrite is selected");
+        await build(false);
+        expect(fs.readFileSync(sentinel, "utf8")).toBe("preserve unless overwrite is selected");
+        await checkbox.check();
+        await expect(checkbox).toBeChecked();
+        await build(true);
+        expect(fs.existsSync(sentinel)).toBe(false);
+      } finally {
+        fs.rmSync(sentinel, { force: true });
+      }
+    });
   });
-});
+}
+function registerStaticProviderSplit() {
+  test.describe("Static Site tab — provider split (GitHub Pages vs Vercel)", () => {
+    test("Cloudflare Pages is the default; selecting GitHub Pages shows its descriptor fields, no CLI detection, and no Vercel fields", async ({
+      page,
+    }) => {
+      await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
+
+      // 0030358d7 orders providers by plugin id; the split makes Cloudflare Pages the first target.
+      await expect(page.getByRole("tab", { name: "Cloudflare Pages" })).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "false");
+      await expect(page.getByLabel("Project name", { exact: true })).toBeVisible();
+      await expect(page.getByLabel("Owner")).toHaveCount(0);
+      await expect(page.getByLabel("Repository")).toHaveCount(0);
+      await expect(page.getByLabel("Branch (optional)")).toHaveCount(0);
+      await expect(page.getByLabel(/Team ID/)).toHaveCount(0);
+      // fe035388c removed CLI detection from Static Site; publishing uses saved credentials.
+      await expect(page.getByText(/^(?:Not )?Detected on this server$/i)).toHaveCount(0);
+      await page.getByRole("tab", { name: "GitHub Pages" }).click();
+      await expect(page.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByLabel("Owner")).toBeVisible();
+      await expect(page.getByLabel("Repository")).toBeVisible();
+      await expect(page.getByLabel("Branch (optional)")).toBeVisible();
+      await expect(page.getByLabel(/Team ID/)).toHaveCount(0);
+    });
+
+    test("switching to Vercel shows its descriptor fields, no CLI detection, and preserves the GitHub draft", async ({
+      page,
+    }) => {
+      await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
+      await page.getByRole("tab", { name: "GitHub Pages" }).click();
+      await page.getByLabel("Owner").fill("octo");
+      // fe035388c removed the CLI-first branch and its deployment-overview deployClis field.
+      await expect(page.getByText(/^(?:Not )?Detected on this server$/i)).toHaveCount(0);
+
+      await page.getByRole("tab", { name: "Vercel" }).click();
+
+      await expect(page.getByRole("tab", { name: "Vercel" })).toHaveAttribute("aria-selected", "true");
+      // Switching providers must not bring the retired CLI-detection row back.
+      await expect(page.getByText(/^(?:Not )?Detected on this server$/i)).toHaveCount(0);
+      await expect(page.getByLabel(/Team ID/)).toBeVisible();
+      await expect(page.getByLabel("Owner")).toHaveCount(0);
+      await expect(page.getByLabel("Repository")).toHaveCount(0);
+
+      // Switching back proves the earlier typed value survived — the hook keeps both targets' fields
+      // in state at once (see `use-static-publish.hooks.ts`'s own header) rather than discarding one
+      // side's work whenever the operator is still deciding between the two.
+      await page.getByRole("tab", { name: "GitHub Pages" }).click();
+      await expect(page.getByLabel("Owner")).toHaveValue("octo");
+    });
+  });
+}
+
+// Migrated from static-site-tab.spec.ts; original pin intent and why comments follow.
+test.describe("Bug pin: static-site-tab", () => {
+registerStaticExportSuite();
+registerStaticProviderSplit();
 
 // Credential absence is a boot contract: the shared file boots under Access Tokens, so it never
 // applies this pin's provider-env clearing. Cold sites also keep earlier saved tokens out.
