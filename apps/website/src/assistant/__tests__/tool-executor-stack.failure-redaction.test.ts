@@ -23,6 +23,7 @@ import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-di
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 /**
@@ -101,7 +102,7 @@ test("BRIDGE: the persisted tool_result event and http-kit's internal-error log 
   const loggedArgs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => void loggedArgs.push(args));
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL } }
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL } }
   );
 
   assert.equal(result.ok, false);
@@ -132,7 +133,7 @@ test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Er
   const { run } = await lifecycle.start({ contextRef: "ctx-model-safe-failure" });
   t.mock.method(console, "error", () => undefined);
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}) } }
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}) } }
   );
 
   assert.equal(result.ok, false);
@@ -150,7 +151,7 @@ test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even 
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-unredacted-failure" });
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: {
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError,
       lifecycle,
       toolExecutor,
       resolvePrincipal: () => PRINCIPAL,

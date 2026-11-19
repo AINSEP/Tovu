@@ -19,6 +19,7 @@ import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/compositi
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-access.js";
 import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { createRunScopedCredentials, type RunScopedCredentials } from "../daemon-access.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /**
  * @file The run-scoped credential a spawned `jini-mcp` bridge presents to the agent daemon
@@ -386,7 +387,7 @@ async function scopeHarness({ exempt = false } = {}) {
         answer.body = { error: parsed.error };
         return answer;
       }
-      const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: {
+      const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: { reportInternalError: reportRouteInternalError,
         lifecycle, toolExecutor,
         resolvePrincipal: ({ request: { runId } }) => {
           const id = live.get(runId);
@@ -402,8 +403,8 @@ async function scopeHarness({ exempt = false } = {}) {
     if (!await passes(requireRunOwnership({ registry: owners, lifecycle: lifecycle }, {}))) return answer;
     const runId = String(req.params.runId);
     const result = method === "POST"
-      ? await runCancelRoute.handle({ input: { runId }, deps: { lifecycle } })
-      : await runStatusRoute.handle({ input: runId, deps: { lifecycle } });
+      ? await runCancelRoute.handle({ input: { runId }, deps: { reportInternalError: reportRouteInternalError, lifecycle } })
+      : await runStatusRoute.handle({ input: runId, deps: { reportInternalError: reportRouteInternalError, lifecycle } });
     answer.status = result.ok ? 200 : 404;
     answer.body = result.ok ? result.value : { error: result.error };
     return answer;

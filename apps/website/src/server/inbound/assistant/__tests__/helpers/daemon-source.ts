@@ -242,7 +242,7 @@ export async function captureDaemonRun(
     }).filter(([, value]) => value !== undefined)) as RunStartOptional);
     onStarted({
       request: { contextRef: JSON.stringify({ principalId: "daemon-test-principal", prompt: "Exercise the run lifecycle", ...context }), ...options.request },
-      run: { id: runId },
+      run: { id: runId, state: "running" },
       lifecycle: withDaemonLifecycle({ lifecycle: options.lifecycle ?? { waitForTerminal: () => new Promise(() => {}) } }) as Parameters<typeof onStarted>[0]["lifecycle"],
     });
     return await captured;

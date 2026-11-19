@@ -28,6 +28,7 @@ import {
   InMemoryNewsletterSubscriptionRepo,
 } from "../repo.memory.js";
 import { buildNewsletterRegistrations, contributeNewsletterTools, newsletterDerivedRisk, type NewsletterToolDeps } from "../tool-registrations.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const WORKSPACE_ID = "ws-newsletter-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -70,7 +71,7 @@ async function buildHarness(routeDeps: NewsletterToolDeps) {
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: harness });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } });
 }
 
 test("newsletter_get_campaign for an unknown campaign is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {

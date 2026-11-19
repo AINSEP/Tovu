@@ -14,6 +14,7 @@ import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /**
  * @file RED regression suite (`2026-09-15-widgets-insert-embed-PLAN.md` T2): drives the REAL
@@ -88,7 +89,7 @@ async function buildHarness(routeDeps: WidgetsToolDeps) {
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: harness });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } });
 }
 
 async function createWidget(harness: Harness): Promise<string> {

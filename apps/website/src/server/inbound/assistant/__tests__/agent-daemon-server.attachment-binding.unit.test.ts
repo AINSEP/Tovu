@@ -19,6 +19,7 @@ import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING
 import { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "../../../../assistant/agent-session-preset.js";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
 import { statementsFor, captureDaemonRun, daemonFunction, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /** ADR-070 moved discovery to the server. Evaluate the daemon's real outgoing binding and feed it
  * through the server's real context/registration owners, without booting a listener or daemon. */
@@ -99,7 +100,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     const deps = { lifecycle, resolvePrincipal, toolRegistry: registry, toolExecutor: createToolExecutor({ registry }) };
     const result = await delegatedToolExecuteRoute.handle({ input: {
       runId: launched.runId, toolUseId: "claude-discover", toolId: registration.descriptor.id, input: {}, requireReadOnly: true,
-    }, deps });
+    }, deps: { ...deps, reportInternalError: reportRouteInternalError } });
     if (!result.ok) assert.fail(result.error.message);
     const output = result.value.result.output as { attachments: { attachmentRef: string }[] };
     assert.deepEqual(output.attachments.map(item => item.attachmentRef), [video.path]);

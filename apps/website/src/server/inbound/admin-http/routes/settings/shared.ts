@@ -19,15 +19,15 @@ import {
   createCmsSettingsService,
   resolveTargetWorkspaceId as resolveCmsTargetWorkspaceId,
   resolveUserLayerReadTarget as resolveCmsUserLayerReadTarget,
-  respondToSettingsError as respondToCmsSettingsError,
   type SettingsPermissions,
   type SettingsService,
   type TargetWorkspaceResolution,
   type UserLayerReadTarget,
-  type SettingsErrorMapping,
-} from "@jini-ai/core/settings/express";
+} from "@jini-ai/core/settings";
+import { respondToSettingsError as respondToCmsSettingsError, type SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 
-export type { TargetWorkspaceResolution, UserLayerReadTarget, SettingsErrorMapping } from "@jini-ai/core/settings/express";
+export type { TargetWorkspaceResolution, UserLayerReadTarget } from "@jini-ai/core/settings";
+export type { SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 import type { SettingsRouteDeps } from "./deps.js";
 
 /**

@@ -19,6 +19,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 /**
@@ -126,7 +127,7 @@ async function executeMakeRequest(clientError: Error) {
       toolUseId: "tu-1",
       toolId: TOOL_ID,
       input: { label: "github", method: "GET", url: "https://api.github.com/repos/o/r/actions/jobs/1/logs" },
-    }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) } });
+    }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) } });
 }
 
 test("an SSRF refusal on a redirect hop reaches the caller as a BAD_REQUEST naming the blocked host, not a redacted INTERNAL_ERROR", async () => {
@@ -247,7 +248,7 @@ async function executeThroughGuardedClient() {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-guarded", toolId: TOOL_ID, input: { label: "internal", method: "GET", url: "https://localhost/admin" } }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) } });
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-guarded", toolId: TOOL_ID, input: { label: "internal", method: "GET", url: "https://localhost/admin" } }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) } });
   return { result, audit, transport };
 }
 

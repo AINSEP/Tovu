@@ -135,7 +135,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
   return {
     start: (runId: string, input: { prompt?: string; coldStartContext?: string; conversationId?: string; agentId?: string } = {}) => {
       contexts.set(runId, { prompt: input.prompt ?? "hello", coldStartContext: input.coldStartContext ?? coldStartContext, conversationId: input.conversationId ?? "conv-1" });
-      return onStarted({ request: { agentId: input.agentId ?? "claude", contextRef: runId }, run: { id: runId }, lifecycle: lifecycle as Parameters<typeof onStarted>[0]["lifecycle"] });
+      return onStarted({ request: { agentId: input.agentId ?? "claude", contextRef: runId }, run: { id: runId, state: "running" }, lifecycle: lifecycle as Parameters<typeof onStarted>[0]["lifecycle"] });
     },
     forgetSession: (conversationId: string, agentId: string) => bindings.delete(`${conversationId}:${agentId}`),
     captureSession: (conversationId: string, agentId: string, sessionId: string) => bindings.set(`${conversationId}:${agentId}`, sessionId),

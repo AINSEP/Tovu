@@ -14,6 +14,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { createFormCollectionRegistry, formsAgentToolCatalog, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormAuthoring } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 function providerFixture({ allow = true }: { allow?: boolean } = {}) {
   const providers = createFormCollectionRegistry({});
@@ -39,7 +40,7 @@ async function providerHarness(deps: FormsToolDeps) {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: 'provider-discovery' });
   let callId = 0;
-  return (toolId: string, input: unknown = {}) => delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: `call-${++callId}`, toolId, input }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: 'owner' }) } });
+  return (toolId: string, input: unknown = {}) => delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: `call-${++callId}`, toolId, input }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: 'owner' }) } });
 }
 
 test('assistant discovers a fourth provider and saves its public configuration without vendor schema edits', async () => {

@@ -18,6 +18,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const WORKSPACE_ID = "ws-webhooks-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -51,7 +52,7 @@ async function buildHarness(routeDeps: IntegrationsToolDeps) {
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: harness });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } });
 }
 
 test("webhooks_get_deliveries for an unknown subscription is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {

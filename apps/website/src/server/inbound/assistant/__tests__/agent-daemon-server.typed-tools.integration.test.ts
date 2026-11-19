@@ -20,6 +20,7 @@ import { applyToolApprovalPolicy } from "../../../../assistant/tool-approval-pol
 import { isChatToolAllowed } from "../../../../assistant/assistant-permanent-deletes-policy.js";
 import { PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../../../../contracts/headless/index.js";
 import { statementsFor, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /** Evaluate the host's real composition expressions without its database/listener/process boot.
  * Only the transport is replaced: the launch env, MCP stdio server, daemon routes, credential
@@ -129,7 +130,7 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
     assert.equal(path, "/api/delegated-tool-calls");
     const parsed = delegatedToolExecuteRoute.parse({ body, params: {}, query: {} });
     assert.ok(parsed.ok);
-    const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: {
+    const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: { reportInternalError: reportRouteInternalError,
       lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => ({ id: principalId }), onInternalError: () => {},
     } }, init.signal ? { signal: init.signal } : {});
     return result.ok ? Response.json(result.value) : Response.json({ error: result.error }, { status: 403 });

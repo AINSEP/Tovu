@@ -8,6 +8,7 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 import { submitForm } from "../index.js";
 import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 test("assistant tools create/edit a dropdown with options and persist only declared submissions", async () => {
   let id = 0;
@@ -23,7 +24,7 @@ test("assistant tools create/edit a dropdown with options and persist only decla
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "formsfields" });
   let callId = 0;
-  const call = (toolId: string, input: unknown) => delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: `call-${++callId}`, toolId, input }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "owner" }) } });
+  const call = (toolId: string, input: unknown) => delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: `call-${++callId}`, toolId, input }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "owner" }) } });
   const field = { id: "topic", label: "Topic", type: "select", required: true, options: [{ value: "sales", label: "Sales" }] };
   const created = await call("forms_create_definition", { name: "Contact", slug: "contact", fields: [field] });
   assert.equal(created.ok, true);

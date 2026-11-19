@@ -29,6 +29,7 @@ import type { AgentPluginUninstallToolDeps } from "../../uninstall-tool.js";
 import { buildPluginsUninstallRegistration } from "../fixtures/plugins-uninstall-registration.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 /**
@@ -307,7 +308,7 @@ test("t91 §7.1: a corrupt activations.json reaches the model through the real e
 
     const wire = await delegatedToolExecuteRoute.handle({
       input: { runId: run.id, toolUseId: "tu-1", toolId: TOOL_ID, input: { family: "agent-plugin", pluginId: "operator-plugin" } },
-      deps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }), onInternalError: (context) => internalErrors.push(context) },
+      deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }), onInternalError: (context) => internalErrors.push(context) },
     });
 
     assert.ok(wire.ok, `the model must get a result it can relay, got ${JSON.stringify(wire)}`);

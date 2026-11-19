@@ -7,9 +7,8 @@ import { createNodeCredentialCrypto, authorizeDaemonRequest, createRouteAccessPo
   ensureAgentDaemonToken as ensureDaemonToken, authorizeRunOwnership, listOwnedRuns,
   createRunScopedCredentials as createDaemonRunCredentials } from "@jini-ai/daemon/run-credentials";
 import type { RunOwnerRegistry, RunScopedCallerResolver } from "@jini-ai/daemon/run-credentials";
-import { createDaemonAuthMiddleware, createRunOwnershipMiddleware,
-  createOwnedRunListHandler as createDaemonOwnedRunListHandler, attachmentLookupRoutes, ATTACHMENT_LOOKUP_ROUTE_PATH,
-  type AttachmentLookup, type DaemonRouteHost } from "@jini-ai/daemon/http";
+import { attachmentLookupRoutes, ATTACHMENT_LOOKUP_ROUTE_PATH, type AttachmentLookup, type DaemonRouteHost } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createRunOwnershipMiddleware, createOwnedRunListHandler as createDaemonOwnedRunListHandler } from "@jini-ai/http-kit/middleware";
 export { createRunOwnerRegistry } from "@jini-ai/daemon/run-credentials";
 export type { RunOwnerRegistry, RunScopedCaller, RunScopedCredentials, RunScopedCallerResolver } from "@jini-ai/daemon/run-credentials";
 export const AGENT_DAEMON_TOKEN_ENV_VAR = "TOVU_AGENT_DAEMON_TOKEN";

@@ -27,6 +27,7 @@ import {
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { MemberConflictError, MemberAuthError } from "../types.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const WORKSPACE_ID = "ws-members-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -72,7 +73,7 @@ async function buildHarness(routeDeps: MembersToolDeps) {
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: harness });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } });
 }
 
 test("members_get_by_id for an unknown member is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {

@@ -149,7 +149,7 @@ for (const action of ['use', 'skip'] as const) {
             context: { ...context, publish: f.context.publish, signal: new AbortController().signal, state: decoded.agentPluginState } });
         },
         settle: async value => { settlements.push(value); return true; },
-      }, { logger: { info() {} } });
+      }, { report: { info() {} } });
       assert.equal(await recovery.recover({ messageId: 'answer', trigger: 'boot' }, {}), checkpointed ? 'finalized' : 'continued');
       if (checkpointed) {
         assert.deepEqual(launches, []);
