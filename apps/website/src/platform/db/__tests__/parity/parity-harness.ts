@@ -52,6 +52,7 @@ export async function loadParityModules(root: string): Promise<ParityModules> {
   const loadRepo = (relative: string) => load(root === CURRENT_SRC ? relative : `platform/db/repos/${basename(relative)}`);
   const site = await load("assistant/site-credential-store.ts");
   const exec = await load("assistant/execution-credential-store.ts");
+  const peers = await load("features/publish-content/peers.ts");
   return {
     current: root === CURRENT_SRC,
     site: root === CURRENT_SRC ? site : {
@@ -67,7 +68,9 @@ export async function loadParityModules(root: string): Promise<ParityModules> {
     },
     media: await load("features/media/provider-credential-store.ts"),
     custom: await load("features/custom-credentials/store.ts"),
-    peers: await load("features/publish-content/peers.ts"),
+    peers: root === CURRENT_SRC ? peers : Object.fromEntries(Object.entries(peers).map(([name, fn]) =>
+      // The archived peer store is positional (deps, input); adapt it to the current { deps, input } shape.
+      [name, typeof fn === "function" ? ({ deps, input }: Loose) => fn(deps, input) : fn])),
     destination: await load("features/database-transfer/destination-store.ts"),
     destinationRepo: await load("features/database-transfer/destination-repo.ts"),
     source: await load("features/source-control/store.ts"),
@@ -304,9 +307,9 @@ export async function readTranscript(mods: ParityModules, ctx: ParityContext): P
     for (const label of ["Custom", "AI keys"]) {
       t[at(`custom.resolve.${label}`)] = await outcome(() => mods.custom.resolveCustomCredentialByLabel(d.custom, { workspaceId, label }));
     }
-    t[at("peer.list")] = await outcome(() => mods.peers.listPublishContentPeers(d.peer, { workspaceId }));
+    t[at("peer.list")] = await outcome(() => mods.peers.listPublishContentPeers({ deps: d.peer, input: { workspaceId } }));
     for (const id of ["peer", "peer-empty", "peer-ws2"]) {
-      t[at(`peer.resolve.${id}`)] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId, id }));
+      t[at(`peer.resolve.${id}`)] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId, id } }));
     }
     t[at("destination.get")] = await outcome(() => d.destination.get(workspaceId));
     t[at("destination.lastRun")] = await outcome(() => d.destination.lastRun(workspaceId));
@@ -390,21 +393,21 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
     t["custom.9.list"] = await outcome(() => mods.custom.listCustomCredentials(d.custom, { workspaceId: ws }));
   }
   if (run("peer")) {
-    const created = await outcome(() => mods.peers.createPublishContentPeer(d.peer, { workspaceId: ws, label: "New peer",
-      baseUrl: "https://new-peer.example.test", remoteWorkspaceId: "remote-new", apiKey: "new-peer-key-1234567890" }));
+    const created = await outcome(() => mods.peers.createPublishContentPeer({ deps: d.peer, input: { workspaceId: ws, label: "New peer",
+      baseUrl: "https://new-peer.example.test", remoteWorkspaceId: "remote-new", apiKey: "new-peer-key-1234567890" } }));
     t["peer.1.create"] = created;
     const id = "ok" in created ? (created.ok as { id: string }).id : "missing";
-    t["peer.2.rename-keeps-key"] = await outcome(() => mods.peers.updatePublishContentPeer(d.peer, { workspaceId: ws, id, label: "Renamed peer" }));
-    t["peer.3.resolve"] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId: ws, id }));
-    t["peer.4.rekey"] = await outcome(() => mods.peers.updatePublishContentPeer(d.peer, { workspaceId: ws, id, apiKey: "rekeyed-peer-key-1234567890" }));
-    t["peer.5.resolve"] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId: ws, id }));
-    t["peer.6.key-the-keyless"] = await outcome(() => mods.peers.updatePublishContentPeer(d.peer, { workspaceId: ws, id: "peer-empty", apiKey: "late-key-1234567890" }));
-    t["peer.7.resolve-keyless"] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId: ws, id: "peer-empty" }));
-    t["peer.8.duplicate-label"] = await outcome(() => mods.peers.createPublishContentPeer(d.peer, { workspaceId: ws, label: "Peer",
-      baseUrl: "https://dup.example.test", remoteWorkspaceId: "dup", apiKey: "dup-key-1234567890" }));
-    t["peer.9.delete"] = await outcome(() => mods.peers.deletePublishContentPeer(d.peer, { workspaceId: ws, id }));
-    t["peer.10.resolve-deleted"] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId: ws, id }));
-    t["peer.11.list"] = await outcome(() => mods.peers.listPublishContentPeers(d.peer, { workspaceId: ws }));
+    t["peer.2.rename-keeps-key"] = await outcome(() => mods.peers.updatePublishContentPeer({ deps: d.peer, input: { workspaceId: ws, id, label: "Renamed peer" } }));
+    t["peer.3.resolve"] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId: ws, id } }));
+    t["peer.4.rekey"] = await outcome(() => mods.peers.updatePublishContentPeer({ deps: d.peer, input: { workspaceId: ws, id, apiKey: "rekeyed-peer-key-1234567890" } }));
+    t["peer.5.resolve"] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId: ws, id } }));
+    t["peer.6.key-the-keyless"] = await outcome(() => mods.peers.updatePublishContentPeer({ deps: d.peer, input: { workspaceId: ws, id: "peer-empty", apiKey: "late-key-1234567890" } }));
+    t["peer.7.resolve-keyless"] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId: ws, id: "peer-empty" } }));
+    t["peer.8.duplicate-label"] = await outcome(() => mods.peers.createPublishContentPeer({ deps: d.peer, input: { workspaceId: ws, label: "Peer",
+      baseUrl: "https://dup.example.test", remoteWorkspaceId: "dup", apiKey: "dup-key-1234567890" } }));
+    t["peer.9.delete"] = await outcome(() => mods.peers.deletePublishContentPeer({ deps: d.peer, input: { workspaceId: ws, id } }));
+    t["peer.10.resolve-deleted"] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId: ws, id } }));
+    t["peer.11.list"] = await outcome(() => mods.peers.listPublishContentPeers({ deps: d.peer, input: { workspaceId: ws } }));
   }
   if (run("media")) {
     t["media.1.save"] = await outcome(() => mods.media.saveMediaProviderCredentials(d.media, { workspaceId: ws, providers: {
@@ -462,7 +465,7 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
 export async function boundaryTranscript(mods: ParityModules, ctx: ParityContext): Promise<Record<string, unknown>> {
   const bytes = sqliteConnectionOf({ kernel: ctx.kernel })!.serialize();
   const source = mods.current
-    ? mods.snapshotSource.openSqliteSnapshotSource({ bytes }, { open: (data: Buffer) => openSqliteSnapshot({ data }) })
+    ? mods.snapshotSource.openSqliteSnapshotSource({ bytes, open: (data: Buffer) => openSqliteSnapshot({ data }) })
     : mods.snapshotSource.openSqliteSnapshotSource(bytes);
   try {
     const plan = mods.current
