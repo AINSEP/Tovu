@@ -358,7 +358,7 @@ function MergeConfirmedStep({ busy, doExecute, t }: MergeConfirmedStepProps) {
 }
 
 function MergeTermSection({ taxonomy, term, onMerged, t }: MergeTermSectionProps) {
-  const otherTerms = otherMergeTargets(taxonomy, term.id);
+  const otherTerms = otherMergeTargets({ taxonomy, excludeTermId: term.id });
   const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useWiredMergeTermSection({
     term,
     onMerged,

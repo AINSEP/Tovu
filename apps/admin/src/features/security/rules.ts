@@ -138,13 +138,13 @@ const ROW_CATEGORY_INDEX = Object.fromEntries(
  *  to read a `purposeLabel` from (see {@link accessTokenRowProviderInfo}). Every {@link AccessTokenRowCategoryId} value has a matching row in
  *  {@link ACCESS_TOKEN_CATEGORIES} by construction (see {@link ROW_CATEGORY_INDEX}), so this never
  *  falls back. @complexity O(1). */
-export function accessTokenCategoryLabel(id: AccessTokenRowCategoryId): string {
+export function accessTokenCategoryLabel({ id }: { id: AccessTokenRowCategoryId }, _optional: Record<string, never> = {}): string {
   return ROW_CATEGORY_INDEX[id].label;
 }
 
 /** Whether `rowCategory` should show under the active category filter — `"all"` matches everything,
  *  every other id matches only its own bucket. @complexity O(1). */
-export function accessTokenCategoryMatches(rowCategory: AccessTokenRowCategoryId, activeCategory: AccessTokenCategoryId): boolean {
+export function accessTokenCategoryMatches({ rowCategory, activeCategory }: { rowCategory: AccessTokenRowCategoryId; activeCategory: AccessTokenCategoryId }, _optional: Record<string, never> = {}): boolean {
   return activeCategory === "all" || rowCategory === activeCategory;
 }
 
@@ -272,7 +272,7 @@ export function accessTokenProviders(
  *  provider is not listed (its plugin switched off, or the host list still loading) gets a bare
  *  entry named by its own id — never another provider's label, guidance or token page.
  *  @complexity O(n) in the (small) provider count. */
-export function accessTokenProviderInfo(providers: readonly AccessTokenProviderInfo[], ref: AccessTokenProviderRef): AccessTokenProviderInfo {
+export function accessTokenProviderInfo({ providers, ref }: { providers: readonly AccessTokenProviderInfo[]; ref: AccessTokenProviderRef }, _optional: Record<string, never> = {}): AccessTokenProviderInfo {
   return (
     providers.find((p) => p.kind === ref.kind && p.providerId === ref.providerId) ?? {
       kind: ref.kind,
@@ -293,11 +293,11 @@ export function accessTokenProviderInfo(providers: readonly AccessTokenProviderI
  *  source-control row whose provider is not listed, so no saved credential ever drops off the page
  *  (IRON RULE: it must stay visible and removable). Custom rows group on their own.
  *  @complexity O(r * p) in the saved-row and provider counts (both small). */
-export function accessTokenProvidersWithSavedRows(providers: readonly AccessTokenProviderInfo[], rows: readonly AccessTokenRow[]): AccessTokenProviderInfo[] {
+export function accessTokenProvidersWithSavedRows({ providers, rows }: { providers: readonly AccessTokenProviderInfo[]; rows: readonly AccessTokenRow[] }, _optional: Record<string, never> = {}): AccessTokenProviderInfo[] {
   const all = [...providers];
   for (const row of rows) {
     if (row.kind === "custom" || all.some((p) => p.kind === row.kind && p.providerId === row.providerId)) continue;
-    all.push(accessTokenProviderInfo(providers, row));
+    all.push(accessTokenProviderInfo({ providers, ref: row }));
   }
   return all;
 }
@@ -314,15 +314,15 @@ export function accessTokenProvidersWithSavedRows(providers: readonly AccessToke
  *  "where would I go to get/revoke this token"), no extra fields and an optional `username` — a custom row's Replace form asks for Name + Token + an always-optional Username,
  *  never re-collects the base URL (see this file's own header on why baseUrl is create-only).
  *  @complexity O(1). */
-export function accessTokenRowProviderInfo(providers: readonly AccessTokenProviderInfo[], row: AccessTokenRow): AccessTokenProviderInfo {
-  if (row.kind !== "custom") return accessTokenProviderInfo(providers, row);
+export function accessTokenRowProviderInfo({ providers, row }: { providers: readonly AccessTokenProviderInfo[]; row: AccessTokenRow }, _optional: Record<string, never> = {}): AccessTokenProviderInfo {
+  if (row.kind !== "custom") return accessTokenProviderInfo({ providers, ref: row });
   const category = row.category ?? "general";
   return {
     kind: "custom",
     providerId: row.providerId,
     label: row.name,
     vendorLabel: row.name,
-    purposeLabel: accessTokenCategoryLabel(category),
+    purposeLabel: accessTokenCategoryLabel({ id: category }),
     category,
     tokenPageUrl: row.baseUrl ?? "",
     scopeGuidanceKey: "Paste the access token this provider issued from its own dashboard.",
@@ -334,7 +334,7 @@ export function accessTokenRowProviderInfo(providers: readonly AccessTokenProvid
 /** The dictionary keys `ProviderGroup` shows after a group's name, joined with " · ". A custom
  *  credential gets "Custom credential" first, so one the operator named after a listed host
  *  ("github") never reads as that host's own group. @complexity O(1). */
-export function providerGroupSubtitleKeys(info: AccessTokenProviderInfo): string[] {
+export function providerGroupSubtitleKeys(info: AccessTokenProviderInfo, _optional: Record<string, never> = {}): string[] {
   return info.kind === "custom" ? ["Custom credential", info.purposeLabel] : [info.purposeLabel];
 }
 
@@ -342,7 +342,7 @@ export function providerGroupSubtitleKeys(info: AccessTokenProviderInfo): string
  *  deploy host's fields declared before its token field (S3's Access key ID before its Secret access
  *  key) render above it, the rest below. Other kinds declare no token position, so every extra field
  *  goes below. @complexity O(f) in the field count. */
-export function extraFieldsAroundToken(info: AccessTokenProviderInfo): {
+export function extraFieldsAroundToken(info: AccessTokenProviderInfo, _optional: Record<string, never> = {}): {
   before: readonly AdminPublishTargetField[];
   after: readonly AdminPublishTargetField[];
 } {
@@ -464,7 +464,7 @@ export function buildAccessTokenRows(
     if (isLegacy) {
       const index = legacyIndexByProvider.get(raw.providerId) ?? 0;
       legacyIndexByProvider.set(raw.providerId, index + 1);
-      name = friendlyLegacyName({ providerLabel: accessTokenProviderInfo(providers, { kind, providerId: raw.providerId }).label, indexAmongLegacyRows: index });
+      name = friendlyLegacyName({ providerLabel: accessTokenProviderInfo({ providers, ref: { kind, providerId: raw.providerId } }).label, indexAmongLegacyRows: index });
     }
     return { kind, ...(raw.credentialType ? { credentialType: raw.credentialType } : {}), ...(raw.worksFor ? { worksFor: raw.worksFor } : {}), providerId: raw.providerId, id: raw.id, ...(raw.tokenHint ? { tokenHint: raw.tokenHint } : {}), name, rawLabel: raw.label, isDefault: raw.isDefault, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
   });
@@ -500,7 +500,7 @@ export interface RawCustomCredentialSummary {
  * `username` carry straight through as the row's own plaintext fields.
  * @complexity O(n) in this workspace's own (small) custom-credential count.
  */
-export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSummary[]): AccessTokenRow[] {
+export function buildCustomCredentialRows({ raws }: { raws: readonly RawCustomCredentialSummary[] }, _optional: Record<string, never> = {}): AccessTokenRow[] {
   return raws.map((raw) => ({
     scope: raw.scope,
     usedBy: raw.usedBy,
@@ -591,7 +591,7 @@ function accessTokenRequiredFieldsFilled(fields: AccessTokenFormFields, info: Ac
  *  as its own inline error rather than folded into the Save button's disabled state, so a collision
  *  reads as a specific, fixable reason rather than an unexplained disabled button.
  *  @complexity O(k) in this provider's own required-field count (at most one). */
-export function accessTokenRowReadyToSave(fields: AccessTokenFormFields, info: AccessTokenProviderInfo): boolean {
+export function accessTokenRowReadyToSave({ fields, info }: { fields: AccessTokenFormFields; info: AccessTokenProviderInfo }, _optional: Record<string, never> = {}): boolean {
   if (fields.name.trim() === "") return false;
   if (fields.token.trim() === "") return false;
   return accessTokenRequiredFieldsFilled(fields, info);
@@ -639,8 +639,8 @@ export function accessTokenReplaceReadyToSave(
  * @complexity O(f).
  */
 export function buildAccessTokenConnectionInput(
-  fields: AccessTokenFormFields,
-  info: AccessTokenProviderInfo
+  { fields, info }: { fields: AccessTokenFormFields; info: AccessTokenProviderInfo },
+  _optional: Record<string, never> = {}
 ): AdminPublishConnectionInput | AdminSourceControlConnectionInput {
   if (fields.ref.kind === "publish") {
     const spec = info.publishCredential ?? { tokenField: "token", fields: [{ name: "token", label: "Access token", required: true }] };
@@ -658,7 +658,7 @@ export function accessTokenExtraFieldIdSuffix({ fieldName }: { fieldName: string
 
 /** Every saved row for one provider, in the order the server returned them.
  *  @complexity O(n) in this workspace's total saved-credential count (small). */
-export function accessTokenRowsForProvider(rows: readonly AccessTokenRow[], ref: AccessTokenProviderRef): AccessTokenRow[] {
+export function accessTokenRowsForProvider({ rows, ref }: { rows: readonly AccessTokenRow[]; ref: AccessTokenProviderRef }, _optional: Record<string, never> = {}): AccessTokenRow[] {
   return rows.filter((row) => row.kind === ref.kind && row.providerId === ref.providerId);
 }
 
@@ -697,7 +697,7 @@ export interface AccessTokenGroupSortInput {
  * @complexity Time O(n log n) in the group count (small — one entry per catalog provider plus one
  * per saved custom credential), space O(n) for the shallow copy.
  */
-export function sortAccessTokenGroups<T extends AccessTokenGroupSortInput>(groups: readonly T[]): T[] {
+export function sortAccessTokenGroups<T extends AccessTokenGroupSortInput>({ groups }: { groups: readonly T[] }, _optional: Record<string, never> = {}): T[] {
   const sorted = [...groups];
   sorted.sort((a, b) => {
     const savedDiff = Number(b.rows.length > 0) - Number(a.rows.length > 0);
@@ -728,7 +728,7 @@ export function buildAccessTokenUpdatePatch(
   return {
     ...(fields.ref.kind === "publish" && accessTokenWorksForChanged({ draft: fields.worksFor, saved: currentWorksFor }) ? { worksFor: fields.worksFor } : {}),
     ...(nameChanged ? { label: fields.name.trim() } : {}),
-    ...(hasToken ? { connection: buildAccessTokenConnectionInput(fields, info) } : {}),
+    ...(hasToken ? { connection: buildAccessTokenConnectionInput({ fields, info }) } : {}),
   };
 }
 
@@ -822,7 +822,7 @@ export function invalidAdditionalHostsEntries({ raw }: { raw: string }, _options
  *  do); Additional hosts stays optional too, but every entry typed (if any) must itself be a valid
  *  `http(s)` URL — a half-typed host list should not silently save with the bad entry dropped.
  *  @complexity O(n) in the number of typed additional-host entries. */
-export function customCredentialReadyToSave(fields: CustomCredentialFormFields): boolean {
+export function customCredentialReadyToSave(fields: CustomCredentialFormFields, _optional: Record<string, never> = {}): boolean {
   if (fields.name.trim() === "") return false;
   if (fields.token.trim() === "") return false;
   if (!isValidHttpUrl({ value: fields.baseUrl.trim() })) return false;
@@ -1054,7 +1054,7 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
 /** Looks up one store's registry entry, falling back to the first — same "the row list can never
  *  render something absent from its own table" guarantee {@link accessTokenProviderInfo} gives Tier 1.
  *  @complexity O(1) — the array has exactly four entries. */
-export function otherCredentialStoreInfo(id: OtherCredentialStoreId): OtherCredentialStoreInfo {
+export function otherCredentialStoreInfo({ id }: { id: OtherCredentialStoreId }, _optional: Record<string, never> = {}): OtherCredentialStoreInfo {
   return OTHER_CREDENTIAL_STORES.find((store) => store.id === id) ?? OTHER_CREDENTIAL_STORES[0];
 }
 
@@ -1100,7 +1100,7 @@ export function maskedTailFact({ tail }: { tail: string }, _options = {}): strin
  *  already plaintext — see `AdminExternalMcpServer.envNames`'s own doc in `lib/api.ts`). Zero reads as
  *  a fact, not an error: an MCP server can be fully configured with no secrets at all (a local stdio
  *  tool needing no credentials). @complexity O(1). */
-export function envNamesFact(envNames: readonly string[], t: Translate = (key) => key): string {
+export function envNamesFact({ envNames }: { envNames: readonly string[] }, { t = (key) => key }: { t?: Translate } = {}): string {
   if (envNames.length === 0) return t("No environment variables set");
   if (envNames.length === 1) return t("1 environment variable set");
   return t("{count} environment variables set").replace("{count}", String(envNames.length));

@@ -160,7 +160,7 @@ async function readExternalMcpServers({ port, t }: { port: OtherCredentialsPort;
   return servers.filter(server => !server.builtIn).map((server) => ({
     itemId: server.serverId,
     name: server.label || server.serverId,
-    valueFact: formatCredentialHint({ hint: server.accessTokenHint, locale }) || formatCredentialHints({ hints: server.envTokenHints, locale }) || envNamesFact(server.envNames, t),
+    valueFact: formatCredentialHint({ hint: server.accessTokenHint, locale }) || formatCredentialHints({ hints: server.envTokenHints, locale }) || envNamesFact({ envNames: server.envNames }, { t }),
     updatedAt: null,
   }));
 }
@@ -299,7 +299,7 @@ export function useOtherCredentials(
   const firstLoadError = OTHER_CREDENTIAL_STORES.map((store) => storeStates[store.id]?.loadError).find((error) => error) ?? null;
 
   const groups: readonly OtherCredentialGroupState[] | undefined = allSettled
-    ? OTHER_CREDENTIAL_STORES.filter((store) => accessTokenCategoryMatches(store.category, filter.category)).map((store) => {
+    ? OTHER_CREDENTIAL_STORES.filter((store) => accessTokenCategoryMatches({ rowCategory: store.category, activeCategory: filter.category })).map((store) => {
         // `allSettled` above already proved every store's `items` is defined.
         const items = storeStates[store.id]?.items;
         if (!items) throw new Error(`credential store ${store.id} has no loaded items`);

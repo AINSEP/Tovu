@@ -27,8 +27,8 @@ import { type Translate } from '@jini-ai/core/text';
  *  it feeds that memoizing it was not judged worth the added indirection. That is a decision about
  *  memoization, separate from why this now lives outside the component body at all (the
  *  `.tsx` bodies carry no derived logic). */
-export function resolveExternalMcpCardHandles(sources: readonly SourceConfigItem[]): string[] {
-  return buildExternalMcpCardHandles(sources.map((source) => source.id));
+export function resolveExternalMcpCardHandles({ sources }: { sources: readonly SourceConfigItem[] }, _optional: Record<string, never> = {}): string[] {
+  return buildExternalMcpCardHandles({ sourceIds: sources.map((source) => source.id) });
 }
 
 /** Each card's saved intent, keyed by server id — the "saved" half of the saved-vs-live comparison
@@ -132,7 +132,7 @@ export function useExternalMcpAddForm(input: {
   const [formOpen, setFormOpen] = useState(false);
   const [transportGuess, setTransportGuess] = useState<string>("stdio");
   const [authModeGuess, setAuthModeGuess] = useState<string>("static_env");
-  const fieldSpecs = buildExternalMcpFieldSpecs({ transport: transportGuess, authMode: authModeGuess }, t);
+  const fieldSpecs = buildExternalMcpFieldSpecs({ transport: transportGuess, authMode: authModeGuess }, { t });
 
   const addForm = useWiredSourceConfigAddForm<SourceConfigItem>({
     dependencies,

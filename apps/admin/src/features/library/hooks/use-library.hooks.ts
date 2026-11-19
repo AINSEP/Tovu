@@ -136,7 +136,7 @@ function useLibraryUploads({ port, t }: { port: LibraryPort; t: (key: string) =>
       for (let next = queue.current.shift(); next; next = queue.current.shift()) {
         patch(next.key, { status: "uploading" });
         try {
-          const dataBase64 = await readFileAsBase64(next.file);
+          const dataBase64 = await readFileAsBase64({ file: next.file });
           await port.uploadDocument({ filename: next.file.name, dataBase64 });
           patch(next.key, { status: "done", error: null });
           invalidate({ key: LIBRARY_KEYS.documents });

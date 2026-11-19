@@ -49,13 +49,13 @@ export const TRASH_RESOURCE = "trash";
  * Owner update (2026-10-07): the title InfoTip now carries this explanation instead of a second
  * subtitle; the original always-visible requirement above is superseded, but the exceptions remain.
  */
-export function coverageLine(locale: string): string {
+export function coverageLine({ locale }: { locale: string }, _optional: Record<string, never> = {}): string {
   return t({ locale: locale, key: "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them." });
 }
 
 /** A human label for a row's kind. Unknown kinds print as themselves rather than being hidden —
  *  the server already dropped the rows this operator may not see. @complexity O(1). */
-export function entityTypeLabel(locale: string, entity: string | Pick<AdminTrashItem, "entityType" | "displayKind">): string {
+export function entityTypeLabel({ locale, entity }: { locale: string; entity: string | Pick<AdminTrashItem, "entityType" | "displayKind"> }, _optional: Record<string, never> = {}): string {
   const entityType = typeof entity === "string" ? entity : entity.entityType;
   const displayKind = typeof entity === "string" ? undefined : entity.displayKind;
   const known: Record<string, string> = {
@@ -82,7 +82,7 @@ export function entityTypeLabel(locale: string, entity: string | Pick<AdminTrash
   return label ? t({ locale: locale, key: label }) : entityType;
 }
 
-export function itemSubtitle(locale: string, item: { entityType: string; subtitle: string | null }): string | null {
+export function itemSubtitle({ locale, item }: { locale: string; item: { entityType: string; subtitle: string | null } }, _optional: Record<string, never> = {}): string | null {
   if (item.entityType !== "plugin") return item.subtitle;
   const shared = t({ locale: locale, key: "Shared across all workspaces on this site." });
   return item.subtitle ? `${item.subtitle} · ${shared}` : shared;
@@ -136,9 +136,8 @@ export interface ActorLabel {
  * @complexity O(1) — `knownUsernames` is looked up by key, not scanned.
  */
 export function actorLabel(
-  locale: string,
-  item: AdminTrashItem,
-  knownUsernames: ReadonlyMap<string, string> = NO_KNOWN_USERNAMES
+  { locale, item }: { locale: string; item: AdminTrashItem },
+  { knownUsernames = NO_KNOWN_USERNAMES }: { knownUsernames?: ReadonlyMap<string, string> } = {}
 ): ActorLabel {
   const human = humanActorLabel(locale, item, knownUsernames);
   if (item.actorPluginId != null) {
@@ -170,7 +169,7 @@ function humanActorLabel(locale: string, item: AdminTrashItem, knownUsernames: R
  *
  * @complexity O(n) in the selection's size.
  */
-export function toggleSelection(current: ReadonlySet<string>, id: string): Set<string> {
+export function toggleSelection({ current, id }: { current: ReadonlySet<string>; id: string }, _optional: Record<string, never> = {}): Set<string> {
   const next = new Set(current);
   if (!next.delete(id)) next.add(id);
   return next;
@@ -185,12 +184,12 @@ export function toggleSelection(current: ReadonlySet<string>, id: string): Set<s
  *
  * @complexity O(n) in the row count.
  */
-export function selectionAfterSelectAll(items: readonly AdminTrashItem[], allSelected: boolean): Set<string> {
+export function selectionAfterSelectAll({ items, allSelected }: { items: readonly AdminTrashItem[]; allSelected: boolean }, _optional: Record<string, never> = {}): Set<string> {
   return allSelected ? new Set<string>() : new Set(items.map((item) => item.id));
 }
 
 /** @complexity O(n). */
-export function allVisibleSelected(items: readonly AdminTrashItem[], selected: ReadonlySet<string>): boolean {
+export function allVisibleSelected({ items, selected }: { items: readonly AdminTrashItem[]; selected: ReadonlySet<string> }, _optional: Record<string, never> = {}): boolean {
   return items.length > 0 && items.every((item) => selected.has(item.id));
 }
 
@@ -204,16 +203,16 @@ export function allVisibleSelected(items: readonly AdminTrashItem[], selected: R
  * @complexity O(n) in the result count.
  */
 export function describeRestoreReport(
-  locale: string,
-  report: { restored: number; results: { outcome: AdminTrashRestoreOutcome }[] }
+  { locale, report }: { locale: string; report: { restored: number; results: { outcome: AdminTrashRestoreOutcome }[] } },
+  _optional: Record<string, never> = {}
 ): string {
   return describeBatch(locale, report.restored, report.results.length, "restored");
 }
 
 /** @complexity O(n) in the result count. */
 export function describePurgeReport(
-  locale: string,
-  report: { purged: number; results: { outcome: AdminTrashPurgeOutcome }[] }
+  { locale, report }: { locale: string; report: { purged: number; results: { outcome: AdminTrashPurgeOutcome }[] } },
+  _optional: Record<string, never> = {}
 ): string {
   const summary = describeBatch(locale, report.purged, report.results.length, "deleted");
   return report.results.some(result => result.outcome === "still-referenced")

@@ -246,7 +246,7 @@ export function admissionRestartHelps(
  *
  * @complexity O(c · e) in connections and their rows.
  */
-export function describeDriftHeadline(connections: readonly AdmissionDriftConnection[]): string {
+export function describeDriftHeadline({ connections }: { connections: readonly AdmissionDriftConnection[] }, _optional: Record<string, never> = {}): string {
   const restartHelps = admissionRestartHelps({ connections });
   return restartHelps ? RESTART_HEADLINE_KEY : NO_RESTART_HEADLINE_KEY;
 }

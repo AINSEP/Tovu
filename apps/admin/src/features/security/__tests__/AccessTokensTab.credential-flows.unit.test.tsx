@@ -147,13 +147,13 @@ function groupFor(
 ): AccessTokenProviderGroupState {
   const info =
     kind === "custom" && rows[0]
-      ? accessTokenRowProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, rows[0].row)
-      : accessTokenProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, { kind, providerId });
+      ? accessTokenRowProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, row: rows[0].row })
+      : accessTokenProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind, providerId } });
   const ref = { kind: info.kind, providerId: info.providerId };
   return {
     info,
     rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ fields: { ref, ...state }, row: state.row, info }) })),
-    addForm: { ...addFormState, readyToSave: accessTokenRowReadyToSave({ ref, ...addFormState }, info) },
+    addForm: { ...addFormState, readyToSave: accessTokenRowReadyToSave({ fields: { ref, ...addFormState }, info }) },
   };
 }
 
@@ -959,7 +959,7 @@ describe("AccessTokensTab remaining field and row states", () => {
   });
 
   it("lists a saved Tier 2 credential alongside the providers", () => {
-    const store = otherCredentialStoreInfo("site-assistant");
+    const store = otherCredentialStoreInfo({ id: "site-assistant" });
     renderTab({}, {
       groups: [{ store, rows: [{ key: "site-assistant:site-assistant", store, itemId: "site-assistant", name: store.label, valueFact: "••••abcd", updatedAt: null, token: "", saving: false, error: null }] }],
     });

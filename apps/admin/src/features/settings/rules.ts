@@ -97,14 +97,14 @@ function mergeEnabled({ previous, patch }: { previous: PreviousSourceFields | un
  *  `parseExternalMcpPutBody` applies server-side, restated here so the add form shows the SAME
  *  set of required/visible fields a freshly-opened, not-yet-touched draft would actually save as.
  *  @complexity O(1). */
-export function resolveExternalMcpEffectiveTransport(values: SourceFieldValues): "stdio" | "streamable_http" {
+export function resolveExternalMcpEffectiveTransport(values: SourceFieldValues, _optional: Record<string, never> = {}): "stdio" | "streamable_http" {
   return values.transport === "streamable_http" ? "streamable_http" : "stdio";
 }
 
 /** A server is `static_env` unless it explicitly says `none` or `oauth` — mirrors
  *  `resolveExternalMcpAuthMode`'s server-side default for the identical reason
  *  {@link resolveExternalMcpEffectiveTransport} does. @complexity O(1). */
-export function resolveExternalMcpEffectiveAuthMode(values: SourceFieldValues): "none" | "static_env" | "oauth" {
+export function resolveExternalMcpEffectiveAuthMode(values: SourceFieldValues, _optional: Record<string, never> = {}): "none" | "static_env" | "oauth" {
   if (values.authMode === "none") return "none";
   if (values.authMode === "oauth") return "oauth";
   return "static_env";
@@ -122,7 +122,7 @@ export function resolveExternalMcpEffectiveAuthMode(values: SourceFieldValues): 
  * form once this returns; see this module's own section header for why that is the whole mechanism.
  * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
  */
-export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Translate = identityTranslate): SourceFieldSpec[] {
+export function buildExternalMcpFieldSpecs(values: SourceFieldValues, { t = identityTranslate }: { t?: Translate } = {}): SourceFieldSpec[] {
   const transport = resolveExternalMcpEffectiveTransport(values);
   const authMode = resolveExternalMcpEffectiveAuthMode(values);
   const isStdio = transport === "stdio";
@@ -333,7 +333,7 @@ export const EXTERNAL_MCP_CARD_HANDLE_PREFIX = "mcp-server";
  * @returns One base handle per id, positionally aligned with `sourceIds`, all distinct.
  * @complexity See {@link buildAgentListHandles}.
  */
-export function buildExternalMcpCardHandles(sourceIds: readonly string[]): string[] {
+export function buildExternalMcpCardHandles({ sourceIds }: { sourceIds: readonly string[] }, _optional: Record<string, never> = {}): string[] {
   return buildAgentListHandles({ prefix: EXTERNAL_MCP_CARD_HANDLE_PREFIX, ids: sourceIds });
 }
 
@@ -352,7 +352,7 @@ export function buildExternalMcpCardHandles(sourceIds: readonly string[]): strin
  * @returns An operator-facing message when the rule is violated, else `null`.
  * @complexity O(1).
  */
-export function validateExternalMcpOAuthIdentity(values: SourceFieldValues, t: Translate = identityTranslate): string | null {
+export function validateExternalMcpOAuthIdentity(values: SourceFieldValues, { t = identityTranslate }: { t?: Translate } = {}): string | null {
   if (resolveExternalMcpEffectiveAuthMode(values) !== "oauth") return null;
   if (resolveExternalMcpEffectiveTransport(values) !== "stdio") return null;
   const hasProviderId = (values.oauthProviderId ?? "").trim() !== "";
@@ -375,7 +375,7 @@ export interface SliceLoadState {
  *
  * @complexity Time: O(n) in slice count; space: O(1).
  */
-export function areAnySlicesLoading(slices: readonly SliceLoadState[]): boolean {
+export function areAnySlicesLoading({ slices }: { slices: readonly SliceLoadState[] }, _optional: Record<string, never> = {}): boolean {
   return slices.some((slice) => slice.value === null);
 }
 
@@ -386,7 +386,7 @@ export function areAnySlicesLoading(slices: readonly SliceLoadState[]): boolean 
  *
  * @complexity Time: O(n) in slice count; space: O(1).
  */
-export function firstLoadError(slices: readonly SliceLoadState[]): string | null {
+export function firstLoadError({ slices }: { slices: readonly SliceLoadState[] }, _optional: Record<string, never> = {}): string | null {
   return slices.find((slice) => slice.loadError !== null)?.loadError ?? null;
 }
 
@@ -396,7 +396,7 @@ export function firstLoadError(slices: readonly SliceLoadState[]): string | null
  *
  * @complexity Time/space: O(1).
  */
-export function describeSaveStatus(save: SaveState): string {
+export function describeSaveStatus(save: SaveState, _optional: Record<string, never> = {}): string {
   if (save.status === "saving") return "Saving…";
   if (save.status === "saved") return "Saved";
   if (save.status === "error") return save.message;
@@ -446,7 +446,7 @@ export interface RemoveConfirmCopy {
  */
 export function buildExternalMcpRemoveConfirmCopy(
   params: { name: string; isOAuth: boolean },
-  t: Translate = identityTranslate,
+  { t = identityTranslate }: { t?: Translate } = {},
 ): RemoveConfirmCopy {
   return {
     title: t('Remove "{name}"?').replace("{name}", () => params.name),

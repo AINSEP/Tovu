@@ -33,36 +33,36 @@ const file = new File(["hi"], "a.txt");
 
 describe("readFileAsBase64", () => {
   it("returns the payload after the data: URL's comma", async () => {
-    await expect(readFileAsBase64(file, { createReader: () => fakeReader({ result: "data:text/plain;base64,aGk=" }) })).resolves.toBe("aGk=");
+    await expect(readFileAsBase64({ file }, { createReader: () => fakeReader({ result: "data:text/plain;base64,aGk=" }) })).resolves.toBe("aGk=");
   });
 
   it("returns a comma-less result unchanged", async () => {
-    await expect(readFileAsBase64(file, { createReader: () => fakeReader({ result: "aGk=" }) })).resolves.toBe("aGk=");
+    await expect(readFileAsBase64({ file }, { createReader: () => fakeReader({ result: "aGk=" }) })).resolves.toBe("aGk=");
   });
 
   it("returns an empty string when the reader answers null", async () => {
-    await expect(readFileAsBase64(file, { createReader: () => fakeReader({ result: null }) })).resolves.toBe("");
+    await expect(readFileAsBase64({ file }, { createReader: () => fakeReader({ result: null }) })).resolves.toBe("");
   });
 
   it("rejects with the reader's own error", async () => {
     const error = new Error("disk gone");
-    await expect(readFileAsBase64(file, { createReader: () => fakeReader({ fail: true, error }) })).rejects.toBe(error);
+    await expect(readFileAsBase64({ file }, { createReader: () => fakeReader({ fail: true, error }) })).rejects.toBe(error);
   });
 
   it("rejects with a generic error when the reader reports none", async () => {
-    await expect(readFileAsBase64(file, { createReader: () => fakeReader({ fail: true }) })).rejects.toThrow("failed to read file");
+    await expect(readFileAsBase64({ file }, { createReader: () => fakeReader({ fail: true }) })).rejects.toThrow("failed to read file");
   });
 
   it("defaults to the browser FileReader", async () => {
-    await expect(readFileAsBase64(new File(["hi"], "a.txt", { type: "text/plain" }))).resolves.toBe("aGk=");
+    await expect(readFileAsBase64({ file: new File(["hi"], "a.txt", { type: "text/plain" }) })).resolves.toBe("aGk=");
   });
 });
 
 describe("mediaAltText", () => {
   it("prefers alt, then title, then the untitled label", () => {
-    expect(mediaAltText({ alt: "A cat", title: "IMG_1" } as AdminMedia, "Untitled asset")).toBe("A cat");
-    expect(mediaAltText({ alt: "", title: "IMG_1" } as AdminMedia, "Untitled asset")).toBe("IMG_1");
-    expect(mediaAltText({ alt: "", title: "" } as AdminMedia, "Untitled asset")).toBe("Untitled asset");
+    expect(mediaAltText({ item: { alt: "A cat", title: "IMG_1" } as AdminMedia, untitledAsset: "Untitled asset" })).toBe("A cat");
+    expect(mediaAltText({ item: { alt: "", title: "IMG_1" } as AdminMedia, untitledAsset: "Untitled asset" })).toBe("IMG_1");
+    expect(mediaAltText({ item: { alt: "", title: "" } as AdminMedia, untitledAsset: "Untitled asset" })).toBe("Untitled asset");
   });
 });
 
@@ -70,9 +70,9 @@ describe("resolveLightboxItem", () => {
   const items = [{ id: "a" }, { id: "b" }] as AdminMedia[];
 
   it("returns the item at the open index, or null when closed or out of range", () => {
-    expect(resolveLightboxItem(items, 1)).toBe(items[1]);
-    expect(resolveLightboxItem(items, null)).toBeNull();
-    expect(resolveLightboxItem(items, 5)).toBeNull();
+    expect(resolveLightboxItem({ items, activeIndex: 1 })).toBe(items[1]);
+    expect(resolveLightboxItem({ items, activeIndex: null })).toBeNull();
+    expect(resolveLightboxItem({ items, activeIndex: 5 })).toBeNull();
   });
 });
 

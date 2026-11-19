@@ -27,7 +27,7 @@ export interface MediaItemLinkInput {
 }
 
 /** `/media?tab=<tab>[&id=<id>]` — `tab` is always written, the same shape `useMediaTabs` writes. */
-export function mediaItemPath(activeTab: MediaTabId, id: string | null): string {
+export function mediaItemPath({ activeTab, id }: { activeTab: MediaTabId; id: string | null }, _optional: Record<string, never> = {}): string {
   return id ? `/media?tab=${activeTab}&id=${encodeURIComponent(id)}` : `/media?tab=${activeTab}`;
 }
 
@@ -52,7 +52,7 @@ export function useMediaItemLink(input: MediaItemLinkInput): { notFound: boolean
     lastEditingId.current = editingId;
     // Unconditional (an idempotent `replace`), not "only when it differs from `urlId`": a URL-driven
     // open writes back the same id, and comparing against a possibly stale prop could skip a close.
-    navigate({ routePath: mediaItemPath(activeTab, editingId) }, { replace: true });
+    navigate({ routePath: mediaItemPath({ activeTab, id: editingId }) }, { replace: true });
   }, [editingId, activeTab]);
 
   return { notFound: urlId !== null && media !== null && !media.some((item) => item.id === urlId) };

@@ -69,7 +69,7 @@ export function useMediaPreview(
   const [stage, setStage] = useState<PreviewStage>("image");
   const [shape, setShape] = useState<MediaShape | null>(null);
   const src = port.mediaOriginalUrl(item.id);
-  const altText = mediaAltText(item, t("Untitled asset"));
+  const altText = mediaAltText({ item, untitledAsset: t("Untitled asset") });
 
   function handleImageError() {
     setStage("video");

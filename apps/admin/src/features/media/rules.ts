@@ -109,7 +109,7 @@ const MEDIA_METADATA_PATCH_FIELDS: readonly (keyof MediaMetadataPatch)[] = [
  *  Not guarded against `NaN` here — the input's own `type="number"` keeps free-text out in
  *  practice, and a stray `NaN` would fail `updateMediaMetadata`'s positive-integer check server-side
  *  rather than silently save, matching this fix's "quick and dirty, not silently wrong" bar. */
-export function parseOptionalPixelSize(value: string): number | null {
+export function parseOptionalPixelSize({ value }: { value: string }, _optional: Record<string, never> = {}): number | null {
   return value.trim() === "" ? null : Number(value);
 }
 
@@ -121,7 +121,7 @@ export function parseOptionalPixelSize(value: string): number | null {
  *
  * @complexity O(1).
  */
-export function describeMediaHtmlAttributeError(error: MediaHtmlAttributeError, locale: string): string {
+export function describeMediaHtmlAttributeError({ error, locale }: { error: MediaHtmlAttributeError; locale: string }, _optional: Record<string, never> = {}): string {
   const t = (key: string): string => translate({ locale: locale, key: key });
   const ATTRIBUTE_PLACEHOLDER = "{attribute}";
   if (error.reason === "event-handler") {
@@ -154,7 +154,7 @@ export interface Base64FileReader {
 /** Reads a browser `File` into a base64 string (no data: URL prefix).
  *  @param optional.createReader - Builds the reader; defaults to the browser's `FileReader`. */
 export function readFileAsBase64(
-  file: File,
+  { file }: { file: File },
   optional: { createReader?: () => Base64FileReader } = {},
 ): Promise<string> {
   const createReader = optional.createReader ?? (() => new FileReader());
@@ -190,7 +190,7 @@ export function readFileAsBase64(
  *
  * @complexity Time O(n), space O(n).
  */
-export function filterMediaByTab(media: AdminMedia[], tab: MediaContentTabId): AdminMedia[] {
+export function filterMediaByTab({ media, tab }: { media: AdminMedia[]; tab: MediaContentTabId }, _optional: Record<string, never> = {}): AdminMedia[] {
   // Trash is its own tab (owner, 2026-10-23): the list route returns every status, so trashed rows
   // are split off here and appear on no other tab.
   if (tab === "trash") return media.filter((item) => item.status === "trashed");
@@ -215,13 +215,13 @@ export function filterMediaByTab(media: AdminMedia[], tab: MediaContentTabId): A
  * single loop, since this runs once per render on an already-small, unpaginated array and four
  * readable filter calls are clearer than one hand-merged one.
  */
-export function mediaContentTabCounts(media: AdminMedia[] | null): Partial<Record<MediaContentTabId, number>> {
+export function mediaContentTabCounts({ media }: { media: AdminMedia[] | null }, _optional: Record<string, never> = {}): Partial<Record<MediaContentTabId, number>> {
   if (!media) return {};
   return {
-    all: filterMediaByTab(media, "all").length,
-    images: filterMediaByTab(media, "images").length,
-    videos: filterMediaByTab(media, "videos").length,
-    trash: filterMediaByTab(media, "trash").length,
+    all: filterMediaByTab({ media, tab: "all" }).length,
+    images: filterMediaByTab({ media, tab: "images" }).length,
+    videos: filterMediaByTab({ media, tab: "videos" }).length,
+    trash: filterMediaByTab({ media, tab: "trash" }).length,
   };
 }
 
@@ -288,7 +288,7 @@ function compareAscending(a: string, b: string): number {
  * never mutates the caller's array, since `Media.tsx` still needs `media` itself unsorted for
  * `hasUntypedMedia`.
  */
-export function sortMediaByOrder(media: AdminMedia[], orderBy: MediaOrderBy): AdminMedia[] {
+export function sortMediaByOrder({ media, orderBy }: { media: AdminMedia[]; orderBy: MediaOrderBy }, _optional: Record<string, never> = {}): AdminMedia[] {
   const sorted = [...media];
   if (orderBy === "alphabetical") {
     sorted.sort((a, b) => {
@@ -317,19 +317,19 @@ export function sortMediaByOrder(media: AdminMedia[], orderBy: MediaOrderBy): Ad
  *
  * @complexity Time O(n), space O(1).
  */
-export function hasUntypedMedia(media: AdminMedia[]): boolean {
+export function hasUntypedMedia({ media }: { media: AdminMedia[] }, _optional: Record<string, never> = {}): boolean {
   return media.some((item) => item.contentType === null);
 }
 
 /** Whether the active tab shows {@link hasUntypedMedia}'s note: only the type tabs drop untyped
  *  rows, and a trashed untyped row is on the Trash tab, not missing from All. */
-export function showsUntypedMediaNote(media: AdminMedia[], tab: MediaContentTabId): boolean {
-  return (tab === "images" || tab === "videos") && hasUntypedMedia(filterMediaByTab(media, "all"));
+export function showsUntypedMediaNote({ media, tab }: { media: AdminMedia[]; tab: MediaContentTabId }, _optional: Record<string, never> = {}): boolean {
+  return (tab === "images" || tab === "videos") && hasUntypedMedia({ media: filterMediaByTab({ media, tab: "all" }) });
 }
 
 /** Alt text fallback chain for a previewed media asset: prefers the operator-set alt, falls back
  *  to the title, and finally a generic label when neither is set. */
-export function mediaAltText(item: AdminMedia, untitledAsset: string): string {
+export function mediaAltText({ item, untitledAsset }: { item: AdminMedia; untitledAsset: string }, _optional: Record<string, never> = {}): string {
   return item.alt || item.title || untitledAsset;
 }
 
@@ -350,7 +350,7 @@ const NAMED_RATIOS: readonly [number, number][] = [[1, 1], [4, 3], [3, 4], [3, 2
 export const LONG_MEDIA_HEIGHT_RATIO = 3;
 
 /** The card badges for a loaded asset: "9:16 · 1080×1920", a m:ss duration, and whether it is long. */
-export function mediaShapeBadges(shape: MediaShape): { size: string; duration: string | null; isLong: boolean } {
+export function mediaShapeBadges(shape: MediaShape, _optional: Record<string, never> = {}): { size: string; duration: string | null; isLong: boolean } {
   const pixels = `${shape.width}×${shape.height}`;
   const ratio = shape.width / shape.height;
   const named = NAMED_RATIOS.find(([w, h]) => Math.abs(w / h - ratio) / ratio < 0.02);
@@ -364,7 +364,7 @@ export function mediaShapeBadges(shape: MediaShape): { size: string; duration: s
 
 /** The upload button's text for the tab being viewed (owner, 2026-11-01), and the file kinds its
  *  picker accepts — kept in step so the label is always true to what the picker lets through. */
-export function mediaUploadLabel(tab: MediaContentTabId): string {
+export function mediaUploadLabel({ tab }: { tab: MediaContentTabId }, _optional: Record<string, never> = {}): string {
   if (tab === "images") return "Upload image";
   return tab === "videos" ? "Upload video" : "Upload image or video";
 }
@@ -373,7 +373,7 @@ const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,image/avif,image
 const VIDEO_ACCEPT = "video/mp4,video/webm";
 
 /** The picker's `accept` for a tab. Advisory only: the server still enforces its allowlist. */
-export function mediaUploadAccept(tab: MediaContentTabId): string {
+export function mediaUploadAccept({ tab }: { tab: MediaContentTabId }, _optional: Record<string, never> = {}): string {
   if (tab === "images") return IMAGE_ACCEPT;
   return tab === "videos" ? VIDEO_ACCEPT : `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
 }
@@ -390,7 +390,7 @@ export type MediaGridSize = (typeof MEDIA_GRID_SIZES)[number]["id"];
 export const MEDIA_GRID_SIZE_STORAGE_KEY = "tovu.admin.media.cardSize";
 
 /** A stored value back to a size id; anything unknown is the default, Medium (2/3 of today's width; owner, 2026-11-01). */
-export function parseMediaGridSize(value: string | null): MediaGridSize {
+export function parseMediaGridSize({ value }: { value: string | null }, _optional: Record<string, never> = {}): MediaGridSize {
   return MEDIA_GRID_SIZES.some((size) => size.id === value) ? (value as MediaGridSize) : "medium";
 }
 
@@ -402,14 +402,14 @@ const FILL_RATIO_MIN = 1.25;
 const FILL_RATIO_MAX = 2;
 
 /** Whether a loaded asset's shape suits edge-to-edge fill of the card preview. */
-export function mediaFillsPreview(shape: MediaShape): boolean {
+export function mediaFillsPreview(shape: MediaShape, _optional: Record<string, never> = {}): boolean {
   const ratio = shape.width / shape.height;
   return ratio >= FILL_RATIO_MIN && ratio <= FILL_RATIO_MAX;
 }
 
 /** Resolves `media.find((m) => m.id === editingId)`, or `null` — the item whose `EditMediaPanel`
  *  is expanded, resolved once here rather than in the view. */
-export function findEditingItem(media: AdminMedia[] | null, editingId: string | null): AdminMedia | null {
+export function findEditingItem({ media, editingId }: { media: AdminMedia[] | null; editingId: string | null }, _optional: Record<string, never> = {}): AdminMedia | null {
   if (!media) return null;
   return media.find((m) => m.id === editingId) ?? null;
 }
@@ -471,10 +471,8 @@ export interface MediaRowMenuHandlers {
  * @complexity Time/space: O(1) — at most two entries, no iteration.
  */
 export function mediaRowMenuItems(
-  item: AdminMedia,
-  editingId: string | null,
-  handlers: MediaRowMenuHandlers,
-  locale: string,
+  { item, editingId, handlers, locale }: { item: AdminMedia; editingId: string | null; handlers: MediaRowMenuHandlers; locale: string },
+  _optional: Record<string, never> = {},
 ): RowMenuItem[] {
   const t = (key: string): string => translate({ locale: locale, key: key });
   const items: RowMenuItem[] = [
@@ -494,6 +492,6 @@ export function mediaRowMenuItems(
 
 /** Resolves the lightbox's currently-open item from an index into `items`, or `null` when
  *  `activeIndex` is `null` (closed). */
-export function resolveLightboxItem(items: AdminMedia[], activeIndex: number | null): AdminMedia | null {
+export function resolveLightboxItem({ items, activeIndex }: { items: AdminMedia[]; activeIndex: number | null }, _optional: Record<string, never> = {}): AdminMedia | null {
   return activeIndex !== null ? items[activeIndex] ?? null : null;
 }

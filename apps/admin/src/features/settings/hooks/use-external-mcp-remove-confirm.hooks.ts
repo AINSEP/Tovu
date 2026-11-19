@@ -48,5 +48,5 @@ export function useExternalMcpRemoveConfirm(props: {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onCancel]);
 
-  return { copy: buildExternalMcpRemoveConfirmCopy({ name: props.name, isOAuth: props.isOAuth }, props.t), dialogRef };
+  return { copy: buildExternalMcpRemoveConfirmCopy({ name: props.name, isOAuth: props.isOAuth }, { t: props.t }), dialogRef };
 }

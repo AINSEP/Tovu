@@ -147,7 +147,7 @@ export interface ToolPickerRow {
  *
  * @complexity O(1).
  */
-export function isRecommendedByDefault(tool: AdminRemoteToolSurfaceEntry): boolean {
+export function isRecommendedByDefault(tool: AdminRemoteToolSurfaceEntry, _optional: Record<string, never> = {}): boolean {
   return !tool.writeDeclared && !tool.destructiveDeclared && !tool.hintsAbsent;
 }
 
@@ -155,7 +155,7 @@ export function isRecommendedByDefault(tool: AdminRemoteToolSurfaceEntry): boole
  *  INV-003 / D-1. Locked rows still RENDER their saved value; they just cannot be changed here.
  *
  *  @complexity O(1). */
-export function isToolRowLocked(row: ToolPickerRow): boolean {
+export function isToolRowLocked(row: ToolPickerRow, _optional: Record<string, never> = {}): boolean {
   return row.destructiveDeclared;
 }
 
@@ -352,7 +352,7 @@ export function setToolRowMayWrite(
  *  count the owner asked to be visible without scrolling a 101-tool list.
  *
  *  @complexity O(n) in row count. */
-export function countEnabledToolRows(rows: readonly ToolPickerRow[]): number {
+export function countEnabledToolRows({ rows }: { rows: readonly ToolPickerRow[] }, _optional: Record<string, never> = {}): number {
   return rows.filter((row) => row.enabled).length;
 }
 
@@ -368,7 +368,7 @@ export function countEnabledToolRows(rows: readonly ToolPickerRow[]): number {
  *
  * @complexity O(n) in row count.
  */
-export function toolPickerFieldValues(rows: readonly ToolPickerRow[]): {
+export function toolPickerFieldValues({ rows }: { rows: readonly ToolPickerRow[] }, _optional: Record<string, never> = {}): {
   allowedToolNames: string;
   writeAllowedToolNames: string;
 } {
@@ -402,7 +402,7 @@ export function isToolPickerDirty(
   },
   _options = {},
 ): boolean {
-  const next = toolPickerFieldValues(rows);
+  const next = toolPickerFieldValues({ rows });
   const savedAllowed = new Set(parseSavedToolNames({ value: allowedToolNames }));
   const savedWrite = new Set(parseSavedToolNames({ value: writeAllowedToolNames }).filter((name) => savedAllowed.has(name)));
   return !sameNames(parseSavedToolNames({ value: next.allowedToolNames }), savedAllowed)

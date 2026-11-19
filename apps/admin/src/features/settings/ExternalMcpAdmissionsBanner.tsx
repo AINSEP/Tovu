@@ -173,7 +173,7 @@ export function ExternalMcpAdmissionsBanner({ controller, t, onAllowWrite, onReq
     // `alert` and its `status`) would make a screen reader announce the whole banner again on every
     // inner change.
     <div className="external-mcp-banner external-mcp-drift">
-      <p>{t(describeDriftHeadline(controller.connections))}</p>
+      <p>{t(describeDriftHeadline({ connections: controller.connections }))}</p>
       {controller.connections.map((connection) => (
         <AdmissionConnectionSection key={connection.connectionId} connection={connection} t={t} onAllowWrite={onAllowWrite} onRequestRemove={onRequestRemove} />
       ))}

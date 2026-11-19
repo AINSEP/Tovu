@@ -176,8 +176,8 @@ export function useSettingsUi(): SettingsUiController {
     language,
     interface: interfacePrefs,
 
-    loading: areAnySlicesLoading(slices),
-    loadError: firstLoadError(slices),
+    loading: areAnySlicesLoading({ slices }),
+    loadError: firstLoadError({ slices }),
     save,
   };
 }

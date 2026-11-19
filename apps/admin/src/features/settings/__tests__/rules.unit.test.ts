@@ -56,31 +56,31 @@ describe("mergeSourceUpdate", () => {
 
 describe("areAnySlicesLoading", () => {
   it("is false for an empty slice set", () => {
-    expect(areAnySlicesLoading([])).toBe(false);
+    expect(areAnySlicesLoading({ slices: [] })).toBe(false);
   });
 
   it("is false once every slice has settled (non-null value)", () => {
-    expect(areAnySlicesLoading([slice("a"), slice({ theme: "dark" }), slice(0)])).toBe(false);
+    expect(areAnySlicesLoading({ slices: [slice("a"), slice({ theme: "dark" }), slice(0)] })).toBe(false);
   });
 
   it("is true while any single slice is still null, regardless of position", () => {
-    expect(areAnySlicesLoading([slice(null), slice("a")])).toBe(true);
-    expect(areAnySlicesLoading([slice("a"), slice(null)])).toBe(true);
+    expect(areAnySlicesLoading({ slices: [slice(null), slice("a")] })).toBe(true);
+    expect(areAnySlicesLoading({ slices: [slice("a"), slice(null)] })).toBe(true);
   });
 });
 
 describe("firstLoadError", () => {
   it("is null when no slice reports an error", () => {
-    expect(firstLoadError([slice("a"), slice("b")])).toBeNull();
+    expect(firstLoadError({ slices: [slice("a"), slice("b")] })).toBeNull();
   });
 
   it("returns the first error in slice order, ignoring later ones", () => {
-    const result = firstLoadError([slice("a"), slice(null, "first failure"), slice(null, "second failure")]);
+    const result = firstLoadError({ slices: [slice("a"), slice(null, "first failure"), slice(null, "second failure")] });
     expect(result).toBe("first failure");
   });
 
   it("is null for an empty slice set", () => {
-    expect(firstLoadError([])).toBeNull();
+    expect(firstLoadError({ slices: [] })).toBeNull();
   });
 });
 
@@ -409,22 +409,22 @@ describe("validateExternalMcpOAuthIdentity", () => {
 
 describe("buildExternalMcpCardHandles", () => {
   it("derives a legible handle from the server's own id, not its position", () => {
-    expect(buildExternalMcpCardHandles(["higgsfield", "github"])).toEqual([
+    expect(buildExternalMcpCardHandles({ sourceIds: ["higgsfield", "github"] })).toEqual([
       "mcp-server-higgsfield",
       "mcp-server-github",
     ]);
   });
 
   it("slugifies an id that is not already handle-shaped, since a handle is [a-z0-9-] only", () => {
-    expect(buildExternalMcpCardHandles(["My_Server.1"])).toEqual(["mcp-server-my-server-1"]);
+    expect(buildExternalMcpCardHandles({ sourceIds: ["My_Server.1"] })).toEqual(["mcp-server-my-server-1"]);
   });
 
   it("falls back to the position for an id with nothing sluggable left in it", () => {
-    expect(buildExternalMcpCardHandles(["***", "…"])).toEqual(["mcp-server-1", "mcp-server-2"]);
+    expect(buildExternalMcpCardHandles({ sourceIds: ["***", "…"] })).toEqual(["mcp-server-1", "mcp-server-2"]);
   });
 
   it("keeps two ids that slugify identically apart", () => {
-    expect(buildExternalMcpCardHandles(["My_Server", "my.server"])).toEqual([
+    expect(buildExternalMcpCardHandles({ sourceIds: ["My_Server", "my.server"] })).toEqual([
       "mcp-server-my-server",
       "mcp-server-my-server-2",
     ]);
@@ -435,20 +435,20 @@ describe("buildExternalMcpCardHandles", () => {
   // they make every `page.click`/`page.fill` aimed at either card resolve to whichever the DOM
   // reaches first. This is why the suffix search is a loop.
   it("keeps a de-duplication suffix from colliding with an id that already looks like one", () => {
-    const handles = buildExternalMcpCardHandles(["x", "x-3", "x"]);
+    const handles = buildExternalMcpCardHandles({ sourceIds: ["x", "x-3", "x"] });
     expect(new Set(handles).size).toBe(3);
     expect(handles).toEqual(["mcp-server-x", "mcp-server-x-3", "mcp-server-x-2"]);
   });
 
   it("never repeats a handle, however adversarial the id list", () => {
     const ids = ["x", "x-2", "x", "x-3", "x", "X", "x_", "-x-", "x-2-2"];
-    const handles = buildExternalMcpCardHandles(ids);
+    const handles = buildExternalMcpCardHandles({ sourceIds: ids });
     expect(handles).toHaveLength(ids.length);
     expect(new Set(handles).size).toBe(ids.length);
   });
 
   it("returns nothing for an empty list", () => {
-    expect(buildExternalMcpCardHandles([])).toEqual([]);
+    expect(buildExternalMcpCardHandles({ sourceIds: [] })).toEqual([]);
   });
 });
 

@@ -85,11 +85,11 @@ const BLANK_ADD_FORM: AccessTokenAddFormState = { visible: false, name: "", toke
 
 /** One Tier-1 provider group — `rows` empty means "Not connected". */
 function providerGroup(kind: AccessTokenKind, providerId: string, rows: AccessTokenExistingRowState[] = []): AccessTokenProviderGroupState {
-  return { info: accessTokenProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, { kind, providerId }), rows, addForm: BLANK_ADD_FORM };
+  return { info: accessTokenProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind, providerId } }), rows, addForm: BLANK_ADD_FORM };
 }
 
 function otherRow(storeId: OtherCredentialGroupState["store"]["id"], overrides: Partial<OtherCredentialRowState> = {}): OtherCredentialRowState {
-  const store = otherCredentialStoreInfo(storeId);
+  const store = otherCredentialStoreInfo({ id: storeId });
   return {
     key: `${store.id}:${overrides.itemId ?? store.id}`,
     store,
@@ -106,7 +106,7 @@ function otherRow(storeId: OtherCredentialGroupState["store"]["id"], overrides: 
 
 /** One Tier-2 store group — `rows` empty means "Not configured". */
 function otherGroup(storeId: OtherCredentialGroupState["store"]["id"], rows: OtherCredentialRowState[] = []): OtherCredentialGroupState {
-  return { store: otherCredentialStoreInfo(storeId), rows };
+  return { store: otherCredentialStoreInfo({ id: storeId }), rows };
 }
 
 describe("useMergedSecretsOrder — the owner's literal regression case", () => {

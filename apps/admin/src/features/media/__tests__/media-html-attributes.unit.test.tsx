@@ -231,30 +231,30 @@ describe("parseMediaHtmlAttributes", () => {
 
 describe("describeMediaHtmlAttributeError", () => {
   it("names the rejected attribute in the event-handler message", () => {
-    expect(describeMediaHtmlAttributeError({ reason: "event-handler", attribute: "onerror" }, "en")).toContain("onerror");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "event-handler", attribute: "onerror" }, locale: "en" })).toContain("onerror");
   });
 
   it("names the rejected attribute in the unsafe-url message (same wording as the old javascript-url reason)", () => {
-    expect(describeMediaHtmlAttributeError({ reason: "unsafe-url", attribute: "poster" }, "en")).toContain("poster");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "unsafe-url", attribute: "poster" }, locale: "en" })).toContain("poster");
   });
 
   it("names the rejected attribute in the unsafe-style message", () => {
-    expect(describeMediaHtmlAttributeError({ reason: "unsafe-style", attribute: "style" }, "en")).toContain("style");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "unsafe-style", attribute: "style" }, locale: "en" })).toContain("style");
   });
 
   it("names the rejected attribute in the disallowed-name message", () => {
-    expect(describeMediaHtmlAttributeError({ reason: "disallowed-name", attribute: "formaction" }, "en")).toContain("formaction");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "disallowed-name", attribute: "formaction" }, locale: "en" })).toContain("formaction");
   });
 
   it("names the unparsable fragment in the malformed message", () => {
-    expect(describeMediaHtmlAttributeError({ reason: "malformed", attribute: "stray-quote" }, "en")).toContain("stray-quote");
+    expect(describeMediaHtmlAttributeError({ error: { reason: "malformed", attribute: "stray-quote" }, locale: "en" })).toContain("stray-quote");
   });
 
   it("falls back to the English source string for a locale with no translation yet", () => {
     // Same `MEDIA_DICT[locale]?.[key] ?? key` fallback every other `t()` in this feature uses — a
     // brand-new field ships English-first, not blank, for a locale that hasn't been translated yet.
     expect(
-      describeMediaHtmlAttributeError({ reason: "disallowed-name", attribute: "formaction" }, "xx-not-a-real-locale")
+      describeMediaHtmlAttributeError({ error: { reason: "disallowed-name", attribute: "formaction" }, locale: "xx-not-a-real-locale" })
     ).toBe("'formaction' is not an allowed HTML attribute.");
   });
 });

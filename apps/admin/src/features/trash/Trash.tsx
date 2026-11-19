@@ -87,14 +87,14 @@ function trashColumns(props: {
       cell: (item) => (
         <>
           <div>{item.title}</div>
-          {itemSubtitle(props.locale, item) ? <div className="muted-cell">{itemSubtitle(props.locale, item)}</div> : null}
+          {itemSubtitle({ locale: props.locale, item }) ? <div className="muted-cell">{itemSubtitle({ locale: props.locale, item })}</div> : null}
         </>
       ),
     },
     {
       key: "kind",
       header: t({ locale: props.locale, key: "Kind" }),
-      cell: (item) => entityTypeLabel(props.locale, item),
+      cell: (item) => entityTypeLabel({ locale: props.locale, entity: item }),
     },
     {
       key: "deleted",
@@ -105,7 +105,7 @@ function trashColumns(props: {
       key: "actor",
       header: t({ locale: props.locale, key: "Deleted by" }),
       cell: (item) => {
-        const actor = actorLabel(props.locale, item, props.actorUsernames);
+        const actor = actorLabel({ locale: props.locale, item }, { knownUsernames: props.actorUsernames });
         // `title` is the plugin/agent id, as a tooltip — see `rules.ts`'s `actorLabel` doc for why
         // it no longer replaces the human-readable label outright.
         return actor.title ? <span title={actor.title}>{actor.label}</span> : actor.label;
@@ -267,7 +267,7 @@ export function Trash(props: { useTrashHook?: () => TrashController } = {}) {
             {translateAdminNavLabel({ locale: locale, key: "Trash" })}
             {/* Originally not behind a disclosure, on purpose — see this file's header.
                 Owner update (2026-10-07): use the Users title's InfoTip to shorten the intro. */}
-            <InfoTip label={coverageLine(locale)} agentHandle="trash-coverage-info" />
+            <InfoTip label={coverageLine({ locale })} agentHandle="trash-coverage-info" />
           </h1>
           <p className="page-description">
             {t({ locale: locale, key: "Deleted items are kept for 60 days." })}
