@@ -13,7 +13,7 @@ const DENIED = assistantCliPermissions({ enabled: false });
 function cliRequired(answers: { snapshot?: Effective | Error; legacy?: Effective | Error }): CliRequired {
   return {
     settingsRepo: {} as CliRequired["settingsRepo"], settingsReady: Promise.resolve(), workspaceId: "site", principalId: "owner",
-    getEffective: async (_deps, input) => {
+    getEffective: async (input) => {
       const answer = input.key === ASSISTANT_CLI_PERMISSIONS_KEY ? answers.snapshot : answers.legacy;
       if (answer instanceof Error) throw answer;
       return answer ?? null;

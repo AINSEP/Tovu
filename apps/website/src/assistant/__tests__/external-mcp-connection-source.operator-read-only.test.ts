@@ -53,9 +53,9 @@ test("stored config preserves plugin provenance for roster resolution", async ()
 test("read defaults match both normalized server identity and exact URL, never only URL", () => {
   assert.equal(typeof federation.findAgentPluginMcpServerDefaults, "function", "shared endpoint-matching rule must be exported");
   const declared = servers(["inspect"]);
-  assert.deepEqual(federation.findAgentPluginMcpServerDefaults(declared, { serverId: "remote", url })?.read, ["inspect"]);
-  assert.equal(federation.findAgentPluginMcpServerDefaults(declared, { serverId: "remote", url: "https://changed.example/mcp" }), null);
-  assert.equal(federation.findAgentPluginMcpServerDefaults(declared, { serverId: "other", url }), null);
+  assert.deepEqual(federation.findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "remote", url } })?.read, ["inspect"]);
+  assert.equal(federation.findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "remote", url: "https://changed.example/mcp" } }), null);
+  assert.equal(federation.findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "other", url } }), null);
 });
 
 test("each roster read loads the current manifest; URL-only servers never receive read metadata", async () => {
@@ -67,7 +67,7 @@ test("each roster read loads the current manifest; URL-only servers never receiv
       const { agentPluginLayout, ...identity } = input;
       assert.equal(agentPluginLayout, siteLayouts.deps.agentPluginLayout, "the fixed fixture layout reaches manifest resolution");
       calls.push(identity);
-      return new Set(federation.findAgentPluginMcpServerDefaults(servers(read), input)?.read ?? []);
+      return new Set(federation.findAgentPluginMcpServerDefaults({ servers: servers(read), row: input })?.read ?? []);
     },
   }));
   const first = await source.resolve();

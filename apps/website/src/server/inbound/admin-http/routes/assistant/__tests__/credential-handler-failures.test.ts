@@ -277,7 +277,7 @@ test("settings PUT with a null body is an empty patch that returns the current v
   const deps = depsForHandler();
   const writes: unknown[] = [];
   deps.set = async (request) => { writes.push(request.input); return fail(); };
-  deps.getEffective = async (_deps, input) => resolved(input.key === "public_enabled");
+  deps.getEffective = async (input) => resolved(input.key === "public_enabled");
   const result = await invoke(registerAdminAssistantPutSettingsRoute, deps, "put", "settings", null);
   assert.equal(result.statusCode, 200);
   assert.deepEqual((result.jsonBody as { data: { publicEnabled: boolean } }).data.publicEnabled, true);

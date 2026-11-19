@@ -276,9 +276,9 @@ test('visitor provider policy is structurally locked even with owner Full CLI ac
     input: { namespace: 'core.assistant-full-cli', key: 'enabled', scope: 'workspace',
       workspaceId: f.deps.workspaceId, value: true, callerPrincipalId: await f.deps.ownerPrincipalId } });
   const read = f.deps.getEffective;
-  f.deps.getEffective = ((required, input) => {
+  f.deps.getEffective = ((input, optional) => {
     assert.notEqual(input.namespace, 'core.assistant-full-cli', 'visitor must never read owner Full CLI access');
-    return read(required, input);
+    return read(input, optional);
   }) as typeof read;
   const response = await post(f);
   assert.equal(response.status, 200);

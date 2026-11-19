@@ -89,29 +89,29 @@ function callFor(record: ExternalMcpServerRecord, remoteName: string, readOnlyHi
 
 test("rosterRefusalFor refuses an unprovenanced or preset call as unverifiable", async () => {
   const record = await storedRecord({ authMode: "none", allowed: "query", writeAllowed: "" });
-  assert.equal(rosterRefusalFor(record, { remoteName: "query" } as never), "unverifiable");
-  assert.equal(rosterRefusalFor(record, { remoteName: "query", origin: { kind: "preset" } } as never), "unverifiable");
+  assert.equal(rosterRefusalFor({ record, call: { remoteName: "query" } as never }), "unverifiable");
+  assert.equal(rosterRefusalFor({ record, call: { remoteName: "query", origin: { kind: "preset" } } as never }), "unverifiable");
 });
 
 test("rosterRefusalFor names a removed, changed, or turned-off connection", async () => {
   const record = await storedRecord({ authMode: "none", allowed: "query", writeAllowed: "" });
   const call = callFor(record, "query", true);
-  assert.equal(rosterRefusalFor(null, call as never), "removed");
-  assert.equal(rosterRefusalFor({ ...record, url: "https://elsewhere.example.test/v1" }, call as never), "changed");
-  assert.equal(rosterRefusalFor({ ...record, enabled: false }, call as never), "turned-off");
+  assert.equal(rosterRefusalFor({ record: null, call: call as never }), "removed");
+  assert.equal(rosterRefusalFor({ record: { ...record, url: "https://elsewhere.example.test/v1" }, call: call as never }), "changed");
+  assert.equal(rosterRefusalFor({ record: { ...record, enabled: false }, call: call as never }), "turned-off");
 });
 
 test("rosterRefusalFor refuses a freshly saved (never authorized) OAuth connection as disconnected", async () => {
   const record = await storedRecord({ authMode: "oauth", allowed: "query", writeAllowed: "" });
-  assert.equal(rosterRefusalFor(record, callFor(record, "query", true) as never), "disconnected");
+  assert.equal(rosterRefusalFor({ record, call: callFor(record, "query", true) as never }), "disconnected");
 });
 
 test("rosterRefusalFor passes an allowlisted read tool, refuses a write tool with no write grant, and refuses one no longer allowlisted", async () => {
   const record = await storedRecord({ authMode: "none", allowed: "query", writeAllowed: "" });
-  assert.equal(rosterRefusalFor(record, callFor(record, "query", true) as never), null);
+  assert.equal(rosterRefusalFor({ record, call: callFor(record, "query", true) as never }), null);
   // "May write" is a grant: a tool the remote declares as a write needs the write list.
-  assert.equal(rosterRefusalFor(record, callFor(record, "query", false) as never), "write-not-allowed");
-  assert.equal(rosterRefusalFor(record, callFor(record, "drop_table", true) as never), "tool-not-allowed");
+  assert.equal(rosterRefusalFor({ record, call: callFor(record, "query", false) as never }), "write-not-allowed");
+  assert.equal(rosterRefusalFor({ record, call: callFor(record, "drop_table", true) as never }), "tool-not-allowed");
   const granted = await storedRecord({ authMode: "none", allowed: "query", writeAllowed: "query" });
-  assert.equal(rosterRefusalFor(granted, callFor(granted, "query", false) as never), null);
+  assert.equal(rosterRefusalFor({ record: granted, call: callFor(granted, "query", false) as never }), null);
 });

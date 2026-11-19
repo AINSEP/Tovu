@@ -154,11 +154,11 @@ export async function executionEvidence({ app }: { app: ElectronApplication }, _
 async function assertProcessOwnership({ launch, childPids }: { launch: DesktopLaunch; childPids: readonly number[] }, _optional = {}) {
   const mainPid = launch.app.process().pid;
   const snapshots = await listProcessSnapshots();
-  const owned = collectProcessTreePids(snapshots, [mainPid]);
+  const owned = collectProcessTreePids({ processes: snapshots, rootPids: [mainPid] });
   const daemons = snapshots.filter(row => owned.includes(row.pid) && /agent-daemon-server\.[jt]s/.test(row.command));
   expect(daemons, 'all sites must share one desktop-owned daemon').toHaveLength(1);
   expect(daemons[0]!.ppid).toBe(mainPid);
-  const daemonChildren = new Set(collectProcessTreePids(snapshots, [daemons[0]!.pid]));
+  const daemonChildren = new Set(collectProcessTreePids({ processes: snapshots, rootPids: [daemons[0]!.pid] }));
   expect(childPids.every(pid => daemonChildren.has(pid)), 'every CLI must belong to the shared daemon').toBe(true);
   return { owned, snapshots };
 }
@@ -202,7 +202,7 @@ export async function checkAssistantSites({ names }: { names: readonly string[] 
     }
   } finally {
     await launch.app.evaluate(() => { delete (globalThis as ExecutionState).__assistantGateSites; }).catch(() => {});
-    if (!owned.length) owned = collectProcessTreePids(await listProcessSnapshots(), [launch.app.process().pid]);
+    if (!owned.length) owned = collectProcessTreePids({ processes: await listProcessSnapshots(), rootPids: [launch.app.process().pid] });
     await closeDesktop(launch);
     const exited = await Promise.all(owned.map(pid => waitForProcessExit(pid, 30_000)));
     expect(exited.every(Boolean), 'all owned processes must exit before fixture deletion').toBe(true);

@@ -31,7 +31,7 @@ test("Tovu generated types and SQL fragments round-trip through the Jini kernel"
 test("Tovu and Jini wrapping the same native SQLite handle share one kernel", async () => {
   const client = new Database(":memory:");
   try {
-    const fromTovu: KyselyKernel<ContentDatabase> = sqliteKernel<ContentDatabase>({ $client: client });
+    const fromTovu: KyselyKernel<ContentDatabase> = sqliteKernel<ContentDatabase>({ source: { $client: client } });
     const fromJini: KyselyKernel<ContentDatabase> = jiniSqliteKernel<ContentDatabase>({ source: client });
     assert.equal(fromTovu, fromJini);
     await fromTovu.transaction(async () => {

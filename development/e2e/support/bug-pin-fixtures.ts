@@ -246,7 +246,7 @@ async function runPinSite(
   } finally {
     // Capture descendants before stopping their parents: daemon launchers own separate process
     // groups. Jini's existing process-tree stopper proves even those detached descendants exited.
-    const owned = collectProcessTreePids(await listProcessSnapshots(), children.flatMap((child) => child.pid ? [child.pid] : []));
+    const owned = collectProcessTreePids({ processes: await listProcessSnapshots(), rootPids: children.flatMap((child) => child.pid ? [child.pid] : []) });
     const stopped = await Promise.allSettled(children.map(stop));
     const tree = await stopProcesses(owned);
     for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }

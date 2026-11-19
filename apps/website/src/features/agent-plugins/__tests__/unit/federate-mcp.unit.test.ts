@@ -662,11 +662,11 @@ test("findAgentPluginMcpServerDefaults matches stored identity and exact endpoin
     "Main Server": { ...REMOTE_SERVER, defaultTools: defaults },
     plain: REMOTE_SERVER,
   };
-  assert.deepEqual(findAgentPluginMcpServerDefaults(servers, { serverId: "main-server", url: REMOTE_SERVER.url }), defaults);
-  assert.equal(findAgentPluginMcpServerDefaults(servers, { serverId: "main-server", url: "https://elsewhere.example/mcp" }), null);
-  assert.equal(findAgentPluginMcpServerDefaults(servers, { serverId: "plain", url: REMOTE_SERVER.url }), null, "a match that declares no defaults");
-  assert.equal(findAgentPluginMcpServerDefaults(servers, { serverId: "helper", url: null }), null, "stdio never supplies defaults");
-  assert.equal(findAgentPluginMcpServerDefaults(servers, { serverId: "unknown", url: REMOTE_SERVER.url }), null);
+  assert.deepEqual(findAgentPluginMcpServerDefaults({ servers, row: { serverId: "main-server", url: REMOTE_SERVER.url } }), defaults);
+  assert.equal(findAgentPluginMcpServerDefaults({ servers, row: { serverId: "main-server", url: "https://elsewhere.example/mcp" } }), null);
+  assert.equal(findAgentPluginMcpServerDefaults({ servers, row: { serverId: "plain", url: REMOTE_SERVER.url } }), null, "a match that declares no defaults");
+  assert.equal(findAgentPluginMcpServerDefaults({ servers, row: { serverId: "helper", url: null } }), null, "stdio never supplies defaults");
+  assert.equal(findAgentPluginMcpServerDefaults({ servers, row: { serverId: "unknown", url: REMOTE_SERVER.url } }), null);
 });
 
 test("isEmptyJsonList treats null, blank, non-array and unreadable lists as empty", () => {

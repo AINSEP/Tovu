@@ -18,7 +18,7 @@ test("launch permissions are read per site/owner and freshly on every turn", asy
 });
 test("a missing owner snapshot preserves the existing boolean; failures and malformed snapshots deny all", async () => {
   const required = { settingsRepo: {} as Parameters<typeof readAssistantCliPermissions>[0]["settingsRepo"], settingsReady: Promise.resolve(), workspaceId: "site", principalId: "owner",
-    getEffective: async (_deps: unknown, input: { key: string }) => input.key === ASSISTANT_CLI_PERMISSIONS_KEY ? null : { value: false, sourceLayer: "workspace" as const, defVersion: 1 } };
+    getEffective: async (input: { key: string }) => input.key === ASSISTANT_CLI_PERMISSIONS_KEY ? null : { value: false, sourceLayer: "workspace" as const, defVersion: 1 } };
   assert.ok(Object.values((await readAssistantCliPermissions(required)).capabilities).every(value => !value));
   for (const getEffective of [async () => { throw new Error("unavailable"); }, async () => ({ value: { enabled: true }, sourceLayer: "user" as const, defVersion: 1 })]) {
     const denied = await readAssistantCliPermissions({ ...required, getEffective }, { warn: () => {} });

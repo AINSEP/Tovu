@@ -178,12 +178,12 @@ test("wait: system clock and default timeout reach healthy on the first poll; a 
   assert.equal(reached.polls, 1);
   assert.ok(reached.waitedSeconds >= 0 && reached.waitedSeconds < 180);
   const controller = new AbortController();
-  await assert.rejects(waitForDeployOps({ deps: { status: async () => { controller.abort(); return healthy(); } }, until: "healthy", signal: controller.signal }), { message: "Deployment ops wait was aborted." });
+  await assert.rejects(waitForDeployOps({ deps: { status: async () => { controller.abort(); return healthy(); } }, until: "healthy" }, { signal: controller.signal }), { message: "Deployment ops wait was aborted." });
 });
 
 test("wait: an abort that lands while the final sleep crosses the deadline is still reported as a cancellation", async () => {
   let now = 0;
   const controller = new AbortController();
   const clock = { now: () => now, sleep: async () => { now = 5_000; controller.abort(); } };
-  await assert.rejects(waitForDeployOps({ deps: { status: async () => ({ ...healthy(), state: "deploying" as DeployOpsStatus["state"] }), clock }, until: "healthy", timeoutSeconds: 1, signal: controller.signal }), { message: "Deployment ops wait was aborted." });
+  await assert.rejects(waitForDeployOps({ deps: { status: async () => ({ ...healthy(), state: "deploying" as DeployOpsStatus["state"] }), clock }, until: "healthy" }, { timeoutSeconds: 1, signal: controller.signal }), { message: "Deployment ops wait was aborted." });
 });
