@@ -1,3 +1,4 @@
+import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
 import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
@@ -351,8 +352,7 @@ import {
   buildTrashRegistry,
   createCommentTrashAdapter,
   createContentDbTransactionRunner,
-  createDirectoryTrashAdapter,
-  unhideIfRemoveThrows,
+  reportDirectoryRollbackFailure,
   createMediaTrashAdapter,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
@@ -1533,7 +1533,7 @@ async function composeSiteRouteDeps(
     onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
   });
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ adapter: pluginTrashAdapter, remove: bindRemoveEntity({
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ onRollbackError: reportDirectoryRollbackFailure, adapter: pluginTrashAdapter, remove: bindRemoveEntity({
     trash: trash,
     entityType: PLUGIN_ENTITY_TYPE
   }) });
@@ -2011,7 +2011,7 @@ async function composeSiteRouteDeps(
   const themeTrashAdapter = bindThemeTrashAdapter({ themes: siteThemes, themesDir: resolvedThemesDir });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
+  const removeTheme = unhideIfRemoveThrows({ onRollbackError: reportDirectoryRollbackFailure, adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId,
     bundleRepo: publishContentBundleRepo,

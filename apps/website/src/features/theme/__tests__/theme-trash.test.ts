@@ -14,7 +14,8 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { bindThemeTrashAdapter, ThemeTrashLocationError, themeTrashLocationError } from "#src/features/theme/theme-trash-binding";
 import { locateThemeFolder } from "@jini-ai/cms/themes/files/trash";
 import { buildTrashThemeRegistrations, createThemeTrashMover, trashThemeDerivedRisk, type TrashThemeToolDeps } from "#src/features/theme/trash-theme-tool";
-import { buildTrashRegistry, createDirectoryTrashAdapter, THEME_ENTITY_TYPE, unhideIfRemoveThrows } from "#src/features/trash/index";
+import { buildTrashRegistry, reportDirectoryRollbackFailure, THEME_ENTITY_TYPE } from "#src/features/trash/index";
+import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
 import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 import type { TrashRouteDeps } from "#src/server/inbound/admin-http/routes/trash/deps";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -86,7 +87,7 @@ function harness(t: test.TestContext, options: { deny?: readonly string[]; renam
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [
       { workspaceId: WORKSPACE_ID, activeThemeId: "basic", updatedAt: AT },
     ] }),
-    removeTheme: unhideIfRemoveThrows({ adapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) }),
+    removeTheme: unhideIfRemoveThrows({ adapter, onRollbackError: reportDirectoryRollbackFailure, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) }),
   };
   const registrations = buildTrashThemeRegistrations(deps);
   const registration = registrations.find((r) => r.descriptor.id === "theme_trash");

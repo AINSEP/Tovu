@@ -4,7 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { copyThemeFile, nextAvailableFileName, renameThemeFile } from "../theme-file-moves.js";
+import { copyThemeFile, nextAvailableFileName, renameThemeFile } from "@jini-ai/cms/themes/files/moves";
+import * as files from "@jini-ai/cms/themes/files/moves";
+import { themeFileMovePorts } from "../theme-file-write-ports.js";
 import { isGeneratedThemePath, isSourceDirGeneratedConflict } from "../theme-file-policy.js";
 import { isRecognizedThemeRoot, MAX_THEME_FILE_BYTES, readThemeFile, resolveThemeFilePath, ThemePathError } from "../theme-files.js";
 import { listThemeFiles } from "../theme-file-listing.js";
@@ -25,7 +27,6 @@ test("a theme with more media files than the listing cap still lists its pages",
 });
 
 test("theme file APIs expose reversible moves without the unused hard-delete capability", async () => {
-  const files = await import("../theme-file-moves.js");
   const feature = await import("../index.js");
   assert.equal("deleteThemeFile" in files, false);
   assert.equal("deleteThemeFile" in feature, false);
@@ -54,7 +55,7 @@ test("rename moves the original bytes and inode, creates parents, and refuses co
   const source = path.join(themeDir, "source.bin");
   fs.writeFileSync(source, bytes);
   const inode = fs.statSync(source).ino;
-  const required = { themeDir, themesRoot: root, sourcePath: "source.bin", destPath: "nested/moved.bin" };
+  const required = { themeDir, themesRoot: root, sourcePath: "source.bin", destPath: "nested/moved.bin", ports: themeFileMovePorts };
   const destination = path.join(fs.realpathSync(themeDir), "nested", "moved.bin");
   assert.equal(renameThemeFile(required), destination);
   assert.equal(fs.existsSync(source), false);
@@ -469,7 +470,7 @@ test("a backslash-separated (Windows-shaped) sourceDir is normalized before matc
  */
 test("copyThemeFile refuses to silently overwrite an existing destination", () => {
   const { root, themeDir } = makeThemesRoot();
-  const first = copyThemeFile({ themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" });
+  const first = copyThemeFile({ ports: themeFileMovePorts, themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" });
   assert.equal(fs.readFileSync(first, "utf8"), "{}");
 
   // A second copy onto the SAME destination, now that the source has since changed — if this
@@ -477,7 +478,7 @@ test("copyThemeFile refuses to silently overwrite an existing destination", () =
   // staying exactly what the first, legitimate copy wrote.
   fs.writeFileSync(path.join(themeDir, "theme.json"), "poisoned", "utf8");
   assert.throws(
-    () => copyThemeFile({ themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" }),
+    () => copyThemeFile({ ports: themeFileMovePorts, themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" }),
     /already exists/
   );
 
@@ -523,7 +524,7 @@ test("copyThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR sym
 
   try {
     assert.throws(
-      () => copyThemeFile({ themeDir, themesRoot: root, sourcePath: "a", destPath: "a-copy" }),
+      () => copyThemeFile({ ports: themeFileMovePorts, themeDir, themesRoot: root, sourcePath: "a", destPath: "a-copy" }),
       ThemePathError
     );
   } finally {

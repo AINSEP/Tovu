@@ -1,3 +1,4 @@
+import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,7 +6,6 @@ import {
   bodyRecord,
   bodyStringField,
   fileExtension,
-  nextAvailableFileName,
   reloadTheme,
   renameThemeFileIfChanged,
 } from "../explore.js";

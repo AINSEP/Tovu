@@ -11,7 +11,8 @@ import { persistImportedMedia, type MediaImportToolDeps } from "../media-import/
 import { validateImageBytes } from "../media-import/fetch-image.js";
 import { saveLibraryDocument } from "../media/index.js";
 import { THEME_WRITE_PERMISSION } from "../theme/asset-operations.js";
-import { resolveThemeFilePath, writeThemeBinaryFile, nextAvailableFileName } from "../theme/asset-operations.js";
+import { resolveThemeFilePath, writeThemeBinaryFile } from "../theme/asset-operations.js";
+import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import { assertThemeFileWritable, findThemeOrThrow, reloadThemeInPlace, type ThemeToolDeps } from "../theme/asset-operations.js";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "../fs-files/custom-root-permission.js";
 import { inspectWriteTarget, prepareFileWrites, writePreparedFiles } from "../fs-files/write-files.js";

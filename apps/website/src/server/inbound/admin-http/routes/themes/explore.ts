@@ -1,3 +1,7 @@
+// Moved to `theme-files.ts` (2026-09-12) so `tool-registrations.ts`'s `theme_copy_file` agent tool
+// can reuse the identical collision-avoidance the HTTP copy route below already relies on — see
+// that function's own doc for why this had to move rather than be reached by a deep import.
+import { copyThemeFile, nextAvailableFileName, renameThemeFile } from "@jini-ai/cms/themes/files/moves";
 import { resetThemeFileToOriginal, themeFileDiffersFromOriginal } from "@jini-ai/cms/themes/files/originals";
 import { resolveThemeOriginalSource, hasThemeOriginalLayoutMismatch, type ThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
@@ -11,7 +15,6 @@ import {
   findTheme,
   loadTheme,
   type DiscoveredTheme,
-  copyThemeFile,
   trashThemeFile,
   ThemeFileReadOnlyError,
   isGeneratedThemePath,
@@ -20,7 +23,6 @@ import {
   listThemeFiles,
   MAX_THEME_FILE_BYTES,
   readThemeFile,
-  renameThemeFile,
   resolveThemeFileWriteScope,
   restoreBuiltThemeGeneratedTree,
   saveThemeAsOriginal,
@@ -40,18 +42,13 @@ import {
   isTrashedThemePath,
   validateFileIdentityChange,
   type ThemeFileGroup,
-  // Moved to `theme-files.ts` (2026-09-12) so `tool-registrations.ts`'s `theme_copy_file` agent tool
-  // can reuse the identical collision-avoidance the HTTP copy route below already relies on — see
-  // that function's own doc for why this had to move rather than be reached by a deep import.
-  nextAvailableFileName,
+  themeFileMovePorts,
 } from "#src/features/theme/index";
 
 // Re-exported so `explore-pure-helpers.unit.test.ts`'s existing direct import (`fileExtension` from
 // `../explore.js`) keeps working unchanged — this file no longer DEFINES `fileExtension`, it only
-// re-publishes the shared one, purely for that test's import path. `nextAvailableFileName` is
-// re-exported for the identical reason: `integration/explore.integration.test.ts` still imports it
-// directly from this module.
-export { fileExtension, nextAvailableFileName };
+// re-publishes the shared one, purely for that test's import path.
+export { fileExtension };
 import { isTrashed, ROOT_SLUG, type PostKind, type PostRecord } from "#src/features/post/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -944,7 +941,7 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, de
       }
 
       const destPath = nextAvailableFileName({ desiredPath: sourcePath, existingPaths });
-      copyThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
+      copyThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
 
       // A new file on disk is exactly the same boot-time-snapshot problem writes are — see
       // `reloadTheme`'s doc comment. Skipping this means the copy exists on disk but the preview and
@@ -1042,7 +1039,7 @@ export function renameThemeFileIfChanged({ deps, theme, paths, existingPaths, re
     return false;
   }
 
-  renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
+  renameThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
   reloadTheme({ deps, themeId: theme.manifest.id });
   return true;
 }

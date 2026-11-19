@@ -32,7 +32,8 @@ import { NO_PUBLISH_CONTENT_SEED_HASH } from "#src/features/publish-content/seed
 import { randomUUID } from "node:crypto";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { unhideIfRemoveThrows, THEME_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
+import { reportDirectoryRollbackFailure, THEME_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker } from "#src/features/trash/index";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { memoryPublishContentApplyPort, memoryPublishContentPorts } from "./memory-deps/slices/publish-apply.js";
 import { createInMemoryChatHistory } from "../../../assistant/index.js";
@@ -338,7 +339,7 @@ function createMemoryPublishing(context: ReturnType<typeof createMemoryRuntime> 
   const themeTrashAdapter = bindThemeTrashAdapter({ themes: siteThemes, themesDir: builtInThemesDir() });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
+  const removeTheme = unhideIfRemoveThrows({ onRollbackError: reportDirectoryRollbackFailure, adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
   const publishContentApplyPort = createMemoryPublishApply({ ...context,
     publishContentBundleRepo, publishContentBaselineRepo, publishContentRunRepo, changeSets, assetBlobRepo, blobStore,
     mediaContentTypeStore, publishContentSeedHash, siteThemes,

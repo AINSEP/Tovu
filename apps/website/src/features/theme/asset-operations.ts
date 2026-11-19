@@ -3,7 +3,8 @@ import { isReservedThemePreviewPath } from "./preview-policy.js";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { isGeneratedThemePath, resolveThemeFileWriteScope } from "./theme-file-policy.js";
 import { listThemeFiles } from "./theme-file-listing.js";
-import { renameThemeFile } from "./theme-file-moves.js";
+import { renameThemeFile } from "@jini-ai/cms/themes/files/moves";
+import { themeFileMovePorts } from "./theme-file-write-ports.js";
 import { ThemePathError } from "./theme-files.js";
 import { isInsideCompiledSourceDir, isSourceDirWritableExtension, isTrashedThemePath, trashDestinationFor, validateFileIdentityChange } from "./file-identity-lock.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";
@@ -12,7 +13,6 @@ import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh"
 export { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 export { resolveThemeFilePath } from "./theme-files.js";
 export { writeThemeBinaryFile } from "./theme-file-writing.js";
-export { nextAvailableFileName } from "./theme-file-moves.js";
 export {
   sniffThemeImportType,
   THEME_IMPORT_MAX_BYTES,
@@ -233,7 +233,7 @@ export function trashThemeFile(
     throw new ThemeFileReadOnlyError({ message: `'${relativePath}' cannot be trashed: this theme is a built release with no writable location outside build.sourceDir/theme.json to move a trashed file into` });
   }
 
-  renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath: relativePath, destPath: trashedPath });
+  renameThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath: relativePath, destPath: trashedPath });
   const reloaded = reloadThemeInPlace({ routeDeps: deps, theme, themeId });
   return { trashedPath, reloaded };
 }

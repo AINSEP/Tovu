@@ -1,3 +1,4 @@
+import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -14,7 +15,7 @@ import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
-import { nextAvailableFileName, reloadTheme, renameThemeFileIfChanged } from "../../explore.js";
+import { reloadTheme, renameThemeFileIfChanged } from "../../explore.js";
 
 /**
  * @file Integration-tier coverage for the theme Explore routes (`explore.ts`) — real composed app

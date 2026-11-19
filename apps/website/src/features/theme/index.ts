@@ -121,11 +121,10 @@ export {
 
 // The Explore screen's file read/write surface (`apps/website/src/server/inbound/admin-http/routes/themes/explore.ts`) —
 // genuinely public, backing an admin route, no single-caller boot-sequence caveat like site-dir's.
-export { copyThemeFile, nextAvailableFileName, renameThemeFile } from "./theme-file-moves.js";
 export { isGeneratedThemePath, resolveThemeFileWriteScope, type ThemeFileWriteScope } from "./theme-file-policy.js";
 export { listThemeFiles } from "./theme-file-listing.js";
 export { MAX_THEME_FILE_BYTES, readThemeFile, ThemePathError } from "./theme-files.js";
-export { themeOriginalFilePorts } from "./theme-file-write-ports.js";
+export { themeFileMovePorts, themeOriginalFilePorts } from "./theme-file-write-ports.js";
 export { ORIGINAL_LAYOUT_MISMATCH_REFUSAL, type ThemeOriginalResetRefusal } from "./theme-file-errors.js";
 export { restoreBuiltThemeGeneratedTree } from "./theme-generated-restore.js";
 export { writeThemeFile } from "./theme-file-writing.js";

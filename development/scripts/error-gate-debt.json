@@ -1580,11 +1580,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/theme/theme-file-moves.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/theme/theme-files.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
@@ -1597,11 +1592,6 @@
   {
     "file": "apps/website/src/features/theme/validation/validate-theme-package.ts",
     "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/trash/adapters/directory.ts",
-    "rule": "failure-text-from-catalog",
     "value": 1
   },
   {

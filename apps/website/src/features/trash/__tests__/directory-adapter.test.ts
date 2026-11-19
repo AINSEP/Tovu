@@ -7,7 +7,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "../adapters/directory.js";
+import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
+import { reportDirectoryRollbackFailure } from "../directory-rollback-log.js";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 import { createTrashService } from "@jini-ai/cms/trash";
@@ -261,7 +263,7 @@ test("directory adapter works through trash, list, restore, re-trash, and purge"
 test("unhideIfRemoveThrows moves the folder back when the Trash row write throws after hide", async (t) => {
   const { adapter, liveDir, parkedDir } = await harness(t);
   await makeLive(liveDir);
-  const remove = unhideIfRemoveThrows({ adapter, remove: async (required: { workspaceId: string; id: string; at: string; }) => {
+  const remove = unhideIfRemoveThrows({ adapter, onRollbackError: reportDirectoryRollbackFailure, remove: async (required: { workspaceId: string; id: string; at: string; }) => {
     assert.deepEqual(await adapter.hide({ workspaceId: required.workspaceId, entityId: required.id, at: required.at, expectedVersion: null }), { ok: true, version: null });
     throw new Error("trash row insert failed");
   } });
@@ -269,6 +271,25 @@ test("unhideIfRemoveThrows moves the folder back when the Trash row write throws
   await assert.rejects(remove({ workspaceId: WS, id: ID, at: AT }), /trash row insert failed/);
   assert.equal(await readFile(join(liveDir, "plugin.json"), "utf8"), "plugin-a");
   assert.equal(await pathExists(parkedDir), false);
+});
+
+test("unhideIfRemoveThrows reports the rollback error once and preserves the remove error", async (t) => {
+  const { adapter } = await harness(t);
+  const removeError = new Error("trash row insert failed");
+  const rollbackError = new Error("directory restore failed");
+  const log = t.mock.method(console, "error", () => {});
+  const remove = unhideIfRemoveThrows({
+    adapter: { ...adapter, unhide: async () => { throw rollbackError; } },
+    onRollbackError: reportDirectoryRollbackFailure,
+    remove: async () => { throw removeError; },
+  });
+
+  await assert.rejects(remove({ workspaceId: WS, id: ID, at: AT }), (error) => error === removeError);
+  assert.equal(log.mock.callCount(), 1);
+  assert.deepEqual(log.mock.calls[0]?.arguments, [
+    "[trash] Could not unhide the directory after a failed removal",
+    describeErrorForLog({ err: rollbackError }),
+  ]);
 });
 
 test("hide refuses a parking root that resolves inside the live parent through a symlink", async (t) => {

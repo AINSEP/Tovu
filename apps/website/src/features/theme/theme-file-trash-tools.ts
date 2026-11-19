@@ -7,7 +7,8 @@ import { optionalString, requireInputRecord, requireString, withSchemaOnRejectio
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 import { listThemeFiles } from "./theme-file-listing.js";
-import { renameThemeFile } from "./theme-file-moves.js";
+import { renameThemeFile } from "@jini-ai/cms/themes/files/moves";
+import { themeFileMovePorts } from "./theme-file-write-ports.js";
 import { resolveThemeFileWriteScope } from "./theme-file-policy.js";
 import { ThemePathError } from "./theme-files.js";
 // The shared "can this file's identity (name/existence) change" gate — same-module sibling import
@@ -123,7 +124,7 @@ function restoreTrashedFileForTool(
         }
 
         ctx.signal.throwIfAborted();
-        renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: trashedPath, destPath: restoreTo });
+        renameThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: trashedPath, destPath: restoreTo });
         pruneRestoredThemeTrash({ themeDir: theme.dir, trashedPath });
         const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
 
