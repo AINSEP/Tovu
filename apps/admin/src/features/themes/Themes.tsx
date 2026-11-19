@@ -90,8 +90,8 @@ function tabGroupLabel(t: Translate, group: ThemeTabGroup): string {
  *
  * @complexity Time/space: O(1) — one `<img>`, one fallback stage, one modal-open boolean.
  */
-function ThemeCardPreview({ themeId, previewImageUrl, agentHandleBase, t }: { themeId: string; previewImageUrl?: string | null; agentHandleBase: string; t: Translate }) {
-  const { failed, src, expanded, setExpanded, handleError } = useThemeCardPreview({ themeId, previewImageUrl });
+function ThemeCardPreview({ themeId, previewImageUrl, agentHandleBase, t, useThemeCardPreviewHook = useThemeCardPreview }: { themeId: string; previewImageUrl?: string | null; agentHandleBase: string; t: Translate; useThemeCardPreviewHook?: typeof useThemeCardPreview }) {
+  const { failed, src, expanded, setExpanded, handleError } = useThemeCardPreviewHook({ themeId, previewImageUrl });
 
   return (
     <div className="theme-card-preview">
@@ -148,6 +148,7 @@ export interface ThemesProps {
    * `/themes` regardless of which route rendered this component.
    */
   basePath?: string;
+  hooks?: { useFirstActiveThemeHook?: typeof useFirstActiveTheme };
 }
 
 /**
@@ -393,6 +394,7 @@ function ThemeGrid({
   duplicate,
   trash,
   t,
+  hooks: { useThemeDeleteRequestHook = useThemeDeleteRequest } = {},
 }: {
   visibleThemes: string[];
   themeNames: Record<string, string>;
@@ -405,10 +407,11 @@ function ThemeGrid({
   duplicate: ThemesController["duplicate"];
   trash: ThemesController["trash"];
   t: Translate;
+  hooks?: { useThemeDeleteRequestHook?: typeof useThemeDeleteRequest };
 }) {
   // A delete can only be requested through `onRequestDelete`, which exists only when `trash` does,
   // so the hook's `trash` is only ever called with `trash` defined.
-  const deletion = useThemeDeleteRequest({ t, trash: ({ themeId }, _optional = {}) => {
+  const deletion = useThemeDeleteRequestHook({ t, trash: ({ themeId }, _optional = {}) => {
     if (!trash) throw new Error("theme delete action is unavailable");
     return trash({ themeId });
   } });
@@ -568,7 +571,7 @@ function useFirstActiveTheme({ settings }: { settings: PresentationSettings | nu
 // screen was already at its ceiling. `resolveThemesActiveTabId` already treats an omitted prop
 // (`undefined`) the same as an explicit `null` (its `tabId && ...` check is falsy either way), so a
 // third default here would cost a complexity point for zero behavioral benefit.
-export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/themes" }: ThemesProps) {
+export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/themes", hooks: { useFirstActiveThemeHook = useFirstActiveTheme } = {} }: ThemesProps) {
   const {
     settings,
     themes,
@@ -593,7 +596,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     dismissTrashNotice,
     t,
   } = withThemeDefaults(useThemesHook());
-  const firstActiveThemeId = useFirstActiveTheme({ settings: settings });
+  const firstActiveThemeId = useFirstActiveThemeHook({ settings: settings });
 
   // Combines the original two guards (`error && !settings` / `!settings`) into one `if` so
   // TypeScript still narrows `settings` to non-null for everything below, while keeping only one

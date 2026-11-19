@@ -326,16 +326,17 @@ export interface ExternalMcpToolPickerProps {
   /** This server's card handle, from `resolveExternalMcpCardHandles` — the picker derives its own
    *  namespace from it so the two never collide. */
   cardHandle: string;
+  hooks?: { useExternalMcpDriftCopyHook?: typeof useExternalMcpDriftCopy; useTHook?: typeof useT; useToolPickerFilterHook?: typeof useToolPickerFilter; useToolRowHandlesHook?: typeof useToolRowHandles; useExternalMcpToolPickerHook?: typeof useWiredExternalMcpToolPicker };
 }
 
-export function ExternalMcpToolPicker(props: ExternalMcpToolPickerProps) {
+export function ExternalMcpToolPicker({ hooks: { useExternalMcpDriftCopyHook = useExternalMcpDriftCopy, useTHook = useT, useToolPickerFilterHook = useToolPickerFilter, useToolRowHandlesHook = useToolRowHandles, useExternalMcpToolPickerHook = useWiredExternalMcpToolPicker } = {}, ...props }: ExternalMcpToolPickerProps) {
   const { serverId, active, connectionEnabled, allowedToolNames, writeAllowedToolNames, saving, onSave, onCancel, cardHandle } = props;
-  const t = useExternalMcpDriftCopy();
-  const tUi = useT();
-  const picker = useWiredExternalMcpToolPicker({ serverId, active, allowedToolNames, writeAllowedToolNames, t });
+  const t = useExternalMcpDriftCopyHook();
+  const tUi = useTHook();
+  const picker = useExternalMcpToolPickerHook({ serverId, active, allowedToolNames, writeAllowedToolNames, t });
   const base = toolPickerHandle({ cardHandle });
-  const handles = useToolRowHandles({ base, rows: picker.rows });
-  const filter = useToolPickerFilter(picker.rows, { handles, base, setEnabled: picker.setEnabled });
+  const handles = useToolRowHandlesHook({ base, rows: picker.rows });
+  const filter = useToolPickerFilterHook(picker.rows, { handles, base, setEnabled: picker.setEnabled });
   const countLabel = describeToolCount({ enabled: picker.enabledCount, total: picker.advertisedCount || picker.rows.length, t });
 
   return (

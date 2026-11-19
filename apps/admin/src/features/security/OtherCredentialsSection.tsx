@@ -229,10 +229,10 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
  * Confirm button carries no `agentHandle`, same destructive-action boundary Tier 1's own confirm
  * dialog draws.
  */
-const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCredentialRowState; controller: OtherCredentialsController; t: Translate }>(
-  function OtherCredentialRemoveDialog({ row, controller, t: translate }, ref) {
-    const locale = useAdminLocale();
-    const { close, confirm } = useOtherCredentialRemoveDialog({ ref, row, controller });
+const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCredentialRowState; controller: OtherCredentialsController; t: Translate; hooks?: { useAdminLocaleHook?: typeof useAdminLocale; useOtherCredentialRemoveDialogHook?: typeof useOtherCredentialRemoveDialog } }>(
+  function OtherCredentialRemoveDialog({ row, controller, t: translate, hooks: { useAdminLocaleHook = useAdminLocale, useOtherCredentialRemoveDialogHook = useOtherCredentialRemoveDialog } = {} }, ref) {
+    const locale = useAdminLocaleHook();
+    const { close, confirm } = useOtherCredentialRemoveDialogHook({ ref, row, controller });
     // `aria-labelledby`, not left implicit — same fix, same reasoning, as Tier 1's own
     // `RemoveConfirmDialog` (`AccessTokensTab.tsx`): a native `<dialog>` gets no accessible name
     // for free from an `<h2>` inside it, and this doc comment's own header already promises this

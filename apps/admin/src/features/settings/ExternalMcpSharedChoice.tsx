@@ -2,10 +2,11 @@ import { useExternalMcpSharedChoice, type SharedView } from './ExternalMcpShared
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /** Owner choices are loaded only when opened. Existing local sign-ins keep their original action. */
-export function ExternalMcpSharedChoice({ serverId, busy, signIn, onChanged, t }: {
+export function ExternalMcpSharedChoice({ serverId, busy, signIn, onChanged, t, useExternalMcpSharedChoiceHook = useExternalMcpSharedChoice }: {
   serverId: string; busy: boolean; signIn: () => void; onChanged: () => void; t: Translate;
+  useExternalMcpSharedChoiceHook?: typeof useExternalMcpSharedChoice;
 }) {
-  const { view, error, pending, load, useSaved, stopHere, useLocal } = useExternalMcpSharedChoice({ serverId, onChanged });
+  const { view, error, pending, load, useSaved, stopHere, useLocal } = useExternalMcpSharedChoiceHook({ serverId, onChanged });
   return <div className="external-mcp-shared-choice">
     <button type="button" disabled={busy || pending} onClick={() => void load()}>{t('Use a saved connection on this Mac')}</button>
     <SharedChoices view={view} disabled={busy || pending} signIn={signIn} useSaved={({ credentialId }, _options = {}) => void useSaved({ credentialId })} stopHere={() => void stopHere()} useLocal={() => void useLocal()} t={t} />

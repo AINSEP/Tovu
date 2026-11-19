@@ -516,11 +516,12 @@ export interface RecoveryProps {
   /** The `?tab=` query value from `panels.tsx`'s `recovery` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). Validated by `useRecoveryNavigation`. */
   tabId?: string | null;
+  hooks?: { useRecoveryNavigationHook?: typeof useRecoveryNavigation };
 }
 
-export function Recovery({ useRecoveryHook = useWiredRecovery, tabId }: RecoveryProps = {}) {
+export function Recovery({ useRecoveryHook = useWiredRecovery, tabId, hooks: { useRecoveryNavigationHook = useRecoveryNavigation } = {} }: RecoveryProps = {}) {
   const { status, points, error, creating, createRestorePoint, selected, setSelected, t, locale } = useRecoveryHook();
-  const { activeTabId, onTabChange, onSelectPoint, onBackFromFlow } = useRecoveryNavigation({ tabId, setSelected });
+  const { activeTabId, onTabChange, onSelectPoint, onBackFromFlow } = useRecoveryNavigationHook({ tabId, setSelected });
 
   if (error && !points) return <div className="notice error">{error}</div>;
   if (!points || !status) return <div className="notice">{t("Loading restore points…")}</div>;

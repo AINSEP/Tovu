@@ -97,6 +97,7 @@ export interface AccessTokensTabProps {
   /** Whether the "Use a saved key" entry renders; defaults to
    *  {@link SHOW_COPY_KEYS_ENTRY} (hidden per owner 2026-10-11; shown again per owner 2026-11-08). */
   showCopyKeysEntry?: boolean;
+  hooks?: { useAdminLocaleHook?: typeof useAdminLocale };
 }
 
 /** A provider group can take another saved token unless it is custom or unlisted. */
@@ -104,26 +105,16 @@ function acceptsAnotherToken(info: { kind: string; unlisted?: boolean }): boolea
   return info.kind !== "custom" && !info.unlisted;
 }
 
-function resolveAccessTokensHook({ override }: { override: typeof useWiredAccessTokens | undefined }, _optional: Record<string, never> = {}): typeof useWiredAccessTokens {
-  return override ?? useWiredAccessTokens;
-}
-function resolveOtherCredentialsHook({ override }: { override: typeof useWiredOtherCredentials | undefined }, _optional: Record<string, never> = {}): typeof useWiredOtherCredentials {
-  return override ?? useWiredOtherCredentials;
-}
-
 /** Whether the "Use a saved key" entry renders above the list (see its render site). */
 const SHOW_COPY_KEYS_ENTRY = true;
 
-export function AccessTokensTab(props: AccessTokensTabProps) {
-  useAdminLocale();
-  const useAccessTokensHook = resolveAccessTokensHook({ override: props.useAccessTokensHook });
-  const useOtherCredentialsHook = resolveOtherCredentialsHook({ override: props.useOtherCredentialsHook });
+export function AccessTokensTab({ useAccessTokensHook = useWiredAccessTokens, useCopyKeysHook = useWiredCopyKeys, useOtherCredentialsHook = useWiredOtherCredentials, hooks: { useAdminLocaleHook = useAdminLocale } = {}, ...props }: AccessTokensTabProps) {
+  useAdminLocaleHook();
   const controller = useAccessTokensHook();
   // Tier 2 reads `query`/`category` FROM Tier 1's own controller rather than owning either — one
   // search box, one category filter, across both tiers (this file's own header). See
   // `use-other-credentials.hooks.ts`'s header for why that state isn't duplicated here instead.
   const otherController = useOtherCredentialsHook({ query: controller.query, category: controller.category });
-  const useCopyKeysHook = props.useCopyKeysHook ?? useWiredCopyKeys;
   const copyDialog = useCopyKeysHook({ t: controller.t });
 
   return (
@@ -157,9 +148,9 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
  * Rules of Hooks — even though its result is only rendered once the loading/error gates pass; it
  * tolerates either controller's `groups` still being `undefined` internally (`AccessTokensTab.hooks.tsx`'s
  * own doc), so calling it early costs nothing. */
-function AccessTokensBody({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
+function AccessTokensBody({ controller, otherController, useMergedSecretsOrderHook = useMergedSecretsOrder }: { controller: AccessTokensController; otherController: OtherCredentialsController; useMergedSecretsOrderHook?: typeof useMergedSecretsOrder }) {
   const addCustomDialogRef = useRef<HTMLDialogElement>(null);
-  const merged = useMergedSecretsOrder({ controller, otherController, query: controller.query });
+  const merged = useMergedSecretsOrderHook({ controller, otherController, query: controller.query });
   if (controller.loadError) {
     return (
       <p className="notice error" role="status" {...agentHandle({ handle: "security-access-tokens-load-error" }, { role: "status", label: "Shows the error when saved access tokens could not be loaded" })}>
@@ -215,14 +206,14 @@ function HostingPluginsHint({ controller }: { controller: AccessTokensController
  *  of {@link AccessTokensBody} for the complexity gate; its own branching is a single `.map()` plus
  *  one static button, so this split is about readability/reuse rather than a budget this one
  *  function would otherwise exceed. */
-function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { controller: AccessTokensController; onAddCustomProvider: () => void }) {
+function AccessTokensCategoryFilter({ controller, onAddCustomProvider, useTabBarKeyboardHook = useTabBarKeyboard }: { controller: AccessTokensController; onAddCustomProvider: () => void; useTabBarKeyboardHook?: typeof useTabBarKeyboard }) {
   const translate = controller.t;
   // Reuses `TabBar.hooks.tsx`'s WAI-ARIA tabs keyboard helpers rather than reimplementing them —
   // `ACCESS_TOKEN_CATEGORIES`'s `{ id, label }` shape structurally satisfies `TabBarTab`, and none
   // of these categories are ever disabled. `[role="tab"]` scoping already skips the non-tab
   // "+ Add custom provider" button below (this file's own header on why that button stays out of
   // the tablist's tab order).
-  const { onKeyDown } = useTabBarKeyboard({ tabs: ACCESS_TOKEN_CATEGORIES, activeId: controller.category, onChange: (id) => controller.setCategory(id as AccessTokenCategoryId) });
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs: ACCESS_TOKEN_CATEGORIES, activeId: controller.category, onChange: (id) => controller.setCategory(id as AccessTokenCategoryId) });
   return (
     <div
       className="access-tokens-category-filter"
@@ -834,10 +825,10 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
  * credential action); the row's own SUMMARY stays tagged (`TokenRow`'s `agentHandle`), only this
  * dialog's destructive action does not.
  */
-const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow; info: AccessTokenProviderInfo; controller: AccessTokensController; isLastForProvider: boolean; t: Translate }>(
-  function RemoveConfirmDialog({ row, info, controller, isLastForProvider, t: translate }, ref) {
-    const locale = useAdminLocale();
-    const { close, confirm } = useRemoveConfirmDialog({ ref, row, controller });
+const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow; info: AccessTokenProviderInfo; controller: AccessTokensController; isLastForProvider: boolean; t: Translate; hooks?: { useAdminLocaleHook?: typeof useAdminLocale; useRemoveConfirmDialogHook?: typeof useRemoveConfirmDialog } }>(
+  function RemoveConfirmDialog({ row, info, controller, isLastForProvider, t: translate, hooks: { useAdminLocaleHook = useAdminLocale, useRemoveConfirmDialogHook = useRemoveConfirmDialog } = {} }, ref) {
+    const locale = useAdminLocaleHook();
+    const { close, confirm } = useRemoveConfirmDialogHook({ ref, row, controller });
     // `aria-labelledby`, not left implicit: a native `<dialog>` has no accessible name of its own
     // from an `<h2>` sitting inside it — that link has to be stated, the same way the shared
     // `ConfirmDialog` (`@jini-ai/admin/react`) already does via its own `titleId`. Without it, every
@@ -942,9 +933,9 @@ function CustomKeyStorageChoice({ controller }: { controller: AccessTokensContro
  * existing custom row does not re-collect them) — bolting a fifth, create-only field onto a
  * component shared with the seven catalog providers' Replace flow would risk it leaking there too.
  */
-const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: AccessTokensController; t: Translate }>(
-  function AddCustomCredentialDialog({ controller, t: translate }, ref) {
-    const { readyToSave, baseUrlInvalid, close, save } = useAddCustomCredentialDialog(ref, controller);
+const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: AccessTokensController; t: Translate; hooks?: { useAddCustomCredentialDialogHook?: typeof useAddCustomCredentialDialog } }>(
+  function AddCustomCredentialDialog({ controller, t: translate, hooks: { useAddCustomCredentialDialogHook = useAddCustomCredentialDialog } = {} }, ref) {
+    const { readyToSave, baseUrlInvalid, close, save } = useAddCustomCredentialDialogHook(ref, controller);
     const form = controller.customAddForm;
     // Same `aria-labelledby` fix as `RemoveConfirmDialog` above — one instance of this dialog per
     // page, so a static id is fine (contrast the per-row `row.id`-scoped id there).

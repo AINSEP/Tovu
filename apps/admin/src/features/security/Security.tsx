@@ -128,17 +128,11 @@ export interface SecurityProps {
   /** DI seam for tests — decides whether the site key tab is even offered. See this file's
    *  header ("The site key tab is affordance-hidden"). */
   useSecurityPermissionsHook?: typeof useWiredSecurityPermissions;
+  hooks?: { useAdminLocaleHook?: typeof useAdminLocale };
 }
 
-function resolveSecurityPermissionsHook(
-  { override }: { override: typeof useWiredSecurityPermissions | undefined }, _optional: Record<string, never> = {}
-): typeof useWiredSecurityPermissions {
-  return override ?? useWiredSecurityPermissions;
-}
-
-export function Security(props: SecurityProps) {
-  const locale = useAdminLocale();
-  const useSecurityPermissionsHook = resolveSecurityPermissionsHook({ override: props.useSecurityPermissionsHook });
+export function Security({ useSecurityPermissionsHook = useWiredSecurityPermissions, hooks: { useAdminLocaleHook = useAdminLocale } = {}, ...props }: SecurityProps) {
+  const locale = useAdminLocaleHook();
   const { canManageSiteKey } = useSecurityPermissionsHook();
   const activeTabId = resolveSecurityTabId({ tabId: props.tabId, canManageSiteKey });
 

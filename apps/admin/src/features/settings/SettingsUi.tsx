@@ -255,6 +255,7 @@ export interface SettingsUiProps {
    * `SettingsDialogShell`'s `activeTabId`.
    */
   tabId?: string | null;
+  hooks?: { useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary; useAiAgentPresentationHook?: typeof useAiAgentPresentation; useSettingsActiveTabScrollHook?: typeof useSettingsActiveTabScroll; useTovuSettingsExecutionHook?: typeof useTovuSettingsExecution };
 }
 
 /** Every action slot of the embedded Memory panel. That panel is display-only on this screen (no
@@ -270,43 +271,30 @@ const READ_ONLY_MEMORY_ACTION = (): void => {};
  * cyclomatic-complexity rule counts a default parameter value inside a function's OWN body as one
  * of that function's own branches — a call out to a separately-scoped resolver does not.
  */
-function resolveSettingsUiHook({ override }: { override: typeof useSettingsUi | undefined }, _options = {}): typeof useSettingsUi {
-  return override ?? useSettingsUi;
-}
-function resolveSettingsExecutionCredentialHook(
-  { override }: {
-    override: typeof useWiredAdminExecutionCredential | undefined;
-  },
-  _options = {},
-): typeof useWiredAdminExecutionCredential {
-  return override ?? useWiredAdminExecutionCredential;
-}
 function resolveTabId({ override }: { override: string | null | undefined }, _options = {}): string | null {
   return override ?? null;
 }
 
-export function SettingsUi(props: SettingsUiProps) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+export function SettingsUi({ useAdminExecutionCredentialHook = useWiredAdminExecutionCredential, useSettingsUiHook = useSettingsUi, hooks: { useAdminThemeBoundaryHook = useAdminThemeBoundary, useAiAgentPresentationHook = useAiAgentPresentation, useSettingsActiveTabScrollHook = useSettingsActiveTabScroll, useTovuSettingsExecutionHook = useTovuSettingsExecution } = {}, ...props }: SettingsUiProps) {
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
   // No `SettingsUiProps = {}` default on the parameter itself (2026-08-14, same reasoning as
   // `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual props
   // object — `{}` when no attributes are given, never `undefined` — and every field here is
   // optional, so `{}` still satisfies the type.
-  const useSettingsUiHook = resolveSettingsUiHook({ override: props.useSettingsUiHook });
-  const useAdminExecutionCredentialHook = resolveSettingsExecutionCredentialHook({ override: props.useAdminExecutionCredentialHook });
   const tabId = resolveTabId({ override: props.tabId });
   useEffect(() => {
     if (props.tabId === "skills") navigate({ routePath: "/addons/skills" }, { replace: true });
     if (props.tabId === "appearance") navigate({ routePath: "/admin-ui?tab=appearance" }, { replace: true });
   }, [props.tabId]);
   const s: SettingsUiController = useSettingsUiHook();
-  const settingsRootRef = useSettingsActiveTabScroll({ ready: !s.loading, tabId });
+  const settingsRootRef = useSettingsActiveTabScrollHook({ ready: !s.loading, tabId });
 
   const settingsLocale = s.language.value as string;
   const { t, tCap, tExecution } = createSettingsUiTranslators({ settingsLocale });
 
-  const executionPolicy = useTovuSettingsExecution({ config: s.execution.value as ExecutionConfig | null, onChange: s.execution.onChange, locale: settingsLocale }, { usePolicy: props.useExecutionPolicy });
+  const executionPolicy = useTovuSettingsExecutionHook({ config: s.execution.value as ExecutionConfig | null, onChange: s.execution.onChange, locale: settingsLocale }, { usePolicy: props.useExecutionPolicy });
 
-  const agentPresentation = useAiAgentPresentation({
+  const agentPresentation = useAiAgentPresentationHook({
     port: s.port, config: executionPolicy.config, locale: settingsLocale,
   });
 

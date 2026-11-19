@@ -108,6 +108,8 @@ export interface ThemeExploreProps {
   /** DI seam for tests — same convention as `Themes.tsx`'s `useThemesHook`. */
   useThemeExploreHook?: typeof useWiredThemeExplore;
   useThemeExplorePreviewHook?: typeof useThemeExplorePreview;
+  useThemeExploreThemeHook?: typeof useWiredThemeExploreTheme;
+  hooks?: { useCodeWrapHook?: typeof useCodeWrap; useDevicePreviewDeviceHook?: typeof useDevicePreviewDevice; useTabBarKeyboardHook?: typeof useTabBarKeyboard; useThemeExploreFullscreenHook?: typeof useThemeExploreFullscreen };
 }
 
 /**
@@ -420,10 +422,10 @@ function ThemeExploreFileRow({
  *
  * @complexity O(g) for the fixed group count.
  */
-function ThemeExploreFileGroupTabs({ groups, t }: { groups: ThemeExploreFileGroupsController; t: Translate }) {
+function ThemeExploreFileGroupTabs({ groups, t, useTabBarKeyboardHook = useTabBarKeyboard }: { groups: ThemeExploreFileGroupsController; t: Translate; useTabBarKeyboardHook?: typeof useTabBarKeyboard }) {
   const { tabs, activeGroup, chooseGroup } = groups;
   const activeId = activeGroup ?? "";
-  const { onKeyDown } = useTabBarKeyboard({ tabs, activeId, onChange: (id) => chooseGroup({ group: id as ThemeFileGroup }) });
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs, activeId, onChange: (id) => chooseGroup({ group: id as ThemeFileGroup }) });
   return (
     <div className="theme-explore-groups" role="tablist" aria-label={t("File groups")} onKeyDown={onKeyDown}>
       {tabs.map((tab) => (
@@ -502,6 +504,7 @@ function ThemeExploreFileList({
   copyFile,
   openDeleteConfirm,
   t,
+  hooks: { useThemeExploreFileGroupsHook = useThemeExploreFileGroups } = {},
 }: {
   files: ThemeExploreFile[];
   selected: string | null;
@@ -516,6 +519,7 @@ function ThemeExploreFileList({
   copyFile: (path: string) => Promise<void>;
   openDeleteConfirm: (path: string) => void;
   t: Translate;
+  hooks?: { useThemeExploreFileGroupsHook?: typeof useThemeExploreFileGroups };
 }) {
   // File paths are globally unique across every group (a theme's editable surface is a flat set of
   // relative paths, just displayed grouped by kind), so they disambiguate one row's menu from
@@ -525,7 +529,7 @@ function ThemeExploreFileList({
   const fileMenuHandles = buildAgentListHandles({ prefix: "theme-explore-file", ids: files.map((file) => file.path) }
   );
   const fileMenuHandleByPath = new Map(files.map((file, index) => [file.path, fileMenuHandles[index]]));
-  const groups = useThemeExploreFileGroups({ files, highlightedPath: selected });
+  const groups = useThemeExploreFileGroupsHook({ files, highlightedPath: selected });
   return (
     <nav className="theme-explore-files" aria-label={t("Theme files")}>
       <ThemeExploreFileGroupTabs groups={groups} t={t} />
@@ -1143,8 +1147,8 @@ function ThemeExploreFullscreenDialog({
   );
 }
 
-export function ThemeExplore(props: ThemeExploreProps) {
-  const resolved = useWiredThemeExploreTheme({ themeId: props.themeId });
+export function ThemeExplore({ useThemeExploreThemeHook = useWiredThemeExploreTheme, ...props }: ThemeExploreProps) {
+  const resolved = useThemeExploreThemeHook({ themeId: props.themeId });
   if (resolved.loading) return <div className="notice">{resolved.t("Loading theme…")}</div>;
   if (!resolved.themeId) return (
     <div className={`notice${resolved.error ? " error" : ""}`}>
@@ -1161,6 +1165,7 @@ function ThemeExploreContent({
   fileId,
   useThemeExploreHook = useWiredThemeExplore,
   useThemeExplorePreviewHook = useThemeExplorePreview,
+  hooks: { useCodeWrapHook = useCodeWrap, useDevicePreviewDeviceHook = useDevicePreviewDevice, useTabBarKeyboardHook = useTabBarKeyboard, useThemeExploreFullscreenHook = useThemeExploreFullscreen } = {},
 }: ThemeExploreProps) {
   const {
     detail,
@@ -1222,7 +1227,7 @@ function ThemeExploreContent({
   // local `updatedSort`: pure view state with no I/O is allowed to live outside the injected hook.
   // Async/API state (the rest of this controller) is NOT exempt — this carve-out is for DOM-chrome
   // state asserted through real interaction only.
-  const { device, setDevice, width: previewWidth } = useDevicePreviewDevice();
+  const { device, setDevice, width: previewWidth } = useDevicePreviewDeviceHook();
   const {
     fullscreen,
     setFullscreen,
@@ -1231,14 +1236,14 @@ function ThemeExploreContent({
     closeFullscreen,
     handleFullscreenCancel,
     handleFullscreenBackdropClick,
-  } = useThemeExploreFullscreen();
+  } = useThemeExploreFullscreenHook();
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
-  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as ThemeExploreView) });
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboardHook({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as ThemeExploreView) });
 
   const previewSrc = useThemeExplorePreviewHook({ themeId, detail, files, selected, previewNonce });
   // Shared by the toolbar's Wrap toggle and the Preview tab's code view; only read for "code" files.
-  const { wrap, toggleWrap } = useCodeWrap();
+  const { wrap, toggleWrap } = useCodeWrapHook();
 
   if (error && !detail) return <div className="notice error">{error}</div>;
   if (!detail) return <div className="notice">{t("Loading theme…")}</div>;
@@ -1479,9 +1484,9 @@ function ThemeExploreContent({
  * set), adapted for a real `src` URL instead of `SrcDocSandbox`'s `srcDoc` — see this file's header
  * comment for why the preview has to be a real URL at all.
  */
-function ThemeExplorePreview({ src, width, title }: { src: string; width: number; title: string }) {
+function ThemeExplorePreview({ src, width, title, usePreviewPaneWidthHook = usePreviewPaneWidth }: { src: string; width: number; title: string; usePreviewPaneWidthHook?: typeof usePreviewPaneWidth }) {
   // The frame's REAL rendered width, not a guessed constant — see `usePreviewPaneWidth`'s own doc.
-  const { frameRef, paneWidth } = usePreviewPaneWidth();
+  const { frameRef, paneWidth } = usePreviewPaneWidthHook();
 
   return (
     <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth}>

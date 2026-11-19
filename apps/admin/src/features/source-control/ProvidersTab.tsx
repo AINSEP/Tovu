@@ -81,23 +81,17 @@ export interface ProvidersTabProps {
   /** DI seam for tests — same convention as every other wired-hook prop in this app
    *  (`StaticSiteTabProps.usePublishCredentialsHook`). */
   useSourceControlCredentialsHook?: typeof useWiredSourceControlCredentials;
+  hooks?: { useAdminLocaleHook?: typeof useAdminLocale };
 }
 
 /** Resolves {@link ProvidersTabProps}'s one DI seam to its real hook when a caller passes none —
  *  same small-resolver shape `deployment/StaticSiteTab.tsx`'s `resolvePublishCredentialsHook`
  *  documents (a resolver counts one branch here rather than an inline `??` counting against the
  *  component body's own complexity budget). */
-function resolveSourceControlCredentialsHook(
-  { override }: { override: typeof useWiredSourceControlCredentials | undefined }, _optional = {}
-): typeof useWiredSourceControlCredentials {
-  return override ?? useWiredSourceControlCredentials;
-}
-
-export function ProvidersTab(props: ProvidersTabProps) {
+export function ProvidersTab({ useSourceControlCredentialsHook = useWiredSourceControlCredentials, hooks: { useAdminLocaleHook = useAdminLocale } = {} }: ProvidersTabProps) {
   // Subscribes to the admin locale so a language switch re-renders this tab; every string itself
   // goes through the controller's own `t`.
-  useAdminLocale();
-  const useSourceControlCredentialsHook = resolveSourceControlCredentialsHook({ override: props.useSourceControlCredentialsHook });
+  useAdminLocaleHook();
   const controller = useSourceControlCredentialsHook();
 
   return (

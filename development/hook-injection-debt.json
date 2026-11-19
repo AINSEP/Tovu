@@ -1,72 +1,6 @@
 {
   "version": 1,
   "entries": {
-    "AccessTokensBody::useMergedSecretsOrder": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/AccessTokensTab.tsx"
-      ]
-    },
-    "AccessTokensCategoryFilter::useTabBarKeyboard": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/AccessTokensTab.tsx"
-      ]
-    },
-    "AccessTokensTab::useAccessTokensHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/AccessTokensTab.tsx"
-      ]
-    },
-    "AccessTokensTab::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/AccessTokensTab.tsx"
-      ]
-    },
-    "AccessTokensTab::useCopyKeysHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/AccessTokensTab.tsx"
-      ]
-    },
-    "AccessTokensTab::useOtherCredentialsHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/AccessTokensTab.tsx"
-      ]
-    },
-    "AddCustomCredentialDialog::useAddCustomCredentialDialog": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/AccessTokensTab.tsx"
-      ]
-    },
-    "AdminAccentFields::useT": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/AdminAppearance.tsx"
-      ]
-    },
-    "AdminAppearance::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/AdminAppearance.tsx"
-      ]
-    },
-    "AdminAppearance::useAdminThemeBoundary": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/AdminAppearance.tsx"
-      ]
-    },
-    "AdminAppearance::useAdminThemeState": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/AdminAppearance.tsx"
-      ]
-    },
     "AdminByokKeyFooter::useAdminLocale": {
       "count": 1,
       "files": [
@@ -427,12 +361,6 @@
         "apps/admin/src/features/deployment/Deployment.tsx"
       ]
     },
-    "DesktopOwnerReset::useDesktopOwnerReset": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/RecoveryCodesCard.tsx"
-      ]
-    },
     "DockerfileTab::useDockerfileSourceHook": {
       "count": 1,
       "files": [
@@ -469,48 +397,6 @@
         "apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx"
       ]
     },
-    "ExternalMcpConnectionCard::useExternalMcpDriftCopy": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx"
-      ]
-    },
-    "ExternalMcpSettingsPanel::useExternalMcpAddForm": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx"
-      ]
-    },
-    "ExternalMcpSettingsPanel::useExternalMcpDriftCopy": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx"
-      ]
-    },
-    "ExternalMcpSettingsPanel::useSavedAllowedToolNamesById": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx"
-      ]
-    },
-    "ExternalMcpSettingsPanel::useT": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx"
-      ]
-    },
-    "ExternalMcpSettingsPanel::useWiredSourceConfigList": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx"
-      ]
-    },
-    "ExternalMcpSharedChoice::useExternalMcpSharedChoice": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
-      ]
-    },
     "ExternalMcpSharedChoice::useLocal": {
       "count": 1,
       "files": [
@@ -521,60 +407,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
-      ]
-    },
-    "ExternalMcpSourceRow::useConnect": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx"
-      ]
-    },
-    "ExternalMcpToolPicker::useExternalMcpDriftCopy": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpToolPicker.tsx"
-      ]
-    },
-    "ExternalMcpToolPicker::useT": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpToolPicker.tsx"
-      ]
-    },
-    "ExternalMcpToolPicker::useToolPickerFilter": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpToolPicker.tsx"
-      ]
-    },
-    "ExternalMcpToolPicker::useToolRowHandles": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpToolPicker.tsx"
-      ]
-    },
-    "ExternalMcpToolPicker::useWiredExternalMcpToolPicker": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpToolPicker.tsx"
-      ]
-    },
-    "ExternalMcpToolsModal::useExternalMcpDriftCopy": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpToolsModal.tsx"
-      ]
-    },
-    "ExternalMcpToolsModal::useExternalMcpToolsModalEscape": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpToolsModal.tsx"
-      ]
-    },
-    "ExternalMcpToolsModal::useT": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/ExternalMcpToolsModal.tsx"
       ]
     },
     "ExternalProvidersPanel::useAdminThemeBoundary": {
@@ -745,40 +577,10 @@
         "apps/admin/src/features/menus/MenuPageLinkFields.tsx"
       ]
     },
-    "MergeTermSection::useWiredMergeTermSection": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/taxonomy/Taxonomy.tsx"
-      ]
-    },
     "MessageOverflowModal::useT": {
       "count": 1,
       "files": [
         "apps/admin/src/components/AssistantDock/MessageOverflowModal.tsx"
-      ]
-    },
-    "NewTaxonomyForm::useWiredNewTaxonomyForm": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/taxonomy/Taxonomy.tsx"
-      ]
-    },
-    "NewTermForm::useWiredNewTermForm": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/taxonomy/Taxonomy.tsx"
-      ]
-    },
-    "OtherCredentialRemoveDialog::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/OtherCredentialsSection.tsx"
-      ]
-    },
-    "OtherCredentialRemoveDialog::useOtherCredentialRemoveDialog": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/OtherCredentialsSection.tsx"
       ]
     },
     "OtherTab::useGitBackup": {
@@ -877,12 +679,6 @@
         "apps/admin/src/features/posts/editor/preview/PostPreviewFrame.tsx"
       ]
     },
-    "PostPreviewFrame::useThemePreviewFrame": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/posts/editor/preview/PostPreviewFrame.tsx"
-      ]
-    },
     "PostSettingsDialog::useTabBarKeyboard": {
       "count": 1,
       "files": [
@@ -895,34 +691,10 @@
         "apps/admin/src/features/posts/Posts.tsx"
       ]
     },
-    "ProvidersTab::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/source-control/ProvidersTab.tsx"
-      ]
-    },
-    "ProvidersTab::useSourceControlCredentialsHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/source-control/ProvidersTab.tsx"
-      ]
-    },
     "RecentEntriesConfigFields::useRecentEntriesConfig": {
       "count": 1,
       "files": [
         "apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.tsx"
-      ]
-    },
-    "Recovery::useRecoveryNavigation": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/recovery/Recovery.tsx"
-      ]
-    },
-    "RecoveryKit::useRecoveryKit": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/RecoveryCodesCard.tsx"
       ]
     },
     "Redirects::useAdminModules": {
@@ -943,34 +715,10 @@
         "apps/admin/src/features/media/RemoteImageImport.tsx"
       ]
     },
-    "RemoveConfirmDialog::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/AccessTokensTab.tsx"
-      ]
-    },
-    "RemoveConfirmDialog::useRemoveConfirmDialog": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/AccessTokensTab.tsx"
-      ]
-    },
     "RoutedA2uiSurfaceCard::useT": {
       "count": 1,
       "files": [
         "apps/admin/src/components/AssistantDock/RoutedA2uiSurfaceCard.tsx"
-      ]
-    },
-    "Security::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/Security.tsx"
-      ]
-    },
-    "Security::useSecurityPermissionsHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/Security.tsx"
       ]
     },
     "Select::useDropdown": {
@@ -1027,42 +775,6 @@
         "apps/desktop/src/renderer/app/SettingsControl.tsx"
       ]
     },
-    "SettingsUi::useAdminExecutionCredentialHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/SettingsUi.tsx"
-      ]
-    },
-    "SettingsUi::useAdminThemeBoundary": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/SettingsUi.tsx"
-      ]
-    },
-    "SettingsUi::useAiAgentPresentation": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/SettingsUi.tsx"
-      ]
-    },
-    "SettingsUi::useSettingsActiveTabScroll": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/SettingsUi.tsx"
-      ]
-    },
-    "SettingsUi::useSettingsUiHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/SettingsUi.tsx"
-      ]
-    },
-    "SettingsUi::useTovuSettingsExecution": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/SettingsUi.tsx"
-      ]
-    },
     "SharedChoices::useSaved": {
       "count": 1,
       "files": [
@@ -1109,30 +821,6 @@
       "count": 1,
       "files": [
         "apps/desktop/src/renderer/SiteGrid.tsx"
-      ]
-    },
-    "SiteKeyGenerateErrorNote::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/SiteKeyTab.tsx"
-      ]
-    },
-    "SiteKeyRevealedValue::useRevealedKeyCopy": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/SiteKeyTab.tsx"
-      ]
-    },
-    "SiteKeyTab::useRecoveryHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/SiteKeyTab.tsx"
-      ]
-    },
-    "SiteKeyTab::useSiteKeyHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/security/SiteKeyTab.tsx"
       ]
     },
     "SiteStartPanel::useSiteStart": {
@@ -1195,12 +883,6 @@
         "apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.tsx"
       ]
     },
-    "SourceControl::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/source-control/SourceControl.tsx"
-      ]
-    },
     "StaticSiteTab::useAdminLocale": {
       "count": 1,
       "files": [
@@ -1231,112 +913,10 @@
         "apps/desktop/src/renderer/app/TabStrip.tsx"
       ]
     },
-    "TaxonomyRowMenu::useTaxonomyRowMenu": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/taxonomy/TaxonomyRowMenu.tsx"
-      ]
-    },
     "TemplateSourceModal::useCodeWrap": {
       "count": 1,
       "files": [
         "apps/admin/src/components/TemplateSource/TemplateSourceModal.tsx"
-      ]
-    },
-    "TermChecklist::useTermListReveal": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/taxonomy/TermPicker.tsx"
-      ]
-    },
-    "TermDetailPanel::useWiredTermDetailPanel": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/taxonomy/Taxonomy.tsx"
-      ]
-    },
-    "TermPicker::useTermPickerHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/taxonomy/TermPicker.tsx"
-      ]
-    },
-    "ThemeCardPreview::useThemeCardPreview": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/Themes.tsx"
-      ]
-    },
-    "ThemeExplore::useWiredThemeExploreTheme": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemeExplore.tsx"
-      ]
-    },
-    "ThemeExploreContent::useCodeWrap": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemeExplore.tsx"
-      ]
-    },
-    "ThemeExploreContent::useDevicePreviewDevice": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemeExplore.tsx"
-      ]
-    },
-    "ThemeExploreContent::useTabBarKeyboard": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemeExplore.tsx"
-      ]
-    },
-    "ThemeExploreContent::useThemeExploreFullscreen": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemeExplore.tsx"
-      ]
-    },
-    "ThemeExploreFileGroupTabs::useTabBarKeyboard": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemeExplore.tsx"
-      ]
-    },
-    "ThemeExploreFileList::useThemeExploreFileGroups": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemeExplore.tsx"
-      ]
-    },
-    "ThemeExplorePreview::usePreviewPaneWidth": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemeExplore.tsx"
-      ]
-    },
-    "ThemeGrid::useThemeDeleteRequest": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/Themes.tsx"
-      ]
-    },
-    "Themes::useFirstActiveTheme": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/Themes.tsx"
-      ]
-    },
-    "Toolbar::useEditorState": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/posts/editor/toolbar/Toolbar.tsx"
-      ]
-    },
-    "Toolbar::useToolbarOverflow": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/posts/editor/toolbar/Toolbar.tsx"
       ]
     },
     "TopNav::useAppVersion": {
@@ -1361,12 +941,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/App.tsx"
-      ]
-    },
-    "UserInterfaceSettingsPanel::useUserInterfaceTab": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/settings/UserInterfaceSettingsPanel.tsx"
       ]
     },
     "VisitorCredentialForm::useStoredCredentialHint": {
@@ -1397,12 +971,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/lib/widget-embed-extension.tsx"
-      ]
-    },
-    "WiredThemePreviewReloadButton::useThemePreviewReloadButton": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemePreviewReloadButton.tsx"
       ]
     },
     "WorkspaceChatPane::useWorkspaceChatPane": {

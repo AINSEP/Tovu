@@ -50,6 +50,7 @@ export interface ExternalMcpToolsModalProps {
   writeAllowedToolNames: string | undefined;
   saving: boolean;
   onSave: (fields: { allowedToolNames: string; writeAllowedToolNames: string }) => void;
+  hooks?: { useExternalMcpDriftCopyHook?: typeof useExternalMcpDriftCopy; useExternalMcpToolsModalEscapeHook?: typeof useExternalMcpToolsModalEscape; useTHook?: typeof useT };
 }
 
 export function ExternalMcpToolsModal({
@@ -62,10 +63,11 @@ export function ExternalMcpToolsModal({
   writeAllowedToolNames,
   saving,
   onSave,
+  hooks: { useExternalMcpDriftCopyHook = useExternalMcpDriftCopy, useExternalMcpToolsModalEscapeHook = useExternalMcpToolsModalEscape, useTHook = useT } = {},
 }: ExternalMcpToolsModalProps) {
-  const { dialogRef, closeRef } = useExternalMcpToolsModalEscape({ onClose });
-  const t = useT();
-  const tDrift = useExternalMcpDriftCopy();
+  const { dialogRef, closeRef } = useExternalMcpToolsModalEscapeHook({ onClose });
+  const t = useTHook();
+  const tDrift = useExternalMcpDriftCopyHook();
   const titleId = `${cardHandle}-tools-modal-title`;
 
   return (
