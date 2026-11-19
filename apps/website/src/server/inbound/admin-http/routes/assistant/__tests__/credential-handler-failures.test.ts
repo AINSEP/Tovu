@@ -132,7 +132,7 @@ test("settings GET redacts an effective-setting read failure", async (t) => {
     step: "assistant task operation", includeAction: false,
   });
   assert.equal(fault.mock.callCount(), 1);
-  const { deps: _settingsDeps, ...coordinate } = fault.mock.calls[0].arguments[0];
+  const { deps: _settingsDeps, ...coordinate } = fault.mock.calls[0].arguments[0] ?? { deps: undefined };
   assert.deepEqual(coordinate, {
     namespace: "site.assistant", key: "public_enabled", scopeContext: { workspaceId: "ws-7" },
   });
