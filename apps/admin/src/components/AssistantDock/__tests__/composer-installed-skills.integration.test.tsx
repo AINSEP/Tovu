@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Composer, useComposer } from "@jini-ai/chat/react";
-import { useComposerCapabilities } from "../hooks/AssistantDock.hooks";
+import { useComposerCapabilities } from "../hooks/composer-discovery.hooks";
 import { useComposerDiscoveryDraft } from "../hooks/composer-skills.hooks";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
 
@@ -39,6 +39,30 @@ function Harness() {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("installed skills from GET through the real composer slash popup", () => {
+  it("keeps a forced reload's skills in the open composer when an older ordinary load resolves last", async () => {
+    let resolveOrdinary!: (response: Response) => void;
+    const ordinary = new Promise<Response>((resolve) => { resolveOrdinary = resolve; });
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(ordinary)
+      .mockResolvedValueOnce(Response.json(skillsResponse));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Harness />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "/sk" } });
+    await act(async () => window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT)));
+    await waitFor(() => expect(screen.getAllByRole("option").map(option => option.querySelector("span")?.textContent)).toContain("incident-response · Skill"));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      resolveOrdinary(Response.json({ skills: [] }));
+      for (let i = 0; i < 25; i++) await Promise.resolve();
+    });
+    expect(JSON.parse(screen.getByTestId("installed-ids").textContent!)).toEqual([
+      "installed-skill:skill_incident_response", "installed-skill:skill_ui_ux_design",
+    ]);
+    expect(screen.getAllByRole("option").map(option => option.querySelector("span")?.textContent)).toContain("incident-response · Skill");
+    expect(screen.getByRole("textbox")).toHaveValue("/sk");
+  });
+
   it.each(["sk", "ui", "ux"])("preserves both enabled skills in projection and relevant labeled rows for /%s", async query => {
     const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       expect(url).toBe("/api/admin/v1/workspaces/workspace-local/skills");

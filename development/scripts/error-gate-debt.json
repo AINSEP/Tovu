@@ -10,12 +10,17 @@
     "value": 2
   },
   {
-    "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
+    "file": "apps/admin/src/components/AssistantDock/hooks/byok-runtime.hooks.ts",
     "rule": "catch-reads-error",
-    "value": 2
+    "value": 1
   },
   {
-    "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
+    "file": "apps/admin/src/components/AssistantDock/hooks/agents-inventory.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/components/AssistantDock/hooks/assistant-transport.hooks.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },

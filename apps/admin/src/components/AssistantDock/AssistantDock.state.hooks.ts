@@ -23,31 +23,19 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import { useAgentFailureSurface } from "./AgentFailureCard.hooks";
 import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
 import { selectedLocalCliReasoning } from "../../lib/execution-settings";
-import {
-  // Every call below goes through the `useXSeam` wrappers rather than the bare hooks — see
-  // `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
-  useAssistantDockChrome,
-  resolveAssistantConversationTitle,
-  useAssistantTransportSeam,
-  useAttachmentUploaderSeam,
-  useSkillAwareAttachmentUploader,
-  resolveSkillsAvailable,
-  useAttachmentValidatorSeam,
-  useByokRuntimeSeam,
-  useChatsSeam,
-  useComposerCapabilitiesSeam,
-  useComposerDiscoverySelect,
-  useExecutionConfigSeam,
-  useLocalCliDaemonPrewarm,
-  useLocalCliSelectionSeam,
-  useMessagesChangeHandler,
-  useRunContext,
-  useAgentsPlaceholderSeam,
-  useRuntimeAccessSeam,
-  useSelectedAgentPlugins,
-  useSelectedPluginChips,
-  useFolderDropBridge,
-} from "./hooks/AssistantDock.hooks";
+// Every call below goes through the `useXSeam` wrappers rather than the bare hooks — see
+// `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
+import { useAssistantDockChrome, resolveAssistantConversationTitle, useChatsSeam } from "./hooks/dock-chrome.hooks";
+import { useMessagesChangeHandler } from "./hooks/messages-change.hooks";
+import { useRunContext } from "./hooks/run-context.hooks";
+import { useAttachmentUploaderSeam, useSkillAwareAttachmentUploader, resolveSkillsAvailable, useAttachmentValidatorSeam, useFolderDropBridge } from "./hooks/composer-files.hooks";
+import { useComposerCapabilitiesSeam, useComposerDiscoverySelect } from "./hooks/composer-discovery.hooks";
+import { useSelectedAgentPlugins, useSelectedPluginChips } from "./hooks/selected-agent-plugins.hooks";
+import { useAssistantTransportSeam, useLocalCliDaemonPrewarm } from "./hooks/assistant-transport.hooks";
+import { useAgentsPlaceholderSeam, useRuntimeAccessSeam } from "./hooks/runtime-access.hooks";
+import { useByokRuntimeSeam } from "./hooks/byok-runtime.hooks";
+import { useExecutionConfigSeam } from "./hooks/execution-config.hooks";
+import { useLocalCliSelectionSeam } from "./hooks/local-cli-selection.hooks";
 import { useCallback } from "react";
 import { useAssistantPromptRequests } from "../../lib/assistant-prompt-bus";
 import type { AssistantDockProps } from "./AssistantDock";
@@ -67,7 +55,7 @@ function selectedDockAgent({ mode, agents, agentId }: {
 
 
 /** Renderer registry, WebMCP setting and the pane's translated chrome. */
-function useDockChrome({ props }: { props: DockProps }, _options = {}) {
+function useDockChrome({ props }: { props: DockProps }, { useChrome = useAssistantDockChrome }: { useChrome?: typeof useAssistantDockChrome } = {}) {
   const { useAdminLocale } = props;
   const renderers = useDockRendererRegistry();
   const { mcpUiToolCaller } = renderers;
@@ -76,7 +64,7 @@ function useDockChrome({ props }: { props: DockProps }, _options = {}) {
   // and — via `chatI18n` — the `ConversationList` switcher mounted in `header` below. See
   // {@link useAssistantDockChrome}'s own doc for why `locale`/`t`/`chatI18n` are one hook rather
   // than three separate calls.
-  const { locale, t, chatI18n } = useAssistantDockChrome({ useAdminLocaleOverride: useAdminLocale });
+  const { locale, t, chatI18n } = useChrome({ useAdminLocaleOverride: useAdminLocale });
   return { renderers, mcpUiToolCaller, webMcpEnabled, locale, t, chatI18n };
 }
 
@@ -101,7 +89,7 @@ function useDockPreferences({ props, t }: { props: DockProps; t: DockTranslate }
 }
 
 /** The execution policy and everything derived from the stored execution config and CLI selection. */
-function useDockExecution({ props, locale }: { props: DockProps; locale: string }, _options = {}) {
+function useDockExecution({ props, locale }: { props: DockProps; locale: string }, { usePrewarm = useLocalCliDaemonPrewarm }: { usePrewarm?: typeof useLocalCliDaemonPrewarm } = {}) {
   const {
     agentBridge = null,
     useExecutionConfig: useExecutionConfigOverride,
@@ -112,7 +100,7 @@ function useDockExecution({ props, locale }: { props: DockProps; locale: string 
   const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam({ override: useExecutionConfigOverride }), locale }, { usePolicy: useExecutionPolicy });
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
   // The dock, not the layout, owns the pre-warm: only it knows the chat's execution mode.
-  const pageActivationError = useLocalCliDaemonPrewarm({ mode: executionConfig.mode, configLoaded, agentBridge });
+  const pageActivationError = usePrewarm({ mode: executionConfig.mode, configLoaded, agentBridge });
   const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam({ override: useByokRuntimeOverride, input: { executionConfig, setExecutionConfig } });
   const { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend } = useLocalCliSelectionSeam({
     override: useLocalCliSelectionOverride,
@@ -129,7 +117,7 @@ function useDockExecution({ props, locale }: { props: DockProps; locale: string 
 type DockExecution = ReturnType<typeof useDockExecution>;
 
 /** Conversation history, the run transport and the attachment upload/validation ports. */
-function useDockTransport({ props, execution }: { props: DockProps; execution: DockExecution }, _options = {}) {
+function useDockTransport({ props, execution }: { props: DockProps; execution: DockExecution }, { useSkillUploader = useSkillAwareAttachmentUploader }: { useSkillUploader?: typeof useSkillAwareAttachmentUploader } = {}) {
   const {
     agentBridge = null,
     useChats,
@@ -160,7 +148,7 @@ function useDockTransport({ props, execution }: { props: DockProps; execution: D
   }, { useTransport: useAssistantTransportOverride });
   const uploadOrdinaryAttachments = useAttachmentUploaderSeam({ override: useAttachmentUploaderOverride });
   const skillInstall = useSkillInstall();
-  const uploadAttachments = useSkillAwareAttachmentUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles });
+  const uploadAttachments = useSkillUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles });
   const validateAttachments = useAttachmentValidatorSeam({ override: useAttachmentValidatorOverride });
   return { chats, transport, daemonStarting, skillInstall, uploadAttachments, validateAttachments };
 }
@@ -185,7 +173,9 @@ type DockAgent = ReturnType<typeof useDockAgent>;
 type DockTransport = ReturnType<typeof useDockTransport>;
 
 /** The composer: discovery catalog, pinned plugins and skills, voice input and folder drop/pick. */
-function useDockComposer({ props, renderers, execution, agent, transportState }: { props: DockProps; renderers: ReturnType<typeof useDockChrome>["renderers"]; execution: DockExecution; agent: DockAgent; transportState: DockTransport }, _options = {}) {
+function useDockComposer({ props, renderers, execution, agent, transportState }: { props: DockProps; renderers: ReturnType<typeof useDockChrome>["renderers"]; execution: DockExecution; agent: DockAgent; transportState: DockTransport }, {
+  useDiscoverySelect = useComposerDiscoverySelect, usePins = useSelectedAgentPlugins, useChips = useSelectedPluginChips, useDropBridge = useFolderDropBridge,
+}: { useDiscoverySelect?: typeof useComposerDiscoverySelect; usePins?: typeof useSelectedAgentPlugins; useChips?: typeof useSelectedPluginChips; useDropBridge?: typeof useFolderDropBridge } = {}) {
   const { onFolderDropCaptureReady } = props;
   const { mcpUiToolCaller } = renderers;
   const { executionConfig, localCliSelection } = execution;
@@ -204,11 +194,11 @@ function useDockComposer({ props, renderers, execution, agent, transportState }:
    * own doc for why this is host state rather than part of `@jini-ai/chat`'s own composer state,
    * and `SelectedAgentPluginTray`'s doc for how it renders.
    */
-  const { selectedPluginRefIds, addPluginRef, removePluginRef } = useSelectedAgentPlugins();
+  const { selectedPluginRefIds, addPluginRef, removePluginRef } = usePins();
   const selectedSkills = useSelectedSkills();
   const discoveryDraft = useComposerDiscoveryDraft(composerCapabilities.groups);
   const captureComposerClick = useComposerSendStopGuard();
-  const handleComposerDiscoverySelect = useComposerDiscoverySelect({
+  const handleComposerDiscoverySelect = useDiscoverySelect({
     composerCapabilities,
     callAllowlistedTool: mcpUiToolCaller,
     skillsAvailable: resolveSkillsAvailable({ executionMode: executionConfig.mode, agents: agentsPlaceholder, selectedAgentId: localCliSelection.agentId }),
@@ -217,7 +207,7 @@ function useDockComposer({ props, renderers, execution, agent, transportState }:
     readDraft: discoveryDraft.readDraft,
   });
   // See `useSelectedPluginChips`'s own doc for the projection and its label-fallback reasoning.
-  const selectedPluginChips = useSelectedPluginChips(selectedPluginRefIds, composerCapabilities);
+  const selectedPluginChips = useChips(selectedPluginRefIds, composerCapabilities);
 
   /**
    * Owns the `ChatPaneComposerHandle` a voice transcript is delivered through. No Jini change was
@@ -231,7 +221,7 @@ function useDockComposer({ props, renderers, execution, agent, transportState }:
   // SPEC-053: folder-drop-to-path + fs-files `custom` root wiring — reuses `voiceInput`'s own
   // `composerHandle` (the same "insert text into the composer" seam a voice transcript already goes
   // through) rather than owning a second ref to the same `ChatPaneComposerHandle`.
-  const folderDrop = useFolderDropBridge({ input: { composerHandle: voiceInput.composerHandle }, onReady: onFolderDropCaptureReady }, { proposeSkillFiles: skillInstall.proposeFiles, onSkillDropError: skillInstall.fail });
+  const folderDrop = useDropBridge({ input: { composerHandle: voiceInput.composerHandle }, onReady: onFolderDropCaptureReady }, { proposeSkillFiles: skillInstall.proposeFiles, onSkillDropError: skillInstall.fail });
   // The composer's folder button: a picked path is handled exactly like a desktop folder drop; a
   // dialog that fails to open hides the button and falls back to the paste hint.
   const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint });
@@ -245,14 +235,14 @@ function useDockComposer({ props, renderers, execution, agent, transportState }:
 type DockComposer = ReturnType<typeof useDockComposer>;
 
 /** Per-run wiring: message persistence, run context, the failure surface, the empty state and the refresh signal. */
-function useDockRun({ props, t, execution, agent, transportState, composer }: { props: DockProps; t: DockTranslate; execution: DockExecution; agent: DockAgent; transportState: DockTransport; composer: DockComposer }, _options = {}) {
+function useDockRun({ props, t, execution, agent, transportState, composer }: { props: DockProps; t: DockTranslate; execution: DockExecution; agent: DockAgent; transportState: DockTransport; composer: DockComposer }, { useMessages = useMessagesChangeHandler, useContext = useRunContext }: { useMessages?: typeof useMessagesChangeHandler; useContext?: typeof useRunContext } = {}) {
   const { agentBridge = null } = props;
   const { executionPolicy, executionConfig, localCliSelection, handleLocalCliSelectionChange, handleExecutionModeChange } = execution;
   const { runtimeAccess } = agent;
   const { chats, transport } = transportState;
   const { selectedPluginRefIds, selectedSkills } = composer;
-  const handleMessagesChange = useMessagesChangeHandler({ chats });
-  const runContext = useRunContext({
+  const handleMessagesChange = useMessages({ chats });
+  const runContext = useContext({
     agentBridge,
     model: localCliSelection.model,
     // The Execution tab owns the "Reasoning effort" control, so this comes from the persisted

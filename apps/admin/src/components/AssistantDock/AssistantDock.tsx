@@ -16,33 +16,20 @@ import "../../styles/assistant.css";
 // screens import it too, but the dock is mounted on every admin route — relying on a screen the
 // operator may never open would leave the dropdown unstyled exactly when it is used most.
 import "@jini-ai/ui/settings-dialog.css";
-import {
-  // The bare hook names below are imported for their TYPE only (`typeof useX` on
-  // `AssistantDockProps`) — every actual call in this component goes through the matching
-  // `useXSeam` wrapper instead; see `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
-  useAssistantDockChrome,
-  useAssistantTransport,
-  useAttachmentUploader,
-  useAttachmentValidator,
-  useByokRuntime,
-  useComposerCapabilities,
-  useExecutionConfig,
-  useLocalCliSelection,
-  useRuntimeAccess,
-  useFolderDropBridge,
-} from "./hooks/AssistantDock.hooks";
+// The bare hook names below are imported for their TYPE only (`typeof useX` on
+// `AssistantDockProps`) — every actual call in this component goes through the matching
+// `useXSeam` wrapper instead; see `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
+import { useAssistantDockChrome } from "./hooks/dock-chrome.hooks";
+import { useAttachmentUploader, useAttachmentValidator, useFolderDropBridge } from "./hooks/composer-files.hooks";
+import { useComposerCapabilities } from "./hooks/composer-discovery.hooks";
+import { useAssistantTransport } from "./hooks/assistant-transport.hooks";
+import { useRuntimeAccess } from "./hooks/runtime-access.hooks";
+import { useByokRuntime } from "./hooks/byok-runtime.hooks";
+import { useExecutionConfig } from "./hooks/execution-config.hooks";
+import { useLocalCliSelection } from "./hooks/local-cli-selection.hooks";
 import { type DragEvent } from "react";
 import { useAssistantDockState } from "./AssistantDock.state.hooks";
 import { DockChatPane } from "./DockChatPane";
-
-// `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
-// `shouldPublishOnMessagesChange`/`resolveRunContext` as a third pure decision helper). Per
-// `INFO.md`'s Components rule 2 ("a hook with an external consumer gets re-exported by name from the
-// component file") it stays reachable at this same import path, which is how
-// `__tests__/resolve-composer-discovery-outcome.unit.test.ts` reaches it. (Its one consumer outside
-// this folder, `features/plugins/__tests__/agent-plugin-capability-adapter.unit.test.ts`, was deleted
-// 2026-09-15 with the candidate Agent Plugin capability projection it tested.)
-export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./hooks/AssistantDock.hooks";
 
 declare global {
   interface Window {

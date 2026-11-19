@@ -7,7 +7,7 @@ import { useConversation } from "@jini-ai/chat/react";
 
 import { createTovuAssistantTransport, terminalFailureError } from "../assistant-transport";
 import { persistableMessages } from "@jini-ai/chat/transports/http";
-import { shouldPublishOnMessagesChange } from "../../components/AssistantDock/hooks/AssistantDock.hooks";
+import { shouldPublishOnMessagesChange } from "../../components/AssistantDock/hooks/messages-change.hooks";
 import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
 import { durableRunBindings } from "../durable-run-subscription";
 import { translateRunFrame } from "@tovu/assistant-run-events";

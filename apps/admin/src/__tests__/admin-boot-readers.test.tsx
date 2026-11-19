@@ -5,7 +5,7 @@ import { FetchQueryProvider } from "./fetch-query-provider.test-helper";
 import { AdminBootScopeContext } from "../lib/admin-boot-scope";
 import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { createFakeAdminLocalePort } from "../hooks/admin-locale-dependencies.hooks";
-import { useMessagesChangeHandler } from "../components/AssistantDock/hooks/AssistantDock.hooks";
+import { useMessagesChangeHandler } from "../components/AssistantDock/hooks/messages-change.hooks";
 import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
 import { subscribeToContentRefresh } from "../lib/content-refresh-bus";
 

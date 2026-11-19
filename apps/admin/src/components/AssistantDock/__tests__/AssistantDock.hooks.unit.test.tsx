@@ -17,15 +17,10 @@ vi.mock("../../../features/plugins/composer-capabilities", async (importOriginal
   };
 });
 
-import {
-  buildAssistantMcpUiSandboxProxyUrl,
-  extractResumeCapableAgentIds,
-  getResumeCapableAgentIds,
-  openMcpUiLink,
-  resetResumeCapableAgentIds,
-  useComposerCapabilities,
-  useRuntimeAccess,
-} from "../hooks/AssistantDock.hooks";
+import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "../hooks/assistant-mcp-ui";
+import { useComposerCapabilities } from "../hooks/composer-discovery.hooks";
+import { extractResumeCapableAgentIds, getResumeCapableAgentIds, resetResumeCapableAgentIds } from "../hooks/agents-inventory.hooks";
+import { useRuntimeAccess } from "../hooks/runtime-access.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
 import { AdminBootScopeContext } from "@/lib/admin-boot-scope";

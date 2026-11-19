@@ -1,8 +1,12 @@
-import type { ChatPaneAgent } from "@jini-ai/chat/react";
+import type { ChatPaneAgent, ChatTransport } from "@jini-ai/chat/react";
+import { renderHook } from "@/__tests__/fetch-query-render";
+import type { CreateTovuAssistantTransportOptions } from "@/lib/assistant-transport";
+import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import type { CachedLoader } from "@jini-ai/core/fetch";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAgentsLoader, replaceAgents } from "../hooks/AssistantDock.hooks";
+import { createAgentsLoader, replaceAgents, resetResumeCapableAgentIds } from "../hooks/agents-inventory.hooks";
+import { useAssistantTransport } from "../hooks/assistant-transport.hooks";
 
 /**
  * @file The agents inventory's deadline rules (`createAgentsLoader`, `replaceAgents`) over a plain
@@ -20,6 +24,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetResumeCapableAgentIds();
+  localStorage.clear();
   vi.useRealTimers();
 });
 
@@ -38,6 +44,24 @@ function deadlineOf(agents: ChatPaneAgent[]): number | undefined {
 }
 
 describe("replaceAgents", () => {
+  it("keeps the transport factory's captured resume getter live across inventory replacement", () => {
+    resetResumeCapableAgentIds();
+    const createTransport = vi.fn((_options: CreateTovuAssistantTransportOptions = {}): ChatTransport => ({
+      startRun: async () => ({ runId: "unused" }), stopRun: async () => {},
+      reattachRun: async () => {}, fetchRunStatus: async () => null,
+    }));
+    const { rerender } = renderHook(() => useAssistantTransport({
+      executionConfigRef: { current: DEFAULT_EXECUTION_CONFIG },
+    }, { createTransport }));
+    const getter = createTransport.mock.calls[0]![0]!.getResumeCapableAgentIds!;
+    expect([...getter()]).toEqual([]);
+    const agents = [{ id: "codex", name: "Codex", carriesOwnMemory: true }];
+    replaceAgents({ loader: fakeLoader(() => agents), agents });
+    expect([...getter()]).toEqual(["codex"]);
+    rerender();
+    expect(createTransport.mock.calls.at(-1)![0]!.getResumeCapableAgentIds).toBe(getter);
+  });
+
   it("writes the inventory and dates it from the written array when the cache answers nothing back", () => {
     const agents = agentsList();
     const loader = fakeLoader(() => undefined);

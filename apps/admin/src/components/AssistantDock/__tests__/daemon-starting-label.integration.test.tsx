@@ -9,7 +9,7 @@ import { prepareAssistantPageBinding, type activateAssistantDaemon } from "@/lib
 import { resetAssistantDockBus } from "@/lib/assistant-dock-bus";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import { AssistantDock } from "../AssistantDock";
-import { useAssistantTransport } from "../hooks/AssistantDock.hooks";
+import { useAssistantTransport } from "../hooks/assistant-transport.hooks";
 
 const STARTING = "Starting assistant…";
 type PaneProps = ComponentProps<typeof ChatPane> & { sendingLabel?: string };
@@ -47,6 +47,7 @@ function mountDock({ locale = "en", attached = true } = {}, _options = {}) {
     bridgeAccess: { subscribe: vi.fn(() => vi.fn()), respondSuccess: vi.fn(), respondError: vi.fn() },
   };
   const panes: PaneProps[] = [];
+  let rawTransport!: ChatTransport;
   function PaneRecorder(props: PaneProps) { panes.push(props); return <></>; }
   const config = { ...DEFAULT_EXECUTION_CONFIG, mode: "local-cli" as const };
   const execution = {
@@ -65,22 +66,25 @@ function mountDock({ locale = "en", attached = true } = {}, _options = {}) {
     useByokRuntime={() => ({ byokRuntime: { model: "test-model", models: [] }, handleByokModelChange: vi.fn() })}
     useLocalCliSelection={() => ({ localCliSelection: { agentId: "claude" }, handleLocalCliSelectionChange: vi.fn() })}
     useComposerCapabilities={() => ({ composerCapabilities: emptyComposerCapabilityProjection() })}
-    useAssistantTransport={(input, options = {}) => useAssistantTransport(input, {
-      ...options, createTransport: () => base,
-      prepareBinding: (required, optional = {}) => prepareAssistantPageBinding(required, { ...optional, activate }),
-    })}
+    useAssistantTransport={(input, options = {}) => {
+      rawTransport = useAssistantTransport(input, {
+        ...options, createTransport: () => base,
+        prepareBinding: (required, optional = {}) => prepareAssistantPageBinding(required, { ...optional, activate }),
+      });
+      return rawTransport;
+    }}
     useRuntimeAccess={() => ({ listAgents: async () => [], rescanAgents: async () => [], daemonOnline: async () => true })}
     useAttachmentUploader={() => async () => []} useAttachmentValidator={() => async () => []}
   />);
   const pane = () => panes.at(-1)!;
-  function begin({ controller = new AbortController() } = {}, _optional = {}) {
+  function begin({ controller = new AbortController(), raw = false } = {}, _optional = {}) {
     const input: StartRunInput = {
       agentId: "claude", history: [{ id: "user", role: "user", content: "Hello" }],
       signal: new AbortController().signal, cancelSignal: controller.signal,
     };
     const handlers: RunHandlers = { onEvent: vi.fn(), onError: vi.fn(), onDone: vi.fn() };
     let result!: ReturnType<ChatTransport["startRun"]>;
-    act(() => { result = pane().transport!.startRun(input, handlers); });
+    act(() => { result = (raw ? rawTransport : pane().transport!).startRun(input, handlers); });
     // Observe rejection immediately without swallowing an assertion or leaving an unhandled
     // promise. The Stop test checks the exact error through this outcome.
     const outcome = result.then(value => ({ value }), error => ({ error }));
@@ -97,6 +101,34 @@ afterEach(() => {
 });
 
 describe("daemon activation sendingLabel at the dock's ChatPane boundary", () => {
+  it("preserves an aborted bind's reason and cannot clear the second send's startup label", async () => {
+    const dock = mountDock();
+    const secondActivation = deferred<void>();
+    dock.activate.mockImplementationOnce(() => dock.activation.promise).mockImplementationOnce(() => secondActivation.promise);
+    const first = dock.begin({ raw: true });
+    await advance({ ms: 500 });
+    expect(dock.pane().sendingLabel).toBe(STARTING);
+    const reason = new DOMException("sentinel Stop reason", "AbortError");
+    act(() => first.controller.abort(reason));
+    await advance();
+    expect(dock.pane().sendingLabel).toBeUndefined();
+    const second = dock.begin({ raw: true });
+    await advance({ ms: 500 });
+    expect(dock.pane().sendingLabel).toBe(STARTING);
+    act(() => dock.activation.resolve());
+    await advance();
+    const stopped = await first.outcome;
+    expect("error" in stopped ? stopped.error : undefined).toBe(reason);
+    expect(dock.startRun).not.toHaveBeenCalled();
+    expect(dock.pane().sendingLabel).toBe(STARTING);
+    act(() => secondActivation.resolve());
+    await advance();
+    expect(dock.pane().sendingLabel).toBeUndefined();
+    expect(dock.startRun).toHaveBeenCalledOnce();
+    act(() => dock.acceptance.resolve());
+    await expect(second.outcome).resolves.toEqual({ value: { runId: "accepted-run" } });
+  });
+
   it("passes Starting assistant… only after an unresolved activation reaches 500 ms", async () => {
     const dock = mountDock();
     dock.begin();

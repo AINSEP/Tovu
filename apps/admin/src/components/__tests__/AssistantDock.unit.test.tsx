@@ -69,7 +69,9 @@ import {
   saveExecutionConfig,
 } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
-import { useByokRuntime, useExecutionConfig, useLocalCliSelection, type UseByokRuntime, type UseExecutionConfig, type UseLocalCliSelection } from "../AssistantDock/hooks/AssistantDock.hooks";
+import { useByokRuntime, type UseByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";
+import { useExecutionConfig, type UseExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
+import { useLocalCliSelection, type UseLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
 import { ChatPane as RealChatPane, MessageRow, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, registerExtEventRenderer, getExtEventRenderer, type ExtEventRenderProps, type ExtEventRendererRegistry } from "@jini-ai/chat/react";
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
