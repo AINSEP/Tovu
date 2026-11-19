@@ -24,7 +24,14 @@ export function createVanillaToolConfirmation({ element, document }: { element: 
     const { strip, label, allow } = controls;
     const original = { text: label.textContent, go: allow.textContent, hidden: strip.hidden };
     const previous = document.activeElement as HTMLElement | null;
-    const cancel = mountConfirmationControls({ document, allow, strip, directive, label });
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = allow.className;
+    cancel.textContent = 'Cancel';
+    strip.append(cancel);
+    strip.setAttribute('role', 'group');
+    strip.setAttribute('aria-label', directive.title);
+    label.setAttribute('role', 'status');
     let active = true;
     const render = () => {
       if (!active) return;
@@ -36,7 +43,17 @@ export function createVanillaToolConfirmation({ element, document }: { element: 
       clear();
       void confirm({ challengeId: directive.challengeId, allow: accepted });
     };
-    const click = createConfirmationClickHandler({ allow, cancel, decide, render });
+    const click = (event: Event) => {
+      if (event.target === allow || event.target === cancel) {
+        // Capture keeps the human decision from also activating a host chrome handler.
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        decide({ allow: event.target === allow });
+      } else {
+        // Open/close updates Jini's chrome synchronously. Project the still-live strip afterwards.
+        queueMicrotask(render);
+      }
+    };
     element.addEventListener('click', click, true);
     // Jini re-renders its chrome on every state change and on open/close, hiding the strip and
     // blanking the label — including Escape (a keydown) and the loader's outside bubble (an event,
@@ -63,31 +80,4 @@ export function createVanillaToolConfirmation({ element, document }: { element: 
     render();
     cancel.focus();
   };
-}
-
-function mountConfirmationControls({ document, allow, strip, directive, label }: { document: Document; allow: HTMLButtonElement; strip: HTMLElement; directive: ToolConfirmation; label: HTMLSpanElement }) {
-  const cancel = document.createElement('button');
-  cancel.type = 'button';
-  cancel.className = allow.className;
-  cancel.textContent = 'Cancel';
-  strip.append(cancel);
-  strip.setAttribute('role', 'group');
-  strip.setAttribute('aria-label', directive.title);
-  label.setAttribute('role', 'status');
-  return cancel;
-}
-
-
-function createConfirmationClickHandler({ allow, cancel, decide, render }: { allow: HTMLButtonElement; cancel: ReturnType<typeof mountConfirmationControls>; decide: ({ allow: accepted }: { allow: boolean; }) => void; render: () => void }) {
-  return (event: Event) => {
-      if (event.target === allow || event.target === cancel) {
-        // Capture keeps the human decision from also activating a host chrome handler.
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        decide({ allow: event.target === allow });
-      } else {
-        // Open/close updates Jini's chrome synchronously. Project the still-live strip afterwards.
-        queueMicrotask(render);
-      }
-    };
 }

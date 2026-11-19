@@ -632,6 +632,13 @@
       "value": 85
     },
     {
+      "file": "apps/admin/src/lib/browser-stream.ts",
+      "function": "startBrowserStream#1",
+      "line": 48,
+      "rule": "max-lines-per-function",
+      "value": 105
+    },
+    {
       "file": "apps/admin/src/panels.tsx",
       "function": "<file>",
       "line": 893,
