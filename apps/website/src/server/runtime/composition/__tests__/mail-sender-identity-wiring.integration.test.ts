@@ -42,7 +42,7 @@ test("deps.ts: the composed mailSenderIdentity reads the site's core.mail sender
   const workspaceId = deps.workspaceId;
 
   for (const key of [MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY]) {
-    const registered = await getEffective({ repo: deps.settingsRepo }, { namespace: MAIL_SENDER_NAMESPACE, key, scopeContext: { workspaceId } });
+    const registered = await getEffective({ deps: { repo: deps.settingsRepo }, namespace: MAIL_SENDER_NAMESPACE, key, scopeContext: { workspaceId } });
     assert.equal(registered?.value, "", `boot registers ${MAIL_SENDER_NAMESPACE}.${key} with an empty default`);
   }
 

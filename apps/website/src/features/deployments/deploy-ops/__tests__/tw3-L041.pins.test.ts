@@ -134,12 +134,12 @@ test("L041 wait handles zero deadline, late observations and reader errors", asy
   const observation: DeployOpsStatus = { platform: "example-host", target: "shop", state: "healthy", summary: "ok", items: [], checkedAt: "" };
   let now = 0; let polls = 0;
   const clock = { now: () => now, sleep: async (ms: number) => { now += ms; } };
-  const zero = await waitForDeployOps({ clock, status: async () => { assert.fail("zero deadline polled"); } }, { until: "healthy", timeoutSeconds: 0 });
+  const zero = await waitForDeployOps({ deps: { clock, status: async () => { assert.fail("zero deadline polled"); } }, until: "healthy", timeoutSeconds: 0 });
   assert.equal(zero.reached, false); assert.equal(zero.polls, 0);
-  const late = await waitForDeployOps({ clock, status: async () => { polls++; now = 10001; return observation; } }, { until: "healthy", timeoutSeconds: 10 });
+  const late = await waitForDeployOps({ deps: { clock, status: async () => { polls++; now = 10001; return observation; } }, until: "healthy", timeoutSeconds: 10 });
   assert.deepEqual(late, { reached: false, waitedSeconds: 10, polls: 1, last: observation });
   const error = new Error("reader refused");
-  await assert.rejects(waitForDeployOps({ clock, status: async () => { throw error; } }, { until: "finished", timeoutSeconds: 10 }), error);
+  await assert.rejects(waitForDeployOps({ deps: { clock, status: async () => { throw error; } }, until: "finished", timeoutSeconds: 10 }), error);
   assert.equal(polls, 1);
 });
 

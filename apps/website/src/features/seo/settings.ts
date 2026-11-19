@@ -95,8 +95,7 @@ async function readKey(
   _optional = {}
 ): Promise<JsonValue | null> {
   const resolved = await getEffective(
-    { repo: settingsRepo },
-    { namespace: SEO_NAMESPACE, key, scopeContext: { workspaceId } }
+    { deps: { repo: settingsRepo }, namespace: SEO_NAMESPACE, key, scopeContext: { workspaceId } },
   );
   return resolved ? resolved.value : null;
 }
@@ -122,8 +121,7 @@ export async function isDefaultRobotsNoindexExplicitlySet(
   _optional: Record<string, never> = {},
 ): Promise<boolean> {
   const resolved = await getEffective(
-    { repo: deps.settingsRepo },
-    { namespace: SEO_NAMESPACE, key: "default_robots_noindex", scopeContext: { workspaceId: input.workspaceId } },
+    { deps: { repo: deps.settingsRepo }, namespace: SEO_NAMESPACE, key: "default_robots_noindex", scopeContext: { workspaceId: input.workspaceId } },
   );
   return resolved !== null && resolved.sourceLayer !== "default";
 }

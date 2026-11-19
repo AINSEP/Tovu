@@ -107,7 +107,7 @@ async function saveChoice({ ledger, principalId, value }: { ledger: Awaited<Retu
 test("OD-4: Chrome is off by default from both owners of the default", async () => {
   const { settingsRepo } = await freshRegisteredLedger();
   // Owner 1: the registered definition answers when nothing is stored.
-  const effective = await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scopeContext: { workspaceId: WORKSPACE, principalId: OWNER } });
+  const effective = await getEffective({ deps: { repo: settingsRepo }, namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scopeContext: { workspaceId: WORKSPACE, principalId: OWNER } });
   assert.deepEqual(effective, { value: false, sourceLayer: "default", defVersion: 1 });
   assert.equal((await preferencesFor({ settingsRepo, principalId: OWNER })).useClaudeInChrome, false);
   // Owner 2: the fallback object answers when the definition cannot be read at all.

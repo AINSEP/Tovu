@@ -220,7 +220,7 @@ for (const policyFlag of [undefined, "off"] as const) {
     const rows = (deps.toolAttemptAuditSink as InMemoryToolAttemptAuditSink).events.filter(event => event.principalId === "anonymous-visitor");
     assert.deepEqual(rows.map(row => row.phase), policyFlag === "off" ? [] : ["requested", "denied"]);
     assert.doesNotMatch(JSON.stringify(rows), /visitor-private-input|127\.0\.0\.1/);
-    const stored = await deps.getEffective({ repo: deps.settingsRepo }, { namespace: "site.assistant", key: "visitor_tools", scopeContext: { workspaceId: deps.workspaceId } });
+    const stored = await deps.getEffective({ deps: { repo: deps.settingsRepo }, namespace: "site.assistant", key: "visitor_tools", scopeContext: { workspaceId: deps.workspaceId } });
     assert.equal((stored?.value as { tools: { list_categories: { mode: string } } }).tools.list_categories.mode, "off");
   });
 }

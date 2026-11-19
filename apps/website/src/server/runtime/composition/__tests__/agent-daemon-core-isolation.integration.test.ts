@@ -56,9 +56,7 @@ for (const db of ["memory", "sqlite"] as const) {
         assert.equal(client.siteBinding.dir, join(root, String(index)));
         assert.equal(client.siteStoragePaths.chatAttachmentsDir, join(root, String(index), "attachments"));
         if (db === "memory") {
-          const setting = await client.getEffective({ repo: client.settingsRepo }, {
-            namespace: "core.instructions", key: "custom", scopeContext: { workspaceId: client.workspaceId },
-          });
+          const setting = await client.getEffective({ deps: { repo: client.settingsRepo }, namespace: "core.instructions", key: "custom", scopeContext: { workspaceId: client.workspaceId } });
           assert.equal(setting?.value, `instructions-${index}`);
           assert.equal(setting?.sourceLayer, 'workspace', 'each memory site receives its effective instructions with their source');
         }

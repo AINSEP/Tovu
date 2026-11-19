@@ -37,14 +37,14 @@ export async function listExternalMcpServerViews(
   { deps, workspaceId }: { deps: Pick<ExternalMcpStoreDeps, "repo"> & Partial<Pick<ExternalMcpStoreDeps, "sealer">>; workspaceId: UUID },
   _optional: Record<string, never> = {},
 ): Promise<ExternalMcpServerView[]> {
-  return hosted.listExternalMcpServerViews({ repo: deps.repo, sealer: deps.sealer, ...externalMcpStorePorts }, workspaceId);
+  return hosted.listExternalMcpServerViews({ deps: { repo: deps.repo, sealer: deps.sealer, ...externalMcpStorePorts }, ...workspaceId });
 }
 
 export async function readEnabledExternalMcpConfigs(
   { deps, workspaceId }: { deps: Pick<ExternalMcpStoreDeps, "repo" | "sealer"> & { oauth?: ExternalMcpOAuthTokenResolverPort }; workspaceId: UUID },
   _optional: Record<string, never> = {},
 ): Promise<{ configs: ExternalMcpServerConfig[]; failures: ExternalMcpConfigFailure[] }> {
-  return hosted.readEnabledExternalMcpConfigs({ repo: deps.repo, sealer: deps.sealer, oauth: deps.oauth, ...externalMcpStorePorts }, workspaceId);
+  return hosted.readEnabledExternalMcpConfigs({ deps: { repo: deps.repo, sealer: deps.sealer, oauth: deps.oauth, ...externalMcpStorePorts }, ...workspaceId });
 }
 
 export async function openExternalMcpOAuthPayload(

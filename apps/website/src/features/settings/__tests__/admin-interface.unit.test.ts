@@ -80,7 +80,7 @@ test("keys match the admin's ledger names", () => {
 test("an operator with no stored row reads the defaults from the default layer", async () => {
   const { settingsRepo } = await registeredLedger();
   const scopeContext = { workspaceId: "workspace-1", principalId: "operator-1" };
-  const read = (key: string) => getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key, scopeContext });
+  const read = (key: string) => getEffective({ deps: { repo: settingsRepo }, namespace: ADMIN_INTERFACE_NAMESPACE, key, scopeContext });
 
   assert.deepEqual(await read(CHAT_TOOL_CALLS_KEY), { value: "collapsed", sourceLayer: "default", defVersion: 1 });
   assert.deepEqual(await read(CHAT_SHOW_USAGE_LINE_KEY), { value: true, sourceLayer: "default", defVersion: 1 });
@@ -119,9 +119,7 @@ test("registers per-operator admin-theme accents as a separate appearance object
   assert.deepEqual(accents.defaultValue, {});
   assert.equal(accents.scopes, PER_OPERATOR);
   const scopeContext = { workspaceId: "workspace-1", principalId: "operator-1" };
-  assert.deepEqual(await getEffective({ repo: settingsRepo }, {
-    namespace: "core.appearance", key: ADMIN_THEME_ACCENTS_KEY, scopeContext,
-  }), { value: {}, sourceLayer: "default", defVersion: 1 });
+  assert.deepEqual(await getEffective({ deps: { repo: settingsRepo }, namespace: "core.appearance", key: ADMIN_THEME_ACCENTS_KEY, scopeContext }), { value: {}, sourceLayer: "default", defVersion: 1 });
 });
 
 test("registering again on the next boot leaves the definitions unchanged", async () => {
@@ -143,7 +141,7 @@ test('Agent plugins defaults Auto and supports independent per-person values', a
   assert.deepEqual(def.schema, { type: 'enum', values: ['auto', 'ask', 'off'] });
   assert.equal(def.scopes, PER_OPERATOR);
   const read = async (principalId: string) => {
-    const setting = await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: 'chatAgentPlugins', scopeContext: { workspaceId: 'workspace-1', principalId } });
+    const setting = await getEffective({ deps: { repo: settingsRepo }, namespace: ADMIN_INTERFACE_NAMESPACE, key: 'chatAgentPlugins', scopeContext: { workspaceId: 'workspace-1', principalId } });
     assert.ok(setting, 'the registered preference must resolve');
     return setting;
   };
@@ -173,7 +171,7 @@ test("assistant runtime preference: preferSubagents is a per-person boolean defa
   assert.equal(def.defaultValue, true);
   assert.equal(def.scopes, PER_OPERATOR);
   const scopeContext = { workspaceId: "workspace-1", principalId: "operator-1" };
-  assert.deepEqual(await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: PREFER_SUBAGENTS_KEY, scopeContext }),
+  assert.deepEqual(await getEffective({ deps: { repo: settingsRepo }, namespace: ADMIN_INTERFACE_NAMESPACE, key: PREFER_SUBAGENTS_KEY, scopeContext }),
     { value: true, sourceLayer: "default", defVersion: 1 });
 });
 
@@ -186,7 +184,7 @@ test("assistant runtime preference: useClaudeInChrome is a per-person boolean de
   assert.equal(def.defaultValue, false);
   assert.equal(def.scopes, PER_OPERATOR);
   const scopeContext = { workspaceId: "workspace-1", principalId: "operator-1" };
-  assert.deepEqual(await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scopeContext }),
+  assert.deepEqual(await getEffective({ deps: { repo: settingsRepo }, namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scopeContext }),
     { value: false, sourceLayer: "default", defVersion: 1 });
 });
 
@@ -198,9 +196,7 @@ test("reply length defaults to Normal, validates its enum and persists independe
   assert.deepEqual(def.schema, { type: "enum", values: ["short", "normal", "detailed"] });
   assert.equal(def.defaultValue, "normal");
   assert.equal(def.scopes, PER_OPERATOR);
-  const read = (principalId: string) => getEffective({ repo: settingsRepo }, {
-    namespace: ADMIN_INTERFACE_NAMESPACE, key: REPLY_LENGTH_KEY, scopeContext: { workspaceId: "workspace-1", principalId },
-  });
+  const read = (principalId: string) => getEffective({ deps: { repo: settingsRepo }, namespace: ADMIN_INTERFACE_NAMESPACE, key: REPLY_LENGTH_KEY, scopeContext: { workspaceId: "workspace-1", principalId } });
   assert.equal((await read("alice"))?.value, "normal");
   const deps = { repo: settingsRepo, clock, ids, authorize: async () => ({ allowed: true, reason: "test" }), principals: { findActiveById: async ({ id }: { id: string }) => ({ id }) } };
   const input = { namespace: ADMIN_INTERFACE_NAMESPACE, key: REPLY_LENGTH_KEY, scope: "user" as const, workspaceId: "workspace-1", principalId: "alice", callerPrincipalId: "alice", authWorkspaceId: "workspace-1", value: "short" };

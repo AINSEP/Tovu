@@ -62,7 +62,7 @@ export async function readFormsAutoPull(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {},
 ): Promise<boolean> {
-  const found = await getEffective({ repo: required.settingsRepo }, { namespace: NAMESPACE, key: AUTO_PULL_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: NAMESPACE, key: AUTO_PULL_KEY, scopeContext: { workspaceId: required.workspaceId } });
   return found?.value !== false;
 }
 
@@ -76,7 +76,7 @@ export async function readFormDeliveryBindings(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {},
 ): Promise<FormDeliveryBinding[]> {
-  const found = await getEffective({ repo: required.settingsRepo }, { namespace: NAMESPACE, key: BINDINGS_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: NAMESPACE, key: BINDINGS_KEY, scopeContext: { workspaceId: required.workspaceId } });
   return parseFormDeliveryBindings({ value: found?.value ?? [] });
 }
 

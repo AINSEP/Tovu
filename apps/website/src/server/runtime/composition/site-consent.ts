@@ -88,7 +88,7 @@ export async function ensureSiteConsentPrivacy({ deps: pendingDeps }: { deps: Pr
     post: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, authorAccounts: deps.userRepo },
     pagesHtmlStore: deps.pagesHtmlStore,
     readUrl: async () => {
-      const value = await getEffective({ repo: deps.settingsRepo }, { namespace: SITE_CONSENT_NAMESPACE,
+      const value = await getEffective({ deps: { repo: deps.settingsRepo }, namespace: SITE_CONSENT_NAMESPACE,
         key: 'privacyPolicyUrl', scopeContext: { workspaceId: deps.workspaceId } });
       if (value === null) return '';
       if (typeof value.value !== 'string') throw new Error('Invalid cookie consent setting: privacyPolicyUrl.');

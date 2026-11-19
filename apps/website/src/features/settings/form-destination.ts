@@ -30,6 +30,6 @@ export async function readFormDestinationSetting(
   { settingsRepo, workspaceId }: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _options: Record<string, never> = {},
 ): Promise<string | undefined> {
-  const setting = await getEffective({ repo: settingsRepo }, { namespace: NAMESPACE, key: KEY, scopeContext: { workspaceId } });
+  const setting = await getEffective({ deps: { repo: settingsRepo }, namespace: NAMESPACE, key: KEY, scopeContext: { workspaceId } });
   return typeof setting?.value === "string" ? setting.value : undefined;
 }

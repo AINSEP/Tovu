@@ -44,7 +44,7 @@ function ownerWrite(ledger: Ledger, target: { namespace: string; key: string }, 
 }
 
 async function storedValue(ledger: Ledger, target: { namespace: string; key: string }): Promise<JsonValue | undefined> {
-  const resolved = await getEffective({ repo: ledger.settingsRepo }, { ...target, scopeContext: { workspaceId: WORKSPACE_ID } });
+  const resolved = await getEffective({ deps: { repo: ledger.settingsRepo }, ...target, scopeContext: { workspaceId: WORKSPACE_ID } });
   return resolved?.sourceLayer === "workspace" ? resolved.value : undefined;
 }
 

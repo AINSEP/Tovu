@@ -35,9 +35,7 @@ async function readPreference(
 ): Promise<unknown> {
   try {
     await deps.settingsReady;
-    const effective = await deps.getEffective({ repo: deps.settingsRepo }, {
-      namespace: ADMIN_INTERFACE_NAMESPACE, key, scopeContext: { workspaceId: deps.workspaceId, principalId },
-    });
+    const effective = await deps.getEffective({ deps: { repo: deps.settingsRepo }, namespace: ADMIN_INTERFACE_NAMESPACE, key, scopeContext: { workspaceId: deps.workspaceId, principalId } });
     return effective?.value;
   } catch {
     return undefined;

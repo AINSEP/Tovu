@@ -98,8 +98,7 @@ async function readKey(
   _optional = {},
 ): Promise<JsonValue | null> {
   const resolved = await getEffective(
-    { repo: settingsRepo },
-    { namespace: COMMENTS_NAMESPACE, key, scopeContext: { workspaceId } }
+    { deps: { repo: settingsRepo }, namespace: COMMENTS_NAMESPACE, key, scopeContext: { workspaceId } },
   );
   return resolved ? resolved.value : null;
 }

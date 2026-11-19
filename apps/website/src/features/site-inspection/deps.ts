@@ -129,8 +129,7 @@ export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps 
     listPluginActivations: () => deps.pluginActivationRepo.listAll(),
     readSetting: async ({ namespace, key }) => {
       const resolved = await deps.getEffective(
-        { repo: deps.settingsRepo },
-        { namespace, key, scopeContext: { workspaceId: deps.workspaceId } },
+        { deps: { repo: deps.settingsRepo }, namespace, key, scopeContext: { workspaceId: deps.workspaceId } },
       );
       // `ResolvedSetting.value` is the settings package's own `JsonValue`. The cast restates that
       // as this module's structurally identical `SiteProfileJsonValue` rather than importing a

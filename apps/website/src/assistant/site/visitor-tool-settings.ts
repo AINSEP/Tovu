@@ -11,7 +11,7 @@ export async function readVisitorToolPolicy({ settingsRepo, workspaceId, reportE
   settingsRepo: SettingsRepoPort; workspaceId: string; reportError: (required: { error: unknown }, optional?: Record<string, never>) => void;
 }, _options = {}): Promise<VisitorToolPolicy | null> {
   try {
-    const resolved = await getEffective({ repo: settingsRepo }, { ...VISITOR_TOOLS_SETTING, scopeContext: { workspaceId } });
+    const resolved = await getEffective({ deps: { repo: settingsRepo }, ...VISITOR_TOOLS_SETTING, scopeContext: { workspaceId } });
     if (!resolved) return null;
     return parseVisitorToolPolicy({ value: resolved.value });
   } catch (error) {

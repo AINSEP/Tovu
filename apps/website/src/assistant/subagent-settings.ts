@@ -12,10 +12,8 @@ export async function readAssistantCliPermissions(required: {
 }, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (required: { source: "site" | "default" }, optional?: Record<string, never>) => void } = {}): Promise<AssistantCliPermissions> {
   try {
     await required.settingsReady;
-    const stored = await required.getEffective({ repo: required.settingsRepo }, {
-      namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_CLI_PERMISSIONS_KEY,
-      scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId },
-    });
+    const stored = await required.getEffective({ deps: { repo: required.settingsRepo }, namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_CLI_PERMISSIONS_KEY,
+      scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId } });
     // The definition default means no owner preference; inherit the legacy Full CLI access grant.
     if (stored?.value != null && stored.sourceLayer !== "default") { optional.onSource?.({ source: "site" }); return parseCliPermissionsSnapshot({ value: stored.value }); }
     return assistantCliPermissions({ enabled: await readAssistantSubagentsEnabled(required, { readFailure: "throw", ...(optional.onSource ? { onSource: optional.onSource } : {}) }) });
@@ -65,10 +63,8 @@ export async function readAssistantSubagentsEnabled(required: {
 }, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (required: { source: "site" | "default" }, optional?: Record<string, never>) => void } = {}): Promise<boolean> {
   try {
     await required.settingsReady;
-    const setting = await required.getEffective({ repo: required.settingsRepo }, {
-      namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_SUBAGENTS_KEY,
-      scopeContext: { workspaceId: required.workspaceId },
-    });
+    const setting = await required.getEffective({ deps: { repo: required.settingsRepo }, namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_SUBAGENTS_KEY,
+      scopeContext: { workspaceId: required.workspaceId } });
     optional.onSource?.({ source: setting && setting.sourceLayer !== "default" ? "site" : "default" });
     return setting === null ? true : setting.value === true;
   } catch (error) {

@@ -45,7 +45,7 @@ test("createSeoDeps: siteTitle counts only an explicit workspace title, never th
   await ensureSiteTitleSettingDefinition(ledger, { systemPrincipalId: "system-seo-index" });
   const seo = createSeoDeps({ deps } as never, {});
 
-  assert.equal((await getEffective({ repo: settingsRepo }, { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: WORKSPACE } }))?.sourceLayer !== "workspace", true);
+  assert.equal((await getEffective({ deps: { repo: settingsRepo }, namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: WORKSPACE } }))?.sourceLayer !== "workspace", true);
   assert.equal(await seo.siteTitle({ workspaceId: WORKSPACE }), undefined, "the default layer is not an explicit title");
 
   await set({

@@ -19,9 +19,7 @@ export async function ensureCommerceSetting({ deps, systemPrincipalId }: {
 export async function readCommerceConfiguration({ settingsRepo, workspaceId }: {
   settingsRepo: SettingsRepoPort; workspaceId: string;
 }, _optional = {}): Promise<CommerceConfiguration | null> {
-  const resolved = await getEffective({ repo: settingsRepo }, {
-    namespace: 'core.commerce', key: 'configuration', scopeContext: { workspaceId },
-  });
+  const resolved = await getEffective({ deps: { repo: settingsRepo }, namespace: 'core.commerce', key: 'configuration', scopeContext: { workspaceId } });
   const value = configurationObject({ value: resolved?.value });
   if (!value) return null;
   const { providerId, accountId, mode, publicOrigin } = value;

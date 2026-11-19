@@ -116,8 +116,7 @@ export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
     // Only an explicit workspace title counts for the root entry, not the default/display fallback.
     siteTitle: async ({ workspaceId }) => {
       const setting = await getEffective(
-        { repo: deps.settingsRepo },
-        { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId } },
+        { deps: { repo: deps.settingsRepo }, namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId } },
       );
       return setting?.sourceLayer === "workspace" ? normalizeSiteTitle({ value: setting.value }) : undefined;
     },

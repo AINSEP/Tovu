@@ -64,7 +64,7 @@ export async function readMailProviderSetting(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {}
 ): Promise<MailProviderSetting | null> {
-  const found = await getEffective({ repo: required.settingsRepo }, { namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_PROVIDER_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_PROVIDER_KEY, scopeContext: { workspaceId: required.workspaceId } });
   if (!found || found.sourceLayer === "default") return null;
   return parseMailProviderSetting({ value: found.value });
 }
@@ -121,6 +121,6 @@ export async function readMailTestMode(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {}
 ): Promise<MailTestModeSetting> {
-  const found = await getEffective({ repo: required.settingsRepo }, { namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_TEST_MODE_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_TEST_MODE_KEY, scopeContext: { workspaceId: required.workspaceId } });
   return parseMailTestMode({ value: found?.value });
 }

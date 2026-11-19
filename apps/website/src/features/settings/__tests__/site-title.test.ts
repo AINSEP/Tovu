@@ -99,8 +99,7 @@ async function systemPinRevisions(ledger: Ledger, workspaceId: string): Promise<
 
 async function effectiveTitle(ledger: Ledger, workspaceId: string) {
   const resolved = await getEffective(
-    { repo: ledger.settingsRepo },
-    { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId } }
+    { deps: { repo: ledger.settingsRepo }, namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId } },
   );
   return { value: resolved?.value, sourceLayer: resolved?.sourceLayer };
 }

@@ -472,10 +472,8 @@ export function buildAssistantToolRegistrations(
   const approvedRegistrations = guardedRegistrations.map(registration => applyToolApprovalPolicy({ registration, surfaces: guardedSurfaces }, {
     localeFor: async ({ ctx }, _optional = {}) => {
       if (!routeDeps.settingsRepo) return "en";
-      const setting = await getEffectiveSetting({ repo: routeDeps.settingsRepo }, {
-        namespace: LANGUAGE_NAMESPACE, key: "locale",
-        scopeContext: { workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id },
-      });
+      const setting = await getEffectiveSetting({ deps: { repo: routeDeps.settingsRepo }, namespace: LANGUAGE_NAMESPACE, key: "locale",
+        scopeContext: { workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id } });
       return typeof setting?.value === "string" ? setting.value : "en";
     },
   }));

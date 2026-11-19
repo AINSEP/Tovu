@@ -149,5 +149,5 @@ async function bootstrapSnapshot({ deps }: { deps: CoreDeps }): Promise<unknown>
 async function readSetting({ deps, input }: { deps: CoreDeps; input: Extract<DaemonCoreRequest, { operation: "getEffective" }>["input"] }): Promise<unknown> {
   if (input.scopeContext.workspaceId !== deps.workspaceId) throw new DaemonCoreError({ reason: "foreign settings workspace" });
   await Promise.all([deps.settingsUiTabsReady, deps.siteTitleReady]);
-  return deps.getEffective({ repo: deps.settingsRepo }, input);
+  return deps.getEffective({ deps: { repo: deps.settingsRepo }, ...input });
 }

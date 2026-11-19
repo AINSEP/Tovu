@@ -56,9 +56,7 @@ export function readSearchProviderSetting(
   _optional: Record<string, never> = {},
 ): (input: { workspaceId: string }) => Promise<string> {
   return async ({ workspaceId }) => {
-    const found = await getEffective({ repo: required.settingsRepo }, {
-      namespace: SEARCH_SETTINGS_NAMESPACE, key: SEARCH_PROVIDER_KEY, scopeContext: { workspaceId },
-    });
+    const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: SEARCH_SETTINGS_NAMESPACE, key: SEARCH_PROVIDER_KEY, scopeContext: { workspaceId } });
     const value = found?.value ?? BUILTIN_SEARCH_PROVIDER_ID;
     if (!isSearchProviderId(value)) throw rejection({ value });
     return value;

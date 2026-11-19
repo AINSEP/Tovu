@@ -182,7 +182,7 @@ export function createSettingsAnalyticsConfig(deps: CreateSettingsAnalyticsConfi
     async get({ workspaceId }): Promise<AnalyticsSiteConfig> {
       const scopeContext = { workspaceId };
       const read = (key: AnalyticsSettingKey) =>
-        getEffective({ repo: deps.settingsRepo }, { namespace: ANALYTICS_NAMESPACE, key, scopeContext });
+        getEffective({ deps: { repo: deps.settingsRepo }, namespace: ANALYTICS_NAMESPACE, key, scopeContext });
 
       const resolved = await Promise.all([
         read("enabled"),

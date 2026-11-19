@@ -215,7 +215,7 @@ test("Don't ask again writes Auto only for the answering principal through the r
       input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: id, callerPrincipalId: id, authWorkspaceId: f.workspaceId, value: 'ask' } });
   }
   const read = async (principalId: string) => {
-    const setting = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId } });
+    const setting = await getEffective({ deps: { repo: f.settingsRepo }, namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId } });
     assert.ok(setting, 'the registered preference must resolve');
     return setting;
   };
@@ -584,7 +584,7 @@ for (const action of ['use', 'auto'] as const) test(`pending plugin ${action} ca
     await writeMode('off');
     assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: action, selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
   } } }), /changed/);
-  const mode = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
+  const mode = await getEffective({ deps: { repo: f.settingsRepo }, namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
   assert.equal(mode?.value, 'off');
   assert.equal(cards, 1);
   assert.deepEqual(notices, ['\n\nYour Agent Plugins preference changed while this card was open. Nothing was changed by this answer. Start a new request using your current preference.\n\n']);
@@ -609,7 +609,7 @@ test('automatic plugin access rechecks the real active person after the answer',
     await f.principalRepo.save({ ...person, status: 'disabled' });
     assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: 'auto', selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
   } } }), /active, signed-in person/);
-  const mode = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
+  const mode = await getEffective({ deps: { repo: f.settingsRepo }, namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
   assert.equal(mode?.value, 'ask');
   assert.equal(cards, 1);
   assert.equal(f.published.length, 0);

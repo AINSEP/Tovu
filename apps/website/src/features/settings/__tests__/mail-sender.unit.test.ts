@@ -35,7 +35,7 @@ async function ledger({ register = true }: { register?: boolean } = {}) {
 test("ensureMailSenderSettings registers core.mail.senderEmail and senderName, both defaulting to empty", async () => {
   const { settingsRepo } = await ledger();
   for (const key of [MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY]) {
-    const found = await getEffective({ repo: settingsRepo }, { namespace: "core.mail", key, scopeContext: { workspaceId: WS } });
+    const found = await getEffective({ deps: { repo: settingsRepo }, namespace: "core.mail", key, scopeContext: { workspaceId: WS } });
     assert.equal(found?.value, "", `${key} defaults to the empty string`);
   }
 });

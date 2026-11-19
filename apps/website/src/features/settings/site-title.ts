@@ -255,8 +255,7 @@ export async function resolveSiteTitle(deps: ResolveSiteTitleDeps, input: { work
     // display name for that request.
     const pending = await deps.preservationStore.isPending({ workspaceId: input.workspaceId });
     const resolved = await getEffective(
-      { repo: deps.settingsRepo },
-      { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: input.workspaceId } }
+      { deps: { repo: deps.settingsRepo }, namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: input.workspaceId } },
     );
     if (resolved === null) return LEGACY_SITE_TITLE;
     const workspaceTitle = resolved.sourceLayer === "workspace" ? normalizeSiteTitle({ value: resolved.value }) : undefined;

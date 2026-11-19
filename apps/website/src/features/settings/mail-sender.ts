@@ -38,7 +38,7 @@ export async function readMailSenderSetting(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {}
 ): Promise<{ email?: string; name?: string }> {
-  const read = ({ key }: { key: string }, _optional = {}) => getEffective({ repo: required.settingsRepo }, { namespace: MAIL_SENDER_NAMESPACE, key, scopeContext: { workspaceId: required.workspaceId } });
+  const read = ({ key }: { key: string }, _optional = {}) => getEffective({ deps: { repo: required.settingsRepo }, namespace: MAIL_SENDER_NAMESPACE, key, scopeContext: { workspaceId: required.workspaceId } });
   const [email, name] = await Promise.all([read({ key: MAIL_SENDER_EMAIL_KEY }), read({ key: MAIL_SENDER_NAME_KEY })]);
   return { ...nonBlank({ field: "email", value: email?.value }), ...nonBlank({ field: "name", value: name?.value }) };
 }

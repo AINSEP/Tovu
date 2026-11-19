@@ -28,7 +28,7 @@ async function readSiteChartProvider(
   { workspaceId, settingsRepo, defaultProvider }: { workspaceId: string; settingsRepo: SettingsRepoPort; defaultProvider: string | undefined },
   _options: Record<string, never> = {},
 ): Promise<string> {
-  const setting = await getEffective({ repo: settingsRepo }, { namespace: "core.charts", key: "provider", scopeContext: { workspaceId } });
+  const setting = await getEffective({ deps: { repo: settingsRepo }, namespace: "core.charts", key: "provider", scopeContext: { workspaceId } });
   const stored = setting?.sourceLayer !== "default" && typeof setting?.value === "string" ? setting.value : undefined;
   return stored ?? defaultProvider ?? CHART_TABLE_PROVIDER;
 }

@@ -45,7 +45,7 @@ async function collectionAllowed({ request, deps, surface }: {
   // adapters use the consent plugin collector, which carries their server-owned analytics level.
   if (surface === 'site') return (await readSiteVisitorConsent({ deps, req: request })).analyticsLevel === 'full';
   if ((await currentCredential({ deps, req: request }))?.kind !== 'session') return false;
-  return (await getEffective({ repo: deps.settingsRepo }, { ...TELEMETRY_CONSENT, scopeContext: { workspaceId: deps.workspaceId } }))?.value === true;
+  return (await getEffective({ deps: { repo: deps.settingsRepo }, ...TELEMETRY_CONSENT, scopeContext: { workspaceId: deps.workspaceId } }))?.value === true;
 }
 
 /** Forward only the bounded bytes and media type; browser cookies remain inside the host. O(body). */

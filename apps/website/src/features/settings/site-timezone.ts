@@ -78,8 +78,7 @@ function ownerTimeZone({ resolved }: { resolved: { sourceLayer: string; value: u
 export async function resolveSiteTimeZone(deps: ResolveSiteTimeZoneDeps, input: { workspaceId: UUID }): Promise<string> {
   try {
     const resolved = await getEffective(
-      { repo: deps.settingsRepo },
-      { namespace: SITE_TIMEZONE_NAMESPACE, key: SITE_TIMEZONE_KEY, scopeContext: { workspaceId: input.workspaceId } }
+      { deps: { repo: deps.settingsRepo }, namespace: SITE_TIMEZONE_NAMESPACE, key: SITE_TIMEZONE_KEY, scopeContext: { workspaceId: input.workspaceId } },
     );
     return ownerTimeZone({ resolved }) ?? creationOrDefault(deps);
   } catch (err) {

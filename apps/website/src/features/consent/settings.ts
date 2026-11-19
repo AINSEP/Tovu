@@ -50,7 +50,7 @@ type Deps = { settingsRepo: SettingsRepoPort; workspaceId: string };
 
 /** @complexity O(1), one ledger read. */
 async function readSetting({ settingsRepo, workspaceId }: Deps, key: keyof SiteConsentSettings) {
-  return getEffective({ repo: settingsRepo }, { namespace: SITE_CONSENT_NAMESPACE, key, scopeContext: { workspaceId } });
+  return getEffective({ deps: { repo: settingsRepo }, namespace: SITE_CONSENT_NAMESPACE, key, scopeContext: { workspaceId } });
 }
 
 /** Resolve whether consent applies, honoring an explicit owner choice over the product default.

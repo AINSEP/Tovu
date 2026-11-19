@@ -254,8 +254,7 @@ test("AC-10, AC-01, AC-02, AC-07 (T-W1): a database seeded before this feature b
   await assertSiteTitleSurfaces(site, LEGACY_TITLE);
 
   const effective = await getEffective(
-    { repo: site.deps.settingsRepo },
-    { namespace: "core.site", key: "title", scopeContext: { workspaceId: site.deps.workspaceId } }
+    { deps: { repo: site.deps.settingsRepo }, namespace: "core.site", key: "title", scopeContext: { workspaceId: site.deps.workspaceId } },
   );
   assert.deepEqual({ value: effective?.value, sourceLayer: effective?.sourceLayer }, { value: LEGACY_TITLE, sourceLayer: "workspace" });
   assert.equal((await systemPinRevisions(site.deps)).length, 1, "exactly one op='set' revision by system-settings-migration");

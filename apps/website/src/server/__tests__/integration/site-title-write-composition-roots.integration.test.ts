@@ -43,8 +43,7 @@ function writeSiteTitle(deps: SiteTitleWriteDeps, value: string) {
 
 async function storedTitle(deps: SiteTitleWriteDeps): Promise<unknown> {
   const resolved = await getEffective(
-    { repo: deps.settingsRepo },
-    { namespace: "core.site", key: "title", scopeContext: { workspaceId: deps.workspaceId } }
+    { deps: { repo: deps.settingsRepo }, namespace: "core.site", key: "title", scopeContext: { workspaceId: deps.workspaceId } },
   );
   return resolved?.value;
 }

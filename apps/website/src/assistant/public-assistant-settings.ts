@@ -136,8 +136,7 @@ export async function getPublicAssistantSettings(
 ): Promise<PublicAssistantSettings> {
   const publicEnabled = await isPublicAssistantEnabled(deps, input);
   const widget = await deps.getEffective(
-    { repo: deps.settingsRepo },
-    { namespace: ASSISTANT_NAMESPACE, key: "widget", scopeContext: { workspaceId: input.workspaceId } }
+    { deps: { repo: deps.settingsRepo }, namespace: ASSISTANT_NAMESPACE, key: "widget", scopeContext: { workspaceId: input.workspaceId } },
   );
   return { publicEnabled, widget: widget?.value === "vanilla" ? "vanilla" : "react" };
 }
@@ -160,8 +159,7 @@ export async function isPublicAssistantEnabled(
 ): Promise<boolean> {
   // The endpoint's kill-switch check needs only this field; do not add a widget lookup to each turn.
   const resolved = await deps.getEffective(
-    { repo: deps.settingsRepo },
-    { namespace: ASSISTANT_NAMESPACE, key: "public_enabled", scopeContext: { workspaceId: input.workspaceId } }
+    { deps: { repo: deps.settingsRepo }, namespace: ASSISTANT_NAMESPACE, key: "public_enabled", scopeContext: { workspaceId: input.workspaceId } },
   );
   return resolved?.value === true;
 }

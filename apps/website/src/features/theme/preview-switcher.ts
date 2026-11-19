@@ -69,7 +69,7 @@ export function validatePreviewSwitcher({ value, themes, activeThemeId }: Previe
 export async function readPreviewSwitcher({ settingsRepo, workspaceId, themes, activeThemeId }: PreviewThemeRoster & {
   settingsRepo: SettingsRepoPort; workspaceId: string;
 }, _options = {}): Promise<PreviewSwitcher> {
-  const found = await getEffective({ repo: settingsRepo }, { namespace: PREVIEW_SWITCHER_NAMESPACE, key: PREVIEW_SWITCHER_KEY, scopeContext: { workspaceId } });
+  const found = await getEffective({ deps: { repo: settingsRepo }, namespace: PREVIEW_SWITCHER_NAMESPACE, key: PREVIEW_SWITCHER_KEY, scopeContext: { workspaceId } });
   const config = parsePreviewSwitcher({ value: found?.value ?? DISABLED });
   if (!config.enabled) return config;
   const installed = new Map(themes.filter(theme => theme.status === "valid").map(theme => [theme.manifest.id, theme]));
