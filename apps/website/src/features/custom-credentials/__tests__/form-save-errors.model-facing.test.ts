@@ -44,6 +44,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 const WORKSPACE_ID = "ws-cred-form-save-errors";
@@ -151,7 +152,7 @@ let toolUseCounter = 0;
  * human, and returns the wire result plus everything the run emitted (the outcome resource included).
  */
 async function submitForm(harness: Harness, toolId: string, input: unknown, params: Record<string, unknown>) {
-  const pending = delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
+  const pending = delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { reportInternalError: reportRouteInternalError, lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
   for (let tick = 0; tick < 200 && harness.openedExchangeIds.length === 0; tick++) {
     await new Promise((resolve) => setImmediate(resolve));
   }

@@ -33,6 +33,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 const WORKSPACE_ID = "ws-cred-write-files-network";
@@ -127,7 +128,7 @@ type Harness = Awaited<ReturnType<typeof buildHarness>>;
 /** Calls write_files through the real transport and returns what the model and the run saw. No card:
  *  an ordinary write runs immediately (6eac86229), so none may be opened on any path. */
 async function callWrite(harness: Harness) {
-  const wire = await delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: "tu-1", toolId: WRITE_FILES_TOOL_ID, input: VALID_INPUT }, deps: { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
+  const wire = await delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: "tu-1", toolId: WRITE_FILES_TOOL_ID, input: VALID_INPUT }, deps: { reportInternalError: reportRouteInternalError, lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
   assert.equal(harness.openedExchangeIds.length, 0, "an ordinary write raises no confirmation card");
   const events = await harness.eventLog.replay({ runId: harness.run.id, afterCursor: null });
   return { wireText: JSON.stringify(wire), eventsText: JSON.stringify(events) };

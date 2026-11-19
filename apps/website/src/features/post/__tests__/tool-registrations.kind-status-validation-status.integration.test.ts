@@ -13,6 +13,7 @@ import { buildPostRegistrations } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 /**
@@ -79,7 +80,7 @@ test("content_post_get called with invalid 'kind' is a 400 BAD_REQUEST end to en
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_get", input: { id: "p1", kind: "template" } },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
 
   assert.deepEqual(result, {
@@ -93,7 +94,7 @@ test("content_post_list called with invalid 'kind' is a 400 BAD_REQUEST end to e
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_list", input: { kind: "template" } },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
 
   assert.deepEqual(result, {
@@ -112,7 +113,7 @@ test("content_post_update called with an invalid 'status' is a 400 BAD_REQUEST e
       toolId: "content_post_update",
       input: { id: "p1", kind: "post", title: "Existing Post", slug: "existing-post", bodyJson: EMPTY_DOC, status: "archived" },
     },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
 
   assert.deepEqual(result, {
@@ -126,7 +127,7 @@ test("a well-formed content_post_get call still succeeds end to end (the fix doe
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_get", input: { id: "p1", kind: "post" } },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
 
   assert.equal(result.ok, true, JSON.stringify(result));

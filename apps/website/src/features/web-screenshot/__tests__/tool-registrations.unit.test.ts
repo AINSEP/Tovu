@@ -15,6 +15,7 @@ import { createByokToolSurface, type ByokToolSurfaceDeps } from "#src/assistant/
 import { createScreenshotTileEncoder } from "../screenshot-image.js";
 import { buildWebScreenshotRegistrations, contributeWebScreenshotTools, webScreenshotDerivedRisk, type WebScreenshotToolDeps } from "../tool-registrations.js";
 import { createWebScreenshotService, WEB_SCREENSHOT_TOOL_ID, type PageCapturePort, type WebScreenshotPorts } from "../web-screenshot.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const encodeScreenshotTiles = createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() });
 
@@ -87,7 +88,7 @@ test("CLI path: through the real ToolExecutor and the daemon's read-only delegat
   const routeDeps = { toolExecutor: createToolExecutor({ registry }), lifecycle, toolRegistry: registry, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-shot-1", toolId: WEB_SCREENSHOT_TOOL_ID, input: { url: "https://example.com/" }, requireReadOnly: true },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
 
   assert.equal(result.ok, true, JSON.stringify(result).slice(0, 300));

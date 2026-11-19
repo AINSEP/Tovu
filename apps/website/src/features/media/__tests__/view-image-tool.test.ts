@@ -17,6 +17,7 @@ import {
   mediaViewImageDerivedRisk,
   type MediaViewImageToolDeps,
 } from "../view-image-tool.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /**
  * @file `media_view_image` — the tool that lets the assistant actually LOOK at a media
@@ -312,7 +313,7 @@ test("PASS-THROUGH: through the real ToolExecutor and the daemon's read-only del
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-view-1", toolId: MEDIA_VIEW_IMAGE_TOOL_ID, input: { mediaId: asset.id }, requireReadOnly: true },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
 
   assert.equal(result.ok, true, JSON.stringify(result).slice(0, 300));

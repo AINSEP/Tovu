@@ -47,6 +47,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
 import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 const WORKSPACE_ID = "ws-cred-model-facing";
@@ -133,7 +134,7 @@ async function call(harness: Harness, toolId: string, input: unknown) {
     input = credentialSaveFixtureInput({ input, kind: "api", rotation: toolId === "custom_credential_set_token" });
     toolId = "credential_save";
   }
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: harness as never });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { reportInternalError: reportRouteInternalError, ...harness, reportInternalError: reportRouteInternalError } as never });
 }
 
 /** The exact fixed text `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` publishes for a secret-store

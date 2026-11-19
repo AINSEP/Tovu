@@ -44,6 +44,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import type { DiscoveredTheme } from "../../theme/index.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 const WORKSPACE_ID = "ws-post-model-facing";
@@ -106,7 +107,7 @@ let toolUseCounter = 0;
 async function call(harness: Harness, toolId: string, input: unknown) {
   return delegatedToolExecuteRoute.handle({
     input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input },
-    deps: harness as never,
+    deps: { ...harness, reportInternalError: reportRouteInternalError } as never,
   });
 }
 

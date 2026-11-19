@@ -6,6 +6,7 @@ import { delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai
 import { delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
 import { createContentReadFamilyPort } from "#src/assistant/tool-family-port";
 import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /** The host's own `delegatedToolRouteDeps` expression, evaluated from the scope source, mounted on the real
  * daemon route: an agent that calls the bare `content_read` is told the cards to call, on both gateways, and
@@ -30,7 +31,7 @@ function fixture({ withFamilies = true }: { withFamilies?: boolean } = {}) {
 
 async function bareCall(host: ReturnType<typeof fixture>, { toolId, requireReadOnly }: { toolId: string; requireReadOnly: boolean }) {
   const { run } = await host.lifecycle.start({ contextRef: "ctx-1" });
-  return delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId, input: { resource: "menu" }, ...(requireReadOnly ? { requireReadOnly: true } : {}) }, deps: host.deps });
+  return delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId, input: { resource: "menu" }, ...(requireReadOnly ? { requireReadOnly: true } : {}) }, deps: { ...host.deps, reportInternalError: reportRouteInternalError } });
 }
 
 for (const requireReadOnly of [true, false]) {
