@@ -2,7 +2,7 @@
 import { CATEGORIES, type DeclaredScript } from '@jini-ai/cookie-consent';
 import { validateScripts } from '@jini-ai/cookie-consent/policy';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
-import type { ConsentProblem } from './validation.js';
+import type { ConsentProblem } from '#src/contracts/core/consent-refusal';
 
 type Node = DefaultTreeAdapterMap['childNode'];
 export interface ConsentWarning extends ConsentProblem { source?: string | null; tag?: string; attributes?: string[] }

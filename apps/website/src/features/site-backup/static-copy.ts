@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ExportReport } from "#src/contracts/core/export-report";
 import { shareFileStem } from "./share-service.js";
-import { downloadForms } from "../site-export/export-html-policy.js";
+import { downloadForms } from "./static-download-html.js";
 
 export interface StaticSiteMetadata {
   exportedAt: string;

@@ -1,7 +1,7 @@
 import { delegatedToolErrorDisclosure } from "../../../assistant/tool-recovery-preset.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
-import { deploymentRefusal } from "../../consent/service.js";
+import { deploymentRefusal } from "#src/contracts/core/consent-refusal";
 import { buildCredentialSaveRegistrations, credentialSaveCatalog } from "../../custom-credentials/credential-save-tool.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";

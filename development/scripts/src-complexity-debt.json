@@ -184,9 +184,9 @@
       "value": 16
     },
     {
-      "file": "apps/website/src/features/webmcp/published-html.ts",
+      "file": "apps/website/src/platform/html/published-webmcp-strip.ts",
       "function": "nativeFormToolRanges#1",
-      "line": 23,
+      "line": 22,
       "rule": "sonarjs/cognitive-complexity",
       "value": 12
     },

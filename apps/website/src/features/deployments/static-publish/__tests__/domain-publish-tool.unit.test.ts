@@ -15,7 +15,7 @@ import { buildStaticPublishRegistrations } from '../../publish-agent-tools.js';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
-import { deploymentRefusal } from '#src/features/consent/service';
+import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
 import { buildGatewayDeps } from '#src/contracts/core/gated-mutations/composition';
 import { InMemoryTokenStore, type TokenStorePort } from '#src/contracts/core/gated-mutations/token';
