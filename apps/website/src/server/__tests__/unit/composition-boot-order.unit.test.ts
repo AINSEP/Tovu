@@ -151,13 +151,18 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   const release = indexOfAnchor(root, "await opened.release()");
   assert.ok(openStore < compose && compose < release, "the store opens first; a failed composition releases it");
   const body = functionBody(deps, "async function composeSiteRouteDeps(");
+  const phases = readCode("server/runtime/composition/site-deps/boot-phases.ts");
+  const storage = functionBody(phases, "export function composeStoragePhase(");
+  const services = functionBody(phases, "export function composeSiteServicesPhase(");
   const open = 0;
-  const kernel = indexOfAnchor(body, "const kernel = store.content");
+  const kernel = indexOfAnchor(body, "composeStoragePhase(");
+  indexOfAnchor(storage, "const kernel = store.content");
   const workspace = indexOfAnchor(body, "await resolveWorkspaceIdOverride(kernel, overrides)");
   const denyStore = indexOfAnchor(body, "await publishTrustRevocationStoreFor(kernel)");
   const orphanCheck = indexOfAnchor(body, "await warnCompositionChatOrphans(");
   indexOfAnchor(functionBody(deps, "async function warnCompositionChatOrphans("), "await warnOnOrphanedChatRows(");
-  const firstBootPromise = indexOfAnchor(body, "composeStoreBasics(");
+  const firstBootPromise = indexOfAnchor(body, "composeSiteServicesPhase(");
+  indexOfAnchor(services, "composeStoreBasics(");
   indexOfAnchor(readCode("server/runtime/composition/site-deps/store-basics.ts"), "preparePostSearchIndex(");
   assert.ok(open < kernel && kernel < workspace, "the workspace is read on the kernel of the opened store");
   assert.ok(workspace < denyStore, "the deny store is probed after the workspace resolves");
@@ -176,7 +181,8 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
     "  const providerPlugins = await providerPluginBoot({ overrides })({",
     "  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });",
   ], "only the fenced vault normalization and the listed composition steps may await after boot promises start");
-  const keyring = indexOfAnchor(body, "composeSiteKeysMembers(");
+  const keyring = indexOfAnchor(body, "composeSiteServicesPhase(");
+  indexOfAnchor(services, "composeSiteKeysMembers(");
   indexOfAnchor(functionBody(readCode("server/runtime/composition/site-deps/site-keys-members.ts"), "export function composeSiteKeysMembers("), "const siteAssistantSecretKeyring = new EnvOrFileKeyring(");
   const normalize = indexOfAnchor(body, "await normalizeSiteVaultAtBoot(");
   const credentials = indexOfAnchor(body, "composeAssistantCredentials(");
