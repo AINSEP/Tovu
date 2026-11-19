@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { evaluateFileTiers, resolveBaseRef, ZERO_SHA } from "../check-route-coverage-diff.js";
-import type { FileCoverage } from "../route-coverage-lib.js";
+import type { FileCoverage } from "@jini-ai/devops/checks/coverage";
 
 /**
  * @file Direct coverage for `resolveBaseRef`'s push-event fallback — the fix for a real gap found
@@ -60,6 +60,15 @@ test("ROUTE_COVERAGE_DIFF_BASE beats a positional ref and all GitHub environment
 test("brand-new branch's first push (GITHUB_EVENT_BEFORE is the all-zeros SHA) falls back to origin/main", () => {
   withEnv(
     { ROUTE_COVERAGE_DIFF_BASE: undefined, GITHUB_BASE_REF: undefined, GITHUB_EVENT_BEFORE: ZERO_SHA },
+    () => {
+      assert.equal(resolveBaseRef(ARGV_NO_POSITIONAL), "origin/main");
+    }
+  );
+});
+
+test("push event: a short all-zero GITHUB_EVENT_BEFORE falls back to origin/main", () => {
+  withEnv(
+    { ROUTE_COVERAGE_DIFF_BASE: undefined, GITHUB_BASE_REF: undefined, GITHUB_EVENT_BEFORE: "0000000" },
     () => {
       assert.equal(resolveBaseRef(ARGV_NO_POSITIONAL), "origin/main");
     }
@@ -201,4 +210,16 @@ test("CLI selects changed routes, loads both LCOV tiers, and returns failure or 
   assert.equal(passing.error, undefined);
   assert.equal(passing.status, 0, passing.stderr);
   assert.ok(passing.stdout.includes(`${route}: unit 99.00% branch, integration 95.00% branch`));
+});
+
+test("evaluateFileTiers: tiers that disagree on the static branch total fail both tiers instead of trusting the unit record", () => {
+  const result = evaluateFileTiers("src/server/routes/site/example.ts", fileCoverage({ brf: 100, brh: 100 }), fileCoverage({ brf: 90, brh: 90 }));
+  assert.equal(result.ok, false);
+  assert.equal(result.unit.detail, "inconsistent branch totals between tiers");
+  assert.equal(result.integration.detail, "inconsistent branch totals between tiers");
+});
+
+test("evaluateFileTiers: no record on either tier keeps this repo's 'never loaded' explanation", () => {
+  const result = evaluateFileTiers("src/server/routes/site/example.ts", undefined, undefined);
+  assert.equal(result.unit.detail, "no coverage record on either tier (never loaded by any src/server test)");
 });

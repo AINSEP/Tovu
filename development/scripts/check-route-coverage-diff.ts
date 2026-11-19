@@ -72,14 +72,18 @@
 import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import {
+  evaluateFileTiers as evaluateSharedFileTiers,
+  resolveBaseRef as resolveSharedBaseRef,
+  type FileCoverage,
+  type FileTierEvaluation,
+} from "@jini-ai/devops/checks/coverage";
+import {
   LCOV_INTEGRATION_PATH,
   LCOV_UNIT_PATH,
   MEASURABLE_ROUTE_PREFIXES,
   REPO_ROOT,
   isMeasurableRouteFile,
   loadRouteCoverage,
-  pct,
-  type FileCoverage,
 } from "./route-coverage-lib.js";
 
 const UNIT_BRANCH_THRESHOLD = 99;
@@ -88,14 +92,12 @@ const INTEGRATION_BRANCH_THRESHOLD = 95;
 export const ZERO_SHA = "0000000000000000000000000000000000000000";
 
 export function resolveBaseRef(argv: string[]): string {
-  if (process.env.ROUTE_COVERAGE_DIFF_BASE) return process.env.ROUTE_COVERAGE_DIFF_BASE;
-  const positional = argv[2];
-  if (positional) return positional;
-  const ghBase = process.env.GITHUB_BASE_REF;
-  if (ghBase) return ghBase.includes("/") ? ghBase : `origin/${ghBase}`;
-  const eventBefore = process.env.GITHUB_EVENT_BEFORE;
-  if (eventBefore && eventBefore !== ZERO_SHA) return eventBefore;
-  return "origin/main";
+  return resolveSharedBaseRef({ fallbackRef: "origin/main", remote: "origin" }, {
+    override: process.env.ROUTE_COVERAGE_DIFF_BASE,
+    positional: argv[2],
+    pullRequestBase: process.env.GITHUB_BASE_REF,
+    eventBefore: process.env.GITHUB_EVENT_BEFORE,
+  });
 }
 
 function changedRouteFiles(baseRef: string): string[] {
@@ -129,51 +131,23 @@ function changedRouteFiles(baseRef: string): string[] {
     .filter((line) => line.length > 0 && isMeasurableRouteFile(line));
 }
 
-/** One tier's (unit or integration) verdict for a single file. `pctValue` is always a real number
- *  (never NaN) — 0 when the tier has no record at all, 100 when the file is vacuously branchless. */
-export interface TierResult {
-  ok: boolean;
-  pctValue: number;
-  detail: string;
-}
-
-export interface FileTierEvaluation {
-  file: string;
-  unit: TierResult;
-  integration: TierResult;
-  ok: boolean;
-}
-
-function tierResult(rec: FileCoverage | undefined, threshold: number, label: "unit" | "integration"): TierResult {
-  if (!rec) return { ok: false, pctValue: 0, detail: `no ${label} coverage record` };
-  const value = pct(rec.brh, rec.brf);
-  return { ok: value >= threshold, pctValue: value, detail: `${value.toFixed(2)}% branch` };
-}
+const NEVER_LOADED = "no coverage record on either tier";
 
 /** Pure per-file tiering decision — see this file's header ("Two-tier redesign") for the full
  *  reasoning on the `brf === undefined` / `brf === 0` / `brf > 0` cases. Exported so the unit test
- *  can exercise every case directly without touching git or the filesystem. */
+ *  can exercise every case directly without touching git or the filesystem.
+ *  brf is a static property of the source file (branch count from its AST), not of which tier's
+ *  test run happened to load it — so it should agree between both records whenever both exist.
+ *  A disagreement between tiers therefore means one artifact is stale; the shared evaluator fails both. */
 export function evaluateFileTiers(
   file: string,
   unitRec: FileCoverage | undefined,
   integrationRec: FileCoverage | undefined
 ): FileTierEvaluation {
-  // brf is a static property of the source file (branch count from its AST), not of which tier's
-  // test run happened to load it — so it should agree between both records whenever both exist.
-  // Prefer the unit record (the primary/required tier) when both are present.
-  const brf = unitRec?.brf ?? integrationRec?.brf;
-
-  if (brf === undefined) {
-    const detail = "no coverage record on either tier (never loaded by any src/server test)";
-    return { file, unit: { ok: false, pctValue: 0, detail }, integration: { ok: false, pctValue: 0, detail }, ok: false };
-  }
-  if (brf === 0) {
-    const detail = "0 branches in this file (vacuously passes both tiers)";
-    return { file, unit: { ok: true, pctValue: 100, detail }, integration: { ok: true, pctValue: 100, detail }, ok: true };
-  }
-  const unit = tierResult(unitRec, UNIT_BRANCH_THRESHOLD, "unit");
-  const integration = tierResult(integrationRec, INTEGRATION_BRANCH_THRESHOLD, "integration");
-  return { file, unit, integration, ok: unit.ok && integration.ok };
+  const result = evaluateSharedFileTiers({ file, unitRec, integrationRec, thresholds: { unit: UNIT_BRANCH_THRESHOLD, integration: INTEGRATION_BRANCH_THRESHOLD } });
+  if (result.unit.detail !== NEVER_LOADED) return result;
+  const detail = `${NEVER_LOADED} (never loaded by any src/server test)`;
+  return { ...result, unit: { ...result.unit, detail }, integration: { ...result.integration, detail } };
 }
 
 function reportFileCoverage(
