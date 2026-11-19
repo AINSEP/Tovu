@@ -14,11 +14,9 @@ import type { DiscoveredTheme } from "../../features/theme/theme.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 
-import {
-  contributeThemesTools,
-  performThemeFileRename,
-  type ThemeToolDeps,
-} from "../../features/theme/tool-registrations.js";
+import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
+import { performThemeFileRename } from "../../features/theme/theme-file-identity-tools.js";
+import { type ThemeToolDeps } from "../../features/theme/asset-operations.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),

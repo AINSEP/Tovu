@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { resolveStaticTierPageShellFallback, resolveTemplateBranchChoice } from "../static-render.js";
-import type { DiscoveredTheme, ThemeTier } from "../theme.js";
+import type { DiscoveredTheme } from "../theme.js";
+import type { ThemeTier } from "../render-contract.js";
 
 /**
  * @file Unit coverage for {@link resolveStaticTierPageShellFallback} — the 2026-09-02 fix that gives

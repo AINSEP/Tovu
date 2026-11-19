@@ -1,8 +1,8 @@
 import { resolveThemeLayout } from "./theme-layout.js";
 import { TRASH_DIR_NAME } from "./theme-layout.js";
 import { isPageFilePath, isPartialFilePath } from "./theme-layout.js";
-import { isGeneratedThemePath, type ThemeFileWriteScope } from "./theme-files.js";
-import type { ThemeManifest } from "./theme.js";
+import { isGeneratedThemePath, type ThemeFileWriteScope } from "./theme-file-policy.js";
+import type { ThemeManifest } from "./render-contract.js";
 
 /**
  * @file The shared "can this file's IDENTITY change" gate — extracted (2026-08-30) from

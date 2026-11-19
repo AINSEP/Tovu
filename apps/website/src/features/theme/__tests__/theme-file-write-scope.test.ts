@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isGeneratedThemePath, isSourceDirGeneratedConflict, resolveThemeFileWriteScope } from "../theme-files.js";
+import { isGeneratedThemePath, isSourceDirGeneratedConflict, resolveThemeFileWriteScope } from "../theme-file-policy.js";
 
 /**
  * @file ADR-020 §5 (2026-08-12) — `resolveThemeFileWriteScope`'s pure policy: an authored theme is

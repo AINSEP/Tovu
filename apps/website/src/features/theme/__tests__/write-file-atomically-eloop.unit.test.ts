@@ -59,7 +59,8 @@ test("writeFileAtomically's own existing-target stat converts a circular-symlink
   }) as typeof realFs.statSync;
 
   try {
-    const { writeThemeFile, ThemePathError } = await import("../theme-files.js");
+    const { writeThemeFile } = await import("../theme-file-writing.js");
+    const { ThemePathError } = await import("../theme-files.js");
     assert.throws(
       () => writeThemeFile({ themeDir, themesRoot: root, relativePath: "a", content: "x" }, { stat }),
       ThemePathError

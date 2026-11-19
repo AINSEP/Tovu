@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { loadTheme, isPublishableThemePageCandidate, isStandaloneThemePage } from "../theme.js";
+import { loadTheme } from "../theme.js";
+import { isPublishableThemePageCandidate, isStandaloneThemePage } from "../theme-page-eligibility.js";
 import { setThemePagePublished, ThemePagePublicationError } from "../page-publication.js";
 
 /**

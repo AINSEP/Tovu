@@ -7,7 +7,9 @@ import type { TrashAdapter, TrashMarkerResult } from "@jini-ai/cms/trash";
 import { createDirectoryTrashAdapter, THEME_ENTITY_TYPE, type DirectoryTrashLocation } from "#src/features/trash/index";
 
 import { requestThemePreviewRefresh } from "./preview-refresh.js";
-import { ENGINE_SUBFOLDERS, findTheme, rescanThemes, THEME_CATALOG_DIR, type DiscoveredTheme } from "./theme.js";
+import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
+import { findTheme, rescanThemes } from "./theme-discovery.js";
+import { type DiscoveredTheme } from "./theme.js";
 
 /**
  * @file Where a whole theme folder goes when it is moved to the Trash, and the Trash adapter built on

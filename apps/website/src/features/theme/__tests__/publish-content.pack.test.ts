@@ -18,7 +18,7 @@ import { createFileBlobIndex } from "#src/features/publish-content/file-blob-ind
 import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { MAX_SECRET_SCAN_BYTES } from "#src/features/publish-content/file-tree-policy";
-import { MIGRATION_STAGING_DIR_PREFIX } from "../theme.js";
+import { MIGRATION_STAGING_DIR_PREFIX } from "../theme-discovery.js";
 
 function makeThemesDir(): string {
   return mkdtempSync(path.join(tmpdir(), "theme-publish-content-"));

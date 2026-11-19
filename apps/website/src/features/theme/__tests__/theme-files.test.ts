@@ -4,20 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import {
-  copyThemeFile,
-  isGeneratedThemePath,
-  isRecognizedThemeRoot,
-  isSourceDirGeneratedConflict,
-  listThemeFiles,
-  MAX_THEME_FILE_BYTES,
-  nextAvailableFileName,
-  readThemeFile,
-  renameThemeFile,
-  resolveThemeFilePath,
-  ThemePathError,
-  writeThemeFile,
-} from "../theme-files.js";
+import { copyThemeFile, nextAvailableFileName, renameThemeFile } from "../theme-file-moves.js";
+import { isGeneratedThemePath, isSourceDirGeneratedConflict } from "../theme-file-policy.js";
+import { isRecognizedThemeRoot, MAX_THEME_FILE_BYTES, readThemeFile, resolveThemeFilePath, ThemePathError } from "../theme-files.js";
+import { listThemeFiles } from "../theme-file-listing.js";
+import { writeThemeFile } from "../theme-file-writing.js";
 
 test("a theme with more media files than the listing cap still lists its pages", () => {
   const themesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "theme-list-cap-"));
@@ -34,7 +25,7 @@ test("a theme with more media files than the listing cap still lists its pages",
 });
 
 test("theme file APIs expose reversible moves without the unused hard-delete capability", async () => {
-  const files = await import("../theme-files.js");
+  const files = await import("../theme-file-moves.js");
   const feature = await import("../index.js");
   assert.equal("deleteThemeFile" in files, false);
   assert.equal("deleteThemeFile" in feature, false);

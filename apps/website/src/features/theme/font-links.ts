@@ -1,4 +1,4 @@
-import type { ThemeManifest } from "./theme.js";
+import type { ThemeManifest } from "./render-contract.js";
 import { publicThemeResources } from "./public-theme-resources.js";
 import type { PublicThemeResources } from "../../contracts/core/public-page-security-headers.js";
 

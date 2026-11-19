@@ -17,7 +17,7 @@ import { computeBlobStorageKey, SharpImageTransformer } from "#src/features/medi
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { loadTheme } from "#src/features/theme/theme";
-import { resetThemeFileToOriginal } from "#src/features/theme/theme-files";
+import { resetThemeFileToOriginal } from "#src/features/theme/theme-file-originals";
 import { prepareShareContent } from "../../share-preparation.js";
 import { bufferArchiveMedia } from "../../archive-media.js";
 import { buildShareZip } from "../../share-zip.js";

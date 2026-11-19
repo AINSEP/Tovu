@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { batchOutcomeFor, type ToolExecutionContext, type ToolRegistration } from '@jini-ai/core';
 import { protectThemeFileTools } from '../file-mutation-tools.js';
-import { readThemeFile, writeThemeFile } from '../theme-files.js';
+import { readThemeFile } from "../theme-files.js";
+import { writeThemeFile } from "../theme-file-writing.js";
 import { edit, themeBatchFixture, type ThemeBatchFixture } from './theme-batch-fixture.js';
 
 /**

@@ -1,6 +1,9 @@
 import { requestThemePreviewRefresh } from "./preview-refresh.js";
-import { findTheme, isPublishableThemePageCandidate, loadTheme, type DiscoveredTheme } from "./theme.js";
-import { readThemeFile, writeThemeFile } from "./theme-files.js";
+import { findTheme } from "./theme-discovery.js";
+import { isPublishableThemePageCandidate } from "./theme-page-eligibility.js";
+import { loadTheme, type DiscoveredTheme } from "./theme.js";
+import { readThemeFile } from "./theme-files.js";
+import { writeThemeFile } from "./theme-file-writing.js";
 
 /** Expected page-publication refusals shared by HTTP and assistant transports. */
 export class ThemePagePublicationError extends Error {

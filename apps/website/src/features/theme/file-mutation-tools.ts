@@ -2,7 +2,8 @@ import { requireInputRecord, requireString, withSchemaOnRejection, type AgentToo
 import { createChainedBatchHandler } from '@jini-ai/core/approval-batch-chain';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, type ThemeToolDeps } from './asset-operations.js';
-import { readThemeFileVersion, validateThemeFileWrite } from './theme-files.js';
+import { readThemeFileVersion } from "./theme-file-atomic-write.js";
+import { validateThemeFileWrite } from "./theme-file-writing.js";
 import { ThemeFileChangedError, runReviewedThemeFileWrite } from './reviewed-write-commit.js';
 import { THEME_WRITE_PERMISSION } from './agent-tools.js';
 import { syncThemeRoster } from './theme-roster-sync.js';

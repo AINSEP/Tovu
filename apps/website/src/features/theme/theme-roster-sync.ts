@@ -2,7 +2,9 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 
 import { readThemePreviewRefresh } from "./preview-refresh.js";
-import { ENGINE_SUBFOLDERS, rescanThemes, type DiscoveredTheme } from "./theme.js";
+import { ENGINE_SUBFOLDERS } from "./theme-layout.js";
+import { rescanThemes } from "./theme-discovery.js";
+import { type DiscoveredTheme } from "./theme.js";
 
 /**
  * @file Keeps one process's discovered-theme roster in step with the site's themes folder when a

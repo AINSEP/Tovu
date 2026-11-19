@@ -5,10 +5,14 @@ import { basename, dirname, join } from "node:path";
 
 import { rewriteThemeAssetPaths } from "./asset-path-rewrites.js";
 import { fileExtension, fileGroup, TRASH_DIR_NAME } from "./file-identity-lock.js";
-import { isRecognizedThemeRoot, MAX_LISTED_FILES, MAX_THEME_FILE_BYTES, MAX_WALK_DEPTH } from "./theme-files.js";
+import { isRecognizedThemeRoot, MAX_THEME_FILE_BYTES, MAX_WALK_DEPTH } from "./theme-files.js";
+import { MAX_LISTED_FILES } from "./theme-file-listing.js";
 import { writeGeneratedThemeOriginal } from "./sync-originals.js";
 import { keepStructureFile, prepareStructureTheme } from "./structure-only-theme.js";
-import { MIGRATION_STAGING_DIR_PREFIX, nextAvailableThemeId, rescanThemes, THEME_CATALOG_DIR, type DiscoveredTheme, type ThemeTier } from "./theme.js";
+import { MIGRATION_STAGING_DIR_PREFIX, nextAvailableThemeId, rescanThemes } from "./theme-discovery.js";
+import { THEME_CATALOG_DIR } from "./theme-layout.js";
+import { type DiscoveredTheme } from "./theme.js";
+import { type ThemeTier } from "./render-contract.js";
 
 /**
  * @file `duplicateTheme` — the one way a NEW theme folder comes into existence at runtime: copy an

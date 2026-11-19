@@ -6,7 +6,7 @@ import type { ToolExecutionContext, ToolRegistration } from '@jini-ai/core';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import { discoverAllBuiltInThemes } from '../theme.js';
+import { discoverAllBuiltInThemes } from "../theme-discovery.js";
 import { buildThemesRegistrations } from '../tool-registrations.js';
 import type { ThemeToolDeps } from '../asset-operations.js';
 import { applyBatchInputs } from '../../../assistant/batch-tool-inputs.js';

@@ -72,8 +72,8 @@ import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../platf
 import { devRestartPortFromEnv } from "../platform/dev-supervisor/index.js";
 import { warmSiteServerForAgent } from "../platform/dev-host/warm-site-agent.js";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
-import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
-import type { SetActiveThemeToolDeps } from "../features/theme/tool-registrations.js";
+import type { ThemeToolDeps } from "../features/theme/asset-operations.js";
+import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";
 import type { ChangeSetToolDeps } from "../features/change-sets/tool-registrations.js";
 import type { WorkspaceToolDeps } from "../features/workspace/index.js";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";

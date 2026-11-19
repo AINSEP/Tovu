@@ -3,9 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { discoverAllBuiltInThemes } from '../theme.js';
+import { discoverAllBuiltInThemes } from "../theme-discovery.js";
 import { buildThemesRegistrations } from '../tool-registrations.js';
-import { MAX_THEME_FILE_BYTES, listThemeFiles } from '../theme-files.js';
+import { MAX_THEME_FILE_BYTES } from "../theme-files.js";
+import { listThemeFiles } from "../theme-file-listing.js";
 
 for (const refusal of ['oversized content', 'oversized destination'] as const) {
   test(`theme_write_file refuses ${refusal} before asking to replace an existing file`, async t => {

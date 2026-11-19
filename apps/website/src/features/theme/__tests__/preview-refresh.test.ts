@@ -71,7 +71,7 @@ test("preview_reload is registered by category, authorizes before signaling, and
 });
 
 test("admin and assistant save chokepoints both signal, rejected writes do not", async (t) => {
-  const { discoverAllBuiltInThemes } = await import("../theme.js");
+  const { discoverAllBuiltInThemes } = await import("../theme-discovery.js");
   const { reloadTheme } = await import("../../../server/inbound/admin-http/routes/themes/explore.js");
   const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "save-refresh-"));
   t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));

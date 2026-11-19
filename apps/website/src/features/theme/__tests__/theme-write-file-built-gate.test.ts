@@ -8,8 +8,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { discoverAllBuiltInThemes } from "../theme.js";
-import { type ThemeToolDeps } from "../tool-registrations.js";
+import { discoverAllBuiltInThemes } from "../theme-discovery.js";
+import { type ThemeToolDeps } from "../asset-operations.js";
 
 /**
  * @file ADR-020 §5 (2026-08-12), the AI-authorability half: `theme_write_file` must refuse a write

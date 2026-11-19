@@ -2,7 +2,8 @@ import type { SiteChatSelection } from "../../../../http/site/site-chat-markup.j
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { getPublishedPostBySlug, PostNotFoundError } from "#src/features/post/post";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
-import { isStandaloneThemePage, type DiscoveredTheme } from "#src/features/theme/theme";
+import { isStandaloneThemePage } from "#src/features/theme/theme-page-eligibility";
+import { type DiscoveredTheme } from "#src/features/theme/theme";
 import { postPublicPath } from "#src/platform/routing/index";
 import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "../../../../http/site/render/static-page-injection.js";
 import type { RouteDeps } from "#src/server/routes/types";

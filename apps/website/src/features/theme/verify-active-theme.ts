@@ -5,7 +5,8 @@ import { setActiveTheme, type PresentationSettingsRepoPort } from "#src/features
 
 import { NO_THEME_ID } from "./active-theme.js";
 import { requestThemePreviewRefresh } from "./preview-refresh.js";
-import { findStoredTheme, type DiscoveredTheme } from "./theme.js";
+import { findStoredTheme } from "./theme-discovery.js";
+import { type DiscoveredTheme } from "./theme.js";
 import { syncThemeRoster } from "./theme-roster-sync.js";
 
 /**

@@ -7,7 +7,8 @@ import { resolveActiveThemeId } from "#src/features/presentation/index";
 import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
 import { executeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
 import { applyActiveTheme } from "../set-active-theme-tool.js";
-import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations.js";
+import { buildThemesRegistrations } from "../tool-registrations.js";
+import { type ThemeToolDeps } from "../asset-operations.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 const NOW = "2026-10-25T00:00:00.000Z";
