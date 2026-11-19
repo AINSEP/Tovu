@@ -39,8 +39,10 @@ export function RecoveryCodesCard({ port = ownerRecoveryPort, t = identityTransl
 /** Issue only after password proof; never persist raw codes or leave the submitted password in state.
  * @complexity O(1), one rotation per submit and at most ten codes in memory.
  */
-function RecoveryKit({ port, t }: { port: OwnerRecoveryPort; t: Translate }) {
-  const { password, setPassword, code, setCode, codes, setCodes, busy, error, submit } = useRecoveryKit({ port, t });
+function RecoveryKit({ port, t,
+  useRecoveryKitHook = useRecoveryKit }: { port: OwnerRecoveryPort; t: Translate;
+  useRecoveryKitHook?: typeof useRecoveryKit; }) {
+  const { password, setPassword, code, setCode, codes, setCodes, busy, error, submit } = useRecoveryKitHook({ port, t });
   return <div>
     <form onSubmit={submit}>
       <label htmlFor="recovery-current-password">{t('Current owner password')}</label>
@@ -69,8 +71,10 @@ function RecoveryKitOutput({ codes, dismiss, t }: { codes: string[]; dismiss: ()
 /** Desktop proof restores the ordinary owner session before this action is offered by the server.
  * @complexity O(1) UI state, one reset request per explicit submit; no staff promotion.
  */
-function DesktopOwnerReset({ port, t }: { port: OwnerRecoveryPort; t: Translate }) {
-  const { password, setPassword, confirmation, setConfirmation, busy, message, failure, submit } = useDesktopOwnerReset({ port, t });
+function DesktopOwnerReset({ port, t,
+  useDesktopOwnerResetHook = useDesktopOwnerReset }: { port: OwnerRecoveryPort; t: Translate;
+  useDesktopOwnerResetHook?: typeof useDesktopOwnerReset; }) {
+  const { password, setPassword, confirmation, setConfirmation, busy, message, failure, submit } = useDesktopOwnerResetHook({ port, t });
   return <details><summary>{t('Reset owner password')}</summary>
     <p>{t('Your desktop launch restored your owner session. Choose a new password; this signs out all sessions and invalidates recovery codes.')}</p>
     <form onSubmit={submit}>

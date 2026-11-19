@@ -47,16 +47,16 @@ export function TabStrip({
   onSelectSitesHome,
   onSelectTab,
   onCloseTab,
-  importTab,
+  importTab, useTabStripHook = useTabStrip,
 }: {
   importTab?: ImportTab | undefined;
   projects: readonly SiteRecord[];
   activeTab: string | null;
   onSelectSitesHome: () => void;
   onSelectTab: (id: string) => void;
-  onCloseTab: (id: string) => void;
+  onCloseTab: (id: string) => void; useTabStripHook?: typeof useTabStrip;
 }) {
-  const { stripRef, overflow, showArrows, scrollLeft, scrollRight, tabIndex, onKeyDown } = useTabStrip({ activeTab, projects });
+  const { stripRef, overflow, showArrows, scrollLeft, scrollRight, tabIndex, onKeyDown } = useTabStripHook({ activeTab, projects });
   const allSelected = activeTab === null && importTab?.selected !== true;
   return (
     <div className="tabstrip-frame">

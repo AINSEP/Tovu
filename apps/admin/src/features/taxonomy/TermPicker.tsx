@@ -23,7 +23,8 @@ function termCreationDisabled({ loading, picker, id }: { loading: boolean; picke
  *
  * Mount it only for content that exists (a saved post/page/entry has an id to tag).
  */
-export function TermPicker(props: {
+export function TermPicker({
+  useTermPickerHook = useWiredTermPicker, ...props }: {
   /** `post`, `page`, or a collection's content-type key. */
   contentType: string;
   contentId: string;
@@ -31,7 +32,7 @@ export function TermPicker(props: {
    *  for `useCustomSelect`. Defaulted to the real hook, so production callers pass nothing. */
   useTermPickerHook?: typeof useWiredTermPicker;
 }) {
-  const useTermPickerHook = props.useTermPickerHook ?? useWiredTermPicker;
+
   const picker = useTermPickerHook({
     contentType: props.contentType,
     contentId: props.contentId,
@@ -177,15 +178,15 @@ export function TermPicker(props: {
  * up to 100 and "Show less" folds them back; past 100 a search box finds any term (owner,
  * 2026-10-22: "looking at all this up front is a lot"). What shows is `rules.ts`'s `termListView`.
  */
-function TermChecklist(props: {
+function TermChecklist({ useTermListRevealHook = useTermListReveal, ...props }: {
   taxonomy: AdminTaxonomyWithTerms["taxonomy"];
   terms: AdminTaxonomyWithTerms["terms"];
   picker: TermPickerController;
-  handles: { term: (termId: string) => string; more: string; search: string };
+  handles: { term: (termId: string) => string; more: string; search: string }; useTermListRevealHook?: typeof useTermListReveal;
 }) {
   const { taxonomy, terms, picker, handles } = props;
   const { selected, toggle, loading, subject, t } = picker;
-  const reveal = useTermListReveal({ terms, selected, loading });
+  const reveal = useTermListRevealHook({ terms, selected, loading });
   const listId = useId();
   return (
     <>

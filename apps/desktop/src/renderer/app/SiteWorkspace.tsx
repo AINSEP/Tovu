@@ -36,6 +36,7 @@ export function SiteWorkspaces({
   registerZoomGuest,
   onSiteUpdated,
   adminPages,
+  useLiveViewsHook = useLiveViews,
 }: {
   inSites: boolean;
   openSites: readonly SiteRecord[];
@@ -48,8 +49,9 @@ export function SiteWorkspaces({
   onSiteUpdated: (record: SiteRecord) => void;
   /** The admin page each tab was opened on (`useProjectTabs`). */
   adminPages: Readonly<Record<string, SiteAdminPage>>;
+  useLiveViewsHook?: typeof useLiveViews;
 }) {
-  const live = useLiveViews({ openIds: openSites.map((project) => project.id), focusedId: inSites ? visibleWorkspaceId : null });
+  const live = useLiveViewsHook({ openIds: openSites.map((project) => project.id), focusedId: inSites ? visibleWorkspaceId : null });
   // Outside Websites every workspace is `hidden` (workspaceOnScreen), never unmounted: see above.
   return (
     <>
@@ -112,6 +114,8 @@ function SiteWorkspace({
   registerZoomGuest,
   onSiteUpdated,
   adminPage,
+  useSiteWorkspaceHook = useSiteWorkspace,
+  useComposedGuestRefHook = useComposedGuestRef,
 }: {
   project: SiteRecord;
   hidden: boolean;
@@ -128,37 +132,26 @@ function SiteWorkspace({
   onSiteUpdated: (record: SiteRecord) => void;
   /** Opens this tab's admin on that page rather than its root (the "Import site" entry). */
   adminPage?: SiteAdminPage;
+  useSiteWorkspaceHook?: typeof useSiteWorkspace;
+  useComposedGuestRefHook?: typeof useComposedGuestRef;
 }) {
   // Everything this tab remembers and every action its bar takes: which surface it asked for, where
   // its guest is, its history, and Reload that keeps that history. Per tab, never lifted into `App`.
   // `did-fail-load` (`failed`/`stalled`) still comes from `useWebviewLoadFailure`, inside it.
-  const workspace = useSiteWorkspace({ project, hidden }, { adminPage, parked });
+  const workspace = useSiteWorkspaceHook({ project, hidden }, { adminPage, parked });
   // `guestRef` is a CALLBACK ref, not a ref object, and that distinction is the whole of D-03: the
   // hooks' listeners have to attach when the guest actually mounts, and this tab mounts it
   // conditionally (`running && !workspace.failed` below). See `useWebviewLoadFailure`'s own doc.
   // Composed with the find bar's and the zoom feature's own registration so ONE ref does all three
   // — see `useComposedGuestRef`. The live-views probe reads the same node (`useLiveViews`).
   const { guestRef } = workspace;
-  const combinedGuestRef = useComposedGuestRef({ guestRef, registerGuest, projectId: project.id }, { extra: (node) => {
+  const combinedGuestRef = useComposedGuestRefHook({ guestRef, registerGuest, projectId: project.id }, { extra: (node) => {
     registerZoomGuest(project.id, node);
     registerLiveGuest(project.id, node);
   } });
   const running = workspace.running;
 
-  const startPanel = running ? (
-    // The registry row still says `running` — nothing crashed for a poll to catch — but the
-    // guest just told us, as a fact rather than a guess, that its main frame would not load.
-    // Nothing is left running underneath worth preserving, so this replaces the guest outright
-    // rather than overlaying it the way `stalled` does above.
-    <SiteStartPanel
-      project={project}
-      body={`${project.displayName} isn't answering on port ${project.port}. It may still be running, but stuck.`}
-      onStarted={workspace.recover}
-      onSiteUpdated={onSiteUpdated}
-    />
-  ) : (
-    <SiteStartPanel project={project} wakeOnOpen={!hidden} body={workspace.attachError ?? (project.externalUrl ? "Connecting to the server already running in the other app…" : undefined)} onSiteUpdated={onSiteUpdated} />
-  );
+
 
   return (
     <section
@@ -244,7 +237,7 @@ function SiteWorkspace({
         // A released tab (`live` false) keeps everything above and mounts no guest until it is
         // focused again; it is hidden whenever it is released, so nothing shows in its place.
         live ? <WorkspaceGuest workspace={workspace} project={project} guestRef={combinedGuestRef} onSiteUpdated={onSiteUpdated} /> : null
-      ) : startPanel}
+      ) : <WorkspaceStartPanel project={project} hidden={hidden} workspace={workspace} onSiteUpdated={onSiteUpdated} />}
     </section>
   );
 }
@@ -342,5 +335,25 @@ function ExpandToggle({ expanded, onToggle }: { expanded: boolean; onToggle: () 
         )}
       </svg>
     </button>
+  );
+}
+
+function WorkspaceStartPanel({ project, hidden, workspace, onSiteUpdated }: {
+  project: SiteRecord; hidden: boolean; workspace: ReturnType<typeof useSiteWorkspace>; onSiteUpdated: (record: SiteRecord) => void;
+}) {
+  const running = workspace.running;
+  return running ? (
+    // The registry row still says `running` — nothing crashed for a poll to catch — but the
+    // guest just told us, as a fact rather than a guess, that its main frame would not load.
+    // Nothing is left running underneath worth preserving, so this replaces the guest outright
+    // rather than overlaying it the way `stalled` does above.
+    <SiteStartPanel
+      project={project}
+      body={`${project.displayName} isn't answering on port ${project.port}. It may still be running, but stuck.`}
+      onStarted={workspace.recover}
+      onSiteUpdated={onSiteUpdated}
+    />
+  ) : (
+    <SiteStartPanel project={project} wakeOnOpen={!hidden} body={workspace.attachError ?? (project.externalUrl ? "Connecting to the server already running in the other app…" : undefined)} onSiteUpdated={onSiteUpdated} />
   );
 }

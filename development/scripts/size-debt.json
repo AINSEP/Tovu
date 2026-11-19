@@ -16,13 +16,6 @@
       "value": 1019
     },
     {
-      "file": "apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx",
-      "function": "EmbedInsertControl#1",
-      "line": 198,
-      "rule": "max-lines-per-function",
-      "value": 85
-    },
-    {
       "file": "apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.hooks.tsx",
       "function": "useRecentEntriesConfig#1",
       "line": 200,
@@ -478,13 +471,6 @@
       "value": 563
     },
     {
-      "file": "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx",
-      "function": "ExternalMcpSettingsPanel#1",
-      "line": 488,
-      "rule": "max-lines-per-function",
-      "value": 84
-    },
-    {
       "file": "apps/admin/src/features/settings/SettingsUi.tsx",
       "function": "SettingsUi#1",
       "line": 289,
@@ -658,13 +644,6 @@
       "line": 812,
       "rule": "max-lines",
       "value": 1092
-    },
-    {
-      "file": "apps/desktop/src/renderer/App.tsx",
-      "function": "App#1",
-      "line": 92,
-      "rule": "max-lines-per-function",
-      "value": 168
     },
     {
       "file": "apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx",

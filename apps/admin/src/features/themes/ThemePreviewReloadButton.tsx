@@ -29,8 +29,10 @@ export function ThemePreviewReloadButton({
 }
 
 /** `reloadPreviews` defaults (inside the hook) to the real every-preview reload; a test passes its own. */
-export function WiredThemePreviewReloadButton({ disabled, reloadPreviews }: { disabled?: boolean; reloadPreviews?: () => Promise<void> }) {
-  const { label, reload, error } = useThemePreviewReloadButton({}, reloadPreviews ? { reload: reloadPreviews } : {});
+export function WiredThemePreviewReloadButton({ disabled, reloadPreviews,
+  useThemePreviewReloadButtonHook = useThemePreviewReloadButton }: { disabled?: boolean; reloadPreviews?: () => Promise<void>;
+  useThemePreviewReloadButtonHook?: typeof useThemePreviewReloadButton; }) {
+  const { label, reload, error } = useThemePreviewReloadButtonHook({}, reloadPreviews ? { reload: reloadPreviews } : {});
   return (
     <>
       <ThemePreviewReloadButton label={label} reload={reload} disabled={disabled} />

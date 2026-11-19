@@ -12,8 +12,10 @@ import { useUserInterfaceTab, type UserInterfaceTabSlice } from "./hooks/use-use
  * values live (`useInterfacePreferences`). The switch reuses `.agent-plugin-switch`'s paint, and
  * the label says the on/off meaning in words so position is never the only signal.
  */
-export function UserInterfaceSettingsPanel(props: { slice: UserInterfaceTabSlice; locale: string }) {
-  const tab = useUserInterfaceTab(props.slice);
+export function UserInterfaceSettingsPanel({
+  useUserInterfaceTabHook = useUserInterfaceTab, ...props }: { slice: UserInterfaceTabSlice; locale: string;
+  useUserInterfaceTabHook?: typeof useUserInterfaceTab; }) {
+  const tab = useUserInterfaceTabHook(props.slice);
   const t = createUserInterfaceSettingsPanelTranslator({ locale: props.locale });
   return (
     <>

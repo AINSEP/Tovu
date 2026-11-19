@@ -69,10 +69,12 @@ export interface SourceControlProps {
    *  tab owns its own, same carve-out `Deployment.tsx`'s header documents), so this is the only prop
    *  besides {@link tabId}. */
   useSourceControlCredentialsHook?: typeof useWiredSourceControlCredentials;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
-export function SourceControl(props: SourceControlProps) {
-  const locale = useAdminLocale();
+export function SourceControl({
+  useAdminLocaleHook = useAdminLocale, ...props }: SourceControlProps) {
+  const locale = useAdminLocaleHook();
   const activeTabId = resolveSourceControlTabId({ tabId: props.tabId });
 
   const tabs: TabBarTab[] = [

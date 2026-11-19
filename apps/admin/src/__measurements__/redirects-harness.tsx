@@ -17,7 +17,11 @@ export function useWiredHitCountCell({ redirectId, t }: { redirectId: string; t:
 }
 
 /** Supply the scope that production's App owns; the screen and shared cache still mount normally. */
-export function Redirects() {
-  const runtime = useAdminModules({ permissions: ['*'] });
-  return useModuleProviderContent({ runtime, children: <HostRedirects /> });
+export function Redirects({
+  useAdminModulesHook = useAdminModules,
+  useModuleProviderContentHook = useModuleProviderContent }: {
+  useAdminModulesHook?: typeof useAdminModules;
+  useModuleProviderContentHook?: typeof useModuleProviderContent; } = {}) {
+  const runtime = useAdminModulesHook({ permissions: ['*'] });
+  return useModuleProviderContentHook({ runtime, children: <HostRedirects /> });
 }

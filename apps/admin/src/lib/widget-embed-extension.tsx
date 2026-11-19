@@ -55,8 +55,10 @@ export function widgetTypeLabel({ widget }: { widget: AdminWidget | null | undef
  *  `WidgetEmbedNodeView` for the same reason as `widgetTypeLabel` above — a top-level component
  *  rather than a nested closure, so the branch it owns leaves the parent's scope entirely instead
  *  of only lowering its ESLint per-closure score. Exported for direct testability. */
-export function WidgetEmbedStatus({ widget, isBroken, typeLabel }: { widget: AdminWidget | null | undefined; isBroken: boolean; typeLabel: string }) {
-  const locale = useWiredAdminLocale();
+export function WidgetEmbedStatus({ widget, isBroken, typeLabel,
+  useWiredAdminLocaleHook = useWiredAdminLocale }: { widget: AdminWidget | null | undefined; isBroken: boolean; typeLabel: string;
+  useWiredAdminLocaleHook?: typeof useWiredAdminLocale; }) {
+  const locale = useWiredAdminLocaleHook();
   const t = createWidgetEmbedTranslator({ locale });
   if (widget === undefined) return <span className="notice">{t({ key: "Loading widget…" })}</span>;
   if (isBroken) {
@@ -82,11 +84,15 @@ export function WidgetEmbedStatus({ widget, isBroken, typeLabel }: { widget: Adm
 /** Exported (a plain React component once given `NodeViewProps`) so this file's own test suite can
  *  drive its loading/broken/success/change/remove states directly, the same reasoning
  *  `assistant-transport.ts`'s `translateRunAgentPayload` export documents for itself. */
-export function WidgetEmbedNodeView(props: NodeViewProps) {
+export function WidgetEmbedNodeView({
+  useWidgetEmbedNodeViewHook = useWidgetEmbedNodeView,
+  useWiredAdminLocaleHook = useWiredAdminLocale, ...props }: (NodeViewProps) & {
+  useWidgetEmbedNodeViewHook?: typeof useWidgetEmbedNodeView;
+  useWiredAdminLocaleHook?: typeof useWiredAdminLocale; }) {
   // State, the (stale-guarded) widget fetch and every handler live in the hook — see
   // `widget-embed-extension.hooks.ts`.
-  const view = useWidgetEmbedNodeView(props);
-  const locale = useWiredAdminLocale();
+  const view = useWidgetEmbedNodeViewHook(props);
+  const locale = useWiredAdminLocaleHook();
   const t = createWidgetEmbedTranslator({ locale });
   const placementContent = view.placementContent;
   const changeDialog = view.changeDialog;
@@ -207,12 +213,14 @@ export function WidgetEmbedInsertControl(props: {
   return <WidgetEmbedInsertControlEnabled editor={props.editor} agentHandle={props.agentHandle} />;
 }
 
-function WidgetEmbedInsertControlEnabled(props: {
+function WidgetEmbedInsertControlEnabled({
+  useWiredAdminLocaleHook = useWiredAdminLocale, ...props }: {
   editor: WidgetEmbedEditor;
   agentHandle?: string;
+  useWiredAdminLocaleHook?: typeof useWiredAdminLocale;
 }) {
   const editor = props.editor;
-  const locale = useWiredAdminLocale();
+  const locale = useWiredAdminLocaleHook();
   const t = createWidgetEmbedTranslator({ locale });
   return (
     <WidgetAddControl

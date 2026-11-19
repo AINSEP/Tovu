@@ -90,11 +90,11 @@ export interface NewTermFormProps {
    *  search only works when it runs once over the whole list, not once per `NewTermForm` instance. */
   agentBase: string;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
-  t: (key: string) => string;
+  t: (key: string) => string; useWiredNewTermFormHook?: typeof useWiredNewTermForm;
 }
 
-function NewTermForm({ taxonomy, onCreated, agentBase: base, t }: NewTermFormProps) {
-  const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useWiredNewTermForm({
+function NewTermForm({ taxonomy, onCreated, agentBase: base, t, useWiredNewTermFormHook = useWiredNewTermForm }: NewTermFormProps) {
+  const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useWiredNewTermFormHook({
     taxonomy,
     onCreated,
   });
@@ -183,13 +183,13 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, t }: NewTermFormPro
 export interface NewTaxonomyFormProps {
   onCreated: () => void;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
-  t: (key: string) => string;
+  t: (key: string) => string; useWiredNewTaxonomyFormHook?: typeof useWiredNewTaxonomyForm;
 }
 
 /** New-taxonomy form (REQ-02) — name + hierarchical toggle, calling `api.createTaxonomy`. Mirrors
  * `NewTermForm`'s local-state/submit/error shape. */
-function NewTaxonomyForm({ onCreated, t }: NewTaxonomyFormProps) {
-  const { name, setName, hierarchical, setHierarchical, error, saving, submit } = useWiredNewTaxonomyForm({ onCreated });
+function NewTaxonomyForm({ onCreated, t, useWiredNewTaxonomyFormHook = useWiredNewTaxonomyForm }: NewTaxonomyFormProps) {
+  const { name, setName, hierarchical, setHierarchical, error, saving, submit } = useWiredNewTaxonomyFormHook({ onCreated });
 
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
@@ -239,7 +239,7 @@ export interface MergeTermSectionProps {
   term: AdminTerm;
   onMerged: () => void;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
-  t: (key: string) => string;
+  t: (key: string) => string; useWiredMergeTermSectionHook?: typeof useWiredMergeTermSection;
 }
 
 interface MergeIdleStepProps {
@@ -357,9 +357,9 @@ function MergeConfirmedStep({ busy, doExecute, t }: MergeConfirmedStepProps) {
   );
 }
 
-function MergeTermSection({ taxonomy, term, onMerged, t }: MergeTermSectionProps) {
+function MergeTermSection({ taxonomy, term, onMerged, t, useWiredMergeTermSectionHook = useWiredMergeTermSection }: MergeTermSectionProps) {
   const otherTerms = otherMergeTargets({ taxonomy, excludeTermId: term.id });
-  const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useWiredMergeTermSection({
+  const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useWiredMergeTermSectionHook({
     term,
     onMerged,
   });
@@ -396,11 +396,11 @@ export interface TermDetailPanelProps {
   onRenamed: () => void;
   onMerged: () => void;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
-  t: (key: string) => string;
+  t: (key: string) => string; useWiredTermDetailPanelHook?: typeof useWiredTermDetailPanel;
 }
 
-function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, t }: TermDetailPanelProps) {
-  const { newName, setNewName, saving, message, error, rename } = useWiredTermDetailPanel({ term, onRenamed });
+function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, t, useWiredTermDetailPanelHook = useWiredTermDetailPanel }: TermDetailPanelProps) {
+  const { newName, setNewName, saving, message, error, rename } = useWiredTermDetailPanelHook({ term, onRenamed });
 
   return (
     <div className="settings-detail-panel taxonomy-term-detail">

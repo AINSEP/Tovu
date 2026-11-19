@@ -255,6 +255,10 @@ export interface SettingsUiProps {
    * `SettingsDialogShell`'s `activeTabId`.
    */
   tabId?: string | null;
+  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
+  useSettingsActiveTabScrollHook?: typeof useSettingsActiveTabScroll;
+  useTovuSettingsExecutionHook?: typeof useTovuSettingsExecution;
+  useAiAgentPresentationHook?: typeof useAiAgentPresentation;
 }
 
 /** Every action slot of the embedded Memory panel. That panel is display-only on this screen (no
@@ -270,43 +274,40 @@ const READ_ONLY_MEMORY_ACTION = (): void => {};
  * cyclomatic-complexity rule counts a default parameter value inside a function's OWN body as one
  * of that function's own branches — a call out to a separately-scoped resolver does not.
  */
-function resolveSettingsUiHook({ override }: { override: typeof useSettingsUi | undefined }, _options = {}): typeof useSettingsUi {
-  return override ?? useSettingsUi;
-}
-function resolveSettingsExecutionCredentialHook(
-  { override }: {
-    override: typeof useWiredAdminExecutionCredential | undefined;
-  },
-  _options = {},
-): typeof useWiredAdminExecutionCredential {
-  return override ?? useWiredAdminExecutionCredential;
-}
+
+
 function resolveTabId({ override }: { override: string | null | undefined }, _options = {}): string | null {
   return override ?? null;
 }
 
-export function SettingsUi(props: SettingsUiProps) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+export function SettingsUi({
+  useAdminThemeBoundaryHook = useAdminThemeBoundary,
+  useSettingsUiHook = useSettingsUi,
+  useSettingsActiveTabScrollHook = useSettingsActiveTabScroll,
+  useTovuSettingsExecutionHook = useTovuSettingsExecution,
+  useAiAgentPresentationHook = useAiAgentPresentation,
+  useAdminExecutionCredentialHook = useWiredAdminExecutionCredential, ...props }: SettingsUiProps) {
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
   // No `SettingsUiProps = {}` default on the parameter itself (2026-08-14, same reasoning as
   // `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual props
   // object — `{}` when no attributes are given, never `undefined` — and every field here is
   // optional, so `{}` still satisfies the type.
-  const useSettingsUiHook = resolveSettingsUiHook({ override: props.useSettingsUiHook });
-  const useAdminExecutionCredentialHook = resolveSettingsExecutionCredentialHook({ override: props.useAdminExecutionCredentialHook });
+
+
   const tabId = resolveTabId({ override: props.tabId });
   useEffect(() => {
     if (props.tabId === "skills") navigate({ routePath: "/addons/skills" }, { replace: true });
     if (props.tabId === "appearance") navigate({ routePath: "/admin-ui?tab=appearance" }, { replace: true });
   }, [props.tabId]);
   const s: SettingsUiController = useSettingsUiHook();
-  const settingsRootRef = useSettingsActiveTabScroll({ ready: !s.loading, tabId });
+  const settingsRootRef = useSettingsActiveTabScrollHook({ ready: !s.loading, tabId });
 
   const settingsLocale = s.language.value as string;
   const { t, tCap, tExecution } = createSettingsUiTranslators({ settingsLocale });
 
-  const executionPolicy = useTovuSettingsExecution({ config: s.execution.value as ExecutionConfig | null, onChange: s.execution.onChange, locale: settingsLocale }, { usePolicy: props.useExecutionPolicy });
+  const executionPolicy = useTovuSettingsExecutionHook({ config: s.execution.value as ExecutionConfig | null, onChange: s.execution.onChange, locale: settingsLocale }, { usePolicy: props.useExecutionPolicy });
 
-  const agentPresentation = useAiAgentPresentation({
+  const agentPresentation = useAiAgentPresentationHook({
     port: s.port, config: executionPolicy.config, locale: settingsLocale,
   });
 
@@ -347,41 +348,7 @@ export function SettingsUi(props: SettingsUiProps) {
           <path d="M11.25 9.75v1.5" />
         </TabIcon>
       ),
-      panel: (
-        <>
-          <AdminByokMigrationPrompt controller={adminCredential} />
-          {agentPresentation.warning && <p className="notice warning" role="status" aria-live="polite">{agentPresentation.warning}</p>}
-          {executionPolicy.note && <p className="jini-field-hint" role="status">{executionPolicy.note}</p>}
-          <ExecutionTab
-            presets={DEFAULT_PROVIDER_PRESETS}
-            config={executionPolicy.config}
-            onConfigChange={executionPolicy.onConfigChange}
-            localCliUnavailableReason={executionPolicy.unavailableReason}
-            port={agentPresentation.port}
-            // Bridge presence identifies the desktop host; a deployed server runs elsewhere.
-            localCliScopeLabel={tExecution(agentPresentation.scopeCopy)}
-            ariaLabel={tExecution("AI agent")}
-            // The admin's own BYOK credential is encrypted server-side and write-only
-            // (2026-08-05) — these four keep the shared `ByokProviderForm` honest about
-            // that: an empty key field is not a missing value when one is already stored,
-            // the masked placeholder answers "which key", and the two footers are the ONLY
-            // controls that can persist anything. They write DISJOINT patches — the key
-            // footer writes the key, the form footer writes protocol/base URL/model/max
-            // tokens — so neither can claim the other's work. See
-            // `hooks/use-admin-execution-credential.hooks.ts`. The next two match
-            // `AiAssistant.tsx`'s `AdminExecutionMode` mount: `canDiscoverModels` keeps a provider
-            // switch from probing with a key saved for another endpoint, and `describeProbeError`
-            // words the server's endpoint-pin refusals in plain language.
-            apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
-            apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
-            canDiscoverModels={adminCredential.canDiscoverModels}
-            describeProbeError={createProbeErrorDescriber({ t: tExecution })}
-            apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} t={tExecution} />}
-            formFooter={<AdminByokSettingsFooter controller={adminCredential} t={tExecution} />}
-            agentHandle="settings-ai-agent"
-          />
-        </>
-      ),
+      panel: <SettingsExecutionPanel adminCredential={adminCredential} agentPresentation={agentPresentation} executionPolicy={executionPolicy} tExecution={tExecution} />,
     },
     {
       id: "instructions",
@@ -646,30 +613,6 @@ export function SettingsUi(props: SettingsUiProps) {
    * would do the same, so this checks membership, not just presence — same "don't trust a raw
    * query value" instinct `WidgetInstanceEditor`'s own `?type=` guard applies for the same reason.
    */
-  const requestedTabId = tabId && tabs.some((tab) => tab.id === tabId) ? tabId : undefined;
-
-  const handleTabChange = createSettingsTabChange({});
-
-  /**
-   * Top-right chrome. Lives in the shell's own `chromeExtra` slot rather than
-   * in a banner above it, so the page is exactly what it looks like: the admin
-   * sidebar, the settings sidebar, and the panel — no third strip of header
-   * competing with the shell's own title.
-   *
-   * This used to also carry an "Open as dialog" button that mounted a second,
-   * modal `SettingsDialogShell` over this same page (removed 2026-09-19 —
-   * owner's call: the modal overlay was never wanted, only the inline page
-   * is). `s.modalOpen`/`s.setModalOpen` went with it — see
-   * `use-settings-ui.hooks.ts`'s header.
-   */
-  const saveStatus = (
-    <span
-      className={`settings-ui-save is-${s.save.status}`}
-      role={s.save.status === "error" ? "alert" : "status"}
-    >
-      {t(describeSaveStatus(s.save))}
-    </span>
-  );
 
   /*
    * Classic's `data-theme="light"` on the wrapper below is PINNED — the owner's call,
@@ -729,6 +672,80 @@ export function SettingsUi(props: SettingsUiProps) {
             settings) and the panel, in the admin's own content column. The
             modal render this page used to also mount on `s.modalOpen` is
             gone — see the "Top-right chrome" comment above `saveStatus`. */}
+        <SettingsUiShell tabs={tabs} tabId={tabId} save={s.save} t={t} />
+      </div>
+    </I18nProvider>
+  );
+}
+
+function SettingsExecutionPanel({ adminCredential, agentPresentation, executionPolicy, tExecution }: {
+  adminCredential: ReturnType<typeof useWiredAdminExecutionCredential>; agentPresentation: ReturnType<typeof useAiAgentPresentation>;
+  executionPolicy: ReturnType<typeof useTovuSettingsExecution>; tExecution: ReturnType<typeof createSettingsUiTranslators>["tExecution"];
+}) {
+  return (
+<>
+          <AdminByokMigrationPrompt controller={adminCredential} />
+          {agentPresentation.warning && <p className="notice warning" role="status" aria-live="polite">{agentPresentation.warning}</p>}
+          {executionPolicy.note && <p className="jini-field-hint" role="status">{executionPolicy.note}</p>}
+          <ExecutionTab
+            presets={DEFAULT_PROVIDER_PRESETS}
+            config={executionPolicy.config}
+            onConfigChange={executionPolicy.onConfigChange}
+            localCliUnavailableReason={executionPolicy.unavailableReason}
+            port={agentPresentation.port}
+            // Bridge presence identifies the desktop host; a deployed server runs elsewhere.
+            localCliScopeLabel={tExecution(agentPresentation.scopeCopy)}
+            ariaLabel={tExecution("AI agent")}
+            // The admin's own BYOK credential is encrypted server-side and write-only
+            // (2026-08-05) — these four keep the shared `ByokProviderForm` honest about
+            // that: an empty key field is not a missing value when one is already stored,
+            // the masked placeholder answers "which key", and the two footers are the ONLY
+            // controls that can persist anything. They write DISJOINT patches — the key
+            // footer writes the key, the form footer writes protocol/base URL/model/max
+            // tokens — so neither can claim the other's work. See
+            // `hooks/use-admin-execution-credential.hooks.ts`. The next two match
+            // `AiAssistant.tsx`'s `AdminExecutionMode` mount: `canDiscoverModels` keeps a provider
+            // switch from probing with a key saved for another endpoint, and `describeProbeError`
+            // words the server's endpoint-pin refusals in plain language.
+            apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
+            apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
+            canDiscoverModels={adminCredential.canDiscoverModels}
+            describeProbeError={createProbeErrorDescriber({ t: tExecution })}
+            apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} t={tExecution} />}
+            formFooter={<AdminByokSettingsFooter controller={adminCredential} t={tExecution} />}
+            agentHandle="settings-ai-agent"
+          />
+        </>
+  );
+}
+
+function SettingsUiShell({ tabs, tabId, save, t }: { tabs: SettingsDialogTab[]; tabId: string | null; save: SettingsUiController["save"]; t: ReturnType<typeof createSettingsUiTranslators>["t"] }) {
+  const requestedTabId = tabId && tabs.some((tab) => tab.id === tabId) ? tabId : undefined;
+
+  const handleTabChange = createSettingsTabChange({});
+
+  /**
+   * Top-right chrome. Lives in the shell's own `chromeExtra` slot rather than
+   * in a banner above it, so the page is exactly what it looks like: the admin
+   * sidebar, the settings sidebar, and the panel — no third strip of header
+   * competing with the shell's own title.
+   *
+   * This used to also carry an "Open as dialog" button that mounted a second,
+   * modal `SettingsDialogShell` over this same page (removed 2026-09-19 —
+   * owner's call: the modal overlay was never wanted, only the inline page
+   * is). `s.modalOpen`/`s.setModalOpen` went with it — see
+   * `use-settings-ui.hooks.ts`'s header.
+   */
+  const saveStatus = (
+    <span
+      className={`settings-ui-save is-${save.status}`}
+      role={save.status === "error" ? "alert" : "status"}
+    >
+      {t(describeSaveStatus(save))}
+    </span>
+  );
+
+  return (
         <SettingsDialogShell
           tabs={tabs}
           presentation="inline"
@@ -738,7 +755,5 @@ export function SettingsUi(props: SettingsUiProps) {
           activeTabId={requestedTabId}
           onActiveTabIdChange={handleTabChange}
         />
-      </div>
-    </I18nProvider>
   );
 }

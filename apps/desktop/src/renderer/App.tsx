@@ -90,48 +90,63 @@ export interface SitesSettingsHooks {
  * prop is a branch).
  */
 export function App({
-  useProjects = useSitesPolling,
-  useTabs = useProjectTabs,
-  useNav = useSectionNav,
-  useExpanded = useExpandedMode,
-  sitesSettings = {},
+  useProjects = useSitesPolling, useTabs = useProjectTabs, useNav = useSectionNav,
+  useThemeHook = useTheme,
+  useSiteRescanHook = useSiteRescan,
+  useApplySiteRecordHook = useApplySiteRecord,
+  sitesSettings = {}, ...props,
 }: {
   useProjects?: typeof useSitesPolling;
   useTabs?: typeof useProjectTabs;
   useNav?: typeof useSectionNav;
   useExpanded?: typeof useExpandedMode;
   sitesSettings?: SitesSettingsHooks;
+  useThemeHook?: typeof useTheme;
+  useSiteRescanHook?: typeof useSiteRescan;
+  useApplySiteRecordHook?: typeof useApplySiteRecord;
+  useProjectMutationsHook?: typeof useProjectMutations;
+  useSiteToastHook?: typeof useSiteToast;
+  useStartImportedHook?: typeof useStartImported;
+  useAddSiteHook?: typeof useAddSite;
+  useImportWebsiteHook?: typeof useImportWebsite;
+  useImportHandoffHook?: typeof useImportHandoff;
+  useFindInPageHook?: typeof useFindInPage;
+  useZoomHook?: typeof useZoom;
+  useRunnerNavigationHook?: typeof useRunnerNavigation;
+  useTabCloseAskHook?: typeof useTabCloseAsk;
+  useProductScreenHook?: typeof useProductScreen;
 } = {}) {
-  const [theme, setTheme] = useTheme();
-  const { projects, setProjects, projectsLoading, loadError } = useProjects();
-  const { rescanning, rescanError, rescan } = useSiteRescan({ setProjects });
+  const theme = useThemeHook();
+  const projectState = useProjects();
+  const rescanState = useSiteRescanHook({ setProjects: projectState.setProjects });
   // A card's Start/Stop resolves with main's refreshed record; this is what puts it on screen
   // rather than leaving the card four seconds behind the poll. See `useApplySiteRecord`.
-  const applySiteRecord = useApplySiteRecord({ setProjects });
+  const applySiteRecord = useApplySiteRecordHook({ setProjects: projectState.setProjects });
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the sites home tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
-  const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab, adminPages } = useTabs();
-  const {
-    activeId,
-    setActiveId,
-    appearanceOpen,
-    isCreating,
-    isImporting,
-    importTabOpen,
-    selectSection,
-    openAppearance,
-    closeAppearance,
-    startCreating,
-    stopCreating,
-    startImporting,
-    hideImporting,
-    stopImporting,
-  } = useNav({ setActiveTab });
-  const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm, showImportPage } =
-    deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating, isImporting });
-  const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
-    useProjectMutations({
+  const tabs = useTabs();
+  const nav = useNav({ setActiveTab: tabs.setActiveTab });
+  return <AppProjects {...props} state={{ theme, projectState, rescanState, applySiteRecord, tabs, nav, sitesSettings }} />;
+}
+
+function AppProjects({ state,
+  useProjectMutationsHook = useProjectMutations,
+  useSiteToastHook = useSiteToast,
+  useStartImportedHook = useStartImported,
+  useAddSiteHook = useAddSite,
+  useImportWebsiteHook = useImportWebsite,
+  useImportHandoffHook = useImportHandoff, ...props
+}: NonNullable<Parameters<typeof App>[0]> & { state: {
+  theme: ReturnType<typeof useTheme>; projectState: ReturnType<typeof useSitesPolling>;
+  rescanState: ReturnType<typeof useSiteRescan>; applySiteRecord: ReturnType<typeof useApplySiteRecord>;
+  tabs: ReturnType<typeof useProjectTabs>; nav: ReturnType<typeof useSectionNav>; sitesSettings: SitesSettingsHooks;
+} }) {
+  const { projects, setProjects } = state.projectState;
+  const { applySiteRecord } = state;
+  const { openProjectTab, closeProjectTab } = state.tabs;
+  const { startCreating, stopCreating, startImporting, stopImporting } = state.nav;
+  const mutations = useProjectMutationsHook({
       projects,
       setProjects,
       closeProjectTab,
@@ -139,43 +154,128 @@ export function App({
       stopCreating,
     });
 
-  const siteToast = useSiteToast({ lastCreated });
+  const { lastCreated, handleCreate } = mutations;
+  const siteToast = useSiteToastHook({ lastCreated });
   const openImported = createOpenImported({ openProjectTab, stopImporting });
-  const startImported = useStartImported({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
-  const { adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSite({ setProjects }, {
+  const startImported = useStartImportedHook({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
+  const added = useAddSiteHook({ setProjects }, {
     onAdded: ({ added }, _options = {}) => { siteToast.announceAdded(added); openImported({ id: added.id }); startImported(added); },
   });
-  const liveImport = useImportWebsite({
+  const liveImport = useImportWebsiteHook({
     createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
     openSite: ({ site, adminPage }) => { openImported({ id: site.id }, { adminPage }); startImported(site); },
     onArchiveImported: ({ site }, _options = {}) => { setProjects((current) => mergeAddedSite({ current, added: site })); siteToast.announceImported(site); openImported({ id: site.id }); startImported(site); },
     onFailureWhileClosed: siteToast.showToast,
   });
-  const openImportPage = createOpenImportPage({ clearAddError, liveImport, startImporting });
-  useImportHandoff({ busy: liveImport.importing, prefill: liveImport.setAddress, open: openImportPage });
+  const openImportPage = createOpenImportPage({ clearAddError: added.clearAddError, liveImport, startImporting });
+  useImportHandoffHook({ busy: liveImport.importing, prefill: liveImport.setAddress, open: openImportPage });
 
-  const { expanded, toggleExpanded } = useExpanded({ showSiteTab });
-  const { onSitesHome, selectedTab, guestTarget, tabNotice } = appPresentation({
+  return <AppNavigation {...props} state={state} imports={{ mutations, siteToast, added, liveImport, openImportPage }} />;
+}
+
+function AppNavigation({ state, imports, useExpanded = useExpandedMode,
+  useFindInPageHook = useFindInPage,
+  useZoomHook = useZoom,
+  useRunnerNavigationHook = useRunnerNavigation,
+  useTabCloseAskHook = useTabCloseAsk,
+  useProductScreenHook = useProductScreen
+}: Parameters<typeof AppProjects>[0] & { imports: {
+  mutations: ReturnType<typeof useProjectMutations>; siteToast: ReturnType<typeof useSiteToast>; added: ReturnType<typeof useAddSite>;
+  liveImport: ReturnType<typeof useImportWebsite>; openImportPage: ReturnType<typeof createOpenImportPage>;
+} }) {
+  const { projects } = state.projectState;
+  const { activeTab, setActiveTab, openTabs, closeProjectTab } = state.tabs;
+  const { activeId, setActiveId, appearanceOpen, isCreating, isImporting } = state.nav;
+  const { applySiteRecord } = state;
+  const { addNotice } = imports.added;
+  const view = deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating, isImporting });
+  const { showSiteTab, showSitesHome, visibleWorkspaceId, inSites } = view;
+  const expansion = useExpanded({ showSiteTab });
+  const { expanded } = expansion;
+  const presentation = appPresentation({
     showSiteTab, showSitesHome, appearanceOpen, activeTab, visibleWorkspaceId, addNotice,
   });
+  const { guestTarget } = presentation;
   // The visible project tab's guest when one is on screen, else the Projects screen itself — see
   // `use-find-in-page.hooks.ts`'s own header for why the target routing lives there, not here.
-  const find = useFindInPage({ activeGuestId: guestTarget });
+  const find = useFindInPageHook({ activeGuestId: guestTarget });
   // Same routing, for Cmd+Plus / Cmd+- / Cmd+0 — see `use-zoom.hooks.ts`'s own header.
-  const zoom = useZoom({ activeGuestId: guestTarget });
+  const zoom = useZoomHook({ activeGuestId: guestTarget });
   // Expanded mode's whole visible effect. See `expanded-mode.ts` for why this is a plain function
   // rather than three conditions inlined into the JSX below.
-  const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
-  useRunnerNavigation({ setActiveId, setActiveTab });
-  const tabClose = useTabCloseAsk({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
+  const chrome = chromeVisibility({ expanded, inSites, appearanceOpen });
+  useRunnerNavigationHook({ setActiveId, setActiveTab });
+  const tabClose = useTabCloseAskHook({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
   const runningCount = countRunningSites({ projects });
   const active = findSection({ id: activeId });
-  useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }) });
+  useProductScreenHook({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }) });
 
+  return <AppView state={state} imports={imports} navigation={{ view, expansion, presentation, find, zoom, chrome, tabClose, runningCount, active }} />;
+}
+
+function AppView({ state, imports, navigation }: Pick<Parameters<typeof AppNavigation>[0], 'state' | 'imports'> & { navigation: {
+  view: ReturnType<typeof deriveSitesHomeView>; expansion: ReturnType<typeof useExpandedMode>; presentation: ReturnType<typeof appPresentation>;
+  find: ReturnType<typeof useFindInPage>; zoom: ReturnType<typeof useZoom>; chrome: ReturnType<typeof chromeVisibility>;
+  tabClose: ReturnType<typeof useTabCloseAsk>; runningCount: number; active: ReturnType<typeof findSection>;
+} }) {
+  const { projects } = state.projectState;
+  const { applySiteRecord } = state;
+  const { siteToast } = imports;
+  const { find, tabClose } = navigation;
+  const { tabNotice } = navigation.presentation;
   return (
     <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>
     <div className="app">
       <FindBar find={find} />
+      <AppChrome state={state} navigation={navigation} />
+
+      <main className="main">
+        <TabCloseAsk project={tabClose.asking} stopping={tabClose.stopping} error={tabClose.error}
+          onStop={() => void tabClose.stopAndClose()} onKeepRunning={tabClose.keepRunning} onCancel={tabClose.cancel} />
+        {/* Re-adding a tracked site opens its tab; keep that confirmation visible there too.
+            Folder failures belong to the websites view and must not carry into site tabs. */}
+        {tabNotice !== undefined && <p className="projects-feedback" role="status">{tabNotice}</p>}
+        <AppMainArea state={state} imports={imports} navigation={navigation} />
+
+        <AppImportPage state={state} imports={imports} navigation={navigation} />
+
+        <AppSiteWorkspaces state={state} navigation={navigation} />
+      </main>
+
+      <SiteToast toast={siteToast.toast} onDismiss={siteToast.dismiss} />
+
+      {/* NO chat FAB on this page, deliberately, and this comment is the whole reason.
+
+          There used to be a disabled one here — a real `<button>` with `aria-disabled`, `tabIndex
+          ={-1}` and a "Fleet chat (not available yet)" tooltip — standing in for a fleet-operator
+          chat. Two things were wrong with it. It advertised a feature with no main-process half at
+          all: `WORKSPACE_CHAT_CHANNELS` (`contracts/workspace-chat.ts`) has no `ipcMain.handle` anywhere
+          in this app, so `workspace:chat:start` reaches nothing, and `WorkspaceChatPane` (its own module) has zero
+          call sites. And because it was `position: fixed` on the HOST page while the real
+          per-site assistant's FAB lives INSIDE the `<webview>` at the same corner and the same
+          `z-index`, the decoy composited on top of it and swallowed every click meant for the
+          working one — an unbuilt placeholder was blocking the built feature.
+
+          So the one chat entry point is the site's own, inside the guest, where the tools and the
+          content database are. That leaves the sites home tab with no assistant, which is the intended
+          trade: there is no site in view there to assist with. When a workspace-level chat is
+          actually built it should be a PANEL reachable from this app's own chrome, not a second
+          floating button competing with the guest's. `WorkspaceChatPane` and the `.chat-fab*` rules
+          in `app.css` are kept for it. */}
+    </div>
+    </ResourcesMonitor>
+  );
+}
+
+function AppChrome({ state, navigation }: Pick<Parameters<typeof AppView>[0], 'state' | 'navigation'>) {
+  const { theme: [theme, setTheme], sitesSettings } = state;
+  const { activeId, openAppearance, selectSection, hideImporting, importTabOpen, startImporting, stopImporting } = state.nav;
+  const { setActiveTab } = state.tabs;
+  const { showTopNav, showTabStrip } = navigation.chrome;
+  const { onSitesHome, selectedTab } = navigation.presentation;
+  const { openSites, showImportPage } = navigation.view;
+  const { runningCount, tabClose } = navigation;
+  return <>
       {showTopNav && (
       <TopNav
         activeId={activeId}
@@ -199,13 +299,19 @@ export function App({
           importTab={importTabProps({ open: importTabOpen, selected: showImportPage, onSelect: startImporting, onClose: stopImporting })}
         />
       )}
+  </>;
+}
 
-      <main className="main">
-        <TabCloseAsk project={tabClose.asking} stopping={tabClose.stopping} error={tabClose.error}
-          onStop={() => void tabClose.stopAndClose()} onKeepRunning={tabClose.keepRunning} onCancel={tabClose.cancel} />
-        {/* Re-adding a tracked site opens its tab; keep that confirmation visible there too.
-            Folder failures belong to the websites view and must not carry into site tabs. */}
-        {tabNotice !== undefined && <p className="projects-feedback" role="status">{tabNotice}</p>}
+function AppMainArea({ state, imports, navigation }: Parameters<typeof AppView>[0]) {
+  const { projects, projectsLoading, loadError } = state.projectState;
+  const { rescanning, rescanError, rescan } = state.rescanState;
+  const { applySiteRecord, sitesSettings } = state;
+  const { appearanceOpen, closeAppearance, activeId, isCreating, isImporting } = state.nav;
+  const { openProjectTab } = state.tabs;
+  const { openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey, lastCreated } = imports.mutations;
+  const { openImportPage } = imports;
+  const { active, view: { showSitesHome, showCreateForm } } = navigation;
+  return <>
         <MainArea
           appearanceOpen={appearanceOpen}
           onCloseAppearance={closeAppearance}
@@ -235,7 +341,15 @@ export function App({
           onBack={cancelCreate}
           onCreate={async (input) => { await handleCreate(input); }}
         />
+  </>;
+}
 
+function AppImportPage({ state, imports, navigation }: Parameters<typeof AppView>[0]) {
+  const { stopImporting } = state.nav;
+  const { liveImport } = imports;
+  const { adding, addSite, addDroppedFolder, addError, addDetails } = imports.added;
+  const { showImportPage } = navigation.view;
+  return (
         <ImportWebsite
           shown={showImportPage}
           onBack={stopImporting}
@@ -255,7 +369,15 @@ export function App({
           addError={addError}
           addDetails={addDetails}
         />
+  );
+}
 
+function AppSiteWorkspaces({ state, navigation }: Pick<Parameters<typeof AppView>[0], 'state' | 'navigation'>) {
+  const { applySiteRecord, tabs: { adminPages } } = state;
+  const { inSites, openSites, visibleWorkspaceId } = navigation.view;
+  const { expanded, toggleExpanded } = navigation.expansion;
+  const { find, zoom } = navigation;
+  return (
         <SiteWorkspaces
           inSites={inSites}
           openSites={openSites}
@@ -271,29 +393,5 @@ export function App({
           onSiteUpdated={applySiteRecord}
           adminPages={adminPages}
         />
-      </main>
-
-      <SiteToast toast={siteToast.toast} onDismiss={siteToast.dismiss} />
-
-      {/* NO chat FAB on this page, deliberately, and this comment is the whole reason.
-
-          There used to be a disabled one here — a real `<button>` with `aria-disabled`, `tabIndex
-          ={-1}` and a "Fleet chat (not available yet)" tooltip — standing in for a fleet-operator
-          chat. Two things were wrong with it. It advertised a feature with no main-process half at
-          all: `WORKSPACE_CHAT_CHANNELS` (`contracts/workspace-chat.ts`) has no `ipcMain.handle` anywhere
-          in this app, so `workspace:chat:start` reaches nothing, and `WorkspaceChatPane` (its own module) has zero
-          call sites. And because it was `position: fixed` on the HOST page while the real
-          per-site assistant's FAB lives INSIDE the `<webview>` at the same corner and the same
-          `z-index`, the decoy composited on top of it and swallowed every click meant for the
-          working one — an unbuilt placeholder was blocking the built feature.
-
-          So the one chat entry point is the site's own, inside the guest, where the tools and the
-          content database are. That leaves the sites home tab with no assistant, which is the intended
-          trade: there is no site in view there to assist with. When a workspace-level chat is
-          actually built it should be a PANEL reachable from this app's own chrome, not a second
-          floating button competing with the guest's. `WorkspaceChatPane` and the `.chat-fab*` rules
-          in `app.css` are kept for it. */}
-    </div>
-    </ResourcesMonitor>
   );
 }

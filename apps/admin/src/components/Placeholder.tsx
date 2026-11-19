@@ -157,13 +157,15 @@ const UNKNOWN_SECTION_PREFIX: Record<string, string> = {
   it: "Sezione sconosciuta",
 };
 
-export function Placeholder(props: {
+export function Placeholder({
+  useWiredAdminLocaleHook = useWiredAdminLocale, ...props }: {
   sectionId: string;
   note?: string;
   /** Passed straight through to {@link ComingSoonNotice}, or applied to this component's own
    *  "Unknown section" notice when `sectionId` matches nothing in `getNav()`. Omit to leave either
    *  branch untagged. */
   agentHandle?: string;
+  useWiredAdminLocaleHook?: typeof useWiredAdminLocale;
 }) {
   // Deliberately NOT hook-injected (2026-08-12 sweep ruling): this is a terminal-leaf call — no
   // other host dependency in this file to combine it with, not rendered in a loop, and its only
@@ -171,7 +173,7 @@ export function Placeholder(props: {
   // eliminate and no coverage a wrapper hook would add. Do not "fix" this for consistency. Points at
   // `useWiredAdminLocale` (2026-08-14) only because `useAdminLocale` itself now requires an injected
   // port — same non-decision otherwise.
-  const locale = useWiredAdminLocale();
+  const locale = useWiredAdminLocaleHook();
   const item = findNavItem({ sectionId: props.sectionId });
   if (!item) {
     const unknownSectionPrefix = localeEntry({ table: UNKNOWN_SECTION_PREFIX, locale });

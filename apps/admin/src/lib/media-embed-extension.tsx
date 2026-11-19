@@ -59,8 +59,10 @@ declare module "@tiptap/core" {
  * not `image`'s REF-vs-LEGACY three-way. State, attr reads, handlers and copy all come from
  * `useWiredMediaEmbedNodeView` (`media-embed-extension.hooks.ts`).
  */
-export function MediaEmbedNodeView(props: NodeViewProps) {
-  const view = useWiredMediaEmbedNodeView(props);
+export function MediaEmbedNodeView({
+  useWiredMediaEmbedNodeViewHook = useWiredMediaEmbedNodeView, ...props }: (NodeViewProps) & {
+  useWiredMediaEmbedNodeViewHook?: typeof useWiredMediaEmbedNodeView; }) {
+  const view = useWiredMediaEmbedNodeViewHook(props);
 
   return (
     <NodeViewWrapper as="div" className="media-embed-node" data-drag-handle contentEditable={false}>
