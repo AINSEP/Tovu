@@ -1,7 +1,7 @@
 import { decodeApiError } from "@jini-ai/protocol";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
-import { adminFailureChannel, publishAdminFailure } from "../admin-failure-channel";
+import { adminFailureChannel, isPageWideFailure, publishAdminFailure } from "../admin-failure-channel";
 import { isPageUnloading } from "../page-lifecycle";
 import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "../server-reconnect";
 import { BASE } from "./config";
@@ -388,7 +388,7 @@ export async function request<T>({ path }: { path: string }, { init, onOk, optio
     return await requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method }, options);
   } catch (error) {
     // Only the final unexpected failure is shared; callers keep their original error and body.
-    publishFinalFailure({ error, path, method, generation }, { failureEntry: options.failureEntry });
+    publishFinalFailure({ error, path, method, generation }, { failureEntry: options.failureEntry, basePath: options.basePath ?? BASE });
     throw error;
   }
 }
@@ -396,11 +396,11 @@ export async function request<T>({ path }: { path: string }, { init, onOk, optio
 /** Shares a final 5xx or no-response failure as one admin notice. A 4xx is the caller's to explain. */
 function publishFinalFailure(
   { error, path, method, generation }: { error: unknown; path: string; method: string; generation: number },
-  { failureEntry }: { failureEntry?: "page" } = {},
+  { failureEntry, basePath }: { failureEntry?: "page"; basePath?: string } = {},
 ): void {
   try {
-    if (error instanceof ApiError && (error.status === 0 || error.status >= 500)) {
-      publishAdminFailure({ body: error.body, path, method, status: error.status, generation, ...(failureEntry ? { entry: failureEntry } : {}) });
+    if (error instanceof ApiError && isPageWideFailure({ status: error.status, method, code: error.code })) {
+      publishAdminFailure({ body: error.body, path, method, status: error.status, generation, ...(failureEntry ? { entry: failureEntry } : {}) }, { basePath });
     }
   } catch { /* Notice effects must never replace the original request rejection. */ }
 }

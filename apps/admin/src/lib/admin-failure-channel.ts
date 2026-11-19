@@ -40,10 +40,9 @@ function approvedFailure({ value, entry }: { value: unknown; entry?: "page" }): 
  * @complexity O(n) for n characters of bounded formatted text, via {@link approvedFailure}.
  */
 function approvedResponseFailure(
-  { details, path, entry }: { details: Record<string, unknown>; path: string; entry?: "page" },
+  { details, authenticated, entry }: { details: Record<string, unknown>; authenticated: boolean; entry?: "page" },
   _options = {},
 ): UserFacingError | undefined {
-  const authenticated = getAdminDraftIdentity() !== null && !path.startsWith("/auth/");
   return authenticated ? approvedFailure({ value: details.failure, ...(entry ? { entry } : {}) }) : undefined;
 }
 
@@ -56,24 +55,89 @@ function incidentCause({ status, errorId }: { status: number; errorId?: string }
   return "The server did not provide an incident ID for this response.";
 }
 
+/** Static route words and version segments stay; anything else (ids, slugs, tokens) becomes ":id".
+ * Query strings and fragments never render. @complexity O(n) in the 2048-character bounded path. */
+function redactedRoute({ path }: { path: string }, _options = {}): string {
+  const clean = path.slice(0, 2048).split(/[?#]/, 1)[0] ?? "";
+  return clean.split("/").slice(0, 32).map(segment => (segment === "" || /^(?:[a-z][a-z-]{0,39}|v\d{1,2})$/.test(segment) ? segment : ":id")).join("/");
+}
+
+/** A route missing from the vocabulary gets only the fallback wording; detect that by comparing with
+ * the wording an empty route gets, so the shared describer stays the one owner of the fallback.
+ * @complexity O(vocabulary operations) — one extra describe call. */
+function isUnlistedRoute({ method, step }: { method?: string; step: string }, _options = {}): boolean {
+  return describeRequestFailure({ method, route: "", vocabulary: ADMIN_FAILURE_VOCABULARY }).step === step;
+}
+
+/** The server's own small `{error, code}` refusal, in plain words; anything larger or differently
+ * shaped is never stringified. The formatter still redacts and bounds the result.
+ * @complexity O(1), fixed field checks. */
+function serverReply({ body }: { body: unknown }, _options = {}): string | undefined {
+  const reply = record({ value: body });
+  const { error, code } = reply;
+  if (Object.keys(reply).length > 4 || typeof error !== "string" || typeof code !== "string") return undefined;
+  if (error.length > 300 || !/^[A-Z][A-Z0-9_]{0,63}$/.test(code)) return undefined;
+  return `The server answered ${code}: ${error}.`;
+}
+
+/** Step and cause for one failed response. A route the vocabulary names keeps its approved wording;
+ * any other route names its method and redacted path, plus the server's reply after sign-in.
+ * @complexity O(path length) plus one fallback describe call. */
+function failureEvidence(
+  { body, path, method, status, step, errorId, authenticated }: {
+    body: unknown; path: string; method?: string; status: number; step: string; errorId?: string; authenticated: boolean;
+  },
+  _options = {},
+): { step: string; cause: string } {
+  const unlisted = isUnlistedRoute({ method, step });
+  const label = unlisted ? `${method?.toUpperCase() ?? "Request"} ${redactedRoute({ path })}` : step;
+  const said = unlisted && authenticated ? serverReply({ body }) : undefined;
+  return {
+    step: status === 0 ? `${label} (no server response)` : `${label} (HTTP ${status})`,
+    cause: said ? `${incidentCause({ status, errorId })} ${said}` : incidentCause({ status, errorId }),
+  };
+}
+
+/** The server's codes for "the assistant's background service is not running right now". Boot
+ * registers the agent daemon without spawning it, and an idle daemon parks; passive reads must not
+ * wake it (W4-E2), so they answer one of these until the dock activates it or a message is sent.
+ * `AGENT_DAEMON_KNOWN_FAILED` (a boot that really failed) is deliberately absent: that stays loud. */
+const ASSISTANT_NOT_RUNNING_CODES: ReadonlySet<string> = new Set(["AGENT_DAEMON_PARKED", "AGENT_DAEMON_UNAVAILABLE"]);
+
+/** Whether a final failed request belongs on the page-wide notice. Client errors stay with their
+ * caller. A read answered "the assistant is not running yet" is a calm state its caller already shows
+ * (the picker's "Connecting to the assistant…", External MCP's wait) and re-reads, not an incident;
+ * the caller still receives the rejection. Writes refused the same way stay loud.
+ * @complexity O(1). */
+export function isPageWideFailure(
+  { status, method, code }: { status: number; method: string; code?: string | undefined },
+  _options = {},
+): boolean {
+  if (status !== 0 && status < 500) return false;
+  const read = method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD";
+  return !(read && status === 503 && code !== undefined && ASSISTANT_NOT_RUNNING_CODES.has(code));
+}
+
 /** Tovu's disclosure adapter: safe shared wording for legacy failures, approved details after sign-in.
  * Inputs are the final failed response and its captured session generation; no new I/O or retries.
+ * @param options.basePath The API prefix the request was sent under, so an unlisted route is named in full.
  * @complexity O(path length + bounded formatted text); retains one incident in memory.
- * @overallScore 98 — the server owns approved explanation accuracy; no raw legacy text is disclosed here.
+ * @overallScore 98 — the server owns approved explanation accuracy; legacy text renders only as a small,
+ * redacted `{error, code}` reply from a signed-in request to a route the vocabulary does not name.
  */
 export function publishAdminFailure(
   { body, path, method, status, generation, entry }: { body: unknown; path: string; method?: string; status: number; generation: number; entry?: "page" },
-  _options = {},
+  { basePath = "" }: { basePath?: string } = {},
 ): void {
   const decoded = decodeApiError({ body });
   const details = record({ value: decoded.details });
   const envelope = record({ value: body });
   const reference = details.errorId ?? envelope.errorId ?? decoded.requestId;
   const errorId = typeof reference === "string" ? reference : undefined;
-  const approved = approvedResponseFailure({ details, path, entry });
+  const authenticated = getAdminDraftIdentity() !== null && !path.startsWith("/auth/");
+  const approved = approvedResponseFailure({ details, authenticated, entry });
   const wording = describeRequestFailure({ method, route: entry === "page" ? path.replace(/\/posts\//, "/pages/") : path, vocabulary: ADMIN_FAILURE_VOCABULARY });
-  const step = status === 0 ? `${wording.step} (no server response)` : `${wording.step} (HTTP ${status})`;
-  const cause = incidentCause({ status, errorId });
+  const { step, cause } = failureEvidence({ body, path: `${basePath}${path}`, method, status, step: wording.step, errorId, authenticated });
   const failure = approved ?? formatUserFacingError({ ...wording, step, cause }, {
     ...TOVU_ERROR_REDACTION_OPTIONS, errorId, time: new Date().toISOString(),
     appVersion: `Tovu Admin ${TOVU_ADMIN_VERSION}`, jiniVersion: JINI_CORE_VERSION,
