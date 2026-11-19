@@ -129,177 +129,151 @@ async function runPinSite(
     E2E_LIVE_PUBLISH_CONTENT_DB: path.join(site.siteDir, "content.db"), TOVU_CAPABILITY_MANIFEST_ARM: "off",
   };
   const prior = Object.fromEntries(Object.keys(published).map((key) => [key, process.env[key]]));
-  const repository = {
-    createdRepo: undefined as { owner: string; name: string } | undefined,
-  };
+  let createdRepo: { owner: string; name: string } | undefined;
   const githubToken = process.env.TOVU_E2E_GITHUB_TOKEN;
   const children: ChildProcess[] = [];
-  const server = {
-    apiChild: undefined as ChildProcess | undefined,
-  };
-  const command = (action: "snapshot" | "reset" | "shutdown") => pinCommand({ child: server.apiChild!, action });
-  const output = {
-    log: "",
-  };
+  let apiChild: ChildProcess | undefined;
+  const command = (action: "snapshot" | "reset" | "shutdown") => pinCommand({ child: apiChild!, action });
+  let log = "";
   try {
     Object.assign(process.env, published);
     // The normal journeys boot blanks API keys. Live Gemini sends its explicitly supplied key
     // through the real credential UI instead of inheriting it into the server's environment.
-    configurePinSiteManifest({ site, adminPassword, themeCaptures, warm, outboundTestOrigins, testInfo });
-    spawnPinSiteChildren({ pinApi, warm, outboundTestOrigins, site, children, server, output });
+    const manifest = JSON.parse(readFileSync(site.manifestPath, "utf8"));
+    manifest.env.TOVU_CAPABILITY_MANIFEST_ARM = "off";
+    // Explicit fixture input, never inherited from the operator's environment.
+    manifest.env.TOVU_ADMIN_PASSWORD = adminPassword;
+    if (themeCaptures) {
+      if (warm) throw new Error("theme captures need a cold isolated site");
+      // A switchable local boot under THIS runner's sites/ tree, never the checkout's sites/.
+      // This enables the real per-theme capture queue without a parallel screenshot seam.
+      manifest.apiCwd = site.runtimeDir;
+      // macOS cwd resolves /var to /private/var. Match that canonical path so the binding's
+      // direct-child check recognizes this runner's sites/ root and enables captures.
+      manifest.env.TOVU_SITE_DIR = realpathSync(site.siteDir);
+      manifest.env.TOVU_ENABLE_SITE_SWITCHER = "1";
+    }
+    if (warm) manifest.env.TOVU_E2E_PIN_RESET = "1";
+    // Harness data for the `api-site-import` boot, never env: see support/site-import-api.ts.
+    if (outboundTestOrigins.length) {
+      if (warm) throw new Error("outboundTestOrigins needs a cold isolated site");
+      manifest.outboundTestOrigins = outboundTestOrigins;
+    }
+    // These options lived in retired configs and must apply before the API imports its wiring.
+    manifest.env.TOVU_EXPORT_DIR = path.join(site.siteDir, "out", "export");
+    if (testInfo.titlePath.includes("Bug pin: static-site-tab")) {
+      // Preview/publish pins must stay credential-free, including every descriptor env alias:
+      // a runner's real token would turn the expected local refusal into an outbound publish.
+      // Each hosting plugin ships its own targets file; both ship from @jini-ai/agent-plugins/<id> (D-W2).
+      const targets = ["github-pages", "vercel"].map(pluginId => path.join(agentPluginSourceDir({ pluginId }), "tovu-deploy-targets.json")).filter(file => existsSync(file))
+        .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; env?: { tokenVars: string[] } }> }).targets);
+      for (const target of targets) {
+        if (target.id !== "github-pages" && target.id !== "vercel") continue;
+        for (const key of target.env?.tokenVars ?? []) manifest.env[key] = "";
+      }
+    }
+    if (testInfo.titlePath.includes("Bug pin: static-site-tab-credentials")) {
+      manifest.env.TOVU_EXECUTION_MODE = "hosted-api-only";
+    }
+    if (testInfo.titlePath.includes("Bug pin: dockerfile-tab-editable")) {
+      // Never write/restore the shared checkout's Dockerfile, even after an assertion fails.
+      manifest.apiCwd = site.runtimeDir;
+      for (const relative of ["Dockerfile", "package.json", "apps/website/src/server/inbound/public-http/routes/ops/health.ts"]) {
+        const destination = path.join(site.runtimeDir, relative);
+        mkdirSync(path.dirname(destination), { recursive: true });
+        copyFileSync(path.join(REPO_ROOT, relative), destination);
+      }
+    }
+    writeFileSync(site.manifestPath, JSON.stringify(manifest), { mode: 0o600 });
+    for (const target of pinApi ? [warm ? "pin-api" : outboundTestOrigins.length ? "api-site-import" : "api", "admin"] : ["admin"]) {
+      const child = spawn(process.execPath, ["--import", "tsx", "development/e2e/support/start-journey-site.mjs", site.manifestPath, target],
+        { cwd: REPO_ROOT, env: process.env, detached: process.platform !== "win32", stdio: target === "pin-api" ? ["ignore", "pipe", "pipe", "ipc"] : ["ignore", "pipe", "pipe"] });
+      children.push(child);
+      if (target === "pin-api") apiChild = child;
+      child.stdout!.on("data", (chunk) => { log += `[${target}] ${chunk}`; });
+      child.stderr!.on("data", (chunk) => { log += `[${target}] ${chunk}`; });
+      child.on("error", (error) => { log += `[${target}] ${error.message}\n`; });
+    }
     if (pinApi) await waitForUrl({ url: `${site.apiURL}/readyz`, children });
     await waitForUrl({ url: `${site.adminURL}/admin/`, children });
-    if (!pinApi) { await use({ site, command, log: () => output.log }); return; }
-    await authenticatePinSiteRuntime({ playwright, site, adminPassword, isPublishPin, githubToken, realService, live });
+    if (!pinApi) { await use({ site, command, log: () => log }); return; }
+    const api = await playwright.request.newContext({ baseURL: site.adminURL });
+    try {
+      const response = await api.post("/api/admin/v1/auth/login", { data: { username: JOURNEY_ADMIN_USER, password: adminPassword } });
+      expect(response.ok(), `Pin login: ${await response.text()}`).toBe(true);
+      await api.storageState({ path: site.storageState });
+      const headers = await pinSessionHeaders({ request: api });
+      if (isPublishPin) {
+        // Explicit test credentials replace the old copy of the owner's database.
+        const token = githubToken;
+        const prefix = process.env.TOVU_E2E_GITHUB_REPO;
+        if (!token || !prefix || !/^[a-zA-Z0-9-]{1,50}$/.test(prefix)) throw new Error("Live publish requires TOVU_E2E_GITHUB_TOKEN and TOVU_E2E_GITHUB_REPO (a 1-50 character repository-name prefix)");
+        const name = `${prefix}-${randomUUID().slice(0, 8)}`;
+        const created = await fetch("https://api.github.com/user/repos", {
+          method: "POST", headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "content-type": "application/json" },
+          body: JSON.stringify({ name, private: false, auto_init: true }), signal: AbortSignal.timeout(30_000),
+        });
+        expect(created.status, "Create this test's disposable GitHub Pages repository").toBe(201);
+        const repository = await created.json() as { name: string; owner: { login: string } };
+        createdRepo = { owner: repository.owner.login, name };
+        expect(repository.name).toBe(name);
+        GITHUB_REPO = name;
+        GITHUB_OWNER = repository.owner.login;
+        const credential = await api.post("/api/admin/v1/workspaces/workspace-local/system/publish/credentials", {
+          headers,
+          data: { label: "Journey GitHub Pages", connection: { providerId: "github-pages", token }, isDefault: true },
+        });
+        expect(credential.ok(), "The explicitly supplied test GitHub token was stored").toBe(true);
+      }
+      if (realService || live) {
+        const saved = await api.put("/api/admin/v1/workspaces/workspace-local/settings/value", {
+          headers,
+          data: { namespace: "core.execution", key: "mode", scope: "workspace", valueJson: "local-cli" },
+        });
+        expect(saved.ok(), await saved.text()).toBe(true);
+        const agent = await api.put("/api/admin/v1/workspaces/workspace-local/settings/value", {
+          headers,
+          data: { namespace: "core.execution", key: "localCli.agentId", scope: "workspace", valueJson: "claude" },
+        });
+        expect(agent.ok(), await agent.text()).toBe(true);
+      }
+    } finally { await api.dispose(); }
     // A failed baseline has no test to attach the server log to; carry its tail in the error.
     if (warm) await command("snapshot").catch((error: Error) => {
-      throw new Error(`${error.message}\n--- pin server log (tail) ---\n${output.log.split("\n").slice(-60).join("\n")}`, { cause: error });
+      throw new Error(`${error.message}\n--- pin server log (tail) ---\n${log.split("\n").slice(-60).join("\n")}`, { cause: error });
     });
-    await use({ site, command, log: () => output.log });
+    await use({ site, command, log: () => log });
   } finally {
     // Capture descendants before stopping their parents: daemon launchers own separate process
     // groups. Jini's existing process-tree stopper proves even those detached descendants exited.
-    await cleanupPinSiteRuntime({ children, prior, site, repository, githubToken, warm, testInfo, output });
-  }
-
-}
-
-function configurePinSiteManifest({ site, adminPassword, themeCaptures, warm, outboundTestOrigins, testInfo }: { site: Awaited<ReturnType<typeof createIsolatedJourneySite>>; adminPassword: string; themeCaptures: boolean; warm: boolean; outboundTestOrigins: readonly string[]; testInfo: TestInfo }) {
-  const manifest = JSON.parse(readFileSync(site.manifestPath, "utf8"));
-  manifest.env.TOVU_CAPABILITY_MANIFEST_ARM = "off";
-  // Explicit fixture input, never inherited from the operator's environment.
-  manifest.env.TOVU_ADMIN_PASSWORD = adminPassword;
-  if (themeCaptures) {
-    if (warm) throw new Error("theme captures need a cold isolated site");
-    // A switchable local boot under THIS runner's sites/ tree, never the checkout's sites/.
-    // This enables the real per-theme capture queue without a parallel screenshot seam.
-    manifest.apiCwd = site.runtimeDir;
-    // macOS cwd resolves /var to /private/var. Match that canonical path so the binding's
-    // direct-child check recognizes this runner's sites/ root and enables captures.
-    manifest.env.TOVU_SITE_DIR = realpathSync(site.siteDir);
-    manifest.env.TOVU_ENABLE_SITE_SWITCHER = "1";
-  }
-  if (warm) manifest.env.TOVU_E2E_PIN_RESET = "1";
-  // Harness data for the `api-site-import` boot, never env: see support/site-import-api.ts.
-  if (outboundTestOrigins.length) {
-    if (warm) throw new Error("outboundTestOrigins needs a cold isolated site");
-    manifest.outboundTestOrigins = outboundTestOrigins;
-  }
-  // These options lived in retired configs and must apply before the API imports its wiring.
-  manifest.env.TOVU_EXPORT_DIR = path.join(site.siteDir, "out", "export");
-  if (testInfo.titlePath.includes("Bug pin: static-site-tab")) {
-    // Preview/publish pins must stay credential-free, including every descriptor env alias:
-    // a runner's real token would turn the expected local refusal into an outbound publish.
-    // Each hosting plugin ships its own targets file; both ship from @jini-ai/agent-plugins/<id> (D-W2).
-    const targets = ["github-pages", "vercel"].map(pluginId => path.join(agentPluginSourceDir({ pluginId }), "tovu-deploy-targets.json")).filter(file => existsSync(file))
-      .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; env?: { tokenVars: string[]; }; }>; }).targets);
-    for (const target of targets) {
-      if (target.id !== "github-pages" && target.id !== "vercel") continue;
-      for (const key of target.env?.tokenVars ?? []) manifest.env[key] = "";
+    const owned = collectProcessTreePids({ processes: await listProcessSnapshots(), rootPids: children.flatMap((child) => child.pid ? [child.pid] : []) });
+    const stopped = await Promise.allSettled(children.map(stop));
+    const tree = await stopProcesses(owned);
+    for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+    delete process.env[`TOVU_E2E_ISOLATED_${site.suite.replace(/\W/g, "_").toUpperCase()}`];
+    PUBLIC_URL = ""; ADMIN_URL = ""; GITHUB_REPO = ""; GITHUB_OWNER = "";
+    let remoteCleanupFailure: Error | undefined;
+    if (createdRepo) {
+      try {
+        const removed = await fetch(`https://api.github.com/repos/${encodeURIComponent(createdRepo.owner)}/${encodeURIComponent(createdRepo.name)}`, {
+          method: "DELETE", headers: { authorization: `Bearer ${githubToken}`, accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(30_000),
+        });
+        expect(removed.status, `Delete this test's repository ${createdRepo.owner}/${createdRepo.name}`).toBe(204);
+      } catch (error) { remoteCleanupFailure = error instanceof Error ? error : new Error(String(error)); }
+    }
+    expect(tree.remainingPids, "all processes owned by this pin site exited").toEqual([]);
+    const failures = stopped.filter((result) => result.status === "rejected");
+    if (failures.length) throw new AggregateError(failures.map((result) => (result as PromiseRejectedResult).reason), "Pin servers did not stop; isolated site retained");
+    const cleaned = await new JourneySiteCleanupReporter({ site }).onEnd();
+    // Evidence attachment must never prevent deletion if the test already timed out.
+    try { if (!warm) await testInfo.attach("pin-server.log", { body: log, contentType: "text/plain" }); }
+    finally {
+      expect(cleaned?.status, "the pin's entire isolated site was deleted").not.toBe("failed");
+      if (remoteCleanupFailure) throw remoteCleanupFailure;
     }
   }
-  if (testInfo.titlePath.includes("Bug pin: static-site-tab-credentials")) {
-    manifest.env.TOVU_EXECUTION_MODE = "hosted-api-only";
-  }
-  if (testInfo.titlePath.includes("Bug pin: dockerfile-tab-editable")) {
-    // Never write/restore the shared checkout's Dockerfile, even after an assertion fails.
-    manifest.apiCwd = site.runtimeDir;
-    for (const relative of ["Dockerfile", "package.json", "apps/website/src/server/inbound/public-http/routes/ops/health.ts"]) {
-      const destination = path.join(site.runtimeDir, relative);
-      mkdirSync(path.dirname(destination), { recursive: true });
-      copyFileSync(path.join(REPO_ROOT, relative), destination);
-    }
-  }
-  writeFileSync(site.manifestPath, JSON.stringify(manifest), { mode: 0o600 });
+
 }
-
-
-function spawnPinSiteChildren({ pinApi, warm, outboundTestOrigins, site, children, server, output }: { pinApi: boolean; warm: boolean; outboundTestOrigins: readonly string[]; site: Awaited<ReturnType<typeof createIsolatedJourneySite>>; children: ChildProcess[]; server: { apiChild: ChildProcess | undefined; }; output: { log: string; } }) {
-  for (const target of pinApi ? [warm ? "pin-api" : outboundTestOrigins.length ? "api-site-import" : "api", "admin"] : ["admin"]) {
-    const child = spawn(process.execPath, ["--import", "tsx", "development/e2e/support/start-journey-site.mjs", site.manifestPath, target],
-      { cwd: REPO_ROOT, env: process.env, detached: process.platform !== "win32", stdio: target === "pin-api" ? ["ignore", "pipe", "pipe", "ipc"] : ["ignore", "pipe", "pipe"] });
-    children.push(child);
-    if (target === "pin-api") server.apiChild = child;
-    child.stdout!.on("data", (chunk) => { output.log += `[${target}] ${chunk}`; });
-    child.stderr!.on("data", (chunk) => { output.log += `[${target}] ${chunk}`; });
-    child.on("error", (error) => { output.log += `[${target}] ${error.message}\n`; });
-  }
-}
-
-
-async function authenticatePinSiteRuntime({ playwright, site, adminPassword, isPublishPin, githubToken, realService, live }: { playwright: PlaywrightWorkerArgs; site: Awaited<ReturnType<typeof createIsolatedJourneySite>>; adminPassword: string; isPublishPin: boolean; githubToken: string | undefined; realService: boolean; live: boolean }) {
-  const api = await playwright.request.newContext({ baseURL: site.adminURL });
-  try {
-    const response = await api.post("/api/admin/v1/auth/login", { data: { username: JOURNEY_ADMIN_USER, password: adminPassword } });
-    expect(response.ok(), `Pin login: ${await response.text()}`).toBe(true);
-    await api.storageState({ path: site.storageState });
-    const headers = await pinSessionHeaders({ request: api });
-    if (isPublishPin) {
-      // Explicit test credentials replace the old copy of the owner's database.
-      const token = githubToken;
-      const prefix = process.env.TOVU_E2E_GITHUB_REPO;
-      if (!token || !prefix || !/^[a-zA-Z0-9-]{1,50}$/.test(prefix)) throw new Error("Live publish requires TOVU_E2E_GITHUB_TOKEN and TOVU_E2E_GITHUB_REPO (a 1-50 character repository-name prefix)");
-      const name = `${prefix}-${randomUUID().slice(0, 8)}`;
-      const created = await fetch("https://api.github.com/user/repos", {
-        method: "POST", headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "content-type": "application/json" },
-        body: JSON.stringify({ name, private: false, auto_init: true }), signal: AbortSignal.timeout(30000),
-      });
-      expect(created.status, "Create this test's disposable GitHub Pages repository").toBe(201);
-      const repository = await created.json() as { name: string; owner: { login: string; }; };
-      repository.createdRepo = { owner: repository.owner.login, name };
-      expect(repository.name).toBe(name);
-      GITHUB_REPO = name;
-      GITHUB_OWNER = repository.owner.login;
-      const credential = await api.post("/api/admin/v1/workspaces/workspace-local/system/publish/credentials", {
-        headers,
-        data: { label: "Journey GitHub Pages", connection: { providerId: "github-pages", token }, isDefault: true },
-      });
-      expect(credential.ok(), "The explicitly supplied test GitHub token was stored").toBe(true);
-    }
-    if (realService || live) {
-      const saved = await api.put("/api/admin/v1/workspaces/workspace-local/settings/value", {
-        headers,
-        data: { namespace: "core.execution", key: "mode", scope: "workspace", valueJson: "local-cli" },
-      });
-      expect(saved.ok(), await saved.text()).toBe(true);
-      const agent = await api.put("/api/admin/v1/workspaces/workspace-local/settings/value", {
-        headers,
-        data: { namespace: "core.execution", key: "localCli.agentId", scope: "workspace", valueJson: "claude" },
-      });
-      expect(agent.ok(), await agent.text()).toBe(true);
-    }
-  } finally { await api.dispose(); }
-}
-
-
-async function cleanupPinSiteRuntime({ children, prior, site, repository, githubToken, warm, testInfo, output }: { children: ChildProcess[]; prior: Record<string, string | undefined>; site: Awaited<ReturnType<typeof createIsolatedJourneySite>>; repository: { createdRepo: { owner: string; name: string; } | undefined; }; githubToken: string | undefined; warm: boolean; testInfo: TestInfo; output: { log: string; } }) {
-  const owned = collectProcessTreePids({ processes: await listProcessSnapshots(), rootPids: children.flatMap((child) => child.pid ? [child.pid] : []) });
-  const stopped = await Promise.allSettled(children.map(stop));
-  const tree = await stopProcesses(owned);
-  for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
-  delete process.env[`TOVU_E2E_ISOLATED_${site.suite.replace(/\W/g, "_").toUpperCase()}`];
-  PUBLIC_URL = ""; ADMIN_URL = ""; GITHUB_REPO = ""; GITHUB_OWNER = "";
-  let remoteCleanupFailure: Error | undefined;
-  if (repository.createdRepo) {
-    try {
-      const removed = await fetch(`https://api.github.com/repos/${encodeURIComponent(repository.createdRepo.owner)}/${encodeURIComponent(repository.createdRepo.name)}`, {
-        method: "DELETE", headers: { authorization: `Bearer ${githubToken}`, accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(30000),
-      });
-      expect(removed.status, `Delete this test's repository ${repository.createdRepo.owner}/${repository.createdRepo.name}`).toBe(204);
-    } catch (error) { remoteCleanupFailure = error instanceof Error ? error : new Error(String(error)); }
-  }
-  expect(tree.remainingPids, "all processes owned by this pin site exited").toEqual([]);
-  const failures = stopped.filter((result) => result.status === "rejected");
-  if (failures.length) throw new AggregateError(failures.map((result) => (result as PromiseRejectedResult).reason), "Pin servers did not stop; isolated site retained");
-  const cleaned = await new JourneySiteCleanupReporter({ site }).onEnd();
-  // Evidence attachment must never prevent deletion if the test already timed out.
-  try { if (!warm) await testInfo.attach("pin-server.log", { body: output.log, contentType: "text/plain" }); }
-  finally {
-    expect(cleaned?.status, "the pin's entire isolated site was deleted").not.toBe("failed");
-    if (remoteCleanupFailure) throw remoteCleanupFailure;
-  }
-}
-
 
 /** A worker can execute multiple files. The reporter signals completed files; file transitions
  * and worker teardown also close owners after interrupted hooks. Isolated-only files allocate

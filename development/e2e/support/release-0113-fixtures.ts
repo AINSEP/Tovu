@@ -57,7 +57,9 @@ export const test = base.extend<{ releaseCleanup: void }>({
       const created = (type: Resource) => after[type].filter((row) => !before[type].some((prior) => prior.id === row.id));
       await journeyJson({ api, url: `${WS_API}/presentation`, method: "PATCH", data: { activeThemeId: presentation.settings.activeThemeId } });
       // Move menus back before deleting imported menus; never leave a slot pointing at Trash.
-      await restorePriorMenuLocations(before, api);
+      for (const menu of before.menu) for (const locationKey of menu.locations ?? []) {
+        await journeyJson({ api, url: `${WS_API}/menus/${menu.id}/locations`, method: "POST", data: { locationKey } });
+      }
       // Posts, pages and redirects are bespoke Trash kinds: the generic /trash/items rejects them
       // (TRASH_UNKNOWN_TYPE), so each goes through its own soft-delete route, which records the Trash row.
       for (const row of created("page")) await journeyJson({ api, url: `${WS_API}/pages/${row.id}`, method: "DELETE" });
@@ -68,74 +70,55 @@ export const test = base.extend<{ releaseCleanup: void }>({
       }
       // The import moves the seeded homepage to preserve it. Once the imported root is hidden,
       // return that page to its original address through the version-checked admin lifecycle.
-      await restorePagesAndPurgeImportedContent({ before, after, api, priorTrash, created });
-      await verifyReleaseFixtureCleanup({ api, before, priorTrash, created, journeySite });
+      for (const row of before.page) {
+        if (after.page.find((current) => current.id === row.id)?.slug === row.slug) continue;
+        const { post } = await journeyJson<{ post: { title: string; bodyJson: unknown; status: string; version: number } }>({ api, url: `${WS_API}/pages/${row.id}` });
+        await journeyJson({ api, url: `${WS_API}/pages/${row.id}`, method: "PUT", data: {
+          title: post.title, slug: row.slug, bodyJson: post.bodyJson, status: post.status, expectedVersion: post.version,
+        } });
+      }
+      // Restoring a published slug can itself create a redirect. Include those rows in this purge.
+      // Only active rows: the list also returns redirects already tombstoned (status "disabled") above.
+      const redirects = await journeyJson<{ data: Row[] }>({ api, url: `${WS_API}/redirects?status=active` });
+      for (const row of redirects.data.filter((current) => !before.redirect.some((prior) => prior.id === current.id))) {
+        await journeyJson({ api, url: `${WS_API}/redirects/${row.id}`, method: "DELETE" });
+      }
+      const trash = await journeyJson<{ items: Row[] }>({ api, url: `${WS_API}/trash?limit=1000` });
+      const ids = trash.items.filter((row) => !priorTrash.has(row.id)).map((row) => row.id);
+      if (ids.length) {
+        const purged = await journeyJson<{ results: { id: string; outcome: string }[] }>({ api, url: `${WS_API}/trash/purge`, method: "POST", data: { ids } });
+        // A parent's purge removes its children first (a taxonomy's terms), so their own rows report
+        // "already-gone". Any other outcome left something behind; the inventory checks below confirm.
+        expect(purged.results.map((row) => row.id).sort(), "every created Trash row got a purge outcome").toEqual([...ids].sort());
+        expect(purged.results.filter((row) => row.outcome !== "purged" && row.outcome !== "already-gone"), "all created entities were permanently purged").toEqual([]);
+      }
+      for (const row of created("media")) {
+        // Media's hard purge (DELETE) 409s until the asset is in the Trash; it then drops that Trash row too.
+        await journeyJson({ api, url: `${WS_API}/media/${row.id}/trash`, method: "POST" });
+        const deleted = await journeyJson<{ purged: boolean }>({ api, url: `${WS_API}/media/${row.id}`, method: "DELETE" });
+        expect(deleted.purged).toBe(true);
+      }
+      const cleaned = await inventory(api);
+      for (const type of Object.keys(before) as Resource[]) {
+        expect(cleaned[type].map((row) => row.id).sort(), `${type}: no created rows remain and pre-existing rows survive`).toEqual(before[type].map((row) => row.id).sort());
+      }
+      for (const row of before.page) expect(cleaned.page.find((current) => current.id === row.id)?.slug, "pre-existing page address is restored").toBe(row.slug);
+      const cleanTrash = await journeyJson<{ items: Row[] }>({ api, url: `${WS_API}/trash?limit=1000` });
+      expect(cleanTrash.items.filter((row) => !priorTrash.has(row.id)), "no created entities remain in Trash").toEqual([]);
+      for (const row of created("theme")) {
+        expect((await api({ url: `${WS_API}/themes/${row.id}` })).status).toBe(404);
+        await expectMissing({ file: path.join(journeySite.siteDir, "themes", row.id) });
+        await expectMissing({ file: path.join(journeySite.siteDir, "themes", "static", row.id) });
+        await expectMissing({ file: path.join(journeySite.siteDir, "themes", "__original-themes__", "static", row.id) });
+        for (const extension of ["jpg", "json"]) {
+          const capture = path.join(journeySite.runtimeDir, "sites", ".tovu", "theme-previews", "journey-site", `${row.id}.${extension}`);
+          await rm(capture, { force: true });
+          await expectMissing({ file: capture });
+        }
+      }
     }
   }, { auto: true, timeout: 120_000 }],
 });
-
-async function restorePriorMenuLocations(before: Record<Resource, Row[]>, api: AssistantJourneyApi) {
-  for (const menu of before.menu) for (const locationKey of menu.locations ?? []) {
-    await journeyJson({ api, url: `${WS_API}/menus/${menu.id}/locations`, method: "POST", data: { locationKey } });
-  }
-}
-
-
-async function restorePagesAndPurgeImportedContent({ before, after, api, priorTrash, created }: { before: Record<Resource, Row[]>; after: Record<Resource, Row[]>; api: AssistantJourneyApi; priorTrash: Set<unknown>; created: (type: Resource) => Row[] }) {
-  for (const row of before.page) {
-    if (after.page.find((current) => current.id === row.id)?.slug === row.slug) continue;
-    const { post } = await journeyJson<{ post: { title: string; bodyJson: unknown; status: string; version: number; }; }>({ api, url: `${WS_API}/pages/${row.id}` });
-    await journeyJson({
-      api, url: `${WS_API}/pages/${row.id}`, method: "PUT", data: {
-        title: post.title, slug: row.slug, bodyJson: post.bodyJson, status: post.status, expectedVersion: post.version,
-      }
-    });
-  }
-  // Restoring a published slug can itself create a redirect. Include those rows in this purge.
-  // Only active rows: the list also returns redirects already tombstoned (status "disabled") above.
-  const redirects = await journeyJson<{ data: Row[]; }>({ api, url: `${WS_API}/redirects?status=active` });
-  for (const row of redirects.data.filter((current) => !before.redirect.some((prior) => prior.id === current.id))) {
-    await journeyJson({ api, url: `${WS_API}/redirects/${row.id}`, method: "DELETE" });
-  }
-  const trash = await journeyJson<{ items: Row[]; }>({ api, url: `${WS_API}/trash?limit=1000` });
-  const ids = trash.items.filter((row) => !priorTrash.has(row.id)).map((row) => row.id);
-  if (ids.length) {
-    const purged = await journeyJson<{ results: { id: string; outcome: string; }[]; }>({ api, url: `${WS_API}/trash/purge`, method: "POST", data: { ids } });
-    // A parent's purge removes its children first (a taxonomy's terms), so their own rows report
-    // "already-gone". Any other outcome left something behind; the inventory checks below confirm.
-    expect(purged.results.map((row) => row.id).sort(), "every created Trash row got a purge outcome").toEqual([...ids].sort());
-    expect(purged.results.filter((row) => row.outcome !== "purged" && row.outcome !== "already-gone"), "all created entities were permanently purged").toEqual([]);
-  }
-  for (const row of created("media")) {
-    // Media's hard purge (DELETE) 409s until the asset is in the Trash; it then drops that Trash row too.
-    await journeyJson({ api, url: `${WS_API}/media/${row.id}/trash`, method: "POST" });
-    const deleted = await journeyJson<{ purged: boolean; }>({ api, url: `${WS_API}/media/${row.id}`, method: "DELETE" });
-    expect(deleted.purged).toBe(true);
-  }
-}
-
-
-async function verifyReleaseFixtureCleanup({ api, before, priorTrash, created, journeySite }: { api: AssistantJourneyApi; before: Record<Resource, Row[]>; priorTrash: Set<unknown>; created: (type: Resource) => Row[]; journeySite: import("./isolated-journey-site").IsolatedJourneySite }) {
-  const cleaned = await inventory(api);
-  for (const type of Object.keys(before) as Resource[]) {
-    expect(cleaned[type].map((row) => row.id).sort(), `${type}: no created rows remain and pre-existing rows survive`).toEqual(before[type].map((row) => row.id).sort());
-  }
-  for (const row of before.page) expect(cleaned.page.find((current) => current.id === row.id)?.slug, "pre-existing page address is restored").toBe(row.slug);
-  const cleanTrash = await journeyJson<{ items: Row[]; }>({ api, url: `${WS_API}/trash?limit=1000` });
-  expect(cleanTrash.items.filter((row) => !priorTrash.has(row.id)), "no created entities remain in Trash").toEqual([]);
-  for (const row of created("theme")) {
-    expect((await api({ url: `${WS_API}/themes/${row.id}` })).status).toBe(404);
-    await expectMissing({ file: path.join(journeySite.siteDir, "themes", row.id) });
-    await expectMissing({ file: path.join(journeySite.siteDir, "themes", "static", row.id) });
-    await expectMissing({ file: path.join(journeySite.siteDir, "themes", "__original-themes__", "static", row.id) });
-    for (const extension of ["jpg", "json"]) {
-      const capture = path.join(journeySite.runtimeDir, "sites", ".tovu", "theme-previews", "journey-site", `${row.id}.${extension}`);
-      await rm(capture, { force: true });
-      await expectMissing({ file: capture });
-    }
-  }
-}
-
 
 async function expectMissing({ file }: { file: string }, _options = {}) {
   await expect(access(file).then(() => true, (error: NodeJS.ErrnoException) => {

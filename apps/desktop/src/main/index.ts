@@ -896,7 +896,16 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     onRestartStopped: ({ siteDir, detail }: { siteDir: string; detail: string }) => {
       if (recoveringSiteWindows.has(siteDir)) dialog.showErrorBox("This site couldn’t stay running", detail);
     },
-    onServerRestarted: createServerRestartHandler(),
+    onServerRestarted: async ({ siteDir }: { siteDir: string }) => {
+      const window = recoveringSiteWindows.get(siteDir);
+      recoveringSiteWindows.delete(siteDir);
+      const entry = openSites.get(siteDir);
+      if (!window || window.isDestroyed() || !entry) return;
+      entry.window = window;
+      await window.loadURL(entry.server.adminUrl).catch(() => {
+        console.warn("tovu desktop: the site restarted, but its window could not load. Reopen the site.");
+      });
+    },
     // The other half of what a card reads as a site's status: `openSites` says whether its
     // server is alive, this says whether a start or a stop is in flight on it. Without it here
     // the Stop button the card just showed would report `running` for the whole drain.
@@ -952,36 +961,19 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     isLiveServeRow,
     siteScanRoots: SITE_SCAN_ROOTS,
     discoverSites: siteDiscovery.discoverSites,
-    siteFolders: createProjectSiteFolders(sitesCtx),
-    // A thunk, not the list: read fresh on every scan, so a site opened during this session is
-    // found by a later rescan instead of being frozen out by a snapshot taken at boot.
-    recentSiteDirs: () => existingRecentSiteDirs({ statePath: sitesCtx.statePath }, { workspace: sharedSites }),
-    ctx: sitesCtx,
-  };
-}
-
-function createProjectSiteFolders(sitesCtx: SitesHomeCtx) {
-  return createSiteFolders({
+    siteFolders: createSiteFolders({
       statePath: sitesCtx.statePath,
       defaultRoots: SITE_SCAN_ROOTS,
       home: () => sharedSites.home({}),
       workspace: sharedSites,
       createdSiteDirs: () => readTrackedSites({ projectsPath: sitesCtx.projectsPath })
         .filter((row) => row.origin === "created").map((row) => row.siteDir),
-    });
-}
-
-function createServerRestartHandler() {
-  return async ({ siteDir }: { siteDir: string }) => {
-      const window = recoveringSiteWindows.get(siteDir);
-      recoveringSiteWindows.delete(siteDir);
-      const entry = openSites.get(siteDir);
-      if (!window || window.isDestroyed() || !entry) return;
-      entry.window = window;
-      await window.loadURL(entry.server.adminUrl).catch(() => {
-        console.warn("tovu desktop: the site restarted, but its window could not load. Reopen the site.");
-      });
-    };
+    }),
+    // A thunk, not the list: read fresh on every scan, so a site opened during this session is
+    // found by a later rescan instead of being frozen out by a snapshot taken at boot.
+    recentSiteDirs: () => existingRecentSiteDirs({ statePath: sitesCtx.statePath }, { workspace: sharedSites }),
+    ctx: sitesCtx,
+  };
 }
 type ProjectDeps = ReturnType<typeof buildProjectDeps>;
 
