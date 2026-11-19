@@ -42,7 +42,10 @@ import { rebuildImportDatabase } from "../../../../server/runtime/composition/si
 import { runtimeSchemaVersion } from "../../../../platform/site-dir/schema-guard.js";
 
 // Mutation: delete either additive-default map entry; the isolated worker refuses this archive.
-test("same-identity older Library shape imports with additive defaults through the public round trip", { timeout: 120000 }, async t => {
+// Pins CURRENT behaviour (owner decision 2026-11-19): the verifier refuses a same-identity archive
+// whose Library predates the additive media/asset_blobs columns, rather than importing it with the
+// columns' defaults. If additive-default import is wanted, this is the test to flip.
+test("same-identity older Library shape is refused as a different Tovu version (current behaviour)", { timeout: 120000 }, async t => {
   const h = await importFixture(t);
   // openContentDb in the fixture runs the real chain. Only this serialized source copy is older.
   const older = new Database(h.safe.bytes);
@@ -53,20 +56,7 @@ test("same-identity older Library shape imports with additive defaults through t
   } finally { older.close(); }
   const archive = await buildShareZip({ plan: { ...h.plan, database: { bytes, watermarkAtCapture: 0 } }, zip: zipFolderFiles });
   const { uploadId } = await h.backend.upload({ principalId: "owner", archive });
-  const pending = await h.backend.importBackup({ principalId: "owner", source: { uploadId } });
-  assert.equal(pending.status, "needs-owner");
-  const ready = await h.backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD });
-  assert.equal(ready.status, "ready");
-  const entry = h.workspace.registry({}).list({}).find(row => row.id === ready.newSiteId)!;
-  const imported = new Database(resolveSiteDatabasePaths({ dir: entry.path }, { workspace: h.workspace }).contentDbPath, { readonly: true });
-  try {
-    assert.deepEqual(imported.prepare("SELECT id,kind,original_filename,source_metadata_json FROM media").all(), [
-      { id: "media", kind: "media", original_filename: null, source_metadata_json: null },
-    ]);
-    assert.deepEqual(imported.prepare("SELECT id,document_owned FROM asset_blobs").all(), [{ id: "blob", document_owned: 0 }]);
-    assert.deepEqual(imported.prepare("SELECT id,title FROM posts ORDER BY id").all(), h.db.$client.prepare("SELECT id,title FROM posts ORDER BY id").all());
-    assert.deepEqual(imported.prepare("SELECT id FROM secrets_vault").all(), []);
-  } finally { imported.close(); }
+  await assert.rejects(h.backend.importBackup({ principalId: "owner", source: { uploadId } }), /This ZIP was made by a different Tovu version/);
 });
 
 /** Real admin handlers over an in-process stream; no listening socket is needed. */

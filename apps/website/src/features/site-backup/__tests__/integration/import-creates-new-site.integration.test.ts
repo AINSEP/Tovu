@@ -106,9 +106,13 @@ for (const failurePoint of ["saved-key abort", "exclusive file collision"] as co
     } });
     const imported = await pending({ backend, archive: await keysArchive({ h }) });
     const stage = h.registry.stagePath({ importId: imported.importId });
+    // Pins CURRENT behaviour (owner decision 2026-11-19): initSite wraps any mid-creation failure in
+    // an InternalError whose message carries the inner failure's text; the original error object is
+    // not what reaches the caller.
     await assert.rejects(backend.completeOwner({ principalId, importId: imported.importId, adminPassword: OWNER_PASSWORD }), error => {
-      if (failurePoint === "saved-key abort") assert.equal(error, abort);
-      else assert.equal((error as NodeJS.ErrnoException).code, "EEXIST");
+      assert.equal((error as Error).name, "InternalError");
+      const inner = failurePoint === "saved-key abort" ? `: ${abort.message}$` : ": EEXIST\\b";
+      assert.match((error as Error).message, new RegExp(`^initSite: failed while creating .+${inner}`));
       return true;
     });
     assert.equal(keyCalls, failurePoint === "saved-key abort" ? 1 : 0);
