@@ -7,7 +7,7 @@ import express from 'express';
 import { receiveNodeStartupSecrets } from '@jini-ai/sidecar/supervisor/node';
 import { ensureToolExecToken, requireAgentDaemonToken } from '#src/assistant/daemon-access';
 import { createRealDaemonProcessPorts } from '../daemon-supervisor.js';
-import { STARTUP_SECRET_KEYS } from '../../../../platform/secrets/startup-secrets.js';
+import { STARTUP_SECRET_KEYS } from '@tovu/contracts/startup-secret-keys';
 
 test('standalone chat authenticates with privately delivered capabilities and exports no host token to its CLI children', async () => {
   const before = process.env.TOVU_AGENT_DAEMON_TOKEN;

@@ -20,6 +20,7 @@
   "dependencies": {
     "@jini-ai/analytics": "^0.7.0",
     "@jini-ai/chat": "^0.7.0",
-    "@jini-ai/diagnostics": "^0.7.0"
+    "@jini-ai/diagnostics": "^0.7.0",
+    "zod": "^3.25.76"
   }
 }
