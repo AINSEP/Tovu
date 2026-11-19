@@ -1181,7 +1181,7 @@ test("handleDelete does NOT erase a created project's path once a DIFFERENT site
   const siteDir = path.join(tempDir(), "my-site");
   writeSite(siteDir, "site-a");
 
-  const deps = baseDeps();
+  const deps = baseDeps({ removeSiteTree: async () => assert.fail("a replacement site's directory must not be erased") });
   await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
 
   writeSite(siteDir, "site-b-someone-elses", { "content.db": "someone else's real database" });
@@ -1199,6 +1199,7 @@ test("handleCreate stamps the new site's own identity on its created row", async
   const record = await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
   assert.ok(record);
 
+  assert.equal(JSON.parse(fs.readFileSync(path.join(siteDir, ".site-meta.json"), "utf8")).siteId, "site-a");
   assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]!.siteId, "site-a");
   assert.equal(record.deleteErasesFiles, true, "the site it just made is still the site at that path");
 });
@@ -1229,7 +1230,7 @@ test("handleDelete does NOT erase the directory of a project the app only adopte
   fs.mkdirSync(siteDir);
   fs.writeFileSync(path.join(siteDir, "content.db"), "a real site's real database");
 
-  const deps = baseDeps();
+  const deps = baseDeps({ removeSiteTree: async () => assert.fail("an adopted project's directory must not be erased") });
   // No origin argument: the legacy/unknown-provenance row shape, which must fail CLOSED.
   trackSite({ projectsPath: deps.projectsPath, siteDir });
 
@@ -1244,7 +1245,7 @@ test("handleDelete refuses to erase anything under the repo root, even a row cla
   const siteDir = path.join(repoRoot, "sites", "tovu-com");
   writeSite(siteDir, "repo-site", { "content.db": "leona's 44 MB production database" });
 
-  const deps = baseDeps({ repoRoot });
+  const deps = baseDeps({ repoRoot, removeSiteTree: async () => assert.fail("a checkout directory must not be erased") });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "repo-site" });
 
   await handleDelete({ id: siteDir, deps });
@@ -1490,7 +1491,7 @@ function seedForeignRegistryRow(deps: Pick<ProjectIpcDeps, "registryPath">, site
 
 test("handleDelete refuses to erase a directory a SECOND app instance still has open", async () => {
   const siteDir = writeSite(path.join(tempDir(), "site-shared"), "site-shared", { "content.db": "real bytes" });
-  const deps = baseDeps({ isLiveServeRow: () => true });
+  const deps = baseDeps({ isLiveServeRow: () => true, removeSiteTree: async () => assert.fail("a foreign live server's directory must not be erased") });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-shared" });
   seedForeignRegistryRow(deps, siteDir);
 

@@ -55,6 +55,7 @@ const RECENT_SITES_QUARANTINE_NOTICE: QuarantineNotice = {
  */
 const SITE_MARKER_FILE = "config.json";
 const SITE_META_FILE = ".site-meta.json";
+const SITE_IDENTITY_MARKER = { markerFile: SITE_META_FILE, identityField: "siteId" };
 
 /** Raised when the user dismisses the folder picker — a cancellation, not a failure to diagnose. */
 class SiteDirSelectionCancelled extends Error {}
@@ -632,6 +633,7 @@ export {
   MAX_RECENT_SITE_DIRS,
   SITE_MARKER_FILE,
   SITE_META_FILE,
+  SITE_IDENTITY_MARKER,
   STATE_FILE_NAME,
   SiteDirSelectionCancelled,
   stateFilePath,

@@ -29,11 +29,11 @@ import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { readIdleSiteSleepMinutes } from "./site-view-preference.ts";
 import type { ResourcesSnapshot } from "./contracts/resources.ts";
 import fs from "node:fs";
-import { classifySiteDirSafely } from "./site-dir-store.ts";
+import { classifySiteDirSafely, SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 import path from "node:path";
 import os from "node:os";
 import fsp from "node:fs/promises";
-import { removeSiteTree } from "./remove-site-tree.ts";
+import { removeDirectoryTree } from "@jini-ai/platform/fs";
 import {
   cancel, createLifecycleApi, createSiteLifecycleCtx, manualStart, notePresence, startSite, stateFor,
   type OpenSiteEntry, type ServerExitLike, type SiteLifecycleCtx, type SiteLifecycleOptions, type SiteRuntime,
@@ -48,7 +48,7 @@ import type { ExternalSiteStopper } from "./external-site-stop.ts";
 import { registerIdleSiteSleepIpc } from "./site-view-preference.ts";
 
 import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
-import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
+import { mayEraseDirectory, readDirectoryIdentity } from "@jini-ai/platform/fs";
 import { sitePartition } from "./desktop-auth.ts";
 import { createRelocationGate, relocateMovedSites, repointTrackedSite, type RelocationGate } from "./site-relocation.ts";
 import { assertTokensCanReachFolder, cleanCreateTokens, initTokenOptions, listTokenSignInPlugins as listTokenSignInPluginsReal, withCreatedTokens } from "./agent-plugin-tokens.ts";
@@ -133,14 +133,12 @@ export function createSitePresence<Sender extends PresenceSender>(
 /**
  * A tracked-project row as {@link buildSiteRecord} and its siblings need it — loosened from
  * `tracked-sites.ts`'s own `TrackedSiteRow` (not exported) in exactly the two fields a caller here
- * can hand in without one: `origin` and `siteId` are optional, because {@link mayEraseSiteDirectory}
+ * can hand in without one: `origin` and `siteId` are optional, because {@link mayEraseDirectory}
  * already treats an absent `origin` as "not created" (refuse) and {@link identityHasChanged} already
  * treats an absent `siteId` as "nothing recorded" — this type describes that existing tolerance
- * rather than inventing it. Deliberately no index signature, unlike `project-delete-guard.ts`'s own
- * `RowLike`: a real `TrackedSiteRow` (also no index signature) must flow into this type at every
- * real call site, and TypeScript does not consider a plain interface assignable to one that HAS an
- * index signature. See the `as MayEraseRowLike` casts where a `SiteRow` is handed to
- * {@link mayEraseSiteDirectory} instead.
+ * rather than inventing it. Deliberately no index signature: a real `TrackedSiteRow` (also no index
+ * signature) must flow into this type at every real call site. The erase guard receives a projection
+ * of the row's directory, provenance and identity instead of a cast to an indexed type.
  */
 interface SiteRow {
   siteDir: string;
@@ -150,10 +148,6 @@ interface SiteRow {
   displayName?: string;
   displayNameAlias?: string;
 }
-
-/** {@link mayEraseSiteDirectory}'s own (unexported) first-parameter type, extracted structurally
- *  rather than by name — see {@link SiteRow}'s own doc on why a `SiteRow` needs a cast to reach it. */
-type MayEraseRowLike = Parameters<typeof mayEraseSiteDirectory>[0]["row"];
 
 export interface ProjectSiteLifecycle extends SitePresence<PresenceSender & { getURL(): string }> {
   onServerExit(input: { siteDir: string; exit: ServerExitLike; server: OpenSiteEntry["server"] }, options?: {}): void;
@@ -437,8 +431,8 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     updatedAt: row.createdAt,
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
     // renderer — a UI that decided this for itself could drift from the rule main actually enforces
-    // and label a button with a consequence that will not happen. See `project-delete-guard.ts`.
-    deleteErasesFiles: mayEraseSiteDirectory({ row: row as unknown as MayEraseRowLike, options: { repoRoot: deps.repoRoot } }),
+    // and label a button with a consequence that will not happen. See Jini's directory-delete-guard.ts.
+    deleteErasesFiles: mayEraseDirectory({ row: { directory: row.siteDir, origin: row.origin, identity: row.siteId }, createdOrigin: SITE_ORIGIN.created, protectedRoot: deps.repoRoot, ...SITE_IDENTITY_MARKER }),
     // A version token, never the image — see `SiteRecord.previewVersion`'s own doc on why this
     // record (polled every 4s) must never carry a payload. `null` for a site with no capture yet,
     // which is every site's ordinary state until it has been opened once.
@@ -683,9 +677,9 @@ function recordCreatedSite(
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
-  // at a path, and a path is not an identity. See `project-delete-guard.ts`'s test 3.
+  // at a path, and a path is not an identity. See Jini's directory-delete-guard.ts's test 3.
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
-  const siteId = readSiteIdentity({ siteDir });
+  const siteId = readDirectoryIdentity({ directory: siteDir, ...SITE_IDENTITY_MARKER });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop" });
   // Remember the created site's parent beyond MRU eviction/card
@@ -952,7 +946,7 @@ async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDe
   if (row === undefined) return;
 
   const openEntry = deps.openSites.get(id);
-  const erasesFiles = mayEraseSiteDirectory({ row: row as unknown as MayEraseRowLike, options: { repoRoot: deps.repoRoot } });
+  const erasesFiles = mayEraseDirectory({ row: { directory: row.siteDir, origin: row.origin, identity: row.siteId }, createdOrigin: SITE_ORIGIN.created, protectedRoot: deps.repoRoot, ...SITE_IDENTITY_MARKER });
 
   // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
   // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
@@ -1036,13 +1030,13 @@ function closeStoppedProject(
 
 /** Erase the folder; translate failures while leaving untracking to the caller.
  * @throws {Error} with the existing retry instruction on a partial erase.
- * @complexity O(n) in filesystem entries, delegated to removeSiteTree.
+ * @complexity O(n) in filesystem entries, delegated to removeDirectoryTree.
  */
 async function eraseProjectDirectory(
   { id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "removeSiteTree"> }, _options = {},
 ): Promise<void> {
   // The row is the recovery handle for a partial erase: keep it until removal succeeds.
-  try { await (deps.removeSiteTree ?? removeSiteTree)({ root: id }, {}); }
+  try { await (deps.removeSiteTree ?? removeDirectoryTree)({ root: id }, {}); }
   catch (error) {
     const reason = (error as NodeJS.ErrnoException).code === 'EACCES'
       ? 'Permission was denied.' : 'The folder could not be removed.';
@@ -1062,11 +1056,11 @@ async function eraseProjectDirectory(
  * Its own function so the three clauses read as one question at the call site, and so the
  * "recorded nothing" and "recorded something that changed" cases are visibly different answers.
  *
- * @complexity O(1) beyond `readSiteIdentity`'s single file read.
+ * @complexity O(1) beyond `readDirectoryIdentity`'s single file read.
  */
 function identityHasChanged(row: SiteRow): boolean {
   if (typeof row.siteId !== "string" || row.siteId === "") return false;
-  return readSiteIdentity({ siteDir: row.siteDir }) !== row.siteId;
+  return readDirectoryIdentity({ directory: row.siteDir, ...SITE_IDENTITY_MARKER }) !== row.siteId;
 }
 
 /**
@@ -1667,7 +1661,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   readPreviewVersion: (required: { siteDir: string }) => number | null;
   readPreviewDataUrl: (required: { id: string }) => string | null;
   deletePreview: (required: { id: string }) => void;
-  removeSiteTree?: typeof removeSiteTree;
+  removeSiteTree?: typeof removeDirectoryTree;
   /** Stop/Restart must withdraw pending hidden-window work before the server drains. */
   cancelPreviewCapture?: (required: { siteDir: string }, optional: {}) => void;
   /** Jini's existing shutdown tracker: Quit must also await Stops removed from openSites. */

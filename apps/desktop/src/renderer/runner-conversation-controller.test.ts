@@ -483,17 +483,19 @@ test('a failed rename logs and still re-reads, so the stored title comes back', 
 
 // ── writing messages ────────────────────────────────────────────────────────────────────────────
 
-test('an open thread saves only settled, unsaved messages, and re-reads the list only when it wrote', async () => {
+test('an open thread saves pending user turns and settled, unsaved replies, and re-reads the list only when it wrote', async () => {
   const ctx = setup();
   await openThread(ctx, 'a', [user('a1')]);
   const lists = ctx.store.list.length;
-  ctx.controller.onMessagesChange({ messages: [user('a1'), user('u1'), reply('r1', 'running'), reply('d1', 'succeeded')] });
+  const outgoing = { ...user('u1'), inputPending: true };
+  ctx.controller.onMessagesChange({ messages: [user('a1'), outgoing, reply('r1', 'running'), reply('d1', 'succeeded')] });
   assert.deepEqual(saved(ctx.store), ['a/u1', 'a/d1'], 'not the loaded transcript, not a streaming reply');
+  assert.deepEqual(nth(ctx.store.save, 0).args.message, outgoing);
   assert.equal(ctx.store.list.length, lists + 1);
-  ctx.controller.onMessagesChange({ messages: [user('a1'), user('u1'), reply('d1', 'succeeded')] });
+  ctx.controller.onMessagesChange({ messages: [user('a1'), outgoing, reply('d1', 'succeeded')] });
   assert.equal(ctx.store.save.length, 2, 'nothing new, nothing written');
   assert.equal(ctx.store.list.length, lists + 1, 'and nothing re-read');
-  ctx.controller.onMessagesChange({ messages: [user('u1'), reply('r1', 'succeeded')] });
+  ctx.controller.onMessagesChange({ messages: [outgoing, reply('r1', 'succeeded')] });
   assert.deepEqual(saved(ctx.store), ['a/u1', 'a/d1', 'a/r1'], 'the reply is saved once it settles');
 });
 
@@ -546,11 +548,13 @@ test('with nothing open, the mount echo and a still-streaming reply create nothi
   assert.equal(notified, 0);
 });
 
-test('a first message with nothing open adopts ONE thread for every delta before it exists, without a remount', async () => {
+test('a pending first user message with nothing open adopts ONE thread for every delta before it exists, without a remount', async () => {
   const ctx = setup();
   await seedList(ctx, [convo('a')]);
-  ctx.controller.onMessagesChange({ messages: [user('u1')] });
-  ctx.controller.onMessagesChange({ messages: [user('u1'), user('u2')] });
+  const outgoing = { ...user('u1'), inputPending: true };
+  ctx.controller.onMessagesChange({ messages: [outgoing] });
+  assert.equal(ctx.store.create.length, 1, 'a pending user turn starts adoption immediately');
+  ctx.controller.onMessagesChange({ messages: [outgoing, user('u2')] });
   assert.equal(ctx.store.create.length, 1);
   latest(ctx.store.create).resolve(convo('c1'));
   await settle();
@@ -558,7 +562,8 @@ test('a first message with nothing open adopts ONE thread for every delta before
   assert.deepEqual(view(state), { activeId: 'c1', paneKey: 'new', initial: [] });
   assert.deepEqual(state.conversations.map((c) => c.id), ['c1', 'a']);
   assert.deepEqual(saved(ctx.store), ['c1/u1', 'c1/u2'], 'each message once');
-  ctx.controller.onMessagesChange({ messages: [user('u1'), user('u2'), user('u3')] });
+  assert.deepEqual(nth(ctx.store.save, 0).args.message, outgoing);
+  ctx.controller.onMessagesChange({ messages: [outgoing, user('u2'), user('u3')] });
   assert.deepEqual(saved(ctx.store), ['c1/u1', 'c1/u2', 'c1/u3'], 'later deltas write straight to it');
 });
 

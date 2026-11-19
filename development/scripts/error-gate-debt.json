@@ -585,11 +585,6 @@
     "value": 1
   },
   {
-    "file": "apps/desktop/src/project-delete-guard.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/desktop/src/project-ipc.site-lifecycle.ts",
     "rule": "catch-reads-error",
     "value": 1
