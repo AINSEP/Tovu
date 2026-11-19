@@ -842,13 +842,6 @@
       "value": 118
     },
     {
-      "file": "apps/website/src/features/members/tool-registrations.ts",
-      "function": "buildMembersRegistrations#1",
-      "line": 195,
-      "rule": "max-lines-per-function",
-      "value": 88
-    },
-    {
       "file": "apps/website/src/features/navigation/publish-content.ts",
       "function": "menuReferenceMethods#1",
       "line": 168,
@@ -1029,13 +1022,6 @@
       "line": 830,
       "rule": "max-lines",
       "value": 627
-    },
-    {
-      "file": "apps/website/src/features/trash/adapters/user.ts",
-      "function": "createUserTrashAdapter#1",
-      "line": 90,
-      "rule": "max-lines-per-function",
-      "value": 103
     },
     {
       "file": "apps/website/src/platform/db/sqlite/fresh-content-db.ts",

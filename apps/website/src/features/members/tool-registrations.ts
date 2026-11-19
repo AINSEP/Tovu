@@ -195,8 +195,8 @@ const MEMBERS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 /** `members_list`'s schema cap (`agent-tools.ts`), which is also the repo's own page size. */
 const MEMBERS_LIST_MAX_LIMIT = 100;
 
-export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
+function memberProfileHandlers(deps: MembersToolDeps): Record<string, ToolHandler> {
+  return {
     /** Operator creation shares sign-up persistence while withholding tokens and mail. */
     members_create: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -218,6 +218,11 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       const { member } = await updateProfile({ deps: buildMembersWriteServiceDeps({ deps }), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
       return { member: toMemberToolView(member) };
     },
+  };
+}
+
+function memberReadHandlers(deps: MembersToolDeps): Record<string, ToolHandler> {
+  return {
     members_list: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
 
@@ -251,6 +256,11 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       return { member: toMemberToolView(member) };
     },
 
+  };
+}
+
+function memberRemovalHandlers(deps: MembersToolDeps): Record<string, ToolHandler> {
+  return {
     members_delete: async (ctx) => {
       const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
@@ -269,6 +279,11 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       return { member: toMemberToolView(member) };
     },
 
+  };
+}
+
+function memberSignInHandlers(deps: MembersToolDeps): Record<string, ToolHandler> {
+  return {
     members_request_magic_link: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const email = requireString({ input: input, key: "email" });
@@ -307,6 +322,15 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       // here means delivery is available; the privileged operator gets the actual send result.
       return { delivered: result.delivered, mailDeliveryAvailable: true };
     },
+  };
+}
+
+export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    ...memberProfileHandlers(deps),
+    ...memberReadHandlers(deps),
+    ...memberRemovalHandlers(deps),
+    ...memberSignInHandlers(deps),
   };
 
   // No `unwiredToolIds`: Members wires its ENTIRE catalog, same tripwire discipline as Forms.
