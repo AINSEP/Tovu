@@ -765,13 +765,6 @@
       "value": 86
     },
     {
-      "file": "apps/website/src/assistant/tool-registrations.ts",
-      "function": "buildAssistantToolRegistrations#1",
-      "line": 421,
-      "rule": "max-lines-per-function",
-      "value": 81
-    },
-    {
       "file": "apps/website/src/cli/program.ts",
       "function": "createProgram#1",
       "line": 47,

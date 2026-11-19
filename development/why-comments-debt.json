@@ -1816,6 +1816,10 @@
     {
       "id": "05eb54ad9ad0",
       "reason": "Behaviour changed by daemon-r7 (route sheet decision): a failing run store now reaches the host's error path on both routes (500) instead of the execution route's body-parser handler (400); the test and its comment were rewritten at lines 147-149 of the same file, which also record the old answer. Was apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-authorize-run.integration.test.ts:152-152 (\"the catalog route has no error handler of its own, so the host's answe...\")."
+    },
+    {
+      "id": "732210fec640",
+      "reason": "Reworded in place (combine-4): the comment named Jini's two-argument resetNamespace API, which args-jini-core-mcp replaced by one required object carrying keysInNamespace; the adapter's doc at site-title-write.ts resetNamespace now says it hands that object through unchanged."
     }
   ]
 }
