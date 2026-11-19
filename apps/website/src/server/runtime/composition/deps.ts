@@ -1,3 +1,11 @@
+import { composeSiteKeysMembers } from "./site-deps/site-keys-members.js";
+import { composeContentResolversComments } from "./site-deps/content-resolvers-comments.js";
+import { composeContentRepos } from "./site-deps/content-repos.js";
+import { composeDatabaseJournal } from "./site-deps/database-journal.js";
+import { composeRedirects } from "./site-deps/redirects.js";
+import { composeTrashService } from "./site-deps/trash-service.js";
+import { composeTrashAdapters } from "./site-deps/trash-adapters.js";
+import { composeTrashFollowUpHooks } from "./site-deps/trash-follow-up-hooks.js";
 import { composeTrashStores } from "./site-deps/trash-stores.js";
 import { composeEventsOrigin } from "./site-deps/events-origin.js";
 import { startBootData } from "./site-deps/boot-data.js";
@@ -14,12 +22,9 @@ import { createSiteOAuthBindings } from "#src/features/project-keys/site-referen
 import { createFormCollectionRegistry } from "@jini-ai/cms/forms";
 import { composeCommerce } from "./commerce.js";
 import { protectExistingFormFiles } from "#src/features/forms/protect-existing-files";
-import { createFormFilePurgeHooks, createFormMediaCleanup } from "#src/features/forms/form-file-purge";
-import { trashMedia as trashFormMedia, purgeMedia as purgeFormMedia } from "#src/features/media/index";
 import { formsMailOutboxReady } from "#src/features/forms/mail-outbox-readiness";
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
-import { outboxEventValues } from "@jini-ai/db/events";
 import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
 import { createSiteKeyReferences } from "#src/features/project-keys/site-references";
 import { sourceControlKeyBinding } from "./source-control-key-binding.js";
@@ -32,9 +37,7 @@ import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/r
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createPluginAccountTokenResolver } from "../boot/mail-plugin-account-token.js";
-import { createCommentsCapability } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
-import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService, ensureSiteConsentPrivacy } from './site-consent.js';
@@ -75,13 +78,9 @@ import { createPeerSiteReads } from "./peer-site-reads.js";
 import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
 import { createTovuPluginHost } from "./plugin-host.js";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
-import { widgetCollectionListPort } from "../../../features/entries/public-list.js";
-import { resolveMenuDoc } from "@jini-ai/cms/navigation";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
-import { assertUserAccountAction } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
-import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
+import { bindWidgetRemoval } from "#src/features/trash/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -122,7 +121,6 @@ import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-histo
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
 import { SqlitePublishContentPeerRepo } from "#src/features/publish-content/publish-content-peer-repo.sqlite";
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
-import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
 import { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-port";
@@ -172,7 +170,6 @@ import { resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { formatErrorForLog } from "@jini-ai/core";
 import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/features/theme/index";
-import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import { sqliteConnectionOf, closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
@@ -189,12 +186,9 @@ import { resolveSiteTimeZone } from "#src/features/settings/site-timezone";
 import { seedSiteThemes } from "#src/platform/site-dir/seed-site-themes";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
-import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
 import { warnOnOrphanedChatRows } from "#src/platform/db/sqlite/chat-orphan-check";
-import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
-import { createHookRegistry } from "#src/features/newsletter/hooks";
 import {
   SqliteNewsletterAudienceSnapshotRepo,
   SqliteNewsletterCampaignRepo,
@@ -203,7 +197,7 @@ import {
   SqliteNewsletterSendRepo,
   SqliteNewsletterSubscriptionRepo,
 } from "#src/features/newsletter/repo.sqlite";
-import { DefaultMemberAccessResolver, MembersSubscriberDirectory } from "#src/features/members/index";
+import { DefaultMemberAccessResolver } from "#src/features/members/index";
 import { listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { TovuCredentialSetVaultAdapter, VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
@@ -222,12 +216,10 @@ import {
   SqliteMemberTierRepo,
 } from "#src/features/members/index";
 import { registerMenuReverters } from "#src/features/navigation/index";
-import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import { resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
+import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/assistant/site-credential-repo.sqlite";
 import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
 import { DatabaseDestinationRepo } from "#src/features/database-transfer/destination-repo";
@@ -243,9 +235,7 @@ import {
   SharpImageTransformer,
 } from "#src/features/media/index";
 import { readMediaObjectStoreSetting, artifactStoreBinding, artifactStoreTarget, selectArtifactStoreProvider } from "#src/features/object-storage/index";
-import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import type { IdentityRepos } from "@jini-ai/user-management";
-import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/index";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
@@ -263,34 +253,16 @@ import {
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
 } from "#src/platform/db/sqlite/media-repo.sqlite";
-import { redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
 import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
-import { SqliteRestorePointsRepo } from "#src/platform/db/sqlite/database-journal-repo";
-import { SqliteDatabaseIntrospectionAdapter } from "#src/platform/db/sqlite/database-introspection-adapter.sqlite";
 import { InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
-import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
-import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
-import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
-import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";
-import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
-import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "@jini-ai/cms/widgets";
-import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
+import { adoptLegacyTrashedWidgets } from "@jini-ai/cms/widgets";
 import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_DEFAULT_PROVIDER } from "./charts-recharts-source.js";
 import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { watchProviderRevisions } from "@jini-ai/plugins/host";
-import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
-import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
-import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
-import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
-import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { createCommentsHostPorts } from "#src/features/comments/index";
 import {
   getEffective,
   set,
@@ -298,7 +270,6 @@ import {
 } from "#src/features/settings/index";
 import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
 import { ensureSiteTitleSettingDefinition, preserveLegacySiteTitles } from "#src/features/settings/site-title";
-import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
 import {
   COMMENT_ENTITY_TYPE,
   buildTrashRegistry,
@@ -319,8 +290,6 @@ import {
   createUserTrashAdapter,
   removeEntityWithoutBlocker,
 } from "#src/features/trash/index";
-import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
-import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import {
   bindRemoveEntity,
   bindForgetRemovedEntity,
@@ -336,7 +305,6 @@ import {
   SqliteTaxonomyRevisionRepo,
   SqliteTermRepo,
 } from "#src/features/taxonomy/repo.sqlite";
-import { createTermPurgeFollowUp, createTaxonomyPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -346,7 +314,7 @@ import { createExternalMcpOAuthService } from "../../../features/external-mcp/ex
 import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
 import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
-import { builtInContentSeedDbPath, defaultDatabaseJournalDbPath, pluginsInstallDir, resolveShareDirectory } from "./site-paths.js";
+import { builtInContentSeedDbPath, pluginsInstallDir, resolveShareDirectory } from "./site-paths.js";
 import { bundledAgentPluginsDir, assertContentDbFileName, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
 export { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
 
@@ -405,30 +373,6 @@ function readTovuVersion(): string {
 }
 
 
-/** Resolve the served site's key candidates and retain its root for vault contribution discovery.
- * @complexity O(1), one site-metadata read; never reads or creates key material. */
-function compositionSiteKeySources({ dbPath, runtimeMode, siteBinding }: {
-  dbPath: string; runtimeMode: ReturnType<typeof resolveRuntimeMode>; siteBinding: CreateSiteRouteDepsOverrides["siteBinding"] | undefined;
-}, _options = {}) {
-  // site-key plan §A3a: both site-key-backed keyrings below need this site's own ordered source
-  // list (per-site file first in local mode, mirroring `ensureSiteKey`'s own writer-side ordering —
-  // `site-key-sources.ts`). Computed once, here, rather than per-keyring: `dbPath !== ":memory:" ?
-  // resolveSiteDirForDatabase(...) : undefined` shares the site-root resolution used by
-  // `createSiteDisplayNameSource` above, so a `:memory:` boot (no site directory at all) correctly
-  // resolves no `siteKeyId` and therefore no per-site candidate. The database may now be outside
-  // that root; its parent must never establish the key's identity.
-  // Site keys/config/themes remain at the site root when SQLite is stored elsewhere.
-  const siteDirForKeyring = dbPath !== ":memory:" ? resolveSiteDirForDatabase({ dbPath, siteDir: siteBinding?.dir }) : undefined;
-  const siteKeyIdForKeyring = siteDirForKeyring ? resolveSiteKeyId({ siteDir: siteDirForKeyring }) : undefined;
-  const sources = siteKeySources({
-    mode: runtimeMode,
-    env: process.env,
-    home: homedir(),
-    cwd: process.cwd(),
-    siteKeyId: siteKeyIdForKeyring,
-  });
-  return { siteDirForKeyring, sources };
-}
 
 function compositionApprovalOverrides({ overrides }: { overrides: Partial<CreateSiteRouteDepsOverrides> }, _options = {}) {
   return {
@@ -542,405 +486,15 @@ async function composeSiteRouteDeps(
   const { menuRepo, navLocationBindingRepo, menuBindingsReady, newsletterListRepo, newsletterReady, commentsReady, transformDefinitionRepo, mediaTransformReady, blobHydrationReady } = startBootData({ kernel, clock, workspaceId, dbPath, idGen, resolvedSiteBinding, blobStore, consoleLogger });
   const { outbox, bus, devCapabilityScheme, originReady, originRegistry, redirectRepo, redirectHitSink, assetRenditionRepo } = composeEventsOrigin({ kernel, clock, workspaceId });
   const { trashRegistry, sqliteTrashDb, trashRepo, taxonomyFollowUpTermRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, formDeliveryRepo } = composeTrashStores({ kernel, workspaceId, outbox, clock, idGen });
-  const trashFollowUpHooks = new Map<string, TrashFollowUpHooks>([
-    ...(["form_submission", "form"] as const).map(entityType => [entityType, createFormFilePurgeHooks({ kernel, entityType,
-      prepareRemoval: async () => {
-        const [assets, posts] = await Promise.all([mediaRepo.list({ workspaceId }), postRepo.list({ workspaceId })]);
-        // The existing media owner still checks references. Snapshot once under the purge lock,
-        // then remove deleted rows so shared blobs observe earlier deletions in this same purge.
-        const snapshotMedia = new Proxy(mediaRepo, { get(target, key) {
-          if (key === "list") return async () => assets;
-          // Tombstoning runs inside purgeMedia, so its snapshot must lose the removed owner
-          // before that check rather than only after purgeMedia returns.
-          if (key === "remove") return async (input: { workspaceId: string; id: string }) => {
-            await target.remove(input);
-            const index = assets.findIndex(row => row.id === input.id);
-            if (index >= 0) assets.splice(index, 1);
-          };
-          const value = Reflect.get(target, key);
-          return typeof value === "function" ? value.bind(target) : value;
-        } });
-        const snapshotPosts = new Proxy(postRepo, { get(target, key) {
-          if (key === "list") return async () => posts;
-          const value = Reflect.get(target, key);
-          return typeof value === "function" ? value.bind(target) : value;
-        } });
-        return async ({ workspaceId: ws, mediaId }) => {
-          const asset = await mediaRepo.findById({ workspaceId: ws, id: mediaId });
-          if (!asset) return;
-          // A filename is visitor-influenced display data, never proof of attachment ownership.
-          // Legacy public references stay intact when their ownership cannot be established.
-          if (!asset.source.private) throw new Error(`Form attachment ${mediaId} has no proven form upload owner. The submission and file were kept.`);
-          await trashFormMedia({ deps: { mediaRepo, clock }, input: { workspaceId: ws, id: mediaId } });
-          await purgeFormMedia({ deps: { mediaRepo: snapshotMedia, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock, entryRefsRepo, postRepo: snapshotPosts,
-            ...createFormMediaCleanup({ kernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }) }, input: { workspaceId: ws, id: mediaId } });
-        };
-      },
-      scrub: ({ workspaceId: ws, entityId }) => formDeliveryRepo.scrubPurged({ workspaceId: ws, purged: entityType === "form" ? { formId: entityId } : { submissionId: entityId } }),
-    })] as [string, TrashFollowUpHooks]),
-    [
-      "widget",
-      {
-        afterUnhide: (required) =>
-          restoreWidgetPriorStatus({
-            deps: buildWidgetsDeps(routeDeps),
-            input: { workspaceId: required.workspaceId, widgetInstanceId: required.entityId, priorStatus: required.priorMarker },
-          }),
-      },
-    ],
-    ["menu", buildMenuTrashFollowUpHooks({ menuRepo, outbox, idGen, clock })],
-    [
-      "term",
-      createTermPurgeFollowUp({
-        termRepo: taxonomyFollowUpTermRepo,
-        trash: trashRepo,
-        revisions: taxonomyFollowUpRevisions,
-        outbox: taxonomyFollowUpOutbox,
-        clock,
-      }),
-    ],
-    [
-      "taxonomy",
-      createTaxonomyPurgeFollowUp({
-        termRepo: taxonomyFollowUpTermRepo,
-        trash: trashRepo,
-        revisions: taxonomyFollowUpRevisions,
-        outbox: taxonomyFollowUpOutbox,
-        clock,
-      }),
-    ],
-  ]);
-  const pluginTrashAdapter = createDirectoryTrashAdapter({
-    entityType: PLUGIN_ENTITY_TYPE,
-    locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
-    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId, deps: { repo: pluginActivationRepo } }),
-  });
-  const trashAdapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(kernel)],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(kernel)],
-    [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(kernel)],
-    [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
-    [
-      MEDIA_ENTITY_TYPE,
-      createMediaTrashAdapter({
-        db: kernel,
-        // Media's hard delete is not a row delete: rendition rows hang off it and the blob store
-        // holds bytes. `purgeMedia` owns that ladder, so the adapter delegates rather than
-        // reimplementing it in SQL and silently orphaning bytes.
-        purgeAsset: async ({ workspaceId: ws, entityId }) => {
-          await purgeMedia({
-            deps: { mediaRepo, entryRefsRepo, postRepo, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock },
-            input: { workspaceId: ws, id: entityId },
-          });
-        },
-      }),
-    ],
-    [
-      USER_ENTITY_TYPE,
-      createUserTrashAdapter({
-        eventValues: outboxEventValues,
-        db: kernel,
-        assertAccountAction: async (required, optional) => {
-          const service = identityServiceDepsFrom({ ...identity, clock, idGen });
-          await service.repos.transactions.run({ workspaceId: required.workspaceId, execute: async () => {
-            await assertUserAccountAction({ ...required, deps: service },
-              { ...optional, seededOwnerPrincipalId: await identity.ownerPrincipalId });
-          } });
-        },
-        // A fresh instance, not `identity.userPurge` (removed — see `wiring.ts`'s
-        // `IdentityRouteDepsSlice.removeUser` doc): `purge`'s hard-delete is now reached only
-        // through this adapter's own `purge()`, never directly from the route layer.
-        purge: new SqliteUserPurge({ kernel, eventValues: outboxEventValues }),
-        idGen: { next: () => randomUUID() },
-        clock,
-      }),
-    ],
-    // One generic adapter per `TRASHABLE` entry — `createTableTrashAdapter` is
-    // written once and driven entirely by each entry's own registration, so this line never changes
-    // as G2-G4 add more entries.
-    ...[...trashRegistry.values()].map((entry) => {
-      const tableAdapter = createTableTrashAdapter({ entry, kernel: sqliteTrashDb, tables: TRASH_TABLES });
-      const adapter = entry.entityType === "member"
-        ? createMemberTrashAdapter({ adapter: tableAdapter, db: sqliteTrashDb })
-        : tableAdapter;
-      const hooks = trashFollowUpHooks.get(entry.entityType);
-      return [entry.entityType, hooks ? withFollowUps({ adapter }, hooks) : adapter] as const;
-    }),
-  ]);
-  // Reentrant: `deletePost` and `tombstoneRedirect` already open their own transaction around
-  // "marker + revision append", and `remove` is called from inside it (a nested one joins). Named (not inlined) because
-  // the comments moderation service needs the SAME runner to wrap its own two writes.
-  const trashTransaction = createContentDbTransactionRunner({ store: kernel });
-  const trash = createTrashService({
-    repo: trashRepo,
-    adapters: trashAdapters,
-    idGen: { newId: () => randomUUID() },
-    // Trash flips post and widget markers through the kernel, past the repositories that clear media
-    // access evidence on a save. Cleared after commit, so a read during the transaction cannot keep old
-    // evidence. Cost: O(256) map clear per Trash action, then one rescan per asset on its next request.
-    transaction: ({ work }) => trashTransaction(work).finally(() => invalidateMediaAccessEvidence({ owner: postRepo })),
-    entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
-  }, {
-    retentionDays: TRASH_RETENTION_DAYS,
-    onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
-  });
-  // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ adapter: pluginTrashAdapter, remove: bindRemoveEntity({
-    trash: trash,
-    entityType: PLUGIN_ENTITY_TYPE
-  }) });
-  // Delete-user plan v2 Slice 2 — `identity`'s `removeUser`/`isInTrash` overrides (see
-  // `wiring.ts`'s `IdentityRouteDepsSlice.removeUser` doc for why identity itself cannot build
-  // these: it wires before `trash`/`trashRepo` exist).
-  const removeUser = bindRemoveEntity({
-    trash: trash,
-    entityType: USER_ENTITY_TYPE
-  });
-  const isInTrash = async ({ principalId }: { principalId: string }, _optional = {}): Promise<boolean> =>
-    (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;
-
-  const redirectsWriteDeps: RedirectsWriteDeps = {
-    repo: redirectRepo,
-    remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
-      trash: trash,
-      entityType: REDIRECT_ENTITY_TYPE
-    }) }),
-    // S7 (web-high fix plan 2026-09-24) — same identity `isInTrash` shape as above, pre-bound to
-    // this domain's entity type. `trash.restore` is the real `TrashPort` method, not a bespoke one.
-    isInTrash: async (required) =>
-      (await trashRepo.findByEntity({ workspaceId: required.workspaceId, entityType: REDIRECT_ENTITY_TYPE, entityId: required.id })) !== null,
-    restore: (required) =>
-      trash.restore({
-        workspaceId: required.workspaceId,
-        entityType: REDIRECT_ENTITY_TYPE,
-        entityId: required.id,
-        at: required.at      }, {
-        actor: required.actor      }),
-    db: redirectRepo,
-    transaction: (fn) => redirectRepo.transaction(fn),
-    reservedSegments: RESERVED_SEGMENTS,
-    matcher: redirectMatcher,
-    originRegistry,
-    clock,
-    idGen,
-    outbox,
-  };
-  // Disposed with the store: the resolver and the slug capture close over this site's
-  // `redirectRepo`, and the phase registry and capture slot are process-wide, so neither may outlive
-  // the database it queries. The hit fold's bus is this site's own; it leaves with the site too.
-  onStoreClose({ registration: registerRedirectsPhaseHandlers({
-    repo: redirectRepo,
-    matcher: redirectMatcher,
-    originRegistry,
-    reservedSegments: RESERVED_SEGMENTS,
-  }, { hits: { outbox, clock, idGen } }) });
-  onStoreClose({ registration: registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) }) });
-  onStoreClose({ registration: registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink }) });
-
-  // ADR-041 §2 — opens the sidecar ops journal alongside content.db. `mkdirSync` (recursive) is
-  // required first: unlike `openContentDb`'s target (the process cwd, which already exists),
-  // `ops/` is a new subdirectory better-sqlite3 will not create for us.
-  const databaseJournalDbPath = defaultDatabaseJournalDbPath({}, { contentDbPath: dbPath });
-  mkdirSync(dirname(databaseJournalDbPath), { recursive: true });
-  const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
-  // The ops journal owns a separate SQLite connection on every content dialect.
-  onStoreClose({ registration: () => databaseJournalDb.close() });
-  // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
-  // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
-  // composition root does not resolve it either, it just picks the only value available today.
-  const databaseLedgerRepo = new SqliteDatabaseLedgerRepo({ db: databaseJournalDb, siteId: workspaceId });
-  // ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
-  // the real `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs. The actual
-  // boot-time SCAN call lives in `bootstrap.ts` (a proper sequenced boot module), not here —
-  // this composition root only constructs and exposes the port.
-  const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: workspaceId });
-  // Admin-UI backend-gap closure (design-spec.md §0.4/§3.8/§4.8, this dispatch): both classes were
-  // already built (a prior session's disclosed-but-unwired infra work — see each class's own file
-  // header) but never constructed by any composition root until now. `SqliteRestorePointsRepo`
-  // shares the same sidecar journal db/siteId as `databaseLedgerRepo` above.
-  const publishContentRunRepo = new SqlitePublishContentRunRepo({ store: kernel });
-  const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId,
-    protectedRestorePointIds: () => publishContentRunRepo.inFlightRestorePointIds({ workspaceId }),
-  });
-  const { dbOps } = storeBound;
-  // ADR-041 §3 (this dispatch) — reuses the SAME already-open store `dbOps` above is bound to,
-  // rather than opening a second connection to the same `content.db` file.
-  const databaseIntrospection = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath });
-
-  // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
-  // repo the rest of this composition root wires (mirrors `restorePointsRepo`'s identical
-  // hoisting rationale above). The actual `commentsReady` I/O (declareDataModule against the
-  // SAME shared `db.$client` connection) is chained AFTER `newsletterReady` below — this is
-  // pure, synchronous, I/O-free wiring only.
-  const entryRepo = new SqliteEntryRepo({ store: kernel });
-  // Hoisted (2026-09-02 taxonomy render-surface gap fix) so the SAME instance backs both
-  // `entryTermRepo` and the new `entryTermReadRepo` field below — one concrete class satisfying two
-  // differently-shaped dependency slots, rather than two separate connections to the same table.
-  const sqliteEntryTermRepo = new SqliteEntryTermRepo({ db: kernel, workspaceId: workspaceId });
-  // Hoisted so `routeDeps` and the publish apply bag share these instances.
-  const taxonomyRepo = new SqliteTaxonomyRepo({ db: kernel, workspaceId: workspaceId });
-  const termRepo = new SqliteTermRepo({ db: kernel, workspaceId: workspaceId });
-  const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId: workspaceId });
-  const stampWatermark = storeBound.stampWatermark;
-  // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
-  // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
-  // W-004) read/write against the SAME real tables, via the same `db` connection.
-  const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(kernel);
-  const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel });
-  const formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });
+  const { trashFollowUpHooks } = composeTrashFollowUpHooks({ kernel, mediaRepo: () => mediaRepo, workspaceId, postRepo: () => postRepo, clock, assetBlobRepo: () => assetBlobRepo, assetRenditionRepo, blobStore, entryRefsRepo: () => entryRefsRepo, outbox, formDeliveryRepo, routeDeps: () => routeDeps, menuRepo, idGen, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox });
+  const { pluginTrashAdapter, trashAdapters } = composeTrashAdapters({ pluginRuntime, pluginActivationRepo, kernel, mediaRepo: () => mediaRepo, entryRefsRepo: () => entryRefsRepo, postRepo: () => postRepo, assetBlobRepo: () => assetBlobRepo, assetRenditionRepo, blobStore, clock, identity, idGen, trashRegistry, sqliteTrashDb, trashFollowUpHooks });
+  const { trashTransaction, trash, removePlugin, removeUser, isInTrash } = composeTrashService({ kernel, trashRepo, trashAdapters, postRepo: () => postRepo, pluginTrashAdapter, workspaceId });
+  const { redirectsWriteDeps } = composeRedirects({ redirectRepo, trash, trashRepo, originRegistry, clock, idGen, outbox, onStoreClose, bus, redirectHitSink });
+  const { databaseLedgerRepo, migrationRunsRepo, publishContentRunRepo, restorePointsRepo, dbOps, databaseIntrospection } = composeDatabaseJournal({ dbPath, onStoreClose, workspaceId, kernel, storeBound });
+  const { entryRepo, sqliteEntryTermRepo, taxonomyRepo, termRepo, taxonomyRevisionRepo, stampWatermark, widgetBindingRepo, entryRefsRepo, formDefinitionRepo } = composeContentRepos({ kernel, workspaceId, storeBound });
   let formCollectionProviders = () => createFormCollectionRegistry({});
-  const formSubmissionRepo = new SqliteFormSubmissionRepo({ store: kernel });
-  // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
-  // the `ContentTaxonomyDeps` object below). Both `SqliteContentTypeRepo` instances would read the
-  // same `content.db` either way (it is a stateless adapter over `db`), but one shared instance
-  // keeps this identical to `apps/website/src/server/runtime/composition/app.ts`'s hermetic root, where sharing is load-bearing.
-  const contentTypeRepo = new SqliteContentTypeRepo({ store: kernel });
-  const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();
-  // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — the boot-wiring pass
-  // `resolvers/index.ts`'s `wireCoreResolvers` file header always said was needed before the app
-  // served traffic, but no composition root ever called it. Without this, `menu`/`recent-entries`/
-  // `contact-form` widgets silently rendered as empty placeholders on every real page — only the
-  // two static widget types (`text`/`social-links`) ever worked. Real deps only; `menu`'s
-  // `NavMenuReadModel` is the one dependency with no prior real adapter anywhere in the codebase
-  // (see `navigation/read-model.ts`'s file header).
-  wireCoreResolvers({
-    siteTimeZone,
-    crypto: globalThis.crypto,
-    // Defer captures: media MIME metadata is assembled later in this composition root.
-    galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
-      host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,
-    } }),
-    menus: { resolveMenuDoc },
-    collectionList: widgetCollectionListPort,
-    // postRepo is constructed below; defer its capture until an actual widget render.
-    resolveMenuTargetHref: (required, optional = {}) => createMenuPageTargetResolver({ postRepo })(required, optional),
-    entryList: entryRepo,
-    navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
-    formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
-    formCollectionProviders: () => formCollectionProviders(),
-    formEmbedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === true,
-    contentTypes: contentTypeRepo,
-  });
-  const commentsModule = createCommentsModule({
-    commentRepo: new SqliteCommentRepo({ store: kernel }, {}),
-    // Entries first, then the public blog's legacy posts (`comment-targets.ts`); `postRepo` is
-    // read lazily at submit time, after this root has finished constructing it.
-    entryLookup: createCommentTargetLookup({ entries: entryRepo, posts: { findById: (required) => postRepo.findById(required) } }),
-    outbox,
-    clock,
-    idGen,
-    spamCheck: new HeuristicSpamCheck(),
-    ...createCommentsHostPorts({ clock, settingsRepo, workspaceId }, {}),
-    // Local admin Trash. A comment's "deleted" marker is one value of its moderation status, so the
-    // index has to follow both directions of that transition — see `syncRemovalIndex`.
-    remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
-      trash: trash,
-      entityType: COMMENT_ENTITY_TYPE
-    }) }),
-    forgetRemoved: ({ workspaceId: ws, id }) =>
-      trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
-    runInTransaction: trashTransaction,
-  }, {});
-  const commentsCapability = createCommentsCapability({
-    siteId: workspaceId, module: commentsModule, commentsReady: commentsReady, settingsReady: commentsSettingsReady,
-    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
-  });
-
-
-  // Hoisted above `newsletterKeyring` (moved up from its original position further below, where a
-  // second `resolveRuntimeMode()` call used to sit) so `newsletterKeyring`'s own construction below
-  // can read it — `resolveRuntimeMode()` is a pure, side-effect-free read of `process.env.
-  // TOVU_RUNTIME_MODE` (see its own header), so hoisting the call changes nothing about what it
-  // returns, only when it is first read.
-  const runtimeMode = resolveRuntimeMode();
-
-  const { siteDirForKeyring, sources: siteKeySourcesList } = compositionSiteKeySources({ dbPath, runtimeMode, siteBinding: overrides.siteBinding });
-
-  // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `apps/website/src/server/runtime/composition/app.ts`'s identical
-  // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
-  // returned `memberRepo` field exposes, and `newsletterKeyring` is the ONE process-lifetime
-  // `KeyringPort` instance also used to build `webhookSigner` below (one site key,
-  // purpose-namespaced — `webhooks/ports.ts`'s `KeyringPort.derive()` contract — not two).
-  //
-  // `allowFileFallback: runtimeMode !== "production"` (2026-09-09 site-key fix): in
-  // local/dev mode this still defaults to `true` (unchanged from before this fix) — a developer
-  // with no `TOVU_SITE_KEY` set must keep booting via the generated-file fallback. In
-  // production, the file fallback resolves against the container's own ephemeral rootfs (`Dockerfile`'s
-  // `USER node` -> `homedir()` is `/home/node`, not the mounted data volume) — a missing var there
-  // used to boot fine and silently mint a fresh, throwaway site key on every redeploy. The boot-time
-  // gate (`server/runtime/boot/production-readiness-gate.ts`'s `hasMissingIntegrationsSiteKey`) is
-  // the primary fix — it refuses to boot before this line is ever reached — this is defense in
-  // depth: if that gate is ever bypassed or this composition root is ever reached from a path that
-  // does not call it, `newsletterKeyring` still fails loudly on first use in production (missing
-  // env var AND no key file at the durable path — `keyring.env.ts`'s `defaultSiteKeyFilePath`)
-  // rather than silently re-keying.
-  //
-  // NOT extended to `allowFileFallback: true` unconditionally (undoing the `runtimeMode` gate)
-  // even though `defaultSiteKeyFilePath`'s 2026-09-09 durability fix removed the ORIGINAL reason
-  // for this gate (the ephemeral-rootfs problem) — a committed regression test
-  // (`production-readiness-boot.integration.test.ts`) pins this exact mode-gated construction, and
-  // this pass's own dispatch scoped the production fix to `siteAssistantSecretKeyring` below, not
-  // this instance. Left as a disclosed, intentional asymmetry rather than silently "fixed": in
-  // production, webhook signing / newsletter tokens still require the env var; only the
-  // credential-sealing keyring below can now also use a generated file.
-  //
-  // `allowFileAutoGenerate: false` (2026-09-16) — closes an OVERSIGHT, not the disclosed asymmetry
-  // above. The local-mode "must keep booting via the generated-file fallback" rationale was written
-  // (`ddfa5e07`) while reading and minting were still one unit; the `allowFileAutoGenerate` split
-  // arrived two hours later (`bb84fc1b`) and was applied to `siteAssistantSecretKeyring` only. Left
-  // on the default, this instance minted `~/.tovu/site-key.hex` unattended in local
-  // mode — and its only live consumer is the PUBLIC `/newsletter/unsubscribe` route, whose
-  // `processUnsubscribe` derives before it can reject a token, so ANY anonymous request with a
-  // base64url-JSON token minted it. `siteAssistantSecretKeyring` reads that same path, so the key
-  // sealing every stored credential could be one no operator created, saw or backed up. Nothing
-  // derives at boot (resolution is lazy) and no legitimate unsubscribe token can exist before a key
-  // does, so no startup or first-run path depended on the mint. This instance still READS an
-  // existing file; with no env var and no file, a local unsubscribe request now fails closed.
-  const memberRepo = new SqliteMemberRepo({ store: kernel });
-  // Production signing must remain env-only: a source list must not accidentally add a volume
-  // fallback for newsletter/webhook signing. Locally it uses the site's usual ordered sources.
-  // Every keyring is read-only, so an anonymous unsubscribe request can never mint a site key.
-  // Keep the source policy as a flat local next to this reader; the integration tests exercise it.
-  const newsletterKeyringSources = runtimeMode !== "production" ? siteKeySourcesList : siteKeyEnvOnlySources({});
-  const newsletterKeyring = new EnvOrFileKeyring({
-    sources: newsletterKeyringSources,
-  });
-  const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
-  const newsletterHooks = createHookRegistry();
-
-  // ADR-058: the SITE assistant credential store's OWN `KeyringPort` instance — deliberately NOT
-  // `newsletterKeyring` above, even though both read the same `TOVU_SITE_KEY` env var
-  // and (when it is set) derive from byte-identical site-key material.
-  //
-  // 2026-09-09 — CHANGED from `{ allowFileFallback: false }` to `{ allowFileFallback: true,
-  // allowFileAutoGenerate: false }` (owner-approved, after this exact asymmetry was flagged rather
-  // than silently reconciled — the historical Security durability report dated 2026-09-09). This
-  // instance may now READ an already-generated key file — the durable, production-safe path
-  // `defaultSiteKeyFilePath()` now resolves to — but will NEVER mint one itself
-  // (`allowFileAutoGenerate: false`): the only way a file comes into existence for this store is
-  // the admin Secrets page's site key tab's explicit, attended Generate action
-  // (`keyring.env.ts`'s `generateFileSiteKey`, a plain function independent of this flag).
-  //
-  // This UPDATES rather than reverses ADR-058 §2's stated reasoning: that section's actual
-  // objection was an UNATTENDED first-use mint under a feature encrypting a real, paid credential
-  // ("a missing site key throws immediately rather than silently minting..."), which
-  // `allowFileAutoGenerate: false` still fully honors. It DOES contradict ADR-058 §9's "leaked
-  // backup alone is not enough" framing: that defense assumed the site key lives only in the live
-  // process's environment, never on disk beside `content.db`. Once a generated key file exists on
-  // the same data volume as the database it protects, someone who obtains a volume snapshot/backup
-  // gets both — the ciphertext AND the key that opens it. This is an ACCEPTED, DOCUMENTED cost of
-  // this change, not an oversight: it trades some of ADR-058's original defense-in-depth for the
-  // ability to run without a host `secrets set` at all. See the historical Security durability report
-  // dated 2026-09-09 for the full tradeoff writeup.
-  // site-key plan §A3a: `sources` is threaded in UNCONDITIONALLY (both modes) — safe and
-  // behavior-preserving in production, since `siteKeySourcesList`'s production branch is exactly
-  // `[env, legacy-volume-file]`, the same env-then-`defaultSiteKeyFilePath()` precedence this
-  // instance's own default (non-`sources`) resolution already used (`site-key-sources.ts`'s
-  // `legacyVolumeFilePath` doc: "the production durable-volume path ... reused here unchanged").
-  const siteAssistantSecretKeyring = new EnvOrFileKeyring({
-    sources: siteKeySourcesList,
-  });
-  const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
+  const { formSubmissionRepo, contentTypeRepo, contentTypeIndexProvisioner, commentsModule, commentsCapability } = composeContentResolversComments({ kernel, siteTimeZone, entryRepo, mediaRepo: () => mediaRepo, transformDefinitionRepo, mediaContentTypeStore: () => mediaContentTypeStore, postRepo: () => postRepo, menuRepo, navLocationBindingRepo, formDefinitionRepo, formCollectionProviders: () => formCollectionProviders, routeDeps: () => routeDeps, outbox, clock, idGen, settingsRepo, workspaceId, trash, trashRepo, trashTransaction, commentsReady, commentsSettingsReady, identity, settingsPrincipals });
+  const { runtimeMode, siteDirForKeyring, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks, siteAssistantSecretKeyring, siteAssistantSecretSealer } = composeSiteKeysMembers({ dbPath, overrides, kernel });
   // 0012 retains legacy AAD until this fenced pass; no credential consumer may start first.
   // Safe alongside the settings-ledger chain: SqlSettingsRepo.transaction delegates to this SAME
   // kernel. Jini packages/db/src/kernel/kernel-core.ts takes an exclusive TurnLock through the awaited body;

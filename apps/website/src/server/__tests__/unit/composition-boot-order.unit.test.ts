@@ -175,7 +175,8 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
     "  const providerPlugins = await providerPluginBoot({ overrides })({",
     "  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });",
   ], "only the fenced vault normalization and the listed composition steps may await after boot promises start");
-  const keyring = indexOfAnchor(body, "const siteAssistantSecretKeyring = new EnvOrFileKeyring(");
+  const keyring = indexOfAnchor(body, "composeSiteKeysMembers(");
+  indexOfAnchor(functionBody(readCode("server/runtime/composition/site-deps/site-keys-members.ts"), "export function composeSiteKeysMembers("), "const siteAssistantSecretKeyring = new EnvOrFileKeyring(");
   const normalize = indexOfAnchor(body, "await normalizeSiteVaultAtBoot(");
   const credentials = indexOfAnchor(body, "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo(");
   assert.ok(keyring < normalize && normalize < credentials, "vault normalization must finish before credential consumers are constructed");
