@@ -1,0 +1,62 @@
+{
+ "decls": [
+  {
+   "n": "resolveSiteBackupSources",
+   "a": 573,
+   "start": 583,
+   "b": 594,
+   "code": 12,
+   "sha": "29b6c7f0b741f5a5fb6ef17e4715c42801fa82b3f884d6ab02a88a5cc9ae5e87",
+   "anchor": "function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps[\"agentPluginLayout\"]; skillLayout: RouteDeps[\"skillLayout\"]; sitePlugins: NonNullable<SiteBackupSources[\"sitePlugins\"]> }): SiteBackupSources {"
+  },
+  {
+   "n": "readTovuVersion",
+   "a": 596,
+   "start": 598,
+   "b": 605,
+   "code": 8,
+   "sha": "0d1c8d5757047a3fb2e7abec6f7e3838845b38ce9572c745188fba7856710603",
+   "anchor": "function readTovuVersion(): string {"
+  }
+ ],
+ "rows": [
+  {
+   "n": "RouteDeps",
+   "spec": "../../routes/types.js",
+   "type": true,
+   "alsoOutside": true
+  },
+  {
+   "n": "SiteBackupSources",
+   "spec": "#src/features/site-backup/sources",
+   "type": true,
+   "alsoOutside": false
+  },
+  {
+   "n": "join",
+   "spec": "node:path",
+   "type": false,
+   "alsoOutside": true
+  },
+  {
+   "n": "readFileSync",
+   "spec": "node:fs",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "resolveProductRoot",
+   "spec": "#src/platform/site-dir/product-root",
+   "type": false,
+   "alsoOutside": false
+  }
+ ]
+}
+# resolveSiteBackupSources (module helper)
+test "$(grep -cxF -- 'function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"]; sitePlugins: NonNullable<SiteBackupSources["sitePlugins"]> }): SiteBackupSources {' "$F")" -eq 1
+s=$(grep -nxF -- 'function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"]; sitePlugins: NonNullable<SiteBackupSources["sitePlugins"]> }): SiteBackupSources {' "$F" | cut -d: -f1)
+test "$(sed -n "$((s-10)),$((s+11))p" "$F" | sha256sum | cut -d' ' -f1)" = 29b6c7f0b741f5a5fb6ef17e4715c42801fa82b3f884d6ab02a88a5cc9ae5e87
+# readTovuVersion (module helper)
+test "$(grep -cxF -- 'function readTovuVersion(): string {' "$F")" -eq 1
+s=$(grep -nxF -- 'function readTovuVersion(): string {' "$F" | cut -d: -f1)
+test "$(sed -n "$((s-2)),$((s+7))p" "$F" | sha256sum | cut -d' ' -f1)" = 0d1c8d5757047a3fb2e7abec6f7e3838845b38ce9572c745188fba7856710603

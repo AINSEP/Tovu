@@ -13,6 +13,32 @@ const { identity, settingsPrincipals, adminPasswordResetReady, presentationRepo,
 - **Module helpers read by the range**: `applyAdminPasswordResetFromEnvIfConfigured` (tip 795, used only here), `compositionSiteDisplaySources` (tip 2937, used only here).
 - **Note**: Moves `siteTitleReady.catch(() => undefined);`, which is one of the two `catch-reads-error` findings counted for `deps.ts` in `development/scripts/error-gate-debt.json` (`"value": 2`). In the same commit: set that row to `"value": 1` and add `{ "file": "apps/website/src/server/runtime/composition/site-deps/identity-settings.ts", "rule": "catch-reads-error", "value": 1 }` next to it (keep the file sorted by `file`). `check:errors -- --strict` in step 5 proves the edit; if it names a different catch, STOP-ERROR-DEBT.
 
+- **Module helpers that move with this slice (added in 4b; the 4a sheet listed them but gave no action)**: the range calls `applyAdminPasswordResetFromEnvIfConfigured` and `compositionSiteDisplaySources`, both used only here, and `compositionSiteDisplaySources` calls `createSiteDisplayNameSource` (used only by it). Left in deps.ts they would make `identity-settings.ts` import deps.ts, a cycle step 5's dependency-cruiser check rejects. Move all three, **verbatim with their doc comments, unexported**, below the slice function in `identity-settings.ts` (tip order: 607-619, 774-822, 2937-2948); step 1 checks each by anchor + hash:
+
+| helper | tip lines (doc + body) | anchor line |
+|---|---|---|
+| `applyAdminPasswordResetFromEnvIfConfigured` | 774-822 | 795 |
+| `createSiteDisplayNameSource` | 607-619 | 615 |
+| `compositionSiteDisplaySources` | 2937-2948 | 2937 |
+
+  Imports the three helpers use (same copy/move rule as the table below):
+
+| name | from | action |
+|---|---|---|
+| `ClockPort` (type) | `@jini-ai/core/primitives` | **move** (delete from deps.ts) |
+| `IdGeneratorPort` (type) | `@jini-ai/core/primitives` | **move** (delete from deps.ts) |
+| `IdentityRouteDepsSlice` (type) | `#src/features/identity/wiring` | **move** (delete from deps.ts) |
+| `RouteDeps` (type) | `../../routes/types.js` | copy (still used in deps.ts) |
+| `SiteDisplayNameSource` (type) | `#src/features/settings/site-title` | **move** (delete from deps.ts) |
+| `TOVU_ERROR_REDACTION_OPTIONS` | `@tovu/contracts/secret-redaction` | copy (still used in deps.ts) |
+| `applyOwnerPasswordReset` | `#src/features/identity/owner-reset-env` | **move** (delete from deps.ts) |
+| `createLiveSiteDisplayName` | `#src/platform/site-dir/read-site-dir` | **move** (delete from deps.ts) |
+| `createSiteCreationTimeZone` | `#src/platform/site-dir/read-site-dir` | copy (still used in deps.ts) |
+| `createSiteTimeZonePort` | `#src/features/settings/site-timezone` | **move** (delete from deps.ts) |
+| `formatErrorForLog` | `@jini-ai/core` | copy (still used in deps.ts) |
+| `identityServiceDepsFrom` | `#src/server/inbound/admin-http/routes/users/deps` | **move** (delete from deps.ts) |
+| `resolveSiteDirForDatabase` | `#src/platform/site-dir/site-databases` | copy (still used in deps.ts) |
+
 ### Required inputs (`ComposeIdentitySettingsRequired`)
 | field | how passed | declared at | declared as |
 |---|---|---|---|
@@ -119,6 +145,18 @@ git rev-parse HEAD > "$T/parent"
 test "$(grep -cxF -- '  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }) });' "$F")" -eq 1
 s=$(grep -nxF -- '  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }) });' "$F" | cut -d: -f1)
 test "$(sed -n "$((s-3)),$((s+65))p" "$F" | sha256sum | cut -d' ' -f1)" = 6e853d111dd653cbe64e48a68a61c9fb11f12651545cea18b4621a3201a47158
+# applyAdminPasswordResetFromEnvIfConfigured (module helper)
+test "$(grep -cxF -- 'function applyAdminPasswordResetFromEnvIfConfigured(required: {' "$F")" -eq 1
+s=$(grep -nxF -- 'function applyAdminPasswordResetFromEnvIfConfigured(required: {' "$F" | cut -d: -f1)
+test "$(sed -n "$((s-21)),$((s+27))p" "$F" | sha256sum | cut -d' ' -f1)" = 8992a351a745bc1d558ad6e97042e44f0a67026195235a7725b0c72d8df5598c
+# createSiteDisplayNameSource (module helper)
+test "$(grep -cxF -- 'function createSiteDisplayNameSource({ dbPath }: { dbPath: string }, { siteDir }: { siteDir?: string } = {}): SiteDisplayNameSource {' "$F")" -eq 1
+s=$(grep -nxF -- 'function createSiteDisplayNameSource({ dbPath }: { dbPath: string }, { siteDir }: { siteDir?: string } = {}): SiteDisplayNameSource {' "$F" | cut -d: -f1)
+test "$(sed -n "$((s-8)),$((s+4))p" "$F" | sha256sum | cut -d' ' -f1)" = 995bb028e5dc42d3c1ecedc9a37f93854ab055a64a3d32e50d785600663a73e7
+# compositionSiteDisplaySources (module helper)
+test "$(grep -cxF -- 'function compositionSiteDisplaySources(' "$F")" -eq 1
+s=$(grep -nxF -- 'function compositionSiteDisplaySources(' "$F" | cut -d: -f1)
+test "$(sed -n "$((s-0)),$((s+11))p" "$F" | sha256sum | cut -d' ' -f1)" = 84453c4a41130c64d514d300cd7c25a5754e706f1504e9eb3271eda9c169c25e
 npm run check:architecture -- --update
 npx depcruise --config .dependency-cruiser.mjs apps/website/src --output-type baseline --output-to "$T/known.json"
 echo "T=$T s=$s"

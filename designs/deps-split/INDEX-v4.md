@@ -17,7 +17,7 @@ npm run build -w packages/contracts -w packages/sdk
 git diff --quiet
 ```
 
-## Gate status on the tip (`v4/evidence/gates-2d82735a.txt`, Node 22 container)
+## Gate status on the tip (`v4/evidence/gates-2d82735a.txt`, Node 22 container; tests on Node 24)
 | command | exit | used as |
 |---|---|---|
 | `typecheck`, `typecheck:tests` | 0, 0 (51 s, 92 s) | plain gate |
@@ -25,18 +25,44 @@ git diff --quiet
 | `check:architecture` | **1** (base-red) | parent-relative: `--update` on the clean parent, plain check on the candidate. Proven on the tip: update exit 0, then check exit 0 |
 | `check:boundaries` | **14** (feature-ranks 0 problems; depcruise 14 errors, 78 warnings) | feature-ranks plain; depcruise parent-relative with its own `--output-type baseline` / `--ignore-known`. Proven on the tip: ignore-known exit 0 |
 | `build:server` | (CI step; run per commit) | plain gate |
-| slice test set (70 files, below) | recorded in `v4/evidence/gates-2d82735a.txt` when the run finished; S-sheets compare by test name only if it lists failures | plain gate |
+| slice test set (70 files, below) | **1** — 360 tests: 352 pass, **8 fail**; 646 s at `--test-concurrency=1` (Node 24.22.3, run as root; inside the 25-min cap) — `v4/evidence/tests-2d82735a.txt` | base-red by name: step 6 passes when its failing tests are exactly the 8 names in the evidence file (the runner's exit 1 is expected; compare names, never counts). This is why every sheet's "Base status" line runs step 6 on the parent at step 1 |
+
+The 8 base-red tests: `serve-command-wiring.unit` ×2, `composition-boot-order.unit` ×2 (one anchors `await publishTrustRevocationStoreFor(kernel)`; the tip writes `({ kernel })`), `agent-plugin-set-enabled.integration` ×2, `index-bind-host-wiring.unit` ×1, `deps-provider-plugin-boot.integration` ×1 (EACCES: root ignores the chmod, so it should pass for a non-root user). None is caused by a deps-split sheet. A sheet stops if any other test turns red, or if one of these 8 fails a different way.
 
 ## Order (one commit per sheet; est. tokens = executor budget incl. gate output)
-| # | sheet | moves (tip lines) | code lines | est. tokens |
-|---|---|---|---|---|
-| M1 | overrides (`CreateSiteRouteDepsOverrides` 425-504 + `assertOverridesPairedOrAbsent`, `pluginFailureThresholdOverride`, `resolveThemesDirOverride`, `resolveSiteBindingOverride`, `resolveWorkspaceIdOverride` → `site-deps/overrides.ts`; 1 type importer: `__tests__/deps-observability-wiring.integration.test.ts:15`) | module level | ~95 | 60k — **sheet not yet written (next run)** |
-| M2 | open-store (`StoreCloseRegistration`, `prepareCompositionStorage`, `openCompositionStore`, `resolveChatDbPath`, owner sweeps → `site-deps/open-store.ts`) | 653-760 | ~75 | 60k — **next run** |
-| M3 | provider-identity (`providerPluginBoot`, `composeProviderConfig`, `credentialProject`, `acceptedSiteId`, `siteIdentityFor`, `projectStoreFor` → `site-deps/provider-identity.ts`; importer: `deps-provider-plugin-boot.integration.test.ts:15`) | 847-929 | ~60 | 60k — **next run** |
-| B01-B25 | `v4/B*.md` (written, below) | | | 45-70k each |
-| L1-Ln | literal runs (contiguous key runs between the 7 spreads, `Pick<…>`-typed) | 2135-2715 | 373 | **next run** |
-| H2-H4 | `compositionSharedOAuth`/`compositionCommerce`, `configureSiteSharing` (68 code, split), `configureSiteImports` → module functions with real inputs | 2789-2930 | ~100 | **next run** |
-| R | measure root; owner decision if > 50 (REVISION-4 §Open) | | | 20k |
+**M1 → M2, M3 → B01…B25 → H1, H2 → L1…L6 → H3, H4 → R.** 39 sheets, all written (`v4/`). Each sheet checks its own range by anchor + sha256 at step 1, so this order lists prerequisites. It is not a freeze:
+- M1 runs first. Every later sheet's type rule imports `CreateSiteRouteDepsOverrides` from `./overrides.js`, and B01/B04 import the override resolvers from it.
+- M2 and M3 run after M1 (both import it). Every sheet's type rule needs M2's `StoreCloseRegistration`; B18 and L6 import `credentialProject` from M3.
+- B01-B25 run after M1-M3, in number order (as written).
+- H2 runs before L2, because L2's hash is taken on the text after H2 rewrites `...compositionSharedOAuth()` inside the literal.
+- L1-L6 run in number order, because each L test pins the previous run's call as its neighbour.
+- H1, H3 and H4 need only the B-sheets. R needs everything: its step-1 hash covers the whole root after all 38 other sheets.
+
+**Parallel groups.** Lanes may *prepare* a group's sheets at the same time, but commits still land one at a time. Each commit does `git pull --rebase` and re-runs steps 5-6 when deps.ts changed, as step 7 says. The groups are {M2, M3}, {B01…B25} (disjoint ranges, range-local hashes), and {H1, H3, H4} running alongside {H2 → L1…L6}. On a rebase, the only manual merge allowed is in deps.ts's import block, keeping both sides' additions and deletions. Any other conflict is STOP. Running everything serially is always correct.
+
+| sheet | tip lines | code | inputs | getters | functions | est. tokens |
+|---|---|---|---|---|---|---|
+| [M1](v4/M1-overrides.md) overrides | 419-504, 506-521, 523-534, 553-561, 563-571, 762-772 | 46 | – | – | 6 decls | 50k |
+| [M2](v4/M2-open-store.md) open-store | 536-551, 653-660, 662-667, 669-722, 724-733, 735-752, 754-760 | 68 | – | – | 7 decls | 55k |
+| [M3](v4/M3-provider-identity.md) provider-identity | 846-849, 851-872, 874-885, 887-892, 894-909, 911-929 | 49 | – | – | 6 decls | 55k |
+| B01-B25 | table below | | | | | 45-70k each |
+| [H1](v4/H1-chat-orphans-project-keys.md) chat-orphans-project-keys | 1045-1060, 1862-1878 | 21 | 13 | 1 | 2 | 50k |
+| [H2](v4/H2-shared-oauth-commerce.md) shared-oauth-commerce | 2787-2798, 2802-2813 | 19 | 23 | 0 | 2 | 50k |
+| [L1](v4/L1-route-deps-content-chat.md) route-deps-content-chat | 2136-2186, 2187-2208 | 51 | 21 | 0 | 2 | 55k |
+| [L2](v4/L2-route-deps-assistant-mcp.md) route-deps-assistant-mcp | 2210-2260, 2261-2282, 2284-2292 | 65 | 47 | 1 | 3 | 70k |
+| [L3](v4/L3-route-deps-site-providers.md) route-deps-site-providers | 2294-2355, 2356-2376 (+ helper 573-594) | 57 | 43 | 0 | 2 | 65k |
+| [L4](v4/L4-route-deps-members-mail.md) route-deps-members-mail | 2378-2412, 2416-2495 | 67 | 34 | 0 | 2 | 65k |
+| [L5](v4/L5-route-deps-comments-plugins.md) route-deps-comments-plugins | 2496-2567, 2568-2645 | 88 | 47 | 1 | 2 | 70k |
+| [L6](v4/L6-route-deps-publish-credentials.md) route-deps-publish-credentials | 2646-2704 | 31 | 15 | 1 | 1 | 50k |
+| [H3](v4/H3-site-sharing.md) site-sharing (split: 68 → ~28 + ~45) | 2838-2913 | 68 | 17 | 0 | 2 | 65k |
+| [H4](v4/H4-site-imports.md) site-imports | 2916-2930 | 12 | 6 | 0 | 1 | 40k |
+| [R](v4/R-root-phases.md) root phases (7 phases, 262 typed fields, 112 leftover imports, 1 size-debt row) | whole root | 129 → 49 | – | 14 | 7 | 110k |
+
+Budget: M 160k + B ≈ 1.4M + H 205k + L 375k + R 110k ≈ **2.25M executor tokens**. Ceiling: 70k per sheet, 120k for R.
+
+The L runs leave the 7 spreads and the 5 trailing entries (`mediaGenerationHttpClient` … `staticSiteContext`, 5 code lines) in the root literal; a call for runs of ≤4 one-line entries would save nothing. After all sheets the literal is 26 lines: 12 run calls, 7 spreads, 5 entries, and its 2 frame lines.
+
+B-sheets (written by the previous run; B05, B07, B15, B17, B19, B24 corrected in 4b — see REVISION-4b-REPORT):
 
 | sheet | tip lines | code | inputs | getters | outputs |
 |---|---|---|---|---|---|
@@ -66,7 +92,6 @@ git diff --quiet
 | [B24](v4/B24-pre-assembly.md) pre-assembly | 2115-2134 | 16 | 18 | 1 | 8 |
 | [B25](v4/B25-after-assembly-forms-search.md) after-assembly-forms-search | 2717-2785 | 44 | 21 | 0 | 1 |
 
-B-sheet budget: 25 × ~55k ≈ 1.4M executor tokens (ceiling 70k each; the largest are B09, B15, B22). Run strictly in order: B01 needs M1; B18 needs M3; every sheet's type rule needs M1 (`overrides`) and M2 (`StoreCloseRegistration`).
 
 ## Slice test set (every sheet runs exactly these + its own test)
 Every `*.test.ts` under `apps/website/src` that calls `createSiteRouteDeps`, minus `*.postgres.test.ts` and `*.unrun.*` (67 files), plus the 9 source readers of `deps.ts` (`external-mcp-oauth-loopback-wiring.unit`, `production-readiness-boot.integration`, `create-sqlite-route-deps-for-workspace.integration`, `serving-app-boot-wiring.unit`, `composition-boot-order.unit`, `chat-orphan-check.integration`, `wiring-identity`, `agent-daemon-import-graph.unit`, `stock-content-dirs.unit`) — 70 distinct files, listed verbatim in each sheet's step 6.

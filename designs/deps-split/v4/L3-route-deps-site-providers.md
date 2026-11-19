@@ -70,7 +70,7 @@ Contiguous entry runs of the `routeDeps` object literal (tip `const routeDeps: N
 | `projectKeys` | value | `ReturnType<typeof compositionProjectKeys>` |
 | `observability` | value | `const { observability, tracker, aiTraceSink } = providerPlugins;` |
 
-Type each required field mechanically: a B-sheet output → `ReturnType<typeof composeX>["name"]` as shown; `const x = f(…)` → `ReturnType<typeof f>`; `const x = await f(…)` → `Awaited<ReturnType<typeof f>>`; `const { x } = f(…)` → `ReturnType<typeof f>["x"]`; `new C(…)` → `C`; an annotated declaration → its annotation; `overrides` → `Partial<CreateSiteRouteDepsOverrides>` from `./overrides.js`; `dbPath` → `string`; `store` → `SiteStore`; `onStoreClose` → `(required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void` with `StoreCloseRegistration` from `./open-store.js`; `kernel` → `SiteStore["content"]`; `workspaceId` → `string`. A getter field is `() => T` with T from the same rule. If typecheck rejects one field's type, replace that field's type with the type TypeScript names in the error and nothing else; any other typecheck error is STOP-TYPE.
+Type each required field mechanically: a B-sheet output → `ReturnType<typeof composeX>["name"]` as shown; `const x = f(…)` → `ReturnType<typeof f>`; `const x = await f(…)` → `Awaited<ReturnType<typeof f>>`; `const { x } = f(…)` → `ReturnType<typeof f>["x"]` (renamed `{ a: x }` → `["a"]`; with `await`, wrap in `Awaited<…>` first); `const x = await g(…)(…)` → `Awaited<ReturnType<ReturnType<typeof g>>>`; `new C(…)` → `C`; an annotated declaration → its annotation; `overrides` → `Partial<CreateSiteRouteDepsOverrides>` from `./overrides.js`; `dbPath` → `string`; `store` → `SiteStore`; `onStoreClose` → `(required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void` with `StoreCloseRegistration` from `./open-store.js`; `kernel` → `SiteStore["content"]`; `workspaceId` → `string`. A getter field is `() => T` with T from the same rule. If typecheck rejects one field's type, replace that field's type with the type TypeScript names in the error and nothing else; any other typecheck error is STOP-TYPE.
 
 A getter is required wherever the binding is declared after the call or is a root `let` reassigned after it; passing such a binding as a value is either a TypeScript error (TS2448/TS2454) or reads a stale cell — the characterization test fails on the latter.
 
@@ -100,7 +100,9 @@ Relative specifiers gain one `../` in `site-deps/` (`./x.js` → `../x.js`, `../
 
 Also import `type NewsletterRouteDeps` (`../../../inbound/admin-http/routes/newsletter/deps.js`) and `type ByokToolSurfaceDeps` (deps.ts's specifier with one more `../`) for the return types; both stay imported by deps.ts (the root literal's annotation).
 
-Module helpers read by the entries: `resolveSiteBackupSources` (tip 583) — `resolveSiteBackupSources` (still used only by this run) moves with it into the run file, with its doc comment, unexported.
+Module helpers read by the entries: `resolveSiteBackupSources` (tip 583) — `resolveSiteBackupSources` (used only by this run) and `readTovuVersion` (used only by it) move into the run file, **verbatim with their doc comments, unexported**, tip order (resolveSiteBackupSources 573-594, readTovuVersion 596-605); step 1 checks each by anchor + hash. Their imports: `RouteDeps` (type) from `../../routes/types.js` (copy), `SiteBackupSources` (type) from `#src/features/site-backup/sources` (move), `join` from `node:path` (copy), `readFileSync` from `node:fs` (move), `resolveProductRoot` from `#src/platform/site-dir/product-root` (move).
+
+**Error debt (same shape as B05's note).** `readTovuVersion`'s `catch {` (tip 602) is the other `catch-reads-error` finding counted for deps.ts in `development/scripts/error-gate-debt.json` (B05 left that row at `"value": 1`). In this commit delete the deps.ts `catch-reads-error` row and add `{ "file": "apps/website/src/server/runtime/composition/site-deps/route-deps-site-providers.ts", "rule": "catch-reads-error", "value": 1 }` in its sorted place (by `file`). `check:errors -- --strict` in step 5 proves the edit; if it names a different catch, STOP-ERROR-DEBT..
 
 ## Importers to repoint
 None.
@@ -188,10 +190,14 @@ test "$(sed -n "$((s-0)),$((s+61))p" "$F" | sha256sum | cut -d' ' -f1)" = 3e46c5
 test "$(grep -cxF -- '    providerAppliesAt: input => providerPlugins.appliesAt(input),' "$F")" -eq 1
 s=$(grep -nxF -- '    providerAppliesAt: input => providerPlugins.appliesAt(input),' "$F" | cut -d: -f1)
 test "$(sed -n "$((s-0)),$((s+20))p" "$F" | sha256sum | cut -d' ' -f1)" = 2d06ce25773a91bea7884da00bd4ae98c0366c3caffcab4d9766b860ca850e1b
-# resolveSiteBackupSources (module helper moving with this run)
+# resolveSiteBackupSources (module helper)
 test "$(grep -cxF -- 'function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"]; sitePlugins: NonNullable<SiteBackupSources["sitePlugins"]> }): SiteBackupSources {' "$F")" -eq 1
 s=$(grep -nxF -- 'function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"]; sitePlugins: NonNullable<SiteBackupSources["sitePlugins"]> }): SiteBackupSources {' "$F" | cut -d: -f1)
 test "$(sed -n "$((s-10)),$((s+11))p" "$F" | sha256sum | cut -d' ' -f1)" = 29b6c7f0b741f5a5fb6ef17e4715c42801fa82b3f884d6ab02a88a5cc9ae5e87
+# readTovuVersion (module helper)
+test "$(grep -cxF -- 'function readTovuVersion(): string {' "$F")" -eq 1
+s=$(grep -nxF -- 'function readTovuVersion(): string {' "$F" | cut -d: -f1)
+test "$(sed -n "$((s-2)),$((s+7))p" "$F" | sha256sum | cut -d' ' -f1)" = 0d1c8d5757047a3fb2e7abec6f7e3838845b38ce9572c745188fba7856710603
 npm run check:architecture -- --update
 npx depcruise --config .dependency-cruiser.mjs apps/website/src --output-type baseline --output-to "$T/known.json"
 echo "T=$T"
@@ -304,4 +310,4 @@ npm run check:why-comments -- --base "$(cat "$T/parent")"
 git pull --rebase
 git push
 ```
-`git status --short` must show only this sheet's files and the readers step 4 changed, and `development/scripts/size-debt.json` only if `check:size` printed `Delete stale debt entry` for a deps.ts row (delete exactly that row) — add those explicitly. If `check:why-comments` fails: `git reset --soft HEAD~1`, restore the comment, re-run 5-7. If `git pull --rebase` brings commits that touch deps.ts, re-run steps 5-6 before `git push`.
+`git status --short` must show only this sheet's files and the readers step 4 changed, `development/scripts/error-gate-debt.json`, and `development/scripts/size-debt.json` only if `check:size` printed `Delete stale debt entry` for a deps.ts row (delete exactly that row) — add those explicitly. If `check:why-comments` fails: `git reset --soft HEAD~1`, restore the comment, re-run 5-7. If `git pull --rebase` brings commits that touch deps.ts, re-run steps 5-6 before `git push`.

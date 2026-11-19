@@ -5,6 +5,11 @@
   "usedByPhases": false
  },
  {
+  "n": "TOVU_ERROR_REDACTION_OPTIONS",
+  "spec": "@tovu/contracts/secret-redaction",
+  "usedByPhases": false
+ },
+ {
   "n": "notifyExternalMcpRosterChanged",
   "spec": "../../../assistant/external-mcp-roster-change.js",
   "usedByPhases": false
@@ -80,6 +85,11 @@
   "usedByPhases": false
  },
  {
+  "n": "join",
+  "spec": "node:path",
+  "usedByPhases": false
+ },
+ {
   "n": "resolve",
   "spec": "node:path",
   "usedByPhases": false
@@ -120,11 +130,6 @@
   "usedByPhases": false
  },
  {
-  "n": "SiteBackupSources",
-  "spec": "#src/features/site-backup/sources",
-  "usedByPhases": false
- },
- {
   "n": "createDefaultHttpClient",
   "spec": "#src/platform/http/client",
   "usedByPhases": false
@@ -152,6 +157,11 @@
  {
   "n": "loadMailAdapterRegistry",
   "spec": "#src/features/agent-plugins/mail-adapter-registry",
+  "usedByPhases": false
+ },
+ {
+  "n": "formatErrorForLog",
+  "spec": "@jini-ai/core",
   "usedByPhases": false
  },
  {
@@ -185,6 +195,11 @@
   "usedByPhases": false
  },
  {
+  "n": "createSiteCreationTimeZone",
+  "spec": "#src/platform/site-dir/read-site-dir",
+  "usedByPhases": false
+ },
+ {
   "n": "seedSiteThemes",
   "spec": "#src/platform/site-dir/seed-site-themes",
   "usedByPhases": false
@@ -192,11 +207,6 @@
  {
   "n": "SqliteChangeSetRepo",
   "spec": "#src/platform/db/sqlite/change-set-repo.sqlite",
-  "usedByPhases": false
- },
- {
-  "n": "warnOnOrphanedChatRows",
-  "spec": "#src/platform/db/sqlite/chat-orphan-check",
   "usedByPhases": false
  },
  {

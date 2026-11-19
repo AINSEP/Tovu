@@ -388,6 +388,16 @@
    "usedByPhases": false
   },
   {
+   "n": "TOVU_ERROR_REDACTION_OPTIONS",
+   "spec": "@tovu/contracts/secret-redaction",
+   "usedByPhases": false
+  },
+  {
+   "n": "applyOwnerPasswordReset",
+   "spec": "#src/features/identity/owner-reset-env",
+   "usedByPhases": false
+  },
+  {
    "n": "notifyExternalMcpRosterChanged",
    "spec": "../../../assistant/external-mcp-roster-change.js",
    "usedByPhases": false
@@ -753,6 +763,11 @@
    "usedByPhases": false
   },
   {
+   "n": "identityServiceDepsFrom",
+   "spec": "#src/server/inbound/admin-http/routes/users/deps",
+   "usedByPhases": false
+  },
+  {
    "n": "TRASH_RETENTION_DAYS",
    "spec": "#src/features/trash/index",
    "usedByPhases": false
@@ -813,6 +828,11 @@
    "usedByPhases": false
   },
   {
+   "n": "readFileSync",
+   "spec": "node:fs",
+   "usedByPhases": false
+  },
+  {
    "n": "homedir",
    "spec": "node:os",
    "usedByPhases": false
@@ -829,6 +849,11 @@
   },
   {
    "n": "dirname",
+   "spec": "node:path",
+   "usedByPhases": false
+  },
+  {
+   "n": "join",
    "spec": "node:path",
    "usedByPhases": false
   },
@@ -925,6 +950,11 @@
   {
    "n": "isLocalTovuHost",
    "spec": "./registered-sites.js",
+   "usedByPhases": false
+  },
+  {
+   "n": "resolveProductRoot",
+   "spec": "#src/platform/site-dir/product-root",
    "usedByPhases": false
   },
   {
@@ -1288,6 +1318,11 @@
    "usedByPhases": false
   },
   {
+   "n": "formatErrorForLog",
+   "spec": "@jini-ai/core",
+   "usedByPhases": false
+  },
+  {
    "n": "redactSecrets",
    "spec": "@jini-ai/core",
    "usedByPhases": false
@@ -1385,6 +1420,21 @@
   {
    "n": "hydrateBlobStoreFromSeed",
    "spec": "#src/features/media/hydrate-blob-store-from-seed",
+   "usedByPhases": false
+  },
+  {
+   "n": "createLiveSiteDisplayName",
+   "spec": "#src/platform/site-dir/read-site-dir",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteCreationTimeZone",
+   "spec": "#src/platform/site-dir/read-site-dir",
+   "usedByPhases": false
+  },
+  {
+   "n": "createSiteTimeZonePort",
+   "spec": "#src/features/settings/site-timezone",
    "usedByPhases": false
   },
   {
@@ -1803,6 +1853,11 @@
    "usedByPhases": false
   },
   {
+   "n": "IdentityRouteDepsSlice",
+   "spec": "#src/features/identity/wiring",
+   "usedByPhases": false
+  },
+  {
    "n": "createAppPermissionGrants",
    "spec": "#src/server/runtime/composition/app-permission-grants",
    "usedByPhases": false
@@ -1815,6 +1870,16 @@
   {
    "n": "IdentityRepos",
    "spec": "@jini-ai/user-management",
+   "usedByPhases": false
+  },
+  {
+   "n": "ClockPort",
+   "spec": "@jini-ai/core/primitives",
+   "usedByPhases": false
+  },
+  {
+   "n": "IdGeneratorPort",
+   "spec": "@jini-ai/core/primitives",
    "usedByPhases": false
   },
   {
@@ -2179,6 +2244,11 @@
   },
   {
    "n": "preserveLegacySiteTitles",
+   "spec": "#src/features/settings/site-title",
+   "usedByPhases": false
+  },
+  {
+   "n": "SiteDisplayNameSource",
    "spec": "#src/features/settings/site-title",
    "usedByPhases": false
   },

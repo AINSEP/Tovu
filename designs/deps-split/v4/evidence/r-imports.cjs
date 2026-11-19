@@ -14,7 +14,7 @@ for (const s of sf.statements) {
   if (s.name) topDecl.set(s.name.text, s); else if (ts.isVariableStatement(s)) s.declarationList.declarations.forEach((d) => topDecl.set(d.name.getText(), s));
 }
 // module declarations gone from deps.ts by R time (moved by M1-M3, B01, B16, L3)
-const gone = new Set([...R.M.flatMap((m) => m.names), 'agentPluginIdentityAdmission', 'AgentPluginIdentityAdmission', 'compositionSiteKeySources', 'resolveSiteBackupSources']);
+const gone = new Set([...R.M.flatMap((m) => m.names), 'agentPluginIdentityAdmission', 'AgentPluginIdentityAdmission', 'compositionSiteKeySources', 'resolveSiteBackupSources', 'readTovuVersion', 'applyAdminPasswordResetFromEnvIfConfigured', 'createSiteDisplayNameSource', 'compositionSiteDisplaySources']);
 const sheetFn = new Map(); B.forEach((c) => c.range && sheetFn.set(c.fn, `./${c.name}.js`));
 R.L.forEach((l) => l.fns.forEach((f) => sheetFn.set(f.fn, `./${l.name}.js`)));
 sheetFn.set('compositionProjectKeys', './project-keys.js'); sheetFn.set('compositionCommerce', './shared-oauth-commerce.js'); sheetFn.set('configureSiteSharing', './site-sharing.js'); sheetFn.set('configureSiteImports', './site-imports.js');

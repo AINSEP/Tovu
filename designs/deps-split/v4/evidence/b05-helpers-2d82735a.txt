@@ -1,0 +1,123 @@
+{
+ "decls": [
+  {
+   "n": "applyAdminPasswordResetFromEnvIfConfigured",
+   "a": 774,
+   "start": 795,
+   "b": 822,
+   "code": 25,
+   "sha": "8992a351a745bc1d558ad6e97042e44f0a67026195235a7725b0c72d8df5598c",
+   "anchor": "function applyAdminPasswordResetFromEnvIfConfigured(required: {"
+  },
+  {
+   "n": "createSiteDisplayNameSource",
+   "a": 607,
+   "start": 615,
+   "b": 619,
+   "code": 4,
+   "sha": "995bb028e5dc42d3c1ecedc9a37f93854ab055a64a3d32e50d785600663a73e7",
+   "anchor": "function createSiteDisplayNameSource({ dbPath }: { dbPath: string }, { siteDir }: { siteDir?: string } = {}): SiteDisplayNameSource {"
+  },
+  {
+   "n": "compositionSiteDisplaySources",
+   "a": 2937,
+   "start": 2937,
+   "b": 2948,
+   "code": 11,
+   "sha": "84453c4a41130c64d514d300cd7c25a5754e706f1504e9eb3271eda9c169c25e",
+   "anchor": "function compositionSiteDisplaySources("
+  }
+ ],
+ "rows": [
+  {
+   "n": "ClockPort",
+   "spec": "@jini-ai/core/primitives",
+   "type": true,
+   "alsoOutside": false
+  },
+  {
+   "n": "IdGeneratorPort",
+   "spec": "@jini-ai/core/primitives",
+   "type": true,
+   "alsoOutside": false
+  },
+  {
+   "n": "IdentityRouteDepsSlice",
+   "spec": "#src/features/identity/wiring",
+   "type": true,
+   "alsoOutside": false
+  },
+  {
+   "n": "RouteDeps",
+   "spec": "../../routes/types.js",
+   "type": true,
+   "alsoOutside": true
+  },
+  {
+   "n": "SiteDisplayNameSource",
+   "spec": "#src/features/settings/site-title",
+   "type": true,
+   "alsoOutside": false
+  },
+  {
+   "n": "TOVU_ERROR_REDACTION_OPTIONS",
+   "spec": "@tovu/contracts/secret-redaction",
+   "type": false,
+   "alsoOutside": true
+  },
+  {
+   "n": "applyOwnerPasswordReset",
+   "spec": "#src/features/identity/owner-reset-env",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "createLiveSiteDisplayName",
+   "spec": "#src/platform/site-dir/read-site-dir",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "createSiteCreationTimeZone",
+   "spec": "#src/platform/site-dir/read-site-dir",
+   "type": false,
+   "alsoOutside": true
+  },
+  {
+   "n": "createSiteTimeZonePort",
+   "spec": "#src/features/settings/site-timezone",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "formatErrorForLog",
+   "spec": "@jini-ai/core",
+   "type": false,
+   "alsoOutside": true
+  },
+  {
+   "n": "identityServiceDepsFrom",
+   "spec": "#src/server/inbound/admin-http/routes/users/deps",
+   "type": false,
+   "alsoOutside": false
+  },
+  {
+   "n": "resolveSiteDirForDatabase",
+   "spec": "#src/platform/site-dir/site-databases",
+   "type": false,
+   "alsoOutside": true
+  }
+ ]
+}
+# applyAdminPasswordResetFromEnvIfConfigured (module helper)
+test "$(grep -cxF -- 'function applyAdminPasswordResetFromEnvIfConfigured(required: {' "$F")" -eq 1
+s=$(grep -nxF -- 'function applyAdminPasswordResetFromEnvIfConfigured(required: {' "$F" | cut -d: -f1)
+test "$(sed -n "$((s-21)),$((s+27))p" "$F" | sha256sum | cut -d' ' -f1)" = 8992a351a745bc1d558ad6e97042e44f0a67026195235a7725b0c72d8df5598c
+# createSiteDisplayNameSource (module helper)
+test "$(grep -cxF -- 'function createSiteDisplayNameSource({ dbPath }: { dbPath: string }, { siteDir }: { siteDir?: string } = {}): SiteDisplayNameSource {' "$F")" -eq 1
+s=$(grep -nxF -- 'function createSiteDisplayNameSource({ dbPath }: { dbPath: string }, { siteDir }: { siteDir?: string } = {}): SiteDisplayNameSource {' "$F" | cut -d: -f1)
+test "$(sed -n "$((s-8)),$((s+4))p" "$F" | sha256sum | cut -d' ' -f1)" = 995bb028e5dc42d3c1ecedc9a37f93854ab055a64a3d32e50d785600663a73e7
+# compositionSiteDisplaySources (module helper)
+test "$(grep -cxF -- 'function compositionSiteDisplaySources(' "$F")" -eq 1
+s=$(grep -nxF -- 'function compositionSiteDisplaySources(' "$F" | cut -d: -f1)
+test "$(sed -n "$((s-0)),$((s+11))p" "$F" | sha256sum | cut -d' ' -f1)" = 84453c4a41130c64d514d300cd7c25a5754e706f1504e9eb3271eda9c169c25e
