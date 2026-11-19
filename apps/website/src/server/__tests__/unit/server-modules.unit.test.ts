@@ -135,7 +135,7 @@ for (const mode of ["local", "production"] as const) {
     assert.ok(lines[0]!.includes(deliveredLink!), "the logged sign-in link must equal the delivered text URL");
     assert.ok(lines[0]!.includes(message.text!), "the console provider logs the complete delivered text");
     for (const lane of ["notification", undefined] as const) {
-      const before = lines.length;
+      const before: number = lines.length;
       if (mode === "production") {
         await assert.rejects(mailer.send(message, { ...options, lane }), /MAILER_SEND_REFUSED_NO_DURABLE_PATH/);
         assert.equal(lines.length, before, "refusal precedes provider logging when readiness is false");
