@@ -87,6 +87,13 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
    *  the outcome back the same way `roles`/`policies` already allow. */
   readonly policyPermissions: AdminPolicyPermission[];
 } {
+  return createFakeRolesStore({ options });
+}
+
+function createFakeRolesStore(
+  { options }:
+    { options: NonNullable<Parameters<typeof createFakeRolesPort>[0]> }
+): ReturnType<typeof createFakeRolesPort> {
   const roles = [...(options.roles ?? [])];
   const policies = [...(options.policies ?? [])];
   const policyPermissions = [...(options.initialPolicyPermissions ?? [])];
@@ -107,56 +114,19 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
     roles,
     policies,
     policyPermissions,
-    async listRoles() {
-      return { roles: [...roles] };
-    },
-    async listPolicies() {
-      return { policies: [...policies] };
-    },
-    async createRole({ name }, _optional = {}) {
-      if (options.createRoleError) throw options.createRoleError;
-      const created = fakeRole({ id: `fake-role-${roles.length + 1}`, name });
-      roles.push(created);
-      return { role: created };
-    },
-    async updateRole(input, _optional = {}) {
-      if (options.updateRoleError) throw options.updateRoleError;
-      const index = roles.findIndex((r) => r.id === input.roleId);
-      if (index < 0) throw new Error(`fake role not found: ${input.roleId}`);
-      const updated = { ...roles[index], name: input.name };
-      roles[index] = updated;
-      return { role: updated };
-    },
-    async deleteRole({ roleId }, _optional = {}) {
-      if (options.deleteRoleError) throw options.deleteRoleError;
-      requireRole({ roleId });
-      const index = roles.findIndex((r) => r.id === roleId);
-      roles.splice(index, 1);
-    },
-    async createPolicy(input, opts = {}) {
-      if (options.createPolicyError) throw options.createPolicyError;
-      const created = fakePolicy({
-        id: `fake-policy-${policies.length + 1}`,
-        name: input.name,
-        description: opts?.description,
-      });
-      policies.push(created);
-      return { policy: created };
-    },
-    async updatePolicy(target, opts = {}) {
-      if (options.updatePolicyError) throw options.updatePolicyError;
-      const index = policies.findIndex((p) => p.id === target.policyId);
-      if (index < 0) throw new Error(`fake policy not found: ${target.policyId}`);
-      const updated = { ...policies[index], ...opts };
-      policies[index] = updated;
-      return { policy: updated };
-    },
-    async deletePolicy({ policyId }, _optional = {}) {
-      if (options.deletePolicyError) throw options.deletePolicyError;
-      requirePolicy({ policyId });
-      const index = policies.findIndex((p) => p.id === policyId);
-      policies.splice(index, 1);
-    },
+    ...createFakeRoleLists({ roles, policies }),
+    ...createFakeRoleMethods({ options, roles, requireRole }),
+    ...createFakePolicyMethods({ options, policies, requirePolicy }),
+    ...createFakePermissionMethods({ options, requirePolicy, policyPermissions }),
+  };
+}
+
+function createFakePermissionMethods(
+  { options, requirePolicy, policyPermissions }:
+    Pick<Parameters<typeof createFakeRolesStore>[0], "options"> &
+    { requirePolicy: (required: { policyId: string }, optional?: Record<string, never>) => AdminPolicy; policyPermissions: AdminPolicyPermission[] }
+): Pick<RolesPort, "writePolicyPermission" | "listPolicyPermissions" | "removePolicyPermission"> {
+  return {
     async writePolicyPermission(input, _optional = {}) {
       if (options.writePermissionError) throw options.writePermissionError;
       requirePolicy({ policyId: input.policyId });
@@ -190,6 +160,82 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
         );
       }
       policyPermissions.splice(index, 1);
+    },
+  };
+}
+
+function createFakePolicyMethods(
+  { options, policies, requirePolicy }:
+    Pick<Parameters<typeof createFakeRolesStore>[0], "options"> &
+    { policies: AdminPolicy[]; requirePolicy: (required: { policyId: string }, optional?: Record<string, never>) => AdminPolicy }
+): Pick<RolesPort, "createPolicy" | "updatePolicy" | "deletePolicy"> {
+  return {
+    async createPolicy(input, opts = {}) {
+      if (options.createPolicyError) throw options.createPolicyError;
+      const created = fakePolicy({
+        id: `fake-policy-${policies.length + 1}`,
+        name: input.name,
+        description: opts?.description,
+      });
+      policies.push(created);
+      return { policy: created };
+    },
+    async updatePolicy(target, opts = {}) {
+      if (options.updatePolicyError) throw options.updatePolicyError;
+      const index = policies.findIndex((p) => p.id === target.policyId);
+      if (index < 0) throw new Error(`fake policy not found: ${target.policyId}`);
+      const updated = { ...policies[index], ...opts };
+      policies[index] = updated;
+      return { policy: updated };
+    },
+    async deletePolicy({ policyId }, _optional = {}) {
+      if (options.deletePolicyError) throw options.deletePolicyError;
+      requirePolicy({ policyId });
+      const index = policies.findIndex((p) => p.id === policyId);
+      policies.splice(index, 1);
+    },
+  };
+}
+
+function createFakeRoleMethods(
+  { options, roles, requireRole }:
+    Pick<Parameters<typeof createFakeRolesStore>[0], "options"> &
+    { roles: AdminRole[]; requireRole: (required: { roleId: string }, optional?: Record<string, never>) => AdminRole }
+): Pick<RolesPort, "createRole" | "updateRole" | "deleteRole"> {
+  return {
+    async createRole({ name }, _optional = {}) {
+      if (options.createRoleError) throw options.createRoleError;
+      const created = fakeRole({ id: `fake-role-${roles.length + 1}`, name });
+      roles.push(created);
+      return { role: created };
+    },
+    async updateRole(input, _optional = {}) {
+      if (options.updateRoleError) throw options.updateRoleError;
+      const index = roles.findIndex((r) => r.id === input.roleId);
+      if (index < 0) throw new Error(`fake role not found: ${input.roleId}`);
+      const updated = { ...roles[index], name: input.name };
+      roles[index] = updated;
+      return { role: updated };
+    },
+    async deleteRole({ roleId }, _optional = {}) {
+      if (options.deleteRoleError) throw options.deleteRoleError;
+      requireRole({ roleId });
+      const index = roles.findIndex((r) => r.id === roleId);
+      roles.splice(index, 1);
+    },
+  };
+}
+
+function createFakeRoleLists(
+  { roles, policies }:
+    { roles: AdminRole[]; policies: AdminPolicy[] }
+): Pick<RolesPort, "listRoles" | "listPolicies"> {
+  return {
+    async listRoles() {
+      return { roles: [...roles] };
+    },
+    async listPolicies() {
+      return { policies: [...policies] };
     },
   };
 }

@@ -430,39 +430,229 @@ export interface FindInPagePorts {
 export function useFindInPage(
   { activeGuestId }: { activeGuestId: string | null }, { bridge = runnerInventoryBridge(), clock = liveFindClock }: FindInPagePorts = {},
 ): FindInPage {
-  const [state, dispatch] = useReducer(findBarReducer, initialFindBarState);
-  // A ref, not state: registering a guest must never itself trigger a render — every mounted tab
-  // calls it on every commit (see `useComposedGuestRef`), and the map's CONTENTS are only ever read
-  // at the moment a search actually runs, never rendered.
-  const guests = useRef(new Map<string, FindableGuest>()).current;
-  const inputElement = useRef<HTMLInputElement | null>(null);
-  // When the last find was ISSUED (not when a result was reported) — see `issueFind` and
-  // {@link shouldReclaimFindFocus}. A ref, not state: recording it must never itself trigger a
-  // render.
-  const lastFindAt = useRef<number | null>(null);
-  // The pending deferred reclaim (see the blur listener below), so `close`/unmount can cancel one
-  // scheduled for a bar that is no longer open by the time it would run.
-  const reclaimTimer = useRef<unknown>(null);
-  // Raised while {@link restoreFindInputFocus} blurs the input itself, so the blur listener below
-  // does not mistake that for a Chromium theft — see that function's doc.
-  const restoringFocus = useRef(false);
-  // Between ISSUING a find and its first reported result — see {@link shouldKeepReclaimingFindFocus}.
-  const awaitingReport = useRef(false);
-  // An IME composition is in progress in the find input — reclaiming would end it.
-  const composing = useRef(false);
-  const reclaimFrame = useRef<number | null>(null);
-  const queryScheduler = useRef(createFindQueryScheduler({}, { clock })).current;
+  const {
+    state, dispatch, guests, inputElement, lastFindAt, reclaimTimer, restoringFocus, awaitingReport, composing, reclaimFrame, queryScheduler, registerGuest,
+    target,
+  } = useFindBarState({ clock, activeGuestId, bridge });
+  const { cancelReclaimFrame, issueFind, clearReclaimTimer } = useFindFocusReclaim({ reclaimFrame, clock, inputElement, lastFindAt, awaitingReport, composing, restoringFocus, target, bridge, reclaimTimer });
+  useFindBarEffects({
+    bridge, dispatch, state, inputElement, restoringFocus, target, awaitingReport, composing, activeGuestId, queryScheduler, cancelReclaimFrame, issueFind,
+    guests,
+  });
+  const { inputRef, close } = useFindInputBinding({
+    restoringFocus, clearReclaimTimer, reclaimTimer, clock, inputElement, lastFindAt, composing, queryScheduler, cancelReclaimFrame, awaitingReport, target,
+    bridge, dispatch,
+  });
 
-  const registerGuest = useCallback(
-    (projectId: string, element: FindableGuest | null) => {
-      if (element) guests.set(projectId, element);
-      else guests.delete(projectId);
+  return {
+    open: state.open,
+    query: state.query,
+    result: state.result,
+    countLabel: formatMatchCount({ result: state.result }),
+    inputRef,
+    setQuery: ({ text }) => dispatch({ type: 'set-query', query: text }),
+    // Follow-up requests within the current session — `findNext: false` — never a new one.
+    next: () => { if (!queryScheduler.flush()) issueFind(state.query, { forward: true, findNext: false }); },
+    previous: () => { if (!queryScheduler.flush()) issueFind(state.query, { forward: false, findNext: false }); },
+    close,
+    registerGuest,
+  };
+}
+
+function useFindInputBinding(
+  {
+    restoringFocus, clearReclaimTimer, reclaimTimer, clock, inputElement, lastFindAt, composing, queryScheduler, cancelReclaimFrame, awaitingReport, target,
+    bridge, dispatch,
+  }:
+    Pick<ReturnType<typeof useFindBarState>, "restoringFocus" | "reclaimTimer" | "inputElement" | "lastFindAt" | "composing" | "queryScheduler"
+    | "awaitingReport" | "target" | "dispatch"> &
+    Pick<ReturnType<typeof useFindFocusReclaim>, "clearReclaimTimer" | "cancelReclaimFrame"> &
+    { clock: typeof liveFindClock; bridge: FindBridge | undefined }
+) {
+  const { attachBlurReclaim } = useFindBlurReclaim({ restoringFocus, clearReclaimTimer, reclaimTimer, clock, inputElement, lastFindAt, composing });
+
+  // Detaches the previous node's blur listener before attaching the next one, so a remount (or the
+  // bar closing) never leaves a stale listener on a detached node.
+  const detachBlurReclaim = useRef<(() => void) | null>(null);
+  const inputRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      detachBlurReclaim.current?.();
+      detachBlurReclaim.current = null;
+      inputElement.current = node;
+      if (node) detachBlurReclaim.current = attachBlurReclaim(node);
     },
-    [guests],
+    [attachBlurReclaim],
   );
 
-  const target = resolveFindTarget({ activeGuestId, guests, bridge });
+  useEffect(() => () => {
+    queryScheduler.cancel();
+    clearReclaimTimer();
+    cancelReclaimFrame();
+  }, [queryScheduler, clearReclaimTimer, cancelReclaimFrame]);
 
+  const close = () => {
+    queryScheduler.cancel();
+    clearReclaimTimer();
+    cancelReclaimFrame();
+    awaitingReport.current = false;
+    stopFind({ target, bridge });
+    dispatch({ type: 'close' });
+  };
+  return { inputRef, close };
+}
+
+function useFindBlurReclaim(
+  { restoringFocus, clearReclaimTimer, reclaimTimer, clock, inputElement, lastFindAt, composing }:
+    Pick<Parameters<typeof useFindInputBinding>[0], "restoringFocus" | "clearReclaimTimer" | "reclaimTimer" | "clock" | "inputElement" | "lastFindAt"
+    | "composing">
+) {
+  // Reclaims focus the moment Chromium takes it, BEFORE the result round trip — on a big page that
+  // trip can take long enough for a fast typist's next letters to reach the guest. A native `blur`
+  // listener, not React's `onBlur`: the theft is a PAGE-level focus loss (`document.activeElement`
+  // stays the input), which does not fire through React's root `focusout` delegation the way a real
+  // blur-to-another-element does (memory `component_logic_belongs_hooks` — this stays in the hook,
+  // not `App.tsx`). Deferred with `setTimeout(0)` rather than refocusing inline: the host-side blur
+  // fires SYNCHRONOUSLY inside Chromium's own find, so an inline refocus would fight it. Never calls
+  // `issueFind`/`runFind`/`stopFind` from here — Chromium steals focus once per issued find, so one
+  // reclaim per find settles it; re-running the search on refocus is the focus-fight loop a guest
+  // theft can otherwise trigger.
+  const attachBlurReclaim = useCallback(
+    (node: HTMLInputElement) => {
+      const onBlur = () => {
+        if (restoringFocus.current) return;
+        clearReclaimTimer();
+        reclaimTimer.current = clock.schedule({ callback: () => {
+          reclaimTimer.current = null;
+          // Re-reads `inputElement.current`, not the closed-over `node`: the bar may have closed
+          // (and unmounted the input) by the time this deferred callback runs.
+          if (shouldReclaimFindFocus({ open: inputElement.current !== null, lastFindAt: lastFindAt.current, now: clock.now() })) {
+            restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
+          }
+        }, delay: 0 });
+      };
+      const onCompositionStart = () => {
+        composing.current = true;
+      };
+      const onCompositionEnd = () => {
+        composing.current = false;
+      };
+      node.addEventListener('blur', onBlur);
+      node.addEventListener('compositionstart', onCompositionStart);
+      node.addEventListener('compositionend', onCompositionEnd);
+      return () => {
+        node.removeEventListener('blur', onBlur);
+        node.removeEventListener('compositionstart', onCompositionStart);
+        node.removeEventListener('compositionend', onCompositionEnd);
+        composing.current = false;
+      };
+    },
+    [clearReclaimTimer, clock],
+  );
+  return { attachBlurReclaim };
+}
+
+function useFindBarEffects(
+  {
+    bridge, dispatch, state, inputElement, restoringFocus, target, awaitingReport, composing, activeGuestId, queryScheduler, cancelReclaimFrame, issueFind,
+    guests,
+  }:
+    Pick<ReturnType<typeof useFindBarState>, "dispatch" | "state" | "inputElement" | "restoringFocus" | "target" | "awaitingReport" | "composing"
+    | "queryScheduler" | "guests"> &
+    Pick<Parameters<typeof useFindInPage>[0], "activeGuestId"> &
+    Pick<ReturnType<typeof useFindFocusReclaim>, "cancelReclaimFrame" | "issueFind"> &
+    { bridge: FindBridge | undefined }
+) {
+  // The app menu's Find (Cmd+F): open (or, if already open, bump `focusNonce` so the effect below
+  // refocuses even though `open` itself does not change).
+  useEffect(() => {
+    if (!bridge) return undefined;
+    return bridge.onFindToggle({ listener: () => dispatch({ type: 'toggle' }) });
+  }, [bridge]);
+
+  // Focuses and selects the input every time the bar opens OR is re-summoned while already open —
+  // matching Chrome's own Cmd+F, which reselects the existing query for a fast re-type.
+  useEffect(() => {
+    if (!state.open) return;
+    // blur()+focus(), not a bare focus(): Cmd+F pressed while typing in the guest leaves the browser
+    // routing keys into the guest, and on a re-summon the input is already this document's
+    // activeElement — a bare focus() is then a no-op the browser never hears about. See
+    // {@link restoreFindInputFocus}.
+    restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
+    inputElement.current?.select();
+  }, [state.open, state.focusNonce]);
+
+  // Subscribes to results from whichever target is live, only while the bar is open — an empty
+  // query never subscribes at all (see the early return), matching `runFind`'s own stop-not-search.
+  useEffect(() => {
+    if (!state.open || state.query === '') return undefined;
+    return subscribeToFindResults({ target, bridge, handlers: {
+      onReported: () => {
+        awaitingReport.current = false;
+        if (!composing.current) restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
+      },
+      onResult: ({ result }) => dispatch({ type: 'result', result }),
+    } });
+    // `target` is a fresh object every render (`resolveFindTarget` builds one), so this depends on
+    // its STABLE identity components instead — the guest map is a ref (never itself a dependency
+    // trigger) and `activeGuestId` is what actually changes which entry it names.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: depends on target's stable inputs (activeGuestId, bridge), not the fresh `target` object itself — see the comment above.
+  }, [state.open, state.query === '', activeGuestId, bridge]);
+  useFindQueryEffect({ queryScheduler, state, awaitingReport, cancelReclaimFrame, target, bridge, composing, issueFind, activeGuestId });
+
+  // Closes (and clears the OUTGOING surface's own highlights) on a tab switch while the bar is
+  // open — known rough edge until now: switching tabs left the bar open, still showing the
+  // previous tab's stale query/count, and never cleared that tab's own highlight because nothing
+  // called `stopFind` for it once it went off screen. Mirrors `App.hooks.ts`'s
+  // `expandedAfterWorkspaceChange` precedent for the identical class of problem (collapse-on-
+  // workspace-change). `previousGuestIdRef` — not `target` — resolves the OUTGOING guest: by the
+  // time this effect runs post-commit, `activeGuestId` (and therefore `target`) already point at
+  // the NEW surface.
+  const previousGuestIdRef = useRef(activeGuestId);
+  useEffect(() => {
+    if (shouldCloseOnGuestChange({ previousGuestId: previousGuestIdRef.current, activeGuestId, open: state.open })) {
+      const outgoing = resolveFindTarget({ activeGuestId: previousGuestIdRef.current, guests, bridge });
+      stopFind({ target: outgoing, bridge });
+      dispatch({ type: 'close' });
+    }
+    previousGuestIdRef.current = activeGuestId;
+    // biome-ignore lint/correctness/useExhaustiveDependencies: keys on activeGuestId's stable identity only, matching this file's other target-derived effects above.
+  }, [activeGuestId]);
+}
+
+function useFindQueryEffect(
+  { queryScheduler, state, awaitingReport, cancelReclaimFrame, target, bridge, composing, issueFind, activeGuestId }:
+    Pick<Parameters<typeof useFindBarEffects>[0], "queryScheduler" | "state" | "awaitingReport" | "cancelReclaimFrame" | "target" | "bridge" | "composing"
+    | "issueFind" | "activeGuestId">
+) {
+  // A query change — including the FIRST non-empty character — is a NEW search session
+  // (`findNext: true`, per this file's header); clearing back to '' stops it instead of searching
+  // for nothing.
+  useEffect(() => {
+    queryScheduler.cancel();
+    if (!state.open) return undefined;
+    if (state.query === '') {
+      awaitingReport.current = false;
+      cancelReclaimFrame();
+      stopFind({ target, bridge });
+      return undefined;
+    }
+    const run = () => {
+      // Blurring during an IME composition would discard the text still being composed.
+      if (composing.current) { queryScheduler.schedule({ run }); return; }
+      issueFind(state.query, { forward: true, findNext: true });
+    };
+    queryScheduler.schedule({ run });
+    return () => queryScheduler.cancel();
+    // biome-ignore lint/correctness/useExhaustiveDependencies: depends on target's stable inputs (activeGuestId), not the fresh `target`/`bridge` objects themselves.
+  }, [state.query, state.open, activeGuestId]);
+}
+
+function useFindFocusReclaim(
+  { reclaimFrame, clock, inputElement, lastFindAt, awaitingReport, composing, restoringFocus, target, bridge, reclaimTimer }:
+    Pick<ReturnType<typeof useFindBarState>, "reclaimFrame" | "inputElement" | "lastFindAt" | "awaitingReport" | "composing" | "restoringFocus" | "target"
+    | "reclaimTimer"> &
+    { clock: typeof liveFindClock; bridge: FindBridge | undefined }
+) {
   // Runs a find and records WHEN, so a blur shortly after can be told apart from the user clicking
   // away — see {@link shouldReclaimFindFocus}. Every call site that starts or steps a search goes
   // through this instead of calling `runFind` directly.
@@ -517,167 +707,49 @@ export function useFindInPage(
       reclaimTimer.current = null;
     }
   }, [clock]);
+  return { cancelReclaimFrame, issueFind, clearReclaimTimer };
+}
 
-  // The app menu's Find (Cmd+F): open (or, if already open, bump `focusNonce` so the effect below
-  // refocuses even though `open` itself does not change).
-  useEffect(() => {
-    if (!bridge) return undefined;
-    return bridge.onFindToggle({ listener: () => dispatch({ type: 'toggle' }) });
-  }, [bridge]);
+function useFindBarState(
+  { clock, activeGuestId, bridge }:
+    Pick<Parameters<typeof useFindInPage>[0], "activeGuestId"> &
+    { clock: typeof liveFindClock; bridge: FindBridge | undefined }
+) {
+  const [state, dispatch] = useReducer(findBarReducer, initialFindBarState);
+  // A ref, not state: registering a guest must never itself trigger a render — every mounted tab
+  // calls it on every commit (see `useComposedGuestRef`), and the map's CONTENTS are only ever read
+  // at the moment a search actually runs, never rendered.
+  const guests = useRef(new Map<string, FindableGuest>()).current;
+  const inputElement = useRef<HTMLInputElement | null>(null);
+  // When the last find was ISSUED (not when a result was reported) — see `issueFind` and
+  // {@link shouldReclaimFindFocus}. A ref, not state: recording it must never itself trigger a
+  // render.
+  const lastFindAt = useRef<number | null>(null);
+  // The pending deferred reclaim (see the blur listener below), so `close`/unmount can cancel one
+  // scheduled for a bar that is no longer open by the time it would run.
+  const reclaimTimer = useRef<unknown>(null);
+  // Raised while {@link restoreFindInputFocus} blurs the input itself, so the blur listener below
+  // does not mistake that for a Chromium theft — see that function's doc.
+  const restoringFocus = useRef(false);
+  // Between ISSUING a find and its first reported result — see {@link shouldKeepReclaimingFindFocus}.
+  const awaitingReport = useRef(false);
+  // An IME composition is in progress in the find input — reclaiming would end it.
+  const composing = useRef(false);
+  const reclaimFrame = useRef<number | null>(null);
+  const queryScheduler = useRef(createFindQueryScheduler({}, { clock })).current;
 
-  // Focuses and selects the input every time the bar opens OR is re-summoned while already open —
-  // matching Chrome's own Cmd+F, which reselects the existing query for a fast re-type.
-  useEffect(() => {
-    if (!state.open) return;
-    // blur()+focus(), not a bare focus(): Cmd+F pressed while typing in the guest leaves the browser
-    // routing keys into the guest, and on a re-summon the input is already this document's
-    // activeElement — a bare focus() is then a no-op the browser never hears about. See
-    // {@link restoreFindInputFocus}.
-    restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
-    inputElement.current?.select();
-  }, [state.open, state.focusNonce]);
-
-  // Subscribes to results from whichever target is live, only while the bar is open — an empty
-  // query never subscribes at all (see the early return), matching `runFind`'s own stop-not-search.
-  useEffect(() => {
-    if (!state.open || state.query === '') return undefined;
-    return subscribeToFindResults({ target, bridge, handlers: {
-      onReported: () => {
-        awaitingReport.current = false;
-        if (!composing.current) restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
-      },
-      onResult: ({ result }) => dispatch({ type: 'result', result }),
-    } });
-    // `target` is a fresh object every render (`resolveFindTarget` builds one), so this depends on
-    // its STABLE identity components instead — the guest map is a ref (never itself a dependency
-    // trigger) and `activeGuestId` is what actually changes which entry it names.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: depends on target's stable inputs (activeGuestId, bridge), not the fresh `target` object itself — see the comment above.
-  }, [state.open, state.query === '', activeGuestId, bridge]);
-
-  // A query change — including the FIRST non-empty character — is a NEW search session
-  // (`findNext: true`, per this file's header); clearing back to '' stops it instead of searching
-  // for nothing.
-  useEffect(() => {
-    queryScheduler.cancel();
-    if (!state.open) return undefined;
-    if (state.query === '') {
-      awaitingReport.current = false;
-      cancelReclaimFrame();
-      stopFind({ target, bridge });
-      return undefined;
-    }
-    const run = () => {
-      // Blurring during an IME composition would discard the text still being composed.
-      if (composing.current) { queryScheduler.schedule({ run }); return; }
-      issueFind(state.query, { forward: true, findNext: true });
-    };
-    queryScheduler.schedule({ run });
-    return () => queryScheduler.cancel();
-    // biome-ignore lint/correctness/useExhaustiveDependencies: depends on target's stable inputs (activeGuestId), not the fresh `target`/`bridge` objects themselves.
-  }, [state.query, state.open, activeGuestId]);
-
-  // Closes (and clears the OUTGOING surface's own highlights) on a tab switch while the bar is
-  // open — known rough edge until now: switching tabs left the bar open, still showing the
-  // previous tab's stale query/count, and never cleared that tab's own highlight because nothing
-  // called `stopFind` for it once it went off screen. Mirrors `App.hooks.ts`'s
-  // `expandedAfterWorkspaceChange` precedent for the identical class of problem (collapse-on-
-  // workspace-change). `previousGuestIdRef` — not `target` — resolves the OUTGOING guest: by the
-  // time this effect runs post-commit, `activeGuestId` (and therefore `target`) already point at
-  // the NEW surface.
-  const previousGuestIdRef = useRef(activeGuestId);
-  useEffect(() => {
-    if (shouldCloseOnGuestChange({ previousGuestId: previousGuestIdRef.current, activeGuestId, open: state.open })) {
-      const outgoing = resolveFindTarget({ activeGuestId: previousGuestIdRef.current, guests, bridge });
-      stopFind({ target: outgoing, bridge });
-      dispatch({ type: 'close' });
-    }
-    previousGuestIdRef.current = activeGuestId;
-    // biome-ignore lint/correctness/useExhaustiveDependencies: keys on activeGuestId's stable identity only, matching this file's other target-derived effects above.
-  }, [activeGuestId]);
-
-  // Reclaims focus the moment Chromium takes it, BEFORE the result round trip — on a big page that
-  // trip can take long enough for a fast typist's next letters to reach the guest. A native `blur`
-  // listener, not React's `onBlur`: the theft is a PAGE-level focus loss (`document.activeElement`
-  // stays the input), which does not fire through React's root `focusout` delegation the way a real
-  // blur-to-another-element does (memory `component_logic_belongs_hooks` — this stays in the hook,
-  // not `App.tsx`). Deferred with `setTimeout(0)` rather than refocusing inline: the host-side blur
-  // fires SYNCHRONOUSLY inside Chromium's own find, so an inline refocus would fight it. Never calls
-  // `issueFind`/`runFind`/`stopFind` from here — Chromium steals focus once per issued find, so one
-  // reclaim per find settles it; re-running the search on refocus is the focus-fight loop a guest
-  // theft can otherwise trigger.
-  const attachBlurReclaim = useCallback(
-    (node: HTMLInputElement) => {
-      const onBlur = () => {
-        if (restoringFocus.current) return;
-        clearReclaimTimer();
-        reclaimTimer.current = clock.schedule({ callback: () => {
-          reclaimTimer.current = null;
-          // Re-reads `inputElement.current`, not the closed-over `node`: the bar may have closed
-          // (and unmounted the input) by the time this deferred callback runs.
-          if (shouldReclaimFindFocus({ open: inputElement.current !== null, lastFindAt: lastFindAt.current, now: clock.now() })) {
-            restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
-          }
-        }, delay: 0 });
-      };
-      const onCompositionStart = () => {
-        composing.current = true;
-      };
-      const onCompositionEnd = () => {
-        composing.current = false;
-      };
-      node.addEventListener('blur', onBlur);
-      node.addEventListener('compositionstart', onCompositionStart);
-      node.addEventListener('compositionend', onCompositionEnd);
-      return () => {
-        node.removeEventListener('blur', onBlur);
-        node.removeEventListener('compositionstart', onCompositionStart);
-        node.removeEventListener('compositionend', onCompositionEnd);
-        composing.current = false;
-      };
+  const registerGuest = useCallback(
+    (projectId: string, element: FindableGuest | null) => {
+      if (element) guests.set(projectId, element);
+      else guests.delete(projectId);
     },
-    [clearReclaimTimer, clock],
+    [guests],
   );
 
-  // Detaches the previous node's blur listener before attaching the next one, so a remount (or the
-  // bar closing) never leaves a stale listener on a detached node.
-  const detachBlurReclaim = useRef<(() => void) | null>(null);
-  const inputRef = useCallback(
-    (node: HTMLInputElement | null) => {
-      detachBlurReclaim.current?.();
-      detachBlurReclaim.current = null;
-      inputElement.current = node;
-      if (node) detachBlurReclaim.current = attachBlurReclaim(node);
-    },
-    [attachBlurReclaim],
-  );
-
-  useEffect(() => () => {
-    queryScheduler.cancel();
-    clearReclaimTimer();
-    cancelReclaimFrame();
-  }, [queryScheduler, clearReclaimTimer, cancelReclaimFrame]);
-
-  const close = () => {
-    queryScheduler.cancel();
-    clearReclaimTimer();
-    cancelReclaimFrame();
-    awaitingReport.current = false;
-    stopFind({ target, bridge });
-    dispatch({ type: 'close' });
-  };
-
+  const target = resolveFindTarget({ activeGuestId, guests, bridge });
   return {
-    open: state.open,
-    query: state.query,
-    result: state.result,
-    countLabel: formatMatchCount({ result: state.result }),
-    inputRef,
-    setQuery: ({ text }) => dispatch({ type: 'set-query', query: text }),
-    // Follow-up requests within the current session — `findNext: false` — never a new one.
-    next: () => { if (!queryScheduler.flush()) issueFind(state.query, { forward: true, findNext: false }); },
-    previous: () => { if (!queryScheduler.flush()) issueFind(state.query, { forward: false, findNext: false }); },
-    close,
-    registerGuest,
+    state, dispatch, guests, inputElement, lastFindAt, reclaimTimer, restoringFocus, awaitingReport, composing, reclaimFrame, queryScheduler, registerGuest,
+    target,
   };
 }
 

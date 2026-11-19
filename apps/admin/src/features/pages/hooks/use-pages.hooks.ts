@@ -101,42 +101,33 @@ export interface PagesDependencies {
  * read starts, so both superseded successes and failures follow the latest request.
  */
 export function usePages(deps: PagesDependencies): PagesController {
-  const { port, navigate, t, locale } = deps;
-  const key = useMemo(() => ["pages", "list"] as const, []);
-  const fetchList = useCallback(async () => {
-    try { return (await port.listPages()).posts.map(entry => entry.post); }
-    catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load pages")); }
-  }, [port, t]);
-  // Mount reads and content-refresh invalidations can overlap. The shared cache revokes the
-  // older request's ownership before starting the newer read, so a late success or failure
-  // cannot replace the latest list. Background reads retain the rendered table.
-  const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
-  const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
-  const pages = query.data ?? null;
-  function setPages({ update }: { update: (current: AdminPost[] | null) => AdminPost[] | null }, _options = {}) {
-    const next = update(loader.peek() ?? null);
-    if (next !== null) loader.replace({ value: next });
-  }
-  const invalidate = useInvalidate();
-  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["pages"]] });
-  const [actionError, setError] = useState<string | null>(null);
-  const error = actionError ?? query.error?.message ?? null;
-  const [creating, setCreating] = useState(false);
-  // In-flight row action (Publish/Unpublish or the confirmed Delete) — one at a time, same `rowSavingId`
-  // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
-  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
-  // The page a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
-  // closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment on
-  // why); this is what drives its `open` prop.
-  const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
+  const {
+    port, navigate, t, locale, pages, setPages, write, setError, error, creating, setCreating, rowSavingId, setRowSavingId, pendingDelete, setPendingDelete,
+    rowMenuHandleById,
+  } = usePagesState({ deps });
+  const { createPage, togglePagePublish, removePage } = createPageActions({ setCreating, setError, write, port, navigate, t, setRowSavingId, setPages, pendingDelete, setPendingDelete });
 
-  // Query ownership replaces the latest-wins read guard described above; background
-  // refreshes keep the table and cache replacements protect newer mutation responses.
-  const load = useCallback(() => invalidate({ key: ["pages"] }), [invalidate]);
-  useContentRefreshSubscription({ resource: PAGES_RESOURCE, onRefresh: load });
+  return {
+    pages,
+    error,
+    creating,
+    rowSavingId,
+    pendingDelete,
+    setPendingDelete,
+    createPage,
+    togglePagePublish,
+    removePage,
+    t,
+    locale,
+    rowMenuHandleById,
+  };
+}
 
-  const rowMenuHandleById = usePageRowMenuHandleMap({ pages });
-
+function createPageActions(
+  { setCreating, setError, write, port, navigate, t, setRowSavingId, setPages, pendingDelete, setPendingDelete }:
+    Pick<ReturnType<typeof usePagesState>, "setCreating" | "setError" | "write" | "port" | "navigate" | "t" | "setRowSavingId" | "setPages" | "pendingDelete"
+    | "setPendingDelete">
+) {
   async function createPage() {
     setCreating(true);
     setError(null);
@@ -237,19 +228,50 @@ export function usePages(deps: PagesDependencies): PagesController {
       setPendingDelete(null);
     }
   }
+  return { createPage, togglePagePublish, removePage };
+}
 
+function usePagesState(
+  { deps }:
+    { deps: Parameters<typeof usePages>[0] }
+) {
+  const { port, navigate, t, locale } = deps;
+  const key = useMemo(() => ["pages", "list"] as const, []);
+  const fetchList = useCallback(async () => {
+    try { return (await port.listPages()).posts.map(entry => entry.post); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load pages")); }
+  }, [port, t]);
+  // Mount reads and content-refresh invalidations can overlap. The shared cache revokes the
+  // older request's ownership before starting the newer read, so a late success or failure
+  // cannot replace the latest list. Background reads retain the rendered table.
+  const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
+  const pages = query.data ?? null;
+  function setPages({ update }: { update: (current: AdminPost[] | null) => AdminPost[] | null }, _options = {}) {
+    const next = update(loader.peek() ?? null);
+    if (next !== null) loader.replace({ value: next });
+  }
+  const invalidate = useInvalidate();
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["pages"]] });
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? query.error?.message ?? null;
+  const [creating, setCreating] = useState(false);
+  // In-flight row action (Publish/Unpublish or the confirmed Delete) — one at a time, same `rowSavingId`
+  // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
+  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
+  // The page a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
+  // closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment on
+  // why); this is what drives its `open` prop.
+  const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
+
+  // Query ownership replaces the latest-wins read guard described above; background
+  // refreshes keep the table and cache replacements protect newer mutation responses.
+  const load = useCallback(() => invalidate({ key: ["pages"] }), [invalidate]);
+  useContentRefreshSubscription({ resource: PAGES_RESOURCE, onRefresh: load });
+
+  const rowMenuHandleById = usePageRowMenuHandleMap({ pages });
   return {
-    pages,
-    error,
-    creating,
-    rowSavingId,
-    pendingDelete,
-    setPendingDelete,
-    createPage,
-    togglePagePublish,
-    removePage,
-    t,
-    locale,
+    port, navigate, t, locale, pages, setPages, write, setError, error, creating, setCreating, rowSavingId, setRowSavingId, pendingDelete, setPendingDelete,
     rowMenuHandleById,
   };
 }

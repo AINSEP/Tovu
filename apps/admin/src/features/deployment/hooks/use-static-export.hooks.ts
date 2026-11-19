@@ -111,6 +111,101 @@ const EXPORT_POLL_INTERVAL_MS = 1500;
 const POLL_FAILURE_LIMIT = 3;
 
 export function useStaticExport({ port, t, locale }: { port: StaticExportPort; t: Translate; locale: string }, _options = {}): StaticExportController {
+  const {
+    run, setRun, clean, setClean, triggering, setTriggering, triggerError, setTriggerError, pollError, setPollError, seededRef, loadError, pollFailuresRef,
+    isRunning, pollInputs,
+  } = useStaticExportState({ port, locale });
+  useStaticExportPolling({ isRunning, pollInputs, pollFailuresRef, setRun, setPollError });
+
+  // Synchronous duplicate-submit guard — same reasoning as `use-static-publish.hooks.ts`'s
+  // `publishingRef` (C4): two calls in one tick both read this render's `triggering: false`
+  // (terra review 2026-09-20, finding 5).
+  const triggeringRef = useRef(false);
+
+  async function trigger() {
+    if (triggeringRef.current) return;
+    triggeringRef.current = true;
+    // Local action supersedes any still-pending bootstrap read: mark it consumed BEFORE the request
+    // even starts, so a bootstrap GET that resolves late — after this trigger's own response already
+    // set `run` — cannot land on top of it and silently kill polling for a run the server is still
+    // actually running (C1). Ordering is what makes this safe: this write is synchronous and
+    // happens-before the `await` below, so it wins the race regardless of how late the bootstrap
+    // read resolves.
+    seededRef.current = true;
+    // A fresh trigger also clears any earlier poll-failure standoff (C2) — the operator retrying via
+    // this same button is exactly the recovery path a stalled `pollError` is meant to unblock.
+    pollFailuresRef.current = 0;
+    setPollError(null);
+    setTriggerError(null);
+    setTriggering(true);
+    try {
+      const started = await port.triggerSiteExport({}, { options: { clean } });
+      setRun(started);
+    } catch (err) {
+      setTriggerError(exportTriggerErrorMessage({ locale, error: describeApiError({ e: err, fallback: "unknown error" }) }));
+    } finally {
+      triggeringRef.current = false;
+      setTriggering(false);
+    }
+  }
+
+  return { run, isRunning, loadError, pollError, triggerError, triggering, clean, setClean, trigger, t };
+}
+
+function useStaticExportPolling(
+  { isRunning, pollInputs, pollFailuresRef, setRun, setPollError }:
+    Pick<ReturnType<typeof useStaticExportState>, "isRunning" | "pollInputs" | "pollFailuresRef" | "setRun" | "setPollError">
+) {
+  // Poll loop: re-armed only when `isRunning` FLIPS to true (mount-while-running counts), not on
+  // every `run` update the loop itself produces — a dependency on `run` here would re-schedule (or,
+  // worse, fail to reschedule after a transient fetch error that never touched `run`) on every tick
+  // instead of running as one self-scheduling loop. Each iteration decides whether to continue from
+  // the STATUS IT JUST FETCHED, not from the outer `isRunning` closure, which is correctly stale
+  // inside a single effect run. A fetch failure retries on the same schedule rather than silently
+  // giving up — a transient network hiccup must not strand the UI on "Exporting…" forever.
+  useEffect(() => {
+    if (!isRunning) return undefined;
+    const { port: pollPort, locale: pollLocale } = pollInputs.current;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    function scheduleNext() {
+      timer = setTimeout(poll, EXPORT_POLL_INTERVAL_MS);
+    }
+    async function poll() {
+      try {
+        const status = await pollPort.getSiteExportStatus();
+        if (cancelled) return;
+        pollFailuresRef.current = 0;
+        setRun(status);
+        if (status.status === "running") scheduleNext();
+      } catch (err) {
+        if (cancelled) return;
+        pollFailuresRef.current += 1;
+        if (pollFailuresRef.current >= POLL_FAILURE_LIMIT) {
+          // Bounded (C2): give up rather than retry forever. Setting `pollError` also flips
+          // `isRunning` false on the next render, which re-arms this very effect's cleanup and
+          // re-enables the Build button — but `return` here (no `scheduleNext()`) is what actually
+          // stops the loop; it must not depend on that later render having happened yet.
+          setPollError(exportPollErrorMessage({ locale: pollLocale, error: describeApiError({ e: err, fallback: "unknown error" }) }));
+          return;
+        }
+        scheduleNext();
+      }
+    }
+    scheduleNext();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isRunning]);
+}
+
+function useStaticExportState(
+  { port, locale }:
+    Pick<Parameters<typeof useStaticExport>[0], "port" | "locale">
+) {
   const query = useFetchQuery({ key: ["deployment", "export"], fetch: () => port.getSiteExportStatus() });
   const [run, setRun] = useState<AdminExportRunSnapshot | undefined>(undefined);
   const [clean, setClean] = useState(false);
@@ -157,85 +252,10 @@ export function useStaticExport({ port, t, locale }: { port: StaticExportPort; t
   const isRunning = run?.status === "running" && pollError === null;
   const pollInputs = useRef({ port, locale });
   pollInputs.current = { port, locale };
-
-  // Poll loop: re-armed only when `isRunning` FLIPS to true (mount-while-running counts), not on
-  // every `run` update the loop itself produces — a dependency on `run` here would re-schedule (or,
-  // worse, fail to reschedule after a transient fetch error that never touched `run`) on every tick
-  // instead of running as one self-scheduling loop. Each iteration decides whether to continue from
-  // the STATUS IT JUST FETCHED, not from the outer `isRunning` closure, which is correctly stale
-  // inside a single effect run. A fetch failure retries on the same schedule rather than silently
-  // giving up — a transient network hiccup must not strand the UI on "Exporting…" forever.
-  useEffect(() => {
-    if (!isRunning) return undefined;
-    const { port: pollPort, locale: pollLocale } = pollInputs.current;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-
-    function scheduleNext() {
-      timer = setTimeout(poll, EXPORT_POLL_INTERVAL_MS);
-    }
-    async function poll() {
-      try {
-        const status = await pollPort.getSiteExportStatus();
-        if (cancelled) return;
-        pollFailuresRef.current = 0;
-        setRun(status);
-        if (status.status === "running") scheduleNext();
-      } catch (err) {
-        if (cancelled) return;
-        pollFailuresRef.current += 1;
-        if (pollFailuresRef.current >= POLL_FAILURE_LIMIT) {
-          // Bounded (C2): give up rather than retry forever. Setting `pollError` also flips
-          // `isRunning` false on the next render, which re-arms this very effect's cleanup and
-          // re-enables the Build button — but `return` here (no `scheduleNext()`) is what actually
-          // stops the loop; it must not depend on that later render having happened yet.
-          setPollError(exportPollErrorMessage({ locale: pollLocale, error: describeApiError({ e: err, fallback: "unknown error" }) }));
-          return;
-        }
-        scheduleNext();
-      }
-    }
-    scheduleNext();
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [isRunning]);
-
-  // Synchronous duplicate-submit guard — same reasoning as `use-static-publish.hooks.ts`'s
-  // `publishingRef` (C4): two calls in one tick both read this render's `triggering: false`
-  // (terra review 2026-09-20, finding 5).
-  const triggeringRef = useRef(false);
-
-  async function trigger() {
-    if (triggeringRef.current) return;
-    triggeringRef.current = true;
-    // Local action supersedes any still-pending bootstrap read: mark it consumed BEFORE the request
-    // even starts, so a bootstrap GET that resolves late — after this trigger's own response already
-    // set `run` — cannot land on top of it and silently kill polling for a run the server is still
-    // actually running (C1). Ordering is what makes this safe: this write is synchronous and
-    // happens-before the `await` below, so it wins the race regardless of how late the bootstrap
-    // read resolves.
-    seededRef.current = true;
-    // A fresh trigger also clears any earlier poll-failure standoff (C2) — the operator retrying via
-    // this same button is exactly the recovery path a stalled `pollError` is meant to unblock.
-    pollFailuresRef.current = 0;
-    setPollError(null);
-    setTriggerError(null);
-    setTriggering(true);
-    try {
-      const started = await port.triggerSiteExport({}, { options: { clean } });
-      setRun(started);
-    } catch (err) {
-      setTriggerError(exportTriggerErrorMessage({ locale, error: describeApiError({ e: err, fallback: "unknown error" }) }));
-    } finally {
-      triggeringRef.current = false;
-      setTriggering(false);
-    }
-  }
-
-  return { run, isRunning, loadError, pollError, triggerError, triggering, clean, setClean, trigger, t };
+  return {
+    run, setRun, clean, setClean, triggering, setTriggering, triggerError, setTriggerError, pollError, setPollError, seededRef, loadError, pollFailuresRef,
+    isRunning, pollInputs,
+  };
 }
 
 /**

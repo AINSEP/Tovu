@@ -201,23 +201,7 @@ export function useRecentEntriesConfig(
   { config, onChange }: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void },
   _options: Record<string, never> = {},
 ) {
-  const [filterFieldDraft, setFilterFieldDraft] = useState<string | null>(null);
-  const [filterValueDraft, setFilterValueDraft] = useState<string | null>(null);
-
-  const clause = readFilterClause(config);
-  const collection = stringConfigValue({ config, key: "collection" });
-  const sort = stringConfigValue({ config, key: "sort" });
-  const layout = stringConfigValue({ config, key: "layout" });
-  const columns = numberConfigValue({ config, key: "columns" });
-  const fields = stringArrayConfigValue({ config, key: "fields" });
-  const filterField = resolveFilterField({ draft: filterFieldDraft, clause });
-  const filterValue = resolveFilterValue({ draft: filterValueDraft, clause });
-
-  function patch({ mutate }: { mutate: (next: Record<string, unknown>) => void }, _options: Record<string, never> = {}): void {
-    const next = { ...config };
-    mutate(next);
-    onChange(next);
-  }
+  const { setFilterFieldDraft, setFilterValueDraft, collection, sort, layout, columns, fields, filterField, filterValue, patch } = useRecentEntriesState({ config, onChange });
 
   function setCollection({ value }: { value: string }, _options: Record<string, never> = {}): void {
     setFilterFieldDraft(null);
@@ -229,7 +213,56 @@ export function useRecentEntriesConfig(
       delete next.where;
     } });
   }
+  const { setSort, setLayout, setColumns, toggleField } = createRecentEntriesLayoutActions({ patch });
+  const { setFilterField, setFilterValue } = createRecentEntriesFilterActions({ setFilterFieldDraft, setFilterValueDraft, patch, filterField });
 
+  return {
+    collection,
+    sort,
+    layout,
+    columns,
+    fields,
+    filterField,
+    filterValue,
+    setCollection,
+    setSort,
+    setLayout,
+    setColumns,
+    toggleField,
+    setFilterField,
+    setFilterValue,
+  };
+}
+
+function createRecentEntriesFilterActions(
+  { setFilterFieldDraft, setFilterValueDraft, patch, filterField }:
+    Pick<ReturnType<typeof useRecentEntriesState>, "setFilterFieldDraft" | "setFilterValueDraft" | "patch" | "filterField">
+) {
+  function setFilterField({ name }: { name: string }, _options: Record<string, never> = {}): void {
+    setFilterFieldDraft(name || null);
+    setFilterValueDraft(null);
+    patch({ mutate: (next) => {
+      delete next.where;
+    } });
+  }
+
+  function setFilterValue({ raw, kind }: { raw: string; kind: ContentTypeFieldKind | undefined }, _options: Record<string, never> = {}): void {
+    setFilterValueDraft(raw);
+    patch({ mutate: (next) => {
+      if (!filterField || raw === "") {
+        delete next.where;
+        return;
+      }
+      next.where = { [filterField]: coerceFilterValue({ raw, kind }) };
+    } });
+  }
+  return { setFilterField, setFilterValue };
+}
+
+function createRecentEntriesLayoutActions(
+  { patch }:
+    Pick<ReturnType<typeof useRecentEntriesState>, "patch">
+) {
   function setSort({ value }: { value: string }, _options: Record<string, never> = {}): void {
     patch({ mutate: (next) => {
       if (value) next.sort = value;
@@ -260,42 +293,31 @@ export function useRecentEntriesConfig(
       else delete next.fields;
     } });
   }
+  return { setSort, setLayout, setColumns, toggleField };
+}
 
-  function setFilterField({ name }: { name: string }, _options: Record<string, never> = {}): void {
-    setFilterFieldDraft(name || null);
-    setFilterValueDraft(null);
-    patch({ mutate: (next) => {
-      delete next.where;
-    } });
+function useRecentEntriesState(
+  { config, onChange }:
+    Pick<Parameters<typeof useRecentEntriesConfig>[0], "config" | "onChange">
+) {
+  const [filterFieldDraft, setFilterFieldDraft] = useState<string | null>(null);
+  const [filterValueDraft, setFilterValueDraft] = useState<string | null>(null);
+
+  const clause = readFilterClause(config);
+  const collection = stringConfigValue({ config, key: "collection" });
+  const sort = stringConfigValue({ config, key: "sort" });
+  const layout = stringConfigValue({ config, key: "layout" });
+  const columns = numberConfigValue({ config, key: "columns" });
+  const fields = stringArrayConfigValue({ config, key: "fields" });
+  const filterField = resolveFilterField({ draft: filterFieldDraft, clause });
+  const filterValue = resolveFilterValue({ draft: filterValueDraft, clause });
+
+  function patch({ mutate }: { mutate: (next: Record<string, unknown>) => void }, _options: Record<string, never> = {}): void {
+    const next = { ...config };
+    mutate(next);
+    onChange(next);
   }
-
-  function setFilterValue({ raw, kind }: { raw: string; kind: ContentTypeFieldKind | undefined }, _options: Record<string, never> = {}): void {
-    setFilterValueDraft(raw);
-    patch({ mutate: (next) => {
-      if (!filterField || raw === "") {
-        delete next.where;
-        return;
-      }
-      next.where = { [filterField]: coerceFilterValue({ raw, kind }) };
-    } });
-  }
-
-  return {
-    collection,
-    sort,
-    layout,
-    columns,
-    fields,
-    filterField,
-    filterValue,
-    setCollection,
-    setSort,
-    setLayout,
-    setColumns,
-    toggleField,
-    setFilterField,
-    setFilterValue,
-  };
+  return { setFilterFieldDraft, setFilterValueDraft, collection, sort, layout, columns, fields, filterField, filterValue, patch };
 }
 
 /**

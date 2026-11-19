@@ -106,6 +106,95 @@ function ignoreDiscardedTranscript(error: unknown): void {
  *   cost, which this hook does not itself scale with.
  */
 export function usePushToTalk({ options, overrides }: { options: UsePushToTalkOptions; overrides: UsePushToTalkOverrides | undefined }, _options = {}): PushToTalkController {
+  const { onTranscript, voicePort, createCapture, state, setState, availability, captureRef, liveCaptureRef, unmountedRef } = usePushToTalkState({ options, overrides });
+
+  const { available, unavailableReason } = describeAvailability({ availability });
+  const canStart = Boolean(voicePort) && available === true && (state.status === "idle" || state.status === "error");
+  const { startHold, endHold } = usePushToTalkActions({ canStart, voicePort, setState, createCapture, captureRef, unmountedRef, liveCaptureRef, state, onTranscript });
+
+  return { available, unavailableReason, indicator: describePushToTalkIndicator(state), startHold, endHold };
+}
+
+function usePushToTalkActions(
+  { canStart, voicePort, setState, createCapture, captureRef, unmountedRef, liveCaptureRef, state, onTranscript }:
+    Pick<ReturnType<typeof usePushToTalkState>, "voicePort" | "setState" | "createCapture" | "captureRef" | "unmountedRef" | "liveCaptureRef" | "state"
+    | "onTranscript"> &
+    { canStart: boolean }
+) {
+  const startHold = useCallback(() => {
+    if (!canStart || !voicePort) return;
+    setState((previous) => nextPushToTalkState(previous, { type: "start" }));
+    const capture = createCapture(voicePort);
+    captureRef.current = capture;
+    capture
+      .start()
+      .then(() => {
+        if (unmountedRef.current) {
+          void capture.stopAndTranscribe().catch(ignoreDiscardedTranscript);
+          return;
+        }
+        liveCaptureRef.current = capture;
+        setState((previous) => {
+          const next = nextPushToTalkState(previous, { type: "mic-granted" });
+          // The hold already ended while this was in flight (`endHold` moved `previous` to
+          // `"cancelling"` — see that function and `PushToTalkStatus`'s own doc), so `next` comes
+          // back `"idle"`, not `"recording"`. Release the microphone right now instead of leaving
+          // it live with nothing pointing at it; the result is discarded; there is no hold to
+          // transcribe.
+          if (next.status !== "recording") {
+            liveCaptureRef.current = null;
+            void capture.stopAndTranscribe().catch(ignoreDiscardedTranscript);
+          }
+          return next;
+        });
+      })
+      .catch((error) => setState((previous) => nextPushToTalkState(previous, { type: "mic-denied", reason: describeCaptureError({ error }) })));
+    // `voicePort`/`createCapture` are resolved once per mount, not per render, so listing exactly
+    // these three dependencies (not `state` itself) does not risk a stale closure — `canStart`
+    // already reads the latest `state.status` on every render this callback is recreated for.
+  }, [canStart, voicePort, createCapture]);
+  const { endHold } = usePushToTalkRelease({ state, setState, captureRef, liveCaptureRef, onTranscript });
+  return { startHold, endHold };
+}
+
+function usePushToTalkRelease(
+  { state, setState, captureRef, liveCaptureRef, onTranscript }:
+    Pick<Parameters<typeof usePushToTalkActions>[0], "state" | "setState" | "captureRef" | "liveCaptureRef" | "onTranscript">
+) {
+  const endHold = useCallback(() => {
+    if (state.status === "recording") {
+      setState((previous) => nextPushToTalkState(previous, { type: "stop" }));
+      // `"recording"` is only reached via `startHold`'s `mic-granted`, which runs after it stored
+      // the capture here; nothing clears `captureRef`, so it is always set at this point.
+      const capture = captureRef.current;
+      if (!capture) throw new Error("push to talk has no active recording capture");
+      liveCaptureRef.current = null;
+      capture
+        .stopAndTranscribe()
+        .then((text) => {
+          setState((previous) => nextPushToTalkState(previous, { type: "transcript-ready" }));
+          if (text.trim().length > 0) onTranscript(text);
+        })
+        .catch((error) => setState((previous) => nextPushToTalkState(previous, { type: "transcribe-failed", reason: describeCaptureError({ error }) })));
+      return;
+    }
+    // Released while still `"requesting-mic"` (the permission prompt has not resolved yet): there
+    // is no capture to stop here — `startHold`'s own `.then()` above holds the only live reference
+    // to it, and is what actually releases the microphone once permission settles. Moving to
+    // `"cancelling"` is what tells it to do that instead of entering `"recording"`. Every other
+    // status (`"idle"`, `"transcribing"`, `"error"`, `"cancelling"` itself) has nothing live to
+    // stop, so a stray release there is a no-op, same as before this fix.
+    if (state.status === "requesting-mic") {
+      setState((previous) => nextPushToTalkState(previous, { type: "stop" }));
+    }
+  }, [state.status, onTranscript]);
+  return { endHold };
+}
+
+function usePushToTalkState(
+  { options, overrides }:
+    Pick<Parameters<typeof usePushToTalk>[0], "options" | "overrides">
+) {
   const { onTranscript } = options;
   const voicePort = overrides && "voicePort" in overrides ? overrides.voicePort ?? null : getVoiceInputPort({ targetWindow: undefined });
   const createCapture = resolveCreateCapture({ overrideCreateCapture: overrides?.createCapture });
@@ -153,70 +242,5 @@ export function usePushToTalk({ options, overrides }: { options: UsePushToTalkOp
       cancelled = true;
     };
   }, [voicePort]);
-
-  const { available, unavailableReason } = describeAvailability({ availability });
-  const canStart = Boolean(voicePort) && available === true && (state.status === "idle" || state.status === "error");
-
-  const startHold = useCallback(() => {
-    if (!canStart || !voicePort) return;
-    setState((previous) => nextPushToTalkState(previous, { type: "start" }));
-    const capture = createCapture(voicePort);
-    captureRef.current = capture;
-    capture
-      .start()
-      .then(() => {
-        if (unmountedRef.current) {
-          void capture.stopAndTranscribe().catch(ignoreDiscardedTranscript);
-          return;
-        }
-        liveCaptureRef.current = capture;
-        setState((previous) => {
-          const next = nextPushToTalkState(previous, { type: "mic-granted" });
-          // The hold already ended while this was in flight (`endHold` moved `previous` to
-          // `"cancelling"` — see that function and `PushToTalkStatus`'s own doc), so `next` comes
-          // back `"idle"`, not `"recording"`. Release the microphone right now instead of leaving
-          // it live with nothing pointing at it; the result is discarded; there is no hold to
-          // transcribe.
-          if (next.status !== "recording") {
-            liveCaptureRef.current = null;
-            void capture.stopAndTranscribe().catch(ignoreDiscardedTranscript);
-          }
-          return next;
-        });
-      })
-      .catch((error) => setState((previous) => nextPushToTalkState(previous, { type: "mic-denied", reason: describeCaptureError({ error }) })));
-    // `voicePort`/`createCapture` are resolved once per mount, not per render, so listing exactly
-    // these three dependencies (not `state` itself) does not risk a stale closure — `canStart`
-    // already reads the latest `state.status` on every render this callback is recreated for.
-  }, [canStart, voicePort, createCapture]);
-
-  const endHold = useCallback(() => {
-    if (state.status === "recording") {
-      setState((previous) => nextPushToTalkState(previous, { type: "stop" }));
-      // `"recording"` is only reached via `startHold`'s `mic-granted`, which runs after it stored
-      // the capture here; nothing clears `captureRef`, so it is always set at this point.
-      const capture = captureRef.current;
-      if (!capture) throw new Error("push to talk has no active recording capture");
-      liveCaptureRef.current = null;
-      capture
-        .stopAndTranscribe()
-        .then((text) => {
-          setState((previous) => nextPushToTalkState(previous, { type: "transcript-ready" }));
-          if (text.trim().length > 0) onTranscript(text);
-        })
-        .catch((error) => setState((previous) => nextPushToTalkState(previous, { type: "transcribe-failed", reason: describeCaptureError({ error }) })));
-      return;
-    }
-    // Released while still `"requesting-mic"` (the permission prompt has not resolved yet): there
-    // is no capture to stop here — `startHold`'s own `.then()` above holds the only live reference
-    // to it, and is what actually releases the microphone once permission settles. Moving to
-    // `"cancelling"` is what tells it to do that instead of entering `"recording"`. Every other
-    // status (`"idle"`, `"transcribing"`, `"error"`, `"cancelling"` itself) has nothing live to
-    // stop, so a stray release there is a no-op, same as before this fix.
-    if (state.status === "requesting-mic") {
-      setState((previous) => nextPushToTalkState(previous, { type: "stop" }));
-    }
-  }, [state.status, onTranscript]);
-
-  return { available, unavailableReason, indicator: describePushToTalkIndicator(state), startHold, endHold };
+  return { onTranscript, voicePort, createCapture, state, setState, availability, captureRef, liveCaptureRef, unmountedRef };
 }

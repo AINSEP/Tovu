@@ -163,26 +163,82 @@ export function useSiteExport(
   // may also be absent (insecure context). `copyLink` copies nothing in either case.
   { clipboard = typeof navigator === "undefined" ? undefined : navigator.clipboard }: { clipboard?: Pick<Clipboard, "writeText"> } = {},
 ): SiteExportController {
-  const scope = useAdminBootScope();
-  const canManageSavedKeys = useSavedKeysAccess({ port, scope });
-  const passwordDisplay = useExportPassword({ port, t, canManageSavedKeys, identity: scope.queryScope, clipboard });
-  const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope], fetch: () => port.listShares() }, { enabled: !scope.checking });
-  const staticSelection = useStaticExportSelection({ port, t });
-  const invalidate = useInvalidate();
-  const [exportKind, setExportKind] = useState<"backup" | "static" | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
-  const [exportFailure, setExportFailure] = useState<UserFacingError | null>(null);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const refreshShares = () => invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
-  const credentials = useShareCredentialGate({ port, t, refresh: refreshShares, onDownloadError: ({ message }, _optional = {}) => { setExportFailure(null); setExportError(message); } });
-  const alive = useRef(true);
-  useEffect(() => {
-    // StrictMode replays setup after cleanup; each setup must mark this mount alive again.
-    alive.current = true;
-    return () => { alive.current = false; };
-  }, []);
+  const {
+    scope, canManageSavedKeys, passwordDisplay, list, staticSelection, invalidate, exportKind, setExportKind, exportError, setExportError, exportFailure,
+    setExportFailure, revokingId, setRevokingId, copiedId, setCopiedId, credentials, alive,
+  } = useSiteExportState({ port, t, clipboard });
+  const { exportSite } = createSiteExportActions({
+    alive, setExportError, t, credentials, passwordDisplay, exportKind, staticSelection, setExportKind, setExportFailure, port, invalidate, scope,
+  });
+  const { revoke, copyLink } = createSiteShareActions({
+    revokingId, passwordDisplay, setRevokingId, setExportError, setExportFailure, port, t, invalidate, scope, clipboard, credentials, setCopiedId,
+  });
 
+  const shares = list.data?.shares;
+  // Static downloads stay private even when a link host is configured; only backups diagnose its absence.
+  const newestBackup = shares?.find(share => share.file.endsWith(".tovu.zip"));
+  return {
+    ...passwordDisplay,
+    canManageSavedKeys,
+    ...staticSelection,
+    shares,
+    listError: list.error ? describeApiError({ e: list.error, fallback: t("Couldn't load exports.") }) : null,
+    exporting: exportKind === "backup",
+    exportingStatic: exportKind === "static",
+    exportError,
+    exportFailure,
+    exportSite: () => exportSite({ format: "backup" }),
+    exportStaticSite: () => exportSite({ format: "static" }),
+    revokingId,
+    revoke,
+    copiedId,
+    copyLink,
+    downloadHref: ({ share }, _optional = {}) => port.shareDownloadHref({ share }),
+    credentialGate: credentials.credentialGate,
+    acknowledge: credentials.acknowledge,
+    download: credentials.download,
+    zipOnly: newestBackup !== undefined && newestBackup.url === null,
+  };
+}
+
+function createSiteShareActions(
+  { revokingId, passwordDisplay, setRevokingId, setExportError, setExportFailure, port, t, invalidate, scope, clipboard, credentials, setCopiedId }:
+    Pick<ReturnType<typeof useSiteExportState>, "revokingId" | "passwordDisplay" | "setRevokingId" | "setExportError" | "setExportFailure" | "invalidate"
+    | "scope" | "credentials" | "setCopiedId"> &
+    Pick<Parameters<typeof useSiteExport>[0], "port" | "t"> &
+    { clipboard: NonNullable<NonNullable<Parameters<typeof useSiteExport>[1]>["clipboard"]> }
+) {
+  async function revoke(share: SiteShare) {
+    if (revokingId) return;
+    // Invalidate even an in-flight reveal; a revoked archive must not redisplay its password.
+    passwordDisplay.hidePassword();
+    setRevokingId(share.shareId);
+    setExportError(null);
+    setExportFailure(null);
+    try {
+      await port.revokeShare({ shareId: share.shareId });
+    } catch (failure) {
+      setExportError(describeApiError({ e: failure, fallback: t("Revoke failed.") }));
+    } finally {
+      setRevokingId(null);
+      invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
+    }
+  }
+
+  async function copyLink(share: SiteShare) {
+    if (!share.url || !clipboard || credentials.credentialGate(share)) return;
+    await clipboard.writeText(share.url);
+    setCopiedId(share.shareId);
+  }
+  return { revoke, copyLink };
+}
+
+function createSiteExportActions(
+  { alive, setExportError, t, credentials, passwordDisplay, exportKind, staticSelection, setExportKind, setExportFailure, port, invalidate, scope }:
+    Pick<ReturnType<typeof useSiteExportState>, "alive" | "setExportError" | "credentials" | "passwordDisplay" | "exportKind" | "staticSelection"
+    | "setExportKind" | "setExportFailure" | "invalidate" | "scope"> &
+    Pick<Parameters<typeof useSiteExport>[0], "t" | "port">
+) {
   async function finishExport({ result, format }: { result: SiteShareCreateResult; format: "backup" | "static" }, _options = {}) {
     if (!alive.current) return;
     if (!isFinishedShare(result)) { setExportError(t("The export is taking too long. Try again later.")); return; }
@@ -212,54 +268,36 @@ export function useSiteExport(
       invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
     }
   }
+  return { exportSite };
+}
 
-  async function revoke(share: SiteShare) {
-    if (revokingId) return;
-    // Invalidate even an in-flight reveal; a revoked archive must not redisplay its password.
-    passwordDisplay.hidePassword();
-    setRevokingId(share.shareId);
-    setExportError(null);
-    setExportFailure(null);
-    try {
-      await port.revokeShare({ shareId: share.shareId });
-    } catch (failure) {
-      setExportError(describeApiError({ e: failure, fallback: t("Revoke failed.") }));
-    } finally {
-      setRevokingId(null);
-      invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
-    }
-  }
-
-  async function copyLink(share: SiteShare) {
-    if (!share.url || !clipboard || credentials.credentialGate(share)) return;
-    await clipboard.writeText(share.url);
-    setCopiedId(share.shareId);
-  }
-
-  const shares = list.data?.shares;
-  // Static downloads stay private even when a link host is configured; only backups diagnose its absence.
-  const newestBackup = shares?.find(share => share.file.endsWith(".tovu.zip"));
+function useSiteExportState(
+  { port, t, clipboard }:
+    Pick<Parameters<typeof useSiteExport>[0], "port" | "t"> &
+    { clipboard: NonNullable<NonNullable<Parameters<typeof useSiteExport>[1]>["clipboard"]> }
+) {
+  const scope = useAdminBootScope();
+  const canManageSavedKeys = useSavedKeysAccess({ port, scope });
+  const passwordDisplay = useExportPassword({ port, t, canManageSavedKeys, identity: scope.queryScope, clipboard });
+  const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope], fetch: () => port.listShares() }, { enabled: !scope.checking });
+  const staticSelection = useStaticExportSelection({ port, t });
+  const invalidate = useInvalidate();
+  const [exportKind, setExportKind] = useState<"backup" | "static" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportFailure, setExportFailure] = useState<UserFacingError | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const refreshShares = () => invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
+  const credentials = useShareCredentialGate({ port, t, refresh: refreshShares, onDownloadError: ({ message }, _optional = {}) => { setExportFailure(null); setExportError(message); } });
+  const alive = useRef(true);
+  useEffect(() => {
+    // StrictMode replays setup after cleanup; each setup must mark this mount alive again.
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
   return {
-    ...passwordDisplay,
-    canManageSavedKeys,
-    ...staticSelection,
-    shares,
-    listError: list.error ? describeApiError({ e: list.error, fallback: t("Couldn't load exports.") }) : null,
-    exporting: exportKind === "backup",
-    exportingStatic: exportKind === "static",
-    exportError,
-    exportFailure,
-    exportSite: () => exportSite({ format: "backup" }),
-    exportStaticSite: () => exportSite({ format: "static" }),
-    revokingId,
-    revoke,
-    copiedId,
-    copyLink,
-    downloadHref: ({ share }, _optional = {}) => port.shareDownloadHref({ share }),
-    credentialGate: credentials.credentialGate,
-    acknowledge: credentials.acknowledge,
-    download: credentials.download,
-    zipOnly: newestBackup !== undefined && newestBackup.url === null,
+    scope, canManageSavedKeys, passwordDisplay, list, staticSelection, invalidate, exportKind, setExportKind, exportError, setExportError, exportFailure,
+    setExportFailure, revokingId, setRevokingId, copiedId, setCopiedId, credentials, alive,
   };
 }
 
@@ -366,6 +404,157 @@ async function uploadOrExplain({ port, file }: { port: SiteTransferPort; file: F
  * @complexity O(1) round trips per action; O(imports) per render.
  */
 export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translate }): SiteImportController {
+  const {
+    list, refresh, link, setLinkState, file, setFile, importing, setImporting, importError, setImportError, current, setCurrent, password, setPassword, confirm,
+    setConfirm, savedKeysPassword, setSavedKeysPassword, settingOwner, setSettingOwner, ownerError, setOwnerError, liveAddress, setLiveAddress, arrivedForImport,
+    unavailable, setLink, chooseFiles,
+  } = useSiteImportState({ port, t });
+  const { startImport } = createSiteImportAction({
+    importing, unavailable, file, link, setImportError, t, setImporting, setSavedKeysPassword, port, setCurrent, setLinkState, setFile, refresh,
+  });
+
+  const passwordProblem = passwordProblemFor({ password, confirm, t });
+  const { completeOwner } = createSiteOwnerAction({
+    password, confirm, current, settingOwner, setSettingOwner, setOwnerError, setCurrent, port, savedKeysPassword, setPassword, setConfirm, t,
+    setSavedKeysPassword, refresh,
+  });
+  return createSiteImportController({
+    savedKeysPassword, setSavedKeysPassword, unavailable, list, t, link, setLink, file, chooseFiles, setFile, importing, importError, startImport,
+    current, setPassword, setConfirm, setCurrent, setOwnerError, password, confirm, passwordProblem, settingOwner, ownerError, completeOwner, liveAddress,
+    setLiveAddress, arrivedForImport,
+  });
+}
+
+function createSiteImportController(
+  {
+    savedKeysPassword, setSavedKeysPassword, unavailable, list, t, link, setLink, file, chooseFiles, setFile, importing, importError, startImport, current,
+    setPassword, setConfirm, setCurrent, setOwnerError, password, confirm, passwordProblem, settingOwner, ownerError, completeOwner, liveAddress, setLiveAddress,
+    arrivedForImport,
+  }:
+    Pick<ReturnType<typeof useSiteImportState>, "savedKeysPassword" | "setSavedKeysPassword" | "unavailable" | "list" | "link" | "setLink" | "file"
+    | "chooseFiles" | "setFile" | "importing" | "importError" | "current" | "setPassword" | "setConfirm" | "setCurrent" | "setOwnerError" | "password" | "confirm"
+    | "settingOwner" | "ownerError" | "liveAddress" | "setLiveAddress" | "arrivedForImport"> &
+    Pick<Parameters<typeof useSiteImport>[0], "t"> &
+    Pick<ReturnType<typeof createSiteImportAction>, "startImport"> &
+    Pick<ReturnType<typeof createSiteOwnerAction>, "completeOwner"> &
+    { passwordProblem: ReturnType<typeof passwordProblemFor> }
+) : SiteImportController {
+  return {
+    savedKeysPassword,
+    setSavedKeysPassword,
+    imports: unavailable ? [] : list.data?.imports,
+    listError: list.error && !unavailable ? describeApiError({ e: list.error, fallback: t("Couldn't load imports.") }) : null,
+    link,
+    setLink,
+    file,
+    chooseFiles,
+    clearFile: () => setFile(null),
+    canImport: !unavailable && (Boolean(file) || link.trim().length > 0),
+    importing,
+    importError: importError ?? unavailable,
+    startImport,
+    current,
+    ...createSiteImportOwnerController({ setSavedKeysPassword, setPassword, setConfirm, setCurrent, setOwnerError, password, confirm, passwordProblem, settingOwner, ownerError, completeOwner }),
+    liveAddress,
+    setLiveAddress,
+    liveAddressValid: validWebsiteAddress({ address: liveAddress }),
+    startLiveImport: () => {
+      if (validWebsiteAddress({ address: liveAddress })) requestAssistantPrompt({ text: liveImportPrompt({ address: liveAddress }) });
+    },
+    arrivedForImport,
+  };
+}
+
+function createSiteImportOwnerController({ setSavedKeysPassword, setPassword, setConfirm, setCurrent, setOwnerError, password, confirm, passwordProblem, settingOwner, ownerError, completeOwner }: { setSavedKeysPassword: Parameters<typeof createSiteImportController>[0]["setSavedKeysPassword"]; setPassword: Parameters<typeof createSiteImportController>[0]["setPassword"]; setConfirm: Parameters<typeof createSiteImportController>[0]["setConfirm"]; setCurrent: Parameters<typeof createSiteImportController>[0]["setCurrent"]; setOwnerError: Parameters<typeof createSiteImportController>[0]["setOwnerError"]; password: Parameters<typeof createSiteImportController>[0]["password"]; confirm: Parameters<typeof createSiteImportController>[0]["confirm"]; passwordProblem: Parameters<typeof createSiteImportController>[0]["passwordProblem"]; settingOwner: Parameters<typeof createSiteImportController>[0]["settingOwner"]; ownerError: Parameters<typeof createSiteImportController>[0]["ownerError"]; completeOwner: Parameters<typeof createSiteImportController>[0]["completeOwner"] }): Pick<SiteImportController, "resume" | "password" | "setPassword" | "confirm" | "setConfirm" | "passwordProblem" | "settingOwner" | "ownerError" | "completeOwner"> {
+  return {
+    resume: ({ item }, _optional = {}) => {
+      setSavedKeysPassword("");
+      setPassword("");
+      setConfirm("");
+      setCurrent(item);
+      setOwnerError(null);
+    },
+    password,
+    setPassword,
+    confirm,
+    setConfirm,
+    passwordProblem,
+    settingOwner,
+    ownerError,
+    completeOwner,
+  };
+}
+
+function createSiteOwnerAction(
+  {
+    password, confirm, current, settingOwner, setSettingOwner, setOwnerError, setCurrent, port, savedKeysPassword, setPassword, setConfirm, t,
+    setSavedKeysPassword, refresh,
+  }:
+    Pick<ReturnType<typeof useSiteImportState>, "password" | "confirm" | "current" | "settingOwner" | "setSettingOwner" | "setOwnerError" | "setCurrent"
+    | "savedKeysPassword" | "setPassword" | "setConfirm" | "setSavedKeysPassword" | "refresh"> &
+    Pick<Parameters<typeof useSiteImport>[0], "port" | "t">
+) {
+  async function completeOwner() {
+    const passwordsReady = password.length > 0 && confirm === password;
+    if (!current || settingOwner || !passwordsReady) return;
+    setSettingOwner(true);
+    setOwnerError(null);
+    try {
+      setCurrent(await port.completeImportOwner({ importId: current.importId, adminPassword: password,
+        ...(current.hasEncryptedKeys && savedKeysPassword ? { savedKeysPassword } : {}) }));
+      setPassword("");
+      setConfirm("");
+    } catch (failure) {
+      setOwnerError(describeApiError({ e: failure, fallback: t("Couldn't create the site.") }));
+    } finally {
+      // The archive password must not linger after an attempted submission, including failures.
+      setSavedKeysPassword("");
+      setSettingOwner(false);
+      refresh();
+    }
+  }
+  return { completeOwner };
+}
+
+function createSiteImportAction(
+  { importing, unavailable, file, link, setImportError, t, setImporting, setSavedKeysPassword, port, setCurrent, setLinkState, setFile, refresh }:
+    Pick<ReturnType<typeof useSiteImportState>, "importing" | "unavailable" | "file" | "link" | "setImportError" | "setImporting" | "setSavedKeysPassword"
+    | "setCurrent" | "setLinkState" | "setFile" | "refresh"> &
+    Pick<Parameters<typeof useSiteImport>[0], "t" | "port">
+) {
+  async function startImport() {
+    if (importing) return;
+    if (unavailable) return;
+    if (!file && !validShareLink({ link: link })) {
+      setImportError(t("Paste an https:// share link."));
+      return;
+    }
+    if (file && file.size > MAX_IMPORT_ZIP_BYTES) {
+      setImportError(t("This zip is over the 300 MB limit."));
+      return;
+    }
+    setImporting(true);
+    setSavedKeysPassword("");
+    setImportError(null);
+    try {
+      const source = file ? { uploadId: (await uploadOrExplain({ port, file })).uploadId } : { url: link.trim() };
+      setCurrent(await port.startImport(source));
+      setLinkState("");
+      setFile(null);
+    } catch (failure) {
+      setImportError(describeApiError({ e: failure, fallback: t("Import failed. No site was changed.") }));
+    } finally {
+      setImporting(false);
+      refresh();
+    }
+  }
+  return { startImport };
+}
+
+function useSiteImportState(
+  { port, t }:
+    Pick<Parameters<typeof useSiteImport>[0], "port" | "t">
+) {
   const scope = useAdminBootScope();
   // History is private to the signed-in principal, just like saved-key access.
   const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.imports, scope.queryScope], fetch: () => port.listImports() }, { enabled: !scope.checking });
@@ -403,93 +592,10 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
     setLinkState("");
     setImportError(null);
   };
-
-  async function startImport() {
-    if (importing) return;
-    if (unavailable) return;
-    if (!file && !validShareLink({ link: link })) {
-      setImportError(t("Paste an https:// share link."));
-      return;
-    }
-    if (file && file.size > MAX_IMPORT_ZIP_BYTES) {
-      setImportError(t("This zip is over the 300 MB limit."));
-      return;
-    }
-    setImporting(true);
-    setSavedKeysPassword("");
-    setImportError(null);
-    try {
-      const source = file ? { uploadId: (await uploadOrExplain({ port, file })).uploadId } : { url: link.trim() };
-      setCurrent(await port.startImport(source));
-      setLinkState("");
-      setFile(null);
-    } catch (failure) {
-      setImportError(describeApiError({ e: failure, fallback: t("Import failed. No site was changed.") }));
-    } finally {
-      setImporting(false);
-      refresh();
-    }
-  }
-
-  const passwordProblem = passwordProblemFor({ password, confirm, t });
-
-  async function completeOwner() {
-    const passwordsReady = password.length > 0 && confirm === password;
-    if (!current || settingOwner || !passwordsReady) return;
-    setSettingOwner(true);
-    setOwnerError(null);
-    try {
-      setCurrent(await port.completeImportOwner({ importId: current.importId, adminPassword: password,
-        ...(current.hasEncryptedKeys && savedKeysPassword ? { savedKeysPassword } : {}) }));
-      setPassword("");
-      setConfirm("");
-    } catch (failure) {
-      setOwnerError(describeApiError({ e: failure, fallback: t("Couldn't create the site.") }));
-    } finally {
-      // The archive password must not linger after an attempted submission, including failures.
-      setSavedKeysPassword("");
-      setSettingOwner(false);
-      refresh();
-    }
-  }
-
   return {
-    savedKeysPassword,
-    setSavedKeysPassword,
-    imports: unavailable ? [] : list.data?.imports,
-    listError: list.error && !unavailable ? describeApiError({ e: list.error, fallback: t("Couldn't load imports.") }) : null,
-    link,
-    setLink,
-    file,
-    chooseFiles,
-    clearFile: () => setFile(null),
-    canImport: !unavailable && (Boolean(file) || link.trim().length > 0),
-    importing,
-    importError: importError ?? unavailable,
-    startImport,
-    current,
-    resume: ({ item }, _optional = {}) => {
-      setSavedKeysPassword("");
-      setPassword("");
-      setConfirm("");
-      setCurrent(item);
-      setOwnerError(null);
-    },
-    password,
-    setPassword,
-    confirm,
-    setConfirm,
-    passwordProblem,
-    settingOwner,
-    ownerError,
-    completeOwner,
-    liveAddress,
-    setLiveAddress,
-    liveAddressValid: validWebsiteAddress({ address: liveAddress }),
-    startLiveImport: () => {
-      if (validWebsiteAddress({ address: liveAddress })) requestAssistantPrompt({ text: liveImportPrompt({ address: liveAddress }) });
-    },
-    arrivedForImport,
+    list, refresh, link, setLinkState, file, setFile, importing, setImporting, importError, setImportError, current, setCurrent, password, setPassword, confirm,
+    setConfirm, savedKeysPassword, setSavedKeysPassword, settingOwner, setSettingOwner, ownerError, setOwnerError, liveAddress, setLiveAddress, arrivedForImport,
+    unavailable, setLink, chooseFiles,
   };
 }
 

@@ -222,48 +222,7 @@ export function NewContentTypeDialog({
           label: "New content type dialog — its label, key, and field schema",
         })}
       >
-        <div className="jini-dialog-body">
-        <div className="field">
-          <label className="field-label" htmlFor="ct-label">{t({ key: "Label" })}</label>
-          <input
-            id="ct-label"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder={t({ key: "e.g. Recipe" })}
-            data-jini-autofocus=""
-            {...agentHandle({ handle: "new-content-type-label" }, { role: "field", label: "This content type's display name" })}
-          />
-        </div>
-
-        <div className="field">
-          <label className="field-label" htmlFor="ct-key">{t({ key: "Key" })}</label>
-          <input
-            id="ct-key"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            placeholder="e.g. recipe"
-            {...agentHandle({ handle: "new-content-type-key" }, {
-              role: "field",
-              label: "This content type's machine key — used in its entries' URLs",
-            })}
-          />
-        </div>
-
-        <ContentTypeFieldsSection
-          fields={fields}
-          fieldHandles={fieldHandles}
-          idPrefix="ct-field"
-          handlePrefix="new-content-type"
-          showRemoveButton={fields.length > 1}
-          removeButtonLabel={t({ key: "Remove this field from the new content type" })}
-          updateField={updateField}
-          removeField={removeField}
-          addField={addField}
-          error={error}
-          t={t}
-        />
-
-        </div>
+        {renderNewContentTypeFields({ label, t, setLabel, key, setKey, fields, fieldHandles, updateField, removeField, addField, error })}
         <div className="jini-dialog-footer editor-actions">
           <button
             type="button"
@@ -284,6 +243,59 @@ export function NewContentTypeDialog({
         </div>
       </form>
     </Dialog>
+  );
+}
+
+function renderNewContentTypeFields(
+  { label, t, setLabel, key, setKey, fields, fieldHandles, updateField, removeField, addField, error }:
+    Pick<ReturnType<NonNullable<NewContentTypeDialogProps["useNewContentTypeDialogHook"]>>, "label" | "setLabel" | "key" | "setKey" | "fields" | "updateField"
+    | "removeField" | "addField" | "error"> &
+    Pick<NewContentTypeDialogProps, "t"> &
+    { fieldHandles: ReturnType<typeof buildAgentListHandles> }
+) {
+  return (
+    <div className="jini-dialog-body">
+    <div className="field">
+      <label className="field-label" htmlFor="ct-label">{t({ key: "Label" })}</label>
+      <input
+        id="ct-label"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder={t({ key: "e.g. Recipe" })}
+        data-jini-autofocus=""
+        {...agentHandle({ handle: "new-content-type-label" }, { role: "field", label: "This content type's display name" })}
+      />
+    </div>
+
+    <div className="field">
+      <label className="field-label" htmlFor="ct-key">{t({ key: "Key" })}</label>
+      <input
+        id="ct-key"
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+        placeholder="e.g. recipe"
+        {...agentHandle({ handle: "new-content-type-key" }, {
+          role: "field",
+          label: "This content type's machine key — used in its entries' URLs",
+        })}
+      />
+    </div>
+
+    <ContentTypeFieldsSection
+      fields={fields}
+      fieldHandles={fieldHandles}
+      idPrefix="ct-field"
+      handlePrefix="new-content-type"
+      showRemoveButton={fields.length > 1}
+      removeButtonLabel={t({ key: "Remove this field from the new content type" })}
+      updateField={updateField}
+      removeField={removeField}
+      addField={addField}
+      error={error}
+      t={t}
+    />
+
+    </div>
   );
 }
 
@@ -501,23 +513,9 @@ function CollectionsDialogs(props: {
 
 export function Collections({ useCollectionsHook = useWiredCollections, dialogHooks }: CollectionsProps = {}) {
   const {
-    types,
-    error,
-    showNewDialog,
-    setShowNewDialog,
-    pendingLifecycle,
-    setPendingLifecycle,
-    editingFieldsFor,
-    setEditingFieldsFor,
-    actionError,
-    load,
-    runLifecycle,
-    copiedKey,
-    copyFallback,
-    copyEmbedCode,
-    t,
-    locale,
-  } = useCollectionsHook();
+    types, error, showNewDialog, setShowNewDialog, pendingLifecycle, setPendingLifecycle, editingFieldsFor, setEditingFieldsFor, actionError, load, runLifecycle,
+    copiedKey, copyFallback, copyEmbedCode, t, locale,
+  } = useCollectionsView({ useCollectionsHook });
 
   if (error && !types) return <div className="notice error">{error}</div>;
   if (!types) return <div className="notice">{t({ key: "Loading content types…" })}</div>;
@@ -534,115 +532,12 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
 
   return (
     <div className="page">
-      <div
-        className="page-header"
-        {...agentHandle({ handle: "collections-header" }, {
-          role: "region",
-          label: "Collections list header — page title and the New content type button",
-        })}
-      >
-        <div className="page-header-text">
-          <p className="page-kicker">{t({ key: "Content" })}</p>
-          <h1 className="page-title">{t({ key: "Collections" })}</h1>
-          <p className="page-description">{t({ key: "Content types you define, each with its own set of entries." })}</p>
-        </div>
-        <div className="page-actions">
-          <PublishSectionButton section="collections" />
-          <button
-            onClick={() => setShowNewDialog(true)}
-            {...agentHandle({ handle: "collections-new" }, { role: "button", label: "Define a new content type" })}
-          >
-            {t({ key: "New content type" })}
-          </button>
-        </div>
-      </div>
+      {renderCollectionsHeader({ t, setShowNewDialog })}
 
       {error ? <div className="notice error">{error}</div> : null}
       {actionError ? <div className="notice error">{actionError}</div> : null}
 
-      <DataTable
-        rows={types}
-        rowKey={(ct) => ct.key}
-        empty={
-          <div className="card">
-            <div className="empty-state">
-              <p>{t({ key: "No Collections yet." })}</p>
-              <p className="page-description">{t({ key: "Create your first content type to start adding entries." })}</p>
-            </div>
-          </div>
-        }
-        columns={[
-          // The label opens the entries too (mobile catalog CO-1, 2026-10-06): "Manage entries" sits
-          // in the seventh column, off-screen in a phone's sideways scroller, so the row's own name
-          // is the obvious way in.
-          { key: "label", header: t({ key: "Label" }), cell: (ct) => <a href={`/admin/collections/${ct.key}`}>{ct.label}</a> },
-          { key: "key", header: t({ key: "Key" }), cell: (ct) => <code>{ct.key}</code> },
-          { key: "fields", header: t({ key: "Fields" }), cell: (ct) => ct.fields.length },
-          {
-            key: "queryable-fields",
-            header: t({ key: "Queryable fields" }),
-            cell: (ct) => ct.fields.filter((f) => f.queryable).length,
-          },
-          {
-            key: "status",
-            header: t({ key: "Status" }),
-            cell: (ct) => <span className={`status status-${ct.status}`}><ServerLabel value={ct.status} /></span>,
-          },
-          {
-            key: "entries",
-            header: t({ key: "Entries" }),
-            cell: (ct, index) => (
-              <a
-                href={`/admin/collections/${ct.key}`}
-                {...agentHandle({ handle: `${rowHandles[index]}-entries` }, {
-                  role: "link",
-                  label: "Open this content type's list of entries",
-                })}
-              >
-                {t({ key: "Manage entries" })}
-              </a>
-            ),
-          },
-          {
-            key: "embed",
-            header: t({ key: "Embed" }),
-            cell: (ct, index) => (
-              <>
-                <button
-                  type="button"
-                  onClick={() => void copyEmbedCode(ct)}
-                  {...agentHandle({ handle: `${rowHandles[index]}-copy-embed` }, {
-                    role: "button",
-                    label: `Copy the embed code for content type "${ct.label}"`,
-                  })}
-                >
-                  {/* aria-live so the swap to "Copied" is announced, as StaticSiteTab's copy button does. */}
-                  <span aria-live="polite">{copiedKey === ct.key ? t({ key: "Copied" }) : t({ key: "Copy embed code" })}</span>
-                </button>
-                {copyFallback?.key === ct.key && <code translate="no">{copyFallback.snippet}</code>}
-              </>
-            ),
-          },
-          {
-            key: "actions",
-            header: t({ key: "More" }),
-            cell: (ct, index) => (
-              <RowMenu
-                triggerLabel={t({ key: 'Actions for content type "{label}"' }).replace("{label}", () => ct.label)}
-                agentHandle={`${rowHandles[index]}-menu`}
-                items={contentTypeMenuItems(
-                  { contentType: ct, handlers: {
-                    onEditFields: setEditingFieldsFor,
-                    onDeprecate: ({ contentType }, _optional = {}) => setPendingLifecycle({ op: "deprecate", contentType }),
-                    onReactivate: ({ contentType }, _optional = {}) => void runLifecycle(contentType, "reactivate"),
-                    onTombstone: ({ contentType }, _optional = {}) => setPendingLifecycle({ op: "tombstone", contentType }),
-                  }, locale },
-                )}
-              />
-            ),
-          },
-        ]}
-      />
+      {renderCollectionsTable({ types, t, rowHandles, copyEmbedCode, copiedKey, copyFallback, setEditingFieldsFor, setPendingLifecycle, runLifecycle, locale })}
 
       <CollectionsDialogs
         dialogHooks={dialogHooks}
@@ -666,6 +561,188 @@ export function Collections({ useCollectionsHook = useWiredCollections, dialogHo
         onFieldsCancel={() => setEditingFieldsFor(null)}
         t={t}
       />
+    </div>
+  );
+}
+
+function useCollectionsView(
+  { useCollectionsHook }:
+    { useCollectionsHook: NonNullable<CollectionsProps["useCollectionsHook"]> }
+) {
+  const {
+    types,
+    error,
+    showNewDialog,
+    setShowNewDialog,
+    pendingLifecycle,
+    setPendingLifecycle,
+    editingFieldsFor,
+    setEditingFieldsFor,
+    actionError,
+    load,
+    runLifecycle,
+    copiedKey,
+    copyFallback,
+    copyEmbedCode,
+    t,
+    locale,
+  } = useCollectionsHook();
+  return {
+    types, error, showNewDialog, setShowNewDialog, pendingLifecycle, setPendingLifecycle, editingFieldsFor, setEditingFieldsFor, actionError, load, runLifecycle,
+    copiedKey, copyFallback, copyEmbedCode, t, locale,
+  };
+}
+
+function renderCollectionsTable(
+  { types, t, rowHandles, copyEmbedCode, copiedKey, copyFallback, setEditingFieldsFor, setPendingLifecycle, runLifecycle, locale }:
+    Pick<ReturnType<NonNullable<CollectionsProps["useCollectionsHook"]>>, "t" | "copyEmbedCode" | "copiedKey" | "copyFallback" | "setEditingFieldsFor"
+    | "setPendingLifecycle" | "runLifecycle" | "locale"> &
+    { types: NonNullable<ReturnType<NonNullable<CollectionsProps["useCollectionsHook"]>>["types"]>; rowHandles: ReturnType<typeof buildAgentListHandles> }
+) {
+  return (
+    <DataTable
+      rows={types}
+      rowKey={(ct) => ct.key}
+      empty={renderCollectionsEmpty({ t })}
+      columns={[
+        // The label opens the entries too (mobile catalog CO-1, 2026-10-06): "Manage entries" sits
+        // in the seventh column, off-screen in a phone's sideways scroller, so the row's own name
+        // is the obvious way in.
+        { key: "label", header: t({ key: "Label" }), cell: (ct) => <a href={`/admin/collections/${ct.key}`}>{ct.label}</a> },
+        { key: "key", header: t({ key: "Key" }), cell: (ct) => <code>{ct.key}</code> },
+        { key: "fields", header: t({ key: "Fields" }), cell: (ct) => ct.fields.length },
+        {
+          key: "queryable-fields",
+          header: t({ key: "Queryable fields" }),
+          cell: (ct) => ct.fields.filter((f) => f.queryable).length,
+        },
+        {
+          key: "status",
+          header: t({ key: "Status" }),
+          cell: (ct) => <span className={`status status-${ct.status}`}><ServerLabel value={ct.status} /></span>,
+        },
+        {
+          key: "entries",
+          header: t({ key: "Entries" }),
+          cell: (ct, index) => renderCollectionEntriesLink({ ct, rowHandles, index, t }),
+        },
+        {
+          key: "embed",
+          header: t({ key: "Embed" }),
+          cell: (ct, index) => renderCollectionEmbed({ copyEmbedCode, ct, rowHandles, index, copiedKey, t, copyFallback }),
+        },
+        {
+          key: "actions",
+          header: t({ key: "More" }),
+          cell: (ct, index) => renderCollectionMenu({ t, ct, rowHandles, index, setEditingFieldsFor, setPendingLifecycle, runLifecycle, locale }),
+        },
+      ]}
+    />
+  );
+}
+
+function renderCollectionsEmpty(
+  { t }:
+    Pick<Parameters<typeof renderCollectionsTable>[0], "t">
+) {
+  return (
+    <div className="card">
+      <div className="empty-state">
+        <p>{t({ key: "No Collections yet." })}</p>
+        <p className="page-description">{t({ key: "Create your first content type to start adding entries." })}</p>
+      </div>
+    </div>
+  );
+}
+
+function renderCollectionEntriesLink(
+  { ct, rowHandles, index, t }:
+    Pick<Parameters<typeof renderCollectionsTable>[0], "rowHandles" | "t"> &
+    { ct: AdminContentType; index: number }
+) {
+  return (
+    <a
+      href={`/admin/collections/${ct.key}`}
+      {...agentHandle({ handle: `${rowHandles[index]}-entries` }, {
+        role: "link",
+        label: "Open this content type's list of entries",
+      })}
+    >
+      {t({ key: "Manage entries" })}
+    </a>
+  );
+}
+
+function renderCollectionEmbed(
+  { copyEmbedCode, ct, rowHandles, index, copiedKey, t, copyFallback }:
+    Pick<ReturnType<NonNullable<CollectionsProps["useCollectionsHook"]>>, "copyEmbedCode" | "copiedKey" | "t" | "copyFallback"> &
+    { ct: AdminContentType; rowHandles: ReturnType<typeof buildAgentListHandles>; index: number }
+) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void copyEmbedCode(ct)}
+        {...agentHandle({ handle: `${rowHandles[index]}-copy-embed` }, {
+          role: "button",
+          label: `Copy the embed code for content type "${ct.label}"`,
+        })}
+      >
+        {/* aria-live so the swap to "Copied" is announced, as StaticSiteTab's copy button does. */}
+        <span aria-live="polite">{copiedKey === ct.key ? t({ key: "Copied" }) : t({ key: "Copy embed code" })}</span>
+      </button>
+      {copyFallback?.key === ct.key && <code translate="no">{copyFallback.snippet}</code>}
+    </>
+  );
+}
+
+function renderCollectionMenu(
+  { t, ct, rowHandles, index, setEditingFieldsFor, setPendingLifecycle, runLifecycle, locale }:
+    Pick<ReturnType<NonNullable<CollectionsProps["useCollectionsHook"]>>, "t" | "setEditingFieldsFor" | "setPendingLifecycle" | "runLifecycle" | "locale"> &
+    { ct: AdminContentType; rowHandles: ReturnType<typeof buildAgentListHandles>; index: number }
+) {
+  return (
+    <RowMenu
+      triggerLabel={t({ key: 'Actions for content type "{label}"' }).replace("{label}", () => ct.label)}
+      agentHandle={`${rowHandles[index]}-menu`}
+      items={contentTypeMenuItems(
+        { contentType: ct, handlers: {
+          onEditFields: setEditingFieldsFor,
+          onDeprecate: ({ contentType }, _optional = {}) => setPendingLifecycle({ op: "deprecate", contentType }),
+          onReactivate: ({ contentType }, _optional = {}) => void runLifecycle(contentType, "reactivate"),
+          onTombstone: ({ contentType }, _optional = {}) => setPendingLifecycle({ op: "tombstone", contentType }),
+        }, locale },
+      )}
+    />
+  );
+}
+
+function renderCollectionsHeader(
+  { t, setShowNewDialog }:
+    Pick<ReturnType<NonNullable<CollectionsProps["useCollectionsHook"]>>, "t" | "setShowNewDialog">
+) {
+  return (
+    <div
+      className="page-header"
+      {...agentHandle({ handle: "collections-header" }, {
+        role: "region",
+        label: "Collections list header — page title and the New content type button",
+      })}
+    >
+      <div className="page-header-text">
+        <p className="page-kicker">{t({ key: "Content" })}</p>
+        <h1 className="page-title">{t({ key: "Collections" })}</h1>
+        <p className="page-description">{t({ key: "Content types you define, each with its own set of entries." })}</p>
+      </div>
+      <div className="page-actions">
+        <PublishSectionButton section="collections" />
+        <button
+          onClick={() => setShowNewDialog(true)}
+          {...agentHandle({ handle: "collections-new" }, { role: "button", label: "Define a new content type" })}
+        >
+          {t({ key: "New content type" })}
+        </button>
+      </div>
     </div>
   );
 }
