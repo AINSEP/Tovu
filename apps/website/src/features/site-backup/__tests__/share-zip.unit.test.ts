@@ -40,7 +40,7 @@ for (const offset of [-1, 0, 1]) {
 test("backup skips and reports an oversized disk file while retaining limit-1 and the exact limit", () => {
   const files: PlannedDiskFile[] = [9, 10, 11].map(bytes => ({ path: `themes/${bytes}.txt`, bytes,
     scope: "themes", absPath: `/unused/${bytes}`, root: "/unused", identity: null, nlink: 1, mtimeMs: 0 }));
-  const result = skipOversizedFiles(files, { label: "fixture", maxFileBytes: 10 });
+  const result = skipOversizedFiles({ files, host: { label: "fixture", maxFileBytes: 10 } });
   assert.deepEqual(result.files, files.slice(0, 2));
   assert.deepEqual(result.skipped, [{ path: "themes/11.txt", reason: "11 B, over fixture's 10 B per-file limit" }]);
 });

@@ -71,7 +71,7 @@ async function serviceDeps(required: { f: Fixture }): Promise<SiteBackupToolDeps
   const { f } = required, repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer(keyring);
   await createCustomCredential({ repo, keyring, sealer,
-    clock: { nowIso: () => f.plan.createdAt, nowMs: () => Date.parse(f.plan.createdAt) }, idGen: { newId: () => "cancel-credential" } }, {
+    clock: { nowMs: () => Date.parse(f.plan.createdAt) }, idGen: { newId: () => "cancel-credential" } }, {
     workspaceId: "ws", label: "github", category: "source-control", baseUrl: f.baseUrl, additionalHosts: [], connection: { token: "fixture-token" },
   });
   return { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }), customCredentialSetRepo: repo,

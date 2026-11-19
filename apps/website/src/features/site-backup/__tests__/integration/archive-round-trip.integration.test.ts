@@ -35,7 +35,7 @@ async function repositoryHarness(required: { h: ImportHarness }) {
   const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer(keyring);
   const provider = (await githubFromSource({ workspaceId: "ws" })).get({ providerId: "github" });
   assert.ok(provider);
-  await createCustomCredential({ repo, sealer, keyring, clock: { nowIso: () => stamp, nowMs: () => Date.parse(stamp) }, idGen: { newId: () => "backup-credential" } }, {
+  await createCustomCredential({ repo, sealer, keyring, clock: { nowMs: () => Date.parse(stamp) }, idGen: { newId: () => "backup-credential" } }, {
     workspaceId: "ws", label: "github", category: "source-control", baseUrl: provider.descriptor.apiOrigin,
     additionalHosts: [], connection: { token: "fixture-token" },
   });

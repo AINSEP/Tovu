@@ -82,7 +82,7 @@ test("creation seeds only the protected fallback and preserves a differing archi
   assert.ok(seeded);
   assert.deepEqual(tree({ root: path.join(site.path, "themes/static", fallback) }), seeded);
   for (const file of fallbackFiles) {
-    const runtimePath = file.path.replace(`themes/${fallback}/`, `themes/static/${fallback}/`);
+    const runtimePath: string = file.path.replace(`themes/${fallback}/`, `themes/static/${fallback}/`);
     assert.deepEqual(fs.readFileSync(path.join(site.path, ".import-quarantine", runtimePath)), file.content);
   }
   assert.ok(ready.warnings?.some(warning => warning.includes(fallback)));
