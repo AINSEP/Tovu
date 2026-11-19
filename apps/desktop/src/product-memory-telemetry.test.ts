@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { EventEmitter } from 'node:events';
+import { focusVisibility } from './main/updates/product-telemetry-boot.ts';
 import { createNoopTracker, type TrackerErrorContext } from '@jini-ai/diagnostics/observability';
 import { createDesktopResources } from './desktop-resources.ts';
 import { projectMemoryProcesses, startProductMemoryTelemetry } from './product-memory-telemetry.ts';
 import type { ProductConsent } from '../../website/src/server/runtime/composition/product-telemetry.ts';
-import { startVisibleInterval } from './renderer/visible-interval.ts';
+import { startVisibleInterval } from '@jini-ai/ui/visible-interval';
 
 const MB = 1_000_000, MINUTE = 60_000, DAY = 24 * 60 * MINUTE;
 function fixture() {
@@ -57,17 +59,14 @@ test('host visibility scheduling pauses memory sampling while inactive and dispo
   const snapshot = await f.monitor.get({ panelOpen: false });
   f.memory.dispose();
   let visible = false, reads = 0, cadence = 0;
-  const listeners = new Set<() => void>(), timers = new Map<number, () => void>();
-  const setVisible = (next: boolean) => { visible = next; for (const listener of listeners) listener(); };
+  const app = new EventEmitter(), timers = new Map<number, () => void>();
+  const visibility = focusVisibility({ app, windows: { getFocusedWindow: () => visible ? app : null } });
+  const setVisible = (next: boolean) => { visible = next; app.emit(next ? 'browser-window-focus' : 'browser-window-blur'); };
   const memory = startProductMemoryTelemetry({
     monitor: { get: async () => { reads++; return snapshot; } }, tracker: createNoopTracker({}),
     readConsent: () => ({ crashes: true, usage: true, installationId: 'FAKE_INSTALL' }),
     desktopPid: 1, rendererPids: () => new Set([2]), heapUsedBytes: () => 0, uptime: () => 0,
-  }, { schedule: ({ tick, ms }) => startVisibleInterval({ tick, periodMs: ms }, { doc: {
-    get visibilityState() { return visible ? 'visible' : 'hidden'; },
-    addEventListener: (_type, listener) => { listeners.add(listener); },
-    removeEventListener: (_type, listener) => { assert.equal(listeners.delete(listener), true); },
-  }, timers: {
+  }, { schedule: ({ tick, ms }) => startVisibleInterval({ tick, periodMs: ms }, { doc: visibility, timers: {
     setInterval: ({ callback, ms }) => { timers.set(1, callback); cadence = ms; return 1; },
     clearInterval: ({ handle }) => { assert.equal(handle, 1); assert.equal(timers.delete(1), true); },
   } }) });
@@ -89,7 +88,8 @@ test('host visibility scheduling pauses memory sampling while inactive and dispo
   await memory.tick();
   memory.dispose();
   assert.equal(timers.size, 0);
-  assert.equal(listeners.size, 0);
+  assert.equal(app.listenerCount('browser-window-focus'), 0);
+  assert.equal(app.listenerCount('browser-window-blur'), 0);
   await memory.tick();
   assert.equal(reads, 3);
 });

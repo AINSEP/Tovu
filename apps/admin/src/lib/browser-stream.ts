@@ -1,5 +1,5 @@
 /** Browser connection ownership; transport callbacks retain their native retry policy. */
-import type { VisibilitySource } from "./visible-interval";
+import type { VisibilitySource } from "@jini-ai/ui/visible-interval";
 import type { StreamActivity } from "./stream-activity";
 
 export interface StreamChannel {

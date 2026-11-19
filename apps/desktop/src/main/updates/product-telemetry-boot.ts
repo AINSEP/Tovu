@@ -18,8 +18,8 @@ import {
 } from "../../product-telemetry-preference.ts";
 import { registerProductTelemetryIpc } from "../../product-telemetry-ipc.ts";
 import { startProductMemoryTelemetry } from "../../product-memory-telemetry.ts";
-import { startVisibleInterval } from "../../renderer/visible-interval.ts";
-import type { VisibilitySource } from "../../renderer/visible-interval.ts";
+import { startVisibleInterval } from "@jini-ai/ui/visible-interval";
+import type { VisibilitySource } from "@jini-ai/ui/visible-interval";
 import { refreshProductMenu, SHARING_SAVE_ERROR } from "./settings-menu.ts";
 import type { ApplicationMenuPort } from "./settings-menu.ts";
 

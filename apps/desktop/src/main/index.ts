@@ -130,7 +130,7 @@ import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
 // Shared shutdown rules and their rationale now live in Jini's desktop-host/shutdown modules.
 // Teardown rationale: Jini packages/desktop-host/src/shutdown/shutdown-tracker.ts.
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
-import { createShutdownTracker, routeQuitSignals, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
+import { createShutdownTracker, routeQuitSignals, decideBeforeQuit, createLastWindowQuitPrompt, type QuitPhase } from "@jini-ai/desktop-host/shutdown";
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
 import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "../window-navigation-policy.ts";
 import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
@@ -171,13 +171,12 @@ import { presenceDirPath } from "../instance-presence.ts";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
 import type { MenuItemConstructorOptions, WebContents } from "electron";
-import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
 import type { SelftestTracker } from "../selftest-tracker.ts";
 // The decisions this file wires live beside it in src/main/: windows/ (window and navigation policy), boot/
 // (site spawn, previews, boot steps and failures), updates/ (updater, Settings menu, notices, telemetry).
 import { promptForSiteDir as promptForSiteFolder } from "./windows/site-folder-prompt.ts";
 import { createAppWindow } from "./windows/app-window.ts";
-import { createLastWindowQuitPrompt } from "./windows/last-window-quit.ts";
+import { desktopCopy } from "../desktop-i18n.ts";
 import { openSitesHomeWindow as openSitesHomeWindowWith } from "./windows/sites-home-window.ts";
 import { openSiteWindow as openSiteWindowWith } from "./windows/site-window.ts";
 import { installWebviewGuestPolicy } from "./windows/guest-navigation.ts";
@@ -501,15 +500,15 @@ function resolveCliMode(): CliMode { return resolveCliModeIn({ env: process.env,
 function isUnattendedSiteLaunch(): boolean { return isUnattendedSiteLaunchIn({ env: process.env }); }
 function readSiteName({ siteDir }: { siteDir: string }, _optional = {}): string { return readSiteNameIn({ siteDir }); }
 
-/** The ask before the last app window closes with sites running — see `last-window-quit.ts`. */
+/** The ask before the last app window closes with sites running — see Jini desktop-host/shutdown. */
 const lastWindowQuit = createLastWindowQuitPrompt<BrowserWindow>({ ports: {
-  openServers: () => [...openSites.values()].map((entry) => entry.server),
+  openChildren: () => [...openSites.values()].map((entry) => entry.server),
   platform: process.platform,
-  locale: () => app.getLocale(),
+  dialogCopy: () => ({ title: "Tovu", labels: desktopCopy({ locale: app.getLocale() }).lastWindowQuit }),
   showMessageBox: ({ window, options }) => dialog.showMessageBox(window, options),
   quit: () => app.quit(),
-  keepSitesRunning: () => siteLifecycle?.keepAwake(),
-  logError: ({ message }) => console.error(message),
+  keepChildrenRunning: () => siteLifecycle?.keepAwake(),
+  reportError: ({ error }) => console.error(`[tovu-desktop] could not ask before quitting: ${(error as Error).message}`),
 } });
 
 /** Every app window, as it is created. Capture windows do not come through here. */

@@ -105,6 +105,8 @@ describe("useComposerCapabilities", () => {
       expect(vi.getTimerCount()).toBe(1);
       unmount();
       expect(vi.getTimerCount()).toBe(0);
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(fetchMock).toHaveBeenCalledTimes(7);
       publishAssistantDockState({ open: true });
       window.dispatchEvent(new Event("focus"));
       window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT));

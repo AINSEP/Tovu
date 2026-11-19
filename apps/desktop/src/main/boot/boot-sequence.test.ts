@@ -4,7 +4,7 @@
  * reopen. Replaces the source-text order checks that read `src/main/index.ts`'s `whenReady` block
  * (`main-shutdown-wiring`'s signal-arming order, `main-project-wiring`'s migration-before-mode-split
  * and discovery-before-window checks, `main-owner-store-wiring`'s settle-after-IPC check,
- * `site-history-menu`'s menu-before-window checks and `main-updater-wiring`'s non-blocking start).
+ * the app menu's menu-before-window checks and `main-updater-wiring`'s non-blocking start).
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -124,6 +124,10 @@ test("the app-wide menu keeps the sites-home menus and appends Settings, read af
     const home = ["fileMenu", "editMenu", "View", "History", "Find", "windowMenu", "help", "Settings"];
     assert.deepEqual(roles, platform === "darwin" ? ["appMenu", ...home] : home, platform);
     assert.deepEqual(order, ["settings"]);
+    const view = template.find((entry) => "label" in entry && entry.label === "View");
+    assert.ok(view && "submenu" in view);
+    assert.deepEqual(view.submenu.filter((entry) => "label" in entry).map((entry) => entry.label),
+      ["Actual Size", "Zoom In", "Zoom In", "Zoom Out"]);
   }
 });
 

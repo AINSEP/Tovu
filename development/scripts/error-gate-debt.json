@@ -615,11 +615,6 @@
     "value": 1
   },
   {
-    "file": "apps/desktop/src/renderer/use-live-views.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 4
-  },
-  {
     "file": "apps/desktop/src/renderer/use-site-list-prefs.hooks.ts",
     "rule": "catch-reads-error",
     "value": 2

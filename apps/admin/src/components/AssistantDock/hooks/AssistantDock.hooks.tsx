@@ -25,7 +25,7 @@ import { resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { navigate } from "@/lib/router";
-import { startVisibleInterval } from "@/lib/visible-interval";
+import { startVisibleInterval } from "@jini-ai/ui/visible-interval";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
 import { readAgentsSnapshot, writeAgentsSnapshot } from "@/lib/assistant-agents-snapshot";

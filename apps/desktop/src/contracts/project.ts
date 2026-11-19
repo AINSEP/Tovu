@@ -312,8 +312,8 @@ export type SiteHistoryCommand = 'back' | 'forward';
 /**
  * push (main → renderer): the app menu's History > Back or Forward (Cmd+[ / Cmd+]), carrying a
  * {@link SiteHistoryCommand}. Main does not know which tab is on screen; the visible project tab is
- * the only subscriber. A push, not an `invoke` target, so it has no handler or stub. Inlined in
- * `site-history-menu.ts`, which tests that the two match.
+ * the only subscriber. A push, not an `invoke` target, so it has no handler or stub. Bound in
+ * `main/boot/boot-sequence.ts`.
  */
 export const SITE_HISTORY_CHANNEL = 'runner:sites:history';
 

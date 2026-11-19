@@ -30,7 +30,8 @@ import { PROJECT_NOT_OPEN_MESSAGE } from '../contracts/project.js';
 import { subscribeWorkspaceThemePreview } from './site-theme-preview.hooks.js';
 import { sitePortPresentation } from './site-port.rules.js';
 import { adminPagePath, type SiteAdminPage } from './import-site-entry.js';
-import { restoreParkedScroll, type ParkedView } from './use-live-views.hooks.js';
+import { INNER_SCROLLER } from './use-live-views.hooks.js';
+import { restoreParkedScroll, type ParkedView } from '@jini-ai/ui/core';
 
 /** Whether the guest's own session history has an entry either side of the current one. */
 export interface SiteHistory {
@@ -378,7 +379,9 @@ export function useSiteWorkspace({ project, hidden }: { project: SiteRecord; hid
   const src = restoredSrc({ surfaceSrc, restoreUrl: state.restoreUrl });
   // Only a guest that mounted ON the pinned route gets its scroll back; a recovery remount does not.
   const restoring = state.restoreUrl !== null && src === state.restoreUrl;
-  useEffect(() => restoreParkedScroll({ guest, parked: restoring ? parked : undefined }), [guest, parked, restoring]);
+  useEffect(() => restoreParkedScroll({ guest, parked: restoring ? parked : undefined, innerScroller: INNER_SCROLLER }, {
+    report: ({ error }) => console.error("[live-views] Could not restore scroll position", describeErrorForLog({ err: error })),
+  }), [guest, parked, restoring]);
   useEffect(() => subscribeWorkspaceThemePreview({
     bridge: getBridge(), siteDir: project.installDir, port: project.port,
     running: src !== '', url: state.liveUrl ?? src, guest, dispatch,
