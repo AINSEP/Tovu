@@ -119,6 +119,9 @@ test("GET /page/2: the home page's own paged listing is served at /page/2", asyn
 
 test("GET /about/page/2 and /page/2: a page with no paged listing answers 404, not a duplicate of itself", async (t) => {
   const baseUrl = await boot(t, 30);
+  const page = await fetch(`${baseUrl}/about`);
+  assert.equal(page.status, 200);
+  assert.doesNotMatch(await page.text(), /class="jini-pagination"/);
   assert.equal((await fetch(`${baseUrl}/about/page/2`)).status, 404);
   assert.equal((await fetch(`${baseUrl}/page/2`)).status, 404);
 });

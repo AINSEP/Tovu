@@ -252,7 +252,7 @@ test("listing responses: the JSON batch has its content type and page shape", as
   assert.equal(body.items.length, 12);
   assert.equal(body.nextCursor, 24);
   assert.deepEqual(Object.keys(body.items[0] ?? {}).sort(), ["cover", "date", "dateLabel", "href", "terms", "title"]);
-  assert.equal(body.items[0]?.href, "/post-12");
+  assert.deepEqual(body.items.map((item) => item.href), Array.from({ length: 12 }, (_, index) => `/post-${index + 12}`));
   pin("more: json batch body", body);
 
   const html = await fetch(`${baseUrl}/more/_more/1/12`);

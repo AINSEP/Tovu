@@ -17,7 +17,7 @@ import { injectMemberAuthScript } from "../../../http/site/member-auth-script.js
 import { isHttpsRequest } from "../../../../../../platform/express/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 import type { RouteDeps } from "#src/server/routes/types";
-import { listingBatchBody, assertListingPageServed } from "./listing/listing-state.js";
+import { listingState } from "./listing/listing-state.js";
 import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTROL_PUBLIC_PAGE, CACHE_CONTROL_PRIVATE_FORM_RESULT, CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE } from "./request-policy.js";
 
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
@@ -120,9 +120,13 @@ function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: i
 }
 
 async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Request; html: string; formResult: FormSubmissionRedirectResult | undefined; deps: RouteDeps }, _optional = {}): Promise<string> {
-  const batchBody = listingBatchBody({ req, html });
-  if (batchBody !== undefined) return batchBody;
-  assertListingPageServed({ req, html });
+  const batchBody = listingState.listingBatchBody({ req, html });
+  if (batchBody !== undefined) {
+    // Every caller has already typed the response as html; the JSON form answers as JSON.
+    if (batchBody.format === "json") req.res?.type("json");
+    return batchBody.body;
+  }
+  listingState.assertListingPageServed({ req, html });
   html = injectExtraHeadIntoStaticPage({ html, extraHead: deps.pluginExportRender?.headHtml({}) });
   addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) });
   html = injectListingScript({ html });
