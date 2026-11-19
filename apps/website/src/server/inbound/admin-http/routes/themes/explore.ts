@@ -53,7 +53,6 @@ import {
 // re-exported for the identical reason: `integration/explore.integration.test.ts` still imports it
 // directly from this module.
 export { fileExtension, nextAvailableFileName };
-import type { PostKind } from "#src/contracts/core/post-kind";
 import { isTrashed, ROOT_SLUG, type PostRecord } from "#src/features/post/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -295,7 +294,7 @@ function pageIdForPagePath({ relativePath }: { relativePath: string }, _optional
  *  wire. Named separately from {@link describeThemeFile}'s own inline return type only because
  *  {@link contentRecordsBySlug} below needs the identical shape for its `Map`'s value type, and
  *  respelling it a second time is exactly the drift risk a shared type exists to remove. */
-type ThemeFileContentCollision = { id: string; slug: string; title: string; kind: PostKind };
+type ThemeFileContentCollision = { id: string; slug: string; title: string; kind: PostRecord["kind"] };
 
 /**
  * One slug -> live content record lookup for an ENTIRE file listing, built from a SINGLE

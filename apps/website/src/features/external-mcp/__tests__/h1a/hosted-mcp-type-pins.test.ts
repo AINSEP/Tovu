@@ -88,7 +88,7 @@ test("canonical core record and the Tovu aliases equal the c3801c833 pins (keys 
     pinned<PinnedBearer, Core.McpBearerTokenSupplier>(true), pinned<PinnedBearer, import("@jini-ai/mcp/federation").McpBearerTokenSupplier>(true),
     pinned<PinnedTarget, T.ExternalMcpServerTarget>(true), pinned<PinnedConfig, T.ExternalMcpServerConfig>(true),
     pinned<PinnedSealedPayload, T.ExternalMcpSealedOAuthPayload>(true), pinned<PinnedSealedOAuth, T.SealedExternalMcpOAuth>(true),
-    pinned<PinnedConnectStart, T.ExternalMcpConnectStart>(true), pinned<PinnedReason, T.ExternalMcpRevocationReason>(true),
+    pinned<PinnedConnectStart, Core.ExternalMcpConnectStart>(true), pinned<PinnedReason, T.ExternalMcpRevocationReason>(true),
     pinned<"stdio" | "streamable_http", T.ExternalMcpTransport>(true), pinned<(typeof SUPPORTED_EXTERNAL_MCP_TRANSPORTS)[number], Core.ExternalMcpTransport>(true),
     pinned<"authorization_code" | "device_code", T.ExternalMcpOAuthGrant>(true), pinned<(typeof EXTERNAL_MCP_OAUTH_GRANTS)[number], Core.ExternalMcpOAuthGrant>(true),
     pinned<"none" | "static_env" | "oauth", TAuth.ExternalMcpAuthMode>(true), pinned<(typeof EXTERNAL_MCP_AUTH_MODES)[number], Core.ExternalMcpAuthMode>(true),

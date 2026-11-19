@@ -1390,7 +1390,7 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/features/settings/operator-locale.ts",
+    "file": "apps/website/src/contracts/core/operator-locale.ts",
     "rule": "catch-reads-error",
     "value": 1
   },

@@ -65,13 +65,6 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/platform/html/published-webmcp-strip.ts",
-      "function": "nativeFormToolRanges#1",
-      "line": 22,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 12
-    },
-    {
       "file": "apps/website/src/platform/site-dir/read-site-dir.ts",
       "function": "validateMeta#1",
       "line": 110,
