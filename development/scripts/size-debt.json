@@ -821,13 +821,6 @@
       "value": 155
     },
     {
-      "file": "apps/website/src/features/identity/repo.ts",
-      "function": "<file>",
-      "line": 579,
-      "rule": "max-lines",
-      "value": 616
-    },
-    {
       "file": "apps/website/src/features/identity/tool-registrations.ts",
       "function": "buildGatedIdentityRegistrations#1",
       "line": 125,
