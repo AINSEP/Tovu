@@ -74,14 +74,6 @@ export { createContentDbTransactionRunner, SqliteTrashRepo } from "./repo.sqlite
 export { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 export { decodeTrashCursor, encodeTrashCursor } from "@jini-ai/cms/trash";
 
-export {
-  deriveTrashItemRegistrations,
-  TRASH_ITEM_DELEGATES,
-  TRASH_ITEM_TOOL_ID,
-  trashItemDerivedRisk,
-} from "./trash-item-tool.js";
-export type { TrashItemDelegate, TrashItemToolDeps, TrashUserPort } from "./trash-item-tool.js";
-
 export { createPostTrashAdapter, POST_ENTITY_TYPE } from "./adapters/post.js";
 export { createCommentTrashAdapter, COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 export { createMediaTrashAdapter, MEDIA_ENTITY_TYPE } from "./adapters/media.js";

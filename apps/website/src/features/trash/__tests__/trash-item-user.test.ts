@@ -5,10 +5,8 @@ import test from "node:test";
 import { ToolInputError, ToolPermissionDeniedError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 
-import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { deriveTrashItemRegistrations, type TrashItemToolDeps, type TrashUserPort, type TrashItemDelegate } from "#src/features/trash/trash-item-tool";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { deriveTrashItemRegistrations, type TrashItemToolDeps, type TrashItemDelegate } from "#src/features/trash/trash-item-tool";
+import type { TrashUserPort } from "@jini-ai/cms/trash";
 import { buildTrashRegistry } from "../registry.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
@@ -38,7 +36,7 @@ function routeDeps(trashable: (required: { entityType: TrashEntityType }) => boo
 
 function derive(deps: TrashItemToolDeps, trashUser?: TrashUserPort): ToolRegistration[] {
   return deriveTrashItemRegistrations(
-    { registrations: [], routeDeps: deps, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } },
+    { registrations: [], routeDeps: deps },
     trashUser ? { trashUser } : {}
   );
 }
@@ -134,7 +132,6 @@ test("delegate indexing skips absent tools, preserves delegate precedence and fo
     registrations: [{ ...template, descriptor: { ...template.descriptor, id: "l128-delete" },
       handler: async (ctx, options) => { events.push(ctx.input, options); return { delegated: true }; } }],
     routeDeps: deps,
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   }, { delegates });
   assert.deepEqual(enumOf(registration), ["form", ...[...deps.registry.keys()].filter((kind) => kind !== "form")]);
   const ctx: ToolExecutionContext = { executionId: "l128", principal: { id: CALLER }, run: { id: "run-1" },

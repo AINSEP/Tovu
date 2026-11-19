@@ -31,7 +31,8 @@ import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features
 import { createTrashService, type TrashAdapter } from "@jini-ai/cms/trash";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 
-import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
+import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
+import { TRASH_ITEM_TOOL_ID } from "@jini-ai/cms/trash";
 import { trashThemeAgentToolCatalog } from "#src/features/theme/trash-theme-tool";
 import { createRedirect } from "@jini-ai/cms/redirects";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
@@ -511,7 +512,6 @@ test("SINK AUDIT: in the production catalog, trash_item accepts every delegate A
   const [trashItem] = deriveTrashItemRegistrations({
     registrations,
     routeDeps: withRealTrashRegistry(routeDeps),
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   });
   const schema = trashItem.descriptor.inputSchema as {
     properties: { entityType: { enum: string[] } };
@@ -528,7 +528,6 @@ test("a kind whose delete tool is not registered is not accepted, with an exact 
   const [trashItem] = deriveTrashItemRegistrations({
     registrations: withoutComments,
     routeDeps: withRealTrashRegistry(routeDeps),
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   });
   assert.ok(trashItem);
 
@@ -542,7 +541,7 @@ test("a kind whose delete tool is not registered is not accepted, with an exact 
 test("with no delegate tool registered and an empty registry, trash_item is not registered", () => {
   const { routeDeps } = harness(EVERYTHING);
   const emptyRegistry = { ...routeDeps, registry: new Map() };
-  assert.deepEqual(deriveTrashItemRegistrations({ registrations: [], routeDeps: emptyRegistry, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } }), []);
+  assert.deepEqual(deriveTrashItemRegistrations({ registrations: [], routeDeps: emptyRegistry }), []);
 });
 
 test("with no delegate tool registered but a non-empty registry, trash_item is still registered for the GENERIC kinds", () => {
@@ -550,7 +549,6 @@ test("with no delegate tool registered but a non-empty registry, trash_item is s
   const [trashItem] = deriveTrashItemRegistrations({
     registrations: [],
     routeDeps: withRealTrashRegistry(routeDeps),
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   });
   assert.ok(trashItem, "generic registry kinds have no delegate, so trash_item must still be built from the registry alone");
   const schema = trashItem.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };
@@ -598,7 +596,7 @@ test("trash_item never reaches TrashPort.purgeSelected, on any input shape a mod
 
 test("a generic kind (form): an id that does not exist is refused with an exact error, with no dialog raised", async () => {
   const h = sqliteFormHarness();
-  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces });
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps });
   const emitted: unknown[] = [];
 
   await assert.rejects(
@@ -610,7 +608,7 @@ test("a generic kind (form): an id that does not exist is refused with an exact 
 
 test("a generic kind (form): permission is checked before any dialog is raised", async () => {
   const h = sqliteFormHarness({ deny: true });
-  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces });
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps });
   const emitted: unknown[] = [];
 
   await assert.rejects(
@@ -634,7 +632,7 @@ test("trash_item's GENERIC path never reaches TrashPort.purgeSelected either", a
       },
     },
   }) as TrashItemToolDeps;
-  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: guarded, surfaces: h.surfaces });
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: guarded });
 
   try {
     await call(trashItem, { entityType: "form", entityId: "missing-form" });
@@ -696,7 +694,7 @@ test("a widget with a corrupt payload can still be trashed, through widgets_tras
 // Owner rule 2026-10-08: trash is restorable, so the host policy runs it without a dialog.
 test("n06: generic trash records the AI actor, and the host policy runs it without approval", async () => {
   const h = sqliteFormHarness();
-  const [registration] = deriveTrashItemRegistrations({registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces});
+  const [registration] = deriveTrashItemRegistrations({registrations: [], routeDeps: h.routeDeps});
   const hostRegistration = applyToolApprovalPolicy({ registration: registration!, surfaces: h.surfaces });
   const result = await call(hostRegistration, {entityType: "form", entityId: "f1"}) as {outcome: {trashed: boolean}};
   assert.equal(result.outcome.trashed, true);
@@ -705,4 +703,50 @@ test("n06: generic trash records the AI actor, and the host policy runs it witho
   const rows = (await h.routeDeps.trash.list({workspaceId: h.routeDeps.workspaceId, now: NOW, limit: 50})).items;
   assert.equal(rows[0]?.actorPrincipalId, PRINCIPAL_ID);
   assert.equal(rows[0]?.actorPluginId, "assistant");
+});
+
+test("a declined delegate keeps its outcome and execution options with zero writes", async () => {
+  const { routeDeps, registrations } = harness(EVERYTHING);
+  await seedPost(routeDeps);
+  const ctx: ToolExecutionContext = {
+    executionId: "declined-delegate", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" },
+    input: { entityType: "post", entityId: "post-1" }, signal: new AbortController().signal,
+  };
+  const options = { emitSurface: async () => undefined };
+  const outcome = { deleted: false, cancelled: true };
+  const delegate = tool(registrations, "content_post_delete");
+  const [trashItem] = deriveTrashItemRegistrations({
+    registrations: [{ ...delegate, handler: async (delegateCtx, delegateOptions) => {
+      assert.deepEqual(delegateCtx, { ...ctx, input: { id: "post-1", kind: "post" } });
+      assert.equal(delegateOptions, options);
+      return outcome;
+    } }],
+    routeDeps,
+  });
+  assert.deepEqual(await trashItem.handler(ctx, options), {
+    entityType: "post", entityId: "post-1", via: "content_post_delete", outcome,
+  });
+  assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
+  assert.deepEqual(await trashRows(routeDeps), []);
+});
+
+test("a version change after the generic snapshot refuses removal with zero Trash writes", async () => {
+  const h = sqliteFormHarness();
+  const authorize = h.routeDeps.authorize;
+  h.routeDeps.authorize = async (required) => {
+    const decision = await authorize(required);
+    if (h.authorizeCalls.length === 2) h.bumpFormVersion("f1");
+    return decision;
+  };
+  let writes = 0;
+  const trash = h.routeDeps.trash.trash.bind(h.routeDeps.trash);
+  h.routeDeps.trash.trash = async (required) => { writes += 1; return trash(required); };
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps });
+  await assert.rejects(call(trashItem, { entityType: "form", entityId: "f1" }), {
+    message: "trash_item: form 'f1' changed during removal. Reload and try again. Nothing was changed.",
+  });
+  assert.equal(h.authorizeCalls.length, 2);
+  assert.equal(writes, 0);
+  assert.equal(h.formIsLive("f1"), true);
+  assert.deepEqual((await h.routeDeps.trash.list({ workspaceId: h.routeDeps.workspaceId, now: NOW, limit: 50 })).items, []);
 });

@@ -137,7 +137,8 @@ import { contributeSiteInspectionTools, openLoopbackSiteServer } from "#src/feat
 import { contributeSitesTools } from "#src/features/sites/index";
 import { buildSourceControlCredentialHandler, contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
-import { deriveTrashItemRegistrations, trashItemDerivedRisk } from "#src/features/trash/index";
+import { deriveTrashItemRegistrations } from "#src/features/trash/trash-item-tool";
+import { trashItemDerivedRisk } from "@jini-ai/cms/trash";
 import { buildPublishHostCredentialHandler, contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
 
@@ -700,7 +701,7 @@ function installWorkspaceToolContributors(contributions: AssistantToolContributi
   // and `trash_item`'s `theme` delegate, so it must be registered before that derived pass runs.
   contributions.contributors.register({ contribution: contributeTrashThemeTools() });
   // `trashUser` gives `trash_item` its `user` kind through the Users screen's own delete (see that port's doc).
-  contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: (input) => deriveTrashItemRegistrations(input, { trashUser: bindTrashUserForTool(input.routeDeps) }), risk: trashItemDerivedRisk } });
+  contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: (input) => deriveTrashItemRegistrations({ registrations: input.registrations, routeDeps: input.routeDeps }, { trashUser: bindTrashUserForTool(input.routeDeps) }), risk: trashItemDerivedRisk } });
   contributions.contributors.register({ contribution: contributeWidgetsTools() });
   contributions.contributors.register({ contribution: contributeWorkspaceTools() });
 

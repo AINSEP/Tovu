@@ -81,7 +81,7 @@ import type { IdentityToolDeps } from "../features/identity/tool-registrations.j
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps, MediaTrashToolDeps } from "../features/media/tool-registrations.js";
 import type { TrashToolDeps } from "../features/trash/tool-registrations.js";
-import type { TrashItemToolDeps } from "../features/trash/index.js";
+import type { TrashItemToolDeps } from "../features/trash/trash-item-tool.js";
 import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
 import type { MediaImportToolDeps } from "../features/media-import/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";

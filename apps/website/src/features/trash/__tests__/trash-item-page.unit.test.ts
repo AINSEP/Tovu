@@ -2,7 +2,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ToolRegistration } from '@jini-ai/core';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import { deriveTrashItemRegistrations, type TrashItemToolDeps } from '../trash-item-tool.js';
 import { executeRegisteredTool } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
 
@@ -17,7 +16,7 @@ test('page kind delegates to content_post_delete with the real row kind and cano
     authorize: async ({ permission }: { permission: string }) => { calls.push(permission); return { allowed: true }; },
     postRepo: { findById: async () => ({ kind: 'page' }) },
   } as unknown as TrashItemToolDeps;
-  const registration = deriveTrashItemRegistrations({ registrations: [delegate], routeDeps: deps, surfaces: {} as AssistantSurfaceDeps })[0]!;
+  const registration = deriveTrashItemRegistrations({ registrations: [delegate], routeDeps: deps })[0]!;
   const result = await executeRegisteredTool({ registration, input: { kind: 'page', entityId: 'about' } });
   assert.equal(result.status, 'completed');
   assert.deepEqual(calls, ['content.write', { id: 'about', kind: 'page' }]);
