@@ -99,19 +99,11 @@ export {
   type MemberAccessResolverDeps,
 } from "./access-resolver.js";
 
-export {
-  compSubscription,
-  createMember,
-  completeSignIn,
-  issueMemberSession,
-  notifyMemberCreated,
-  disableMember,
-  membersWriteService,
-  requestSignInLink,
-  prepareMemberChallenge,
-  setSubscriptionStatus,
-  updateProfile,
-} from "./write-service.js";
+export { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "./member-admin-writes.js";
+export { createMember, completeSignIn, notifyMemberCreated } from "./member-sign-in.js";
+export { issueMemberSession } from "./member-credentials.js";
+export { membersWriteService } from "./write-service.js";
+export { requestSignInLink, prepareMemberChallenge } from "./member-challenge-request.js";
 
 // D1c consent chokepoint (ADR-PIPE-013 Decision §4) — kept separate from `write-service.ts`.
 export {
@@ -130,5 +122,6 @@ export {
 
 export { trashMember } from "./trash-member.js";
 
-export { signInWithPassword, requestPasswordReset, resetPassword, setMemberPassword } from "./password-auth.js";
+export { signInWithPassword, resetPassword, setMemberPassword } from "./password-auth.js";
+export { requestPasswordReset } from "./member-challenge-request.js";
 export { resolveMemberSession } from "./access-resolver.js";

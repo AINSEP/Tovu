@@ -12,7 +12,7 @@ import {
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo, requestSignInLink, requestPasswordReset,
   type MemberRecord, type OutboundEmail,
 } from "#src/features/members/index";
-import { issueMemberSession } from "#src/features/members/write-service";
+import { issueMemberSession } from "#src/features/members/member-credentials";
 import {
   createRateLimiter, LOGIN_STRICT, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP,
   type RateLimiter,

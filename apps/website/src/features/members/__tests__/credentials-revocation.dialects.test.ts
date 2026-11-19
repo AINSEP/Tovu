@@ -6,7 +6,8 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "../repo.js";
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
-import { completeSignIn, updateProfile } from "../write-service.js";
+import { completeSignIn } from "../member-sign-in.js";
+import { updateProfile } from "../member-admin-writes.js";
 import type { MembersWriteServiceDeps } from "../ports.js";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 

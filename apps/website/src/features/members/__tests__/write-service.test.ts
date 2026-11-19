@@ -23,15 +23,9 @@ import {
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
 } from "../repo.memory.js";
-import {
-  compSubscription,
-  completeSignIn,
-  createMember,
-  disableMember,
-  requestSignInLink,
-  setSubscriptionStatus,
-  updateProfile,
-} from "../write-service.js";
+import { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "../member-admin-writes.js";
+import { completeSignIn, createMember } from "../member-sign-in.js";
+import { requestSignInLink } from "../member-challenge-request.js";
 import {
   MemberAuthError,
   MemberSignInUnavailableError,
