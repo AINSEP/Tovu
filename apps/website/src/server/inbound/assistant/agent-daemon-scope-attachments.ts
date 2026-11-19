@@ -49,14 +49,17 @@ export function createAttachmentRunFieldsResolver(ports: AttachmentPorts, _optio
  * A no-op ({} fields) when `attachmentIds` is empty — the common case, no store round trip needed.
  */
 async function resolveAttachmentRunFields(
-  { getAttachmentStore, routeDeps, stagedAttachmentCleanupByRunId, defaultAgentId: DEFAULT_AGENT_ID, getAgentDef,
-    stageAttachmentClaim = realStageAttachmentClaim, prepareMessageAttachments = realPrepareMessageAttachments,
-    readFile = realReadFile, sniffContentType = realSniffContentType, failRunBeforeStart = realFailRunBeforeStart,
-    console = globalThis.console, agentReceivesImageAttachments = realAgentReceivesImageAttachments }: AttachmentPorts,
-  { run, attachmentIds, runLifecycle, agentId = DEFAULT_AGENT_ID }: {
+  ports: AttachmentPorts,
+  { run, attachmentIds, runLifecycle, agentId = ports.defaultAgentId }: {
     run: Pick<OnStartedContext["run"], "id">; attachmentIds: readonly string[]; runLifecycle: OnStartedContext["lifecycle"]; agentId?: string;
   }, _optional = {},
 ): Promise<AttachmentRunFields | null> {
+  // Defaults by spread rather than per-field `=` defaults: same values, without a branch per seam.
+  const { getAttachmentStore, routeDeps, stagedAttachmentCleanupByRunId, getAgentDef, stageAttachmentClaim, prepareMessageAttachments,
+    readFile, sniffContentType, failRunBeforeStart, console, agentReceivesImageAttachments } = {
+    stageAttachmentClaim: realStageAttachmentClaim, prepareMessageAttachments: realPrepareMessageAttachments, readFile: realReadFile,
+    sniffContentType: realSniffContentType, failRunBeforeStart: realFailRunBeforeStart, console: globalThis.console,
+    agentReceivesImageAttachments: realAgentReceivesImageAttachments, ...ports };
   if (attachmentIds.length === 0) return {};
 
   const attachmentStore = getAttachmentStore();

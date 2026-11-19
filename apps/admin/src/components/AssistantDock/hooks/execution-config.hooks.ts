@@ -162,7 +162,7 @@ function useStoredAdminKey(
  */
 export function useExecutionConfig(
   _requiredArgs: Record<string, never> = {},
-  { port = defaultDockExecutionConfigPort, persistWrite = persistExecutionConfigWrite, useBootScope = useAdminBootScope, useLoader = useCachedLoader, useInvalidator = useInvalidate, useLedger = useExecutionConfigLedger, useStoredKey = useStoredAdminKey }: {
+  { useBootScope = useAdminBootScope, useLoader = useCachedLoader, useInvalidator = useInvalidate, useLedger = useExecutionConfigLedger, useStoredKey = useStoredAdminKey, ...seams }: {
     useBootScope?: typeof useAdminBootScope;
     useLoader?: typeof useCachedLoader;
     useInvalidator?: typeof useInvalidate;
@@ -172,6 +172,8 @@ export function useExecutionConfig(
     persistWrite?: typeof persistExecutionConfigWrite;
   } = {},
 ): UseExecutionConfig {
+  // Non-hook seams default by spread, not `=`: same values without a branch apiece.
+  const { port, persistWrite } = { port: defaultDockExecutionConfigPort, persistWrite: persistExecutionConfigWrite, ...seams };
   const io = useRef(port);
   io.current = port;
   const { queryScope } = useBootScope();

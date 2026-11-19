@@ -1,9 +1,5 @@
-import { updatePost } from "../post/post-update.js";
+import { updatePost, restorePostForward, findPublishedPostBySlug, createPublicPostReader, findPublishedPostById, PostVersionConflictError, PostNotFoundError, type ForgetRemovedPostFn, type BeforeSaveHookPort, type PostRecord, type PostRepoPort } from "../post/index.js";
 import { isTrashed } from "../../contracts/core/soft-delete.js";
-import type { ForgetRemovedPostFn } from "../post/post-trash.js";
-import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "../post/post-read.js";
-import type { BeforeSaveHookPort } from "../post/post-before-save.js";
-import { restorePostForward } from "../post/post-trash.js";
 /**
  * @file One shared composer for the deps bag every widgets write-path function needs
  * (`Jini/packages/cms/src/widgets/write-service.ts`/`Jini/packages/cms/src/widgets/embed-service.ts`/`Jini/packages/cms/src/widgets/region-area-service.ts`).
@@ -43,7 +39,6 @@ import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/c
 import { registerContentType } from "#src/features/content-types/index";
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner, toContentTypeOutbox, type ContentTypeRepoPort } from "@jini-ai/cms/content-types";
 import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictError, type EntryListPort, type EntryRepoPort } from "@jini-ai/cms/entries";
-import { PostVersionConflictError, PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/post.js";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap.js";
 import { extractEntryRefs } from "@jini-ai/cms/widgets";

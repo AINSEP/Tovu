@@ -1688,6 +1688,10 @@
     {
       "id": "9ed2c4d209a6",
       "reason": "tv-rf-d03 replaced this local LCOV parsing with @jini-ai/devops/checks/coverage; the helper/field this documented no longer exists in Tovu."
+    },
+    {
+      "id": "74d5c9974f20",
+      "reason": "tv-dx-dock split AssistantDock.hooks.tsx into modules and removed the re-export of resolveComposerDiscoveryOutcome from AssistantDock.tsx (owner rule: no re-export shells); this comment only explained that re-export."
     }
   ]
 }
