@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
 import { getAgentDef } from "@jini-ai/agent-runtime";
-import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
-import { captureDaemonRun, daemonSource, evaluateDaemonStatements, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
+import { captureDaemonRun, statementsFor, evaluateDaemonStatements, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { AsyncResource, AsyncLocalStorage } from "node:async_hooks";
 import ts from "typescript";
 import { createDaemonSiteTools } from "../agent-daemon-site-tools.js";
@@ -162,10 +162,10 @@ test("catalog identity survives a parser continuation using the pre-existing req
   await siteTools.start({ runId: "owner-run", principalId: "owner" });
   type Middleware = (req: { parsed?: boolean; get(name: string): string | undefined }, res: object, next: (error?: unknown) => void) => void;
   const stack: Middleware[] = [];
-  const statements = daemonSource.statements.filter(statement => ts.isExpressionStatement(statement) &&
-    ts.isCallExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "app.use" &&
-    ((statement.expression.arguments.length === 1 && statement.getText(daemonSource).includes("express.json(")) ||
-      (ts.isArrayLiteralExpression(statement.expression.arguments[0]!) && statement.getText(daemonSource).includes("siteTools.withRun("))));
+  const statements = statementsFor("agent-daemon-scope-http.ts", "mountGuards").filter(statement => ts.isExpressionStatement(statement) &&
+    ts.isCallExpression(statement.expression) && statement.expression.expression.getText(statement.getSourceFile()) === "app.use" &&
+    ((statement.expression.arguments.length === 1 && statement.getText(statement.getSourceFile()).includes("express.json(")) ||
+      (ts.isArrayLiteralExpression(statement.expression.arguments[0]!) && statement.getText(statement.getSourceFile()).includes("siteTools.withRun("))));
   assert.equal(statements.length, 2, "capture the real JSON parser and live-run scope registrations");
   try {
     await evaluateDaemonStatements(statements, {

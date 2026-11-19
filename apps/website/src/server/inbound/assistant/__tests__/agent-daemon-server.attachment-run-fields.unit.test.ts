@@ -1,10 +1,11 @@
+import { createAttachmentRunFieldsResolver } from "../agent-daemon-scope-attachments.js";
 import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
 import type { prepareMessageAttachments } from "@jini-ai/daemon";
 import type { AttachmentStore } from "@jini-ai/daemon/http";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
-import { daemonFunction, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+
 
 /**
  * @file Behaviour pins for every branch of `resolveAttachmentRunFields` (attachment claiming is a
@@ -17,18 +18,18 @@ type PrepareOptions = Parameters<typeof prepareMessageAttachments>[1];
 type Claim = AttachmentStore["claim"];
 
 const RUN = { id: "attachment-run" };
-const LIFECYCLE = { name: "lifecycle" };
+const LIFECYCLE = { name: "lifecycle" } as unknown as Parameters<ReturnType<typeof createAttachmentRunFieldsResolver>>[0]["runLifecycle"];
 
 function resolver({ claim, def, attachmentStoreMissing = false }: {
   claim?: Claim; def?: { imageDelivery?: string; promptInputFormat?: string } | null; attachmentStoreMissing?: boolean;
 } = {}) {
   const calls = { failures: [] as unknown[], errors: [] as unknown[][], defs: [] as unknown[], prepareOptions: [] as PrepareOptions[] };
   const attachmentStore: Pick<AttachmentStore, "claim"> = { claim: claim ?? (async () => assert.fail("the store must not be consulted")) };
-  const resolve = evaluateDaemonExpression<Resolve>(daemonFunction("resolveAttachmentRunFields"), {
-    attachmentStore: attachmentStoreMissing ? undefined : attachmentStore,
+  const resolve = createAttachmentRunFieldsResolver({
+    getAttachmentStore: () => attachmentStoreMissing ? undefined : attachmentStore,
     routeDeps: { siteBinding: { dir: '/site' } }, stagedAttachmentCleanupByRunId: new Map(),
-    stageAttachmentClaim: async ({ claim }: { claim: unknown }) => ({ claim, cleanup: async () => {} }),
-    DEFAULT_AGENT_ID: "default-agent", agentReceivesImageAttachments,
+    stageAttachmentClaim: async ({ claim }) => ({ claim, cleanup: async () => {} }),
+    defaultAgentId: "default-agent", agentReceivesImageAttachments,
     getAgentDef: (input: unknown) => { calls.defs.push(input); return def; },
     prepareMessageAttachments: async (_required: unknown, options: PrepareOptions) => {
       calls.prepareOptions.push(options);

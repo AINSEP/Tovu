@@ -1,3 +1,4 @@
+import { createAttachmentRunFieldsResolver } from "../agent-daemon-scope-attachments.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -62,9 +63,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     assert.equal("contextRef" in (await lifecycle.get({ runId: run.id }))!, false);
     const registration = discoveryRegistration({ attachmentStore: store, messageAttachmentRefsByRunId, liveRunTracker });
     const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
-    const resolveAttachmentRunFields = evaluateDaemonExpression<(required: unknown, optional: {}) => Promise<unknown>>(
-      daemonFunction("resolveAttachmentRunFields"),
-      { attachmentStore: store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: root } }, stagedAttachmentCleanupByRunId, DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, failRunBeforeStart, agentReceivesImageAttachments },
+    const resolveAttachmentRunFields = createAttachmentRunFieldsResolver({ getAttachmentStore: () => store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: root } }, stagedAttachmentCleanupByRunId, defaultAgentId: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, failRunBeforeStart, agentReceivesImageAttachments },
     );
     const launched = await captureDaemonRun(context, {
       lifecycle, request: { agentId: "claude" }, bindings: {
@@ -86,8 +85,9 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
 
     const registry = createToolRegistry({});
     registry.register(registration);
-    const resolvePrincipal = evaluateDaemonExpression<DelegatedToolsHttpDeps["resolvePrincipal"]>(daemonInitializer("resolvePrincipal"),
-      { principalByRunId, constrainPrincipalToReadOnlyTools });
+    const resolve = evaluateDaemonExpression<(required: { principalByRunId: typeof principalByRunId; request: Parameters<DelegatedToolsHttpDeps["resolvePrincipal"]>[0]["request"] }) => Principal>(daemonFunction("resolvePrincipal"),
+      { constrainPrincipalToReadOnlyTools });
+    const resolvePrincipal: DelegatedToolsHttpDeps["resolvePrincipal"] = input => resolve({ ...input, principalByRunId });
     const deps = { lifecycle, resolvePrincipal, toolRegistry: registry, toolExecutor: createToolExecutor({ registry }) };
     const result = await delegatedToolExecuteRoute.handle({ input: {
       runId: launched.runId, toolUseId: "claude-discover", toolId: registration.descriptor.id, input: {}, requireReadOnly: true,

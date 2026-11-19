@@ -1,4 +1,4 @@
-import { daemonSource, daemonStatements } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
+import { daemonSource, daemonStatements, statementsFor } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer, type Server } from "node:http";
@@ -14,13 +14,7 @@ import { runRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
-import {
-  createOwnedRunListHandler,
-  createRunOwnerRegistry,
-  requireRunOwnership,
-  RUN_PRINCIPAL_HEADER,
-  type RunOwnerRegistry,
-} from "../daemon-access.js";
+import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER, type RunOwnerRegistry } from "../daemon-access.js";
 
 /**
  * @file Cross-principal authorization coverage for the agent daemon's `/api/runs` surface
@@ -334,9 +328,11 @@ test("the production daemon mounts ownership before run routes and records the d
   const source = readFileSync(new URL("../../server/inbound/assistant/agent-daemon-scope.ts", import.meta.url), "utf8");
   const parsed = daemonSource;
   const printer = ts.createPrinter({ removeComments: true });
-  const text = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim();
+  const text = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile()).replace(/\s+/g, " ").trim();
   // Only unconditional top-level statements count: dead branches and comments cannot satisfy this.
-  const statements = daemonStatements.map(text);
+  const httpStatements = ['mountIntake', 'mountGuards', 'mountRunRoutes', 'mountDelegatedRoutes', 'mountSurfaceRoutes']
+    .flatMap(owner => statementsFor('agent-daemon-scope-http.ts', owner));
+  const statements = httpStatements.map(text);
   const gate = statements.indexOf('app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));');
   const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));');
   const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));');
@@ -346,7 +342,7 @@ test("the production daemon mounts ownership before run routes and records the d
     && node.expression.arguments.some((argument) => ts.isObjectLiteralExpression(argument) && argument.properties.some((property) =>
       ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === "routes"
       && ts.isCallExpression(property.initializer) && ts.isIdentifier(property.initializer.expression) && property.initializer.expression.text === "runRoutes"));
-  const routes = daemonStatements.findIndex(mountsRunRoutes);
+  const routes = httpStatements.findIndex(mountsRunRoutes);
   assert.ok(gate >= 0 && ownership > gate && list > gate && routes > ownership && routes > list,
     "both owner gates must execute after authentication and before the unscoped http-kit routes");
 

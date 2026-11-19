@@ -1,3 +1,4 @@
+import { daemonFunction, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -5,7 +6,7 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 import { bearerTokenFromHeader } from "@jini-ai/core/contracts/server";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "#src/assistant/daemon-access";
-import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
+import { statementsFor, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
 /**
  * @file The chain every request to the daemon scope passes before a route sees its body, recorded
@@ -31,21 +32,23 @@ async function harness(t: TestContext) {
     credential.lookups += 1;
     return credential.lookups <= credential.validForLookups ? { runId: "run-x", principalId: "alice" } : undefined;
   } };
-  const text = (statement: { getText(source: typeof daemonSource): string }): string => statement.getText(daemonSource);
-  const resolver = daemonSource.statements.find(statement => text(statement).startsWith("function resolveDiscoveryCaller("));
-  const start = daemonSource.statements.findIndex(statement => text(statement).startsWith("app.use(requireAgentDaemonToken("));
-  const end = daemonSource.statements.findIndex(statement => text(statement).startsWith("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken("));
-  assert.ok(resolver && start >= 0 && end > start);
-  const chain = daemonSource.statements.slice(start, end + 1);
+  const text = (statement: import("typescript").Node): string => statement.getText(statement.getSourceFile());
+  const resolveDiscoveryCaller = evaluateDaemonExpression<(ports: { runCredentials: typeof runCredentials }, req: express.Request) => unknown>(daemonFunction("resolveDiscoveryCaller"), { bearerTokenFromHeader }).bind(undefined, { runCredentials });
+  const guards = statementsFor("agent-daemon-scope-http.ts", "mountGuards");
+  const start = guards.findIndex(statement => text(statement).startsWith("app.use(requireAgentDaemonToken("));
+  const end = guards.findIndex(statement => text(statement).startsWith("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken("));
+  assert.ok(start >= 0 && end > start);
+  const chain = guards.slice(start, end + 1);
   assert.deepEqual(chain.map(statement => text(statement).split("(")[0] + "(" + text(statement).split("(")[1]!.split(/[,(){]/)[0]), [
-    "app.use(requireAgentDaemonToken", "app.use(express.json", "registerToolAccessLoweringRoute(", 'app.use(["/api/tools"', "app.post(DELEGATED_TOOL_CALLS_PATH",
+    "app.use(requireAgentDaemonToken", "app.use(express.json", "mountToolAccessLowering(", 'app.use(["/api/tools"', "app.post(DELEGATED_TOOL_CALLS_PATH",
   ], "token gate, parser, a site-owned route, the per-run re-resolve and the delegated re-check, in this order");
-  await evaluateDaemonStatements([resolver, ...chain], {
-    app, express, bearerTokenFromHeader, runCredentials, DELEGATED_TOOL_CALLS_PATH,
+  await evaluateDaemonStatements(chain, {
+    app, express, bearerTokenFromHeader, runCredentials, DELEGATED_TOOL_CALLS_PATH, resolveDiscoveryCaller,
+    toolAccessRuns: new Map(), revokedToolRuns: new Set(), lifecycle: {}, cleanupFailures: new Set(),
     requireAgentDaemonToken: (input: Parameters<typeof requireAgentDaemonToken>[0], options: {}) => requireAgentDaemonToken({ ...input, env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: PROXY_TOKEN } }, options),
     siteTools: { withRun: ({ runId, fn }: { runId: string; fn: () => void }) => { runsEntered.push(runId); fn(); } },
     // Stands for every site-owned route mounted below the parser: it answers with the body it was given.
-    registerToolAccessLoweringRoute: ({ app: target }: { app: express.Express }) => { target.post("/site-owned", (req, res) => { res.json({ parsed: req.body }); }); },
+    mountToolAccessLowering: ({ app: target }: { app: express.Express }) => { target.post("/site-owned", (req, res) => { res.json({ parsed: req.body }); }); },
   });
   app.post(DELEGATED_TOOL_CALLS_PATH, (req, res) => { delegated.push(req.body); res.json({ handled: true }); });
   const server = createServer(app);

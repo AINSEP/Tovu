@@ -6,7 +6,7 @@ import type { ServerRoute } from "@jini-ai/core/contracts/server";
 import { daemonRouteHost } from "../../../../runtime/composition/jini-routes.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
-import { daemonStatements, daemonSource, evaluateDaemonStatements } from "./daemon-source.js";
+import { statementsFor, evaluateDaemonStatements } from "./daemon-source.js";
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 
 type CatalogBody = { hits: { id: string }[]; id: string; description: string };
@@ -23,8 +23,8 @@ export async function mountDaemonCatalog(registry: ToolRegistry, auditSink: Tool
   });
   await host.start({ runId, principalId: "catalog-member" });
   let refresh = false;
-  const statements = daemonStatements;
-  const mount = statements.find(statement => ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "mountJiniRoutes" && statement.expression.getText(daemonSource).includes("toolCatalogRoutes("));
+  const statements = statementsFor("agent-daemon-scope-http.ts", "mountDiscoveryRoutes");
+  const mount = statements.find(statement => ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(statement.getSourceFile()) === "mountJiniRoutes" && statement.expression.getText(statement.getSourceFile()).includes("toolCatalogRoutes("));
   assert.ok(mount, "createSiteScope() must mount the remote catalog directly");
   const handlers = new Map<string, ServerRoute["handler"]>();
   const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST" } }) };

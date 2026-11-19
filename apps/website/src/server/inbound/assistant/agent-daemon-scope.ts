@@ -1,13 +1,15 @@
+import { createScopeApp } from "./agent-daemon-scope-http.js";
+import { createAttachmentRunFieldsResolver, createRunUserMessageDelivery, openScopeAttachments, mountScopeAttachments, type AttachmentRunFields } from "./agent-daemon-scope-attachments.js";
 import { assistantRunToolFacts } from './assistant-run-tool-facts.js';
 import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from './assistant-run-tool-policy.js';
 import { requestAssistantToolConsent, requestAssistantToolAlternative } from './assistant-tool-consent.js';
-import { registerToolAccessLoweringRoute } from './tool-access-lowering-route.js';
+
 import { createChatSettingsGetRegistration, type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
-import { stopRunsForToolAccessChange, admittedToolSources, type ToolAccessRun } from '@jini-ai/daemon';
-import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
+import { admittedToolSources, type ToolAccessRun } from '@jini-ai/daemon';
+
 import { createDaemonSiteTools } from "./agent-daemon-site-tools.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
-import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";
+
 import { ensureJsonAgentInstall } from "./ensure-json-agent-install.js";
 import { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.js";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
@@ -19,9 +21,9 @@ import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { sniffContentType } from "@jini-ai/cms/media";
-import { prepareByokMessageAttachments } from "./byok-message-attachments.js";
-import { ensureToolExecToken, registerDaemonAttachmentLookup, TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
+
+
+import { ensureToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 /**
  * @file The isolated site scope in the slim agent daemon — a separate OS process from Tovu's own server, per the
  * architecture correction to ADR-049: Tovu does not spawn coding-agent CLIs itself.
@@ -67,7 +69,7 @@ import { ensureToolExecToken, registerDaemonAttachmentLookup, TOOL_EXEC_TOKEN_EN
  */
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+
 import { homedir } from "node:os";
 
 import express from "express";
@@ -75,26 +77,23 @@ import express from "express";
 import { createToolRegistry, type Principal, type ToolExecutionContext, type SurfaceEmitter } from "@jini-ai/core";
 import { isTerminalRunState, type RunAgentPayload } from '@jini-ai/protocol';
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
-import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type RunLifecycle, type UserMessageDelivery } from "@jini-ai/daemon";
+import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, probeMcpBridge, type RunLifecycle } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { executorDefinitionPolicies } from "./executor-definition-policies.js";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, frontendRequestRoutes, agentRoutes, attachmentCleanupRoutes, attachmentUploadRoutes, componentCatalogRoutes, delegatedToolRoutes, messageRelayRoutes, runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createFrontendControl } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
-import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
-import type { AttachmentStore, AttachmentsHttpDeps, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
+
+import type { AttachmentStore, RunStartHandler } from "@jini-ai/daemon/http";
 
 /** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly
  *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to
  *  name a type its one existing `RunStartHandler` import already carries structurally. */
 type OnStartedContext = Parameters<RunStartHandler>[0];
 
-/** The extra `AgentExecutor.run()` fields a claimed attachment batch contributes. */
-type AttachmentRunFields = { imagePaths?: readonly string[]; imageContents?: readonly MessageAttachmentImage[]; attachmentNotice?: string;
-  extraAllowedDirs?: readonly string[]; uploadRoot?: string };
 
 /** A run's session-binding decision: the agent it runs and the session fields handed to the CLI. */
 type RunSessionBinding = {
@@ -114,33 +113,33 @@ import {
 } from "./assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
-import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js"; import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler, nodeSessionTimer } from "../../runtime/composition/jini-routes.js";
+import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js"; import { nodeSessionTimer } from "../../runtime/composition/jini-routes.js";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { pageApprovalOptions } from "#src/assistant/page-approval-context";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { agentCarriesOwnMemory, extractSessionRefFromEndEvent, resolveResumeSessionField, shouldClearSessionOnFailedResume, wouldForcedColdStartLoseConversationContext, CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, STOPPING_RUN_WAIT_MS, waitForStoppingRuns, agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField, createConversationStartLock } from "#src/assistant/agent-session-preset";
-import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
+
 import { createCustomInstructionsCache } from "#src/assistant/custom-instructions";
-import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken, createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER, createRunScopedCredentials } from "#src/assistant/daemon-access";
+import { createRunOwnerRegistry, createRunScopedCredentials } from "#src/assistant/daemon-access";
 import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "#src/assistant/frontend-control-capabilities";
-import { registerA2uiActionsRoute } from "#src/assistant/a2ui-actions-route";
-import { registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
+
+
 import { resolveMcpJsonInjection } from "#src/assistant/mcp-injection";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock, type RunPageContext } from "#src/assistant/run-page-context";
-import { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from "#src/assistant/read-only-tool-constraint";
-import { createAssistantToolExecutor, delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
+import { withReadOnlyToolConstraint } from "#src/assistant/read-only-tool-constraint";
+import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
-import { createRunActiveContextStore, registerRunActiveContextRoute } from "#src/assistant/run-active-context";
+import { createRunActiveContextStore } from "#src/assistant/run-active-context";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
-import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
+
+
 import { createEarlySessionCapture } from "./early-run-session.js";
-import { agentReceivesImageAttachments, durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "./run-start-decisions.js";
+import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "./run-start-decisions.js";
 import { readProcessStart } from "./attempt-process-identity.js";
-import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
+
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { ExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
@@ -213,17 +212,6 @@ const probeAssistantChrome = createAssistantChromeProbe({ getDef: getAgentDef, r
 
 
 try {
-/**
- * Total bytes one composer turn's staged attachments may sum to (`createDiskAttachmentStore`'s
- * `maxBatchBytes`, `@jini-ai/http-kit`'s own default is 20 MB). Kept at twice
- * {@link TOVU_MAX_UPLOAD_BYTES} (below) — the daemon's own per-file cap — rather than left equal to
- * it, so a turn with one file at the cap still has room for a second small one; that default's own
- * doc says the per-file cap "should be at or below" this value, and an exact match would leave zero
- * headroom for any additional attachment in the same turn. Owner-directed (2026-09-21): the
- * per-file cap rose to 50 MiB alongside the media upload cap it mirrors, so this rose to 100 MiB to
- * keep that headroom.
- */
-const ATTACHMENT_MAX_BATCH_BYTES = TOVU_MAX_UPLOAD_BYTES * 2;
 
 /**
  * Opt-in-only diagnostic gate for the base system overlay's Bash-prohibition instrument — see
@@ -604,67 +592,8 @@ const liveRunTracker = createLiveRunTracker({}, {});
  * it so two near-simultaneous turns on one conversation cannot both mint a session. */
 const conversationStartLock = createConversationStartLock({}, {});
 
-/**
- * Claims `attachmentIds` against `attachmentStore` and resolves the extra `AgentExecutor.run()`
- * fields the claimed batch contributes (`imagePaths`/`extraAllowedDirs`/`uploadRoot`). Returns
- * `null` when the run should be aborted instead — this function has already called
- * `runLifecycle.finish({status: "failed", ...})` and logged why in that case, mirroring the
- * severity {@link onStarted}'s malformed-`contextRef` branch already gives a failure this early.
- * A no-op ({} fields) when `attachmentIds` is empty — the common case, no store round trip needed.
- */
-async function resolveAttachmentRunFields(
-  { run, attachmentIds, runLifecycle, agentId = DEFAULT_AGENT_ID }: {
-    run: OnStartedContext["run"]; attachmentIds: readonly string[]; runLifecycle: OnStartedContext["lifecycle"]; agentId?: string;
-  }, _optional = {},
-): Promise<AttachmentRunFields | null> {
-  if (attachmentIds.length === 0) return {};
-
-  if (!attachmentStore) {
-    // Structurally unreachable (see `attachmentStore`'s own doc) but fails only this run, not the
-    // process, if it somehow is.
-    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: attachments are not ready yet." }, {});
-    console.error(`[agent-daemon] run ${run.id}: attachment claim requested before the attachment store was ready`);
-    return null;
-  }
-
-  try {
-    // Only `.path` (the opaque capability id) is ever read by `claim()` — it looks up its own
-    // internal registry by that id and re-derives `name`/`kind`/`size` from what `register()`
-    // recorded at upload time, never from a caller-supplied value. The placeholder `name`/`kind`
-    // below satisfy `StoredAttachment`'s shape without asserting anything the store would actually
-    // trust.
-    const refs: StoredAttachment[] = attachmentIds.map((id) => ({ path: id, name: "", kind: "file" }));
-    const originalClaim = await attachmentStore.claim({ attachments: refs, runId: run.id });
-    if (originalClaim.batchDirectory === undefined) return {};
-    // Register cleanup before yielding so terminalization during the copy still reaps it.
-    const staging = stageAttachmentClaim({ claim: originalClaim, filesystemRoot: routeDeps.siteBinding.dir }, {});
-    stagedAttachmentCleanupByRunId.set(run.id, async () => (await staging).cleanup());
-    const claimed = (await staging).claim;
-    const def = getAgentDef({ id: agentId });
-    const byPath = new Map(claimed.attachments.map(attachment => [attachment.path, attachment]));
-    const prepared = await prepareMessageAttachments({ refs: [...byPath.keys()], read: async ({ ref }) => {
-      const attachment = byPath.get(ref);
-      if (!attachment) throw new Error(`agent attachment was not staged: ${ref}`);
-      const bytes = await readFile(attachment.path);
-      return { name: attachment.name, path: attachment.path, bytes, mimeType: sniffContentType({ bytes }) };
-    } }, { fileAccess: true, imageAccess: agentReceivesImageAttachments({ def }, {}) });
-    // Non-image uploads need an explicit prompt notice as well as site-contained staging; otherwise a
-    // readable .md/video is never named to the agent. Generic delivery now owns that distinction.
-    return { imagePaths: prepared.imagePaths, imageContents: prepared.images, attachmentNotice: prepared.notice,
-      uploadRoot: claimed.batchDirectory };
-
-  } catch (error) {
-    // Fails the run outright rather than silently continuing without the image: the same severity
-    // this handler already gives a malformed `contextRef` above. A user who attached a screenshot
-    // and gets a run that never saw it (already-claimed, expired past `retentionMs`, or an
-    // integrity check failure) would otherwise get a confusing answer about content the agent never
-    // looked at, with nothing explaining why.
-    const message = error instanceof Error ? error.message : String(error);
-    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: an attached file could not be read." }, {});
-    console.error(`[agent-daemon] run ${run.id}: attachment claim failed`, message);
-    return null;
-  }
-}
+const resolveAttachmentRunFields = createAttachmentRunFieldsResolver({ getAttachmentStore: () => attachmentStore,
+  routeDeps, stagedAttachmentCleanupByRunId, defaultAgentId: DEFAULT_AGENT_ID, getAgentDef });
 
 const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agentSessions, durable: routeDeps.chatRunLedger.durable, readStart: readProcessStart }, {});
 
@@ -1345,277 +1274,14 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   }
 };
 
-/** Fails closed: an untracked `runId` throws rather than fabricating a principal — see
- * `apps/website/src/server/runtime/composition/modules/assistant.ts`'s identical guard for the full rationale.
- *
- * A `requireReadOnly` request (the wire flag `@jini-ai/mcp`'s `execute_readonly_delegated_tool`
- * sets, and which `@jini-ai/http-kit` hands to this host-owned resolver verbatim) resolves to an
- * ATTENUATED principal instead of the tracked one. That is what carries the constraint past this
- * route and into the execution itself, where `withReadOnlyToolConstraint` enforces it on every
- * dispatch rather than only on the id the caller named — the route's own check answers for that one
- * id, and a decorator can dispatch another. See `read-only-tool-constraint.ts`. */
-const resolvePrincipal = ({ request }: { readonly request: DelegatedToolExecuteRequest }): Principal => {
-  const principal = principalByRunId.get(request.runId);
-  if (!principal) throw new Error(`no principal is tracked for run "${request.runId}"`);
-  return request.requireReadOnly === true ? constrainPrincipalToReadOnlyTools(principal) : principal;
-};
+const deliverRunUserMessage = createRunUserMessageDelivery({ principalByRunId, ATTACHMENT_UPLOAD_DIRECTORY, agentExecutor });
+const { app, routeHost } = createScopeApp({ env, authEnv, port, isDisposed: () => disposed, responses, idlePark, lifecycle,
+  principalByRunId, runCredentials, runOwners, agentExecutor, toolAccessRuns, revokedToolRuns, cleanupFailures,
+  siteTools, routeDeps, onStarted, deliverRunUserMessage, assistantInventory, runActiveContexts,
+  toolExecutor, surfaceExchanges, frontendControl, durableMessageIdsByRunId });
 
-/** Resolve discovery authority from a still-live per-run credential, never a wire principal. */
-function resolveDiscoveryCaller(req: express.Request) {
-  const token = bearerTokenFromHeader({ header: req.get("authorization") });
-  return token ? runCredentials.resolveCaller({ token }) : undefined;
-}
-
-const app = express();
-app.use((_req, res, next) => {
-  if (disposed) { res.status(503).json({ error: "site scope is closed" }); return; }
-  responses.add(res); res.once("close", () => responses.delete(res));
-  next();
-});
-app.use(idlePark.middleware);
-registerAgentPluginEvents({ app, lifecycle, principalFor: ({ runId }) => principalByRunId.get(runId)?.id }, { env: authEnv });
-
-// Only this POST uses Jini's credential-bound claim authorization instead of the proxy/owner gates.
-// Authenticate before parsing; the handler re-resolves the live credential and checks the URL run.
-// Mount before requireRunOwnership: no proxy principal header or retained owner record is needed.
-app.post("/api/runs/:runId/messages/claim", createDaemonAuthMiddleware({
-  authorizationHeaderName: "authorization",
-  authorize: ({ request }) => {
-    const token = bearerTokenFromHeader({ header: request.headers.authorization });
-    const caller = token ? runCredentials.resolveCaller({ token }) : undefined;
-    return caller ? { allowed: true } : { allowed: false, status: 401,
-      body: { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } } };
-  },
-}), express.json({ limit: "1kb" })); // The only valid body is `{ via }`.
-mountJiniRoutes({ app, routes: messageRelayRoutes({ agentExecutor, runScopedCallers: runCredentials }) });
-
-// Before every other route's `express.json()` — an unauthenticated caller's body is never parsed. See this
-// file's module doc and `apps/website/src/assistant/daemon-access.ts` for the fail-closed contract. No exemptions: the spawned
-// bridge now presents JINI_DAEMON_TOKEN on delegated calls too. BYOK dispatches in process, and
-// the proxy does not expose the delegated route (`apps/website/src/assistant/daemon-access.ts`'s DELEGATED_TOOL_CALLS_PATH).
-// `runScopedCallers`: each run's bridge presents its own per-run credential, which reaches only the
-// bridge's routes and stands for that run's principal, never one the caller asserts
-// (`Jini packages/daemon/src/run-credentials.ts`). The proxy token alone still carries a proxy-asserted principal.
-app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));
-// Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
-// admin viewport, posted back to `/api/frontend-sessions/:id/responses`
-// (`frontend-session-bridge.ts`'s `respond()`), routinely exceeds it even after
-// `agent-screenshot.ts`'s own quality/size retries — a silent 413 would look like a capture bug
-// rather than the transport limit it actually is. Raised, not removed: this still bounds the worst
-// case for every route mounted below (all of them, since this is `app.use` with no path), and every
-// caller reaching them is already past `requireAgentDaemonToken` above, so this is not a new
-// unauthenticated attack surface, only a larger authenticated one.
-app.use(express.json({ limit: "6mb" }));
-registerToolAccessLoweringRoute({ app, lower: change => stopRunsForToolAccessChange({ runs: [...toolAccessRuns.values()], change,
-  revoke: ({ runId }) => { revokedToolRuns.add(runId); runCredentials.revoke({ runId }); },
-  cancel: async ({ runId }) => { await lifecycle.cancel({ runId }); },
-  waitForCleanup: async ({ runId }) => {
-    await lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(8_000) });
-    if (cleanupFailures.has(runId)) throw new Error('CLI cleanup failed');
-  },
-  notice: async ({ runId, message }) => {
-    await Promise.all([
-      lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'status', label: 'tool_access_changed', detail: message } } }),
-      lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'text_delta', delta: `\n\n${message}` } } }),
-    ]);
-  },
-}) });
-// Re-resolve each bridge credential after parsing; neither a proxy identity nor a previous
-// caller's snapshot can supply an unscoped catalog. Native async context survives all awaits.
-app.use(["/api/tools", "/api/components", DELEGATED_TOOL_CALLS_PATH], (req, res, next) => {
-  const caller = resolveDiscoveryCaller(req);
-  if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
-  try { siteTools.withRun({ runId: caller.runId, fn: () => next() }); }
-  catch (error) { next(error); }
-});
-// Re-resolve the bearer after parsing, so even a credential that expired while parsing fails
-// closed. Run credentials must match body.runId before any delegated handler or tool can execute;
-// proxy credentials retain their existing authority.
-app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));
-const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => port, env,
-  // These are the environment names the previously imported http-kit origin guard read.
-  // Preserve that deployed contract when supplying the now-explicit origin configuration.
-  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024 }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
-
-// Per-run authorization, mounted between the bearer gate and the run routes it protects. The gate
-// above proves the caller is Tovu's proxy; these two prove *which admin* the proxy is speaking for,
-// which is the question neither the gate nor the proxy's own session check can answer. Both must
-// precede `runRoutes`: the middleware so it runs first, and the list handler so it shadows
-// http-kit's unscoped `runListRoute` under Express's first-match-wins routing. See
-// `Jini packages/daemon/src/run-credentials.ts` for the ownership model and the 404-not-403 rationale.
-app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));
-app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));
-
-registerCredentialRunIntake({ app }, {});
-if (routeDeps.chatRunLedger.durable) registerDurableRunStartRoute({ app, lifecycle, onStarted, store: routeDeps.chatRunLedger.durable }, {});
-/** Delivers authorized screenshot pixels through the existing live-input path. Reads do not claim
- * uploads: an unsupported runtime or an ending run must leave the whole turn available for the
- * idle attachment claim. Non-image files wait for idle delivery, which also grants directory access.
- * @complexity O(b) time/space in attachment bytes, bounded by the existing upload limits.
- */
-async function deliverRunUserMessage(
-  { runId, text, id, attachmentIds = [] }: RunMessageRequest, _optional = {},
-): Promise<UserMessageDelivery> {
-  if (attachmentIds.length === 0) return agentExecutor.sendUserMessage({ runId, text, id });
-  const principal = principalByRunId.get(runId);
-  if (principal === undefined) return "not-running";
-  const prepared = await prepareByokMessageAttachments({
-    refs: attachmentIds, principalId: principal.id, uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY,
-  }, {});
-  if (prepared.notice !== "") return "unsupported";
-  return agentExecutor.sendUserMessage({ runId, text, id, attachmentIds }, { imageContents: prepared.images });
-}
-
-mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted,
-  deliverUserMessage: (input) => agentExecutor.sendUserMessage(input),
-  deliverUserMessageWithAttachments: (input) => deliverRunUserMessage(input, {}),
-}, host: routeHost }) });
-// `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
-// default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
-// gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
-// bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
-mountJiniRoutes({ app, routes: agentRoutes({ deps: { listAgents: assistantInventory.listAssistantAgents, rescanAgents: assistantInventory.rescanAssistantAgents }, host: routeHost }) });
-// `GET /api/active` — the one route `jini-mcp` calls (`get_active_context`) that this daemon never
-// served, so it answered 404. Behind the bearer gate above like every route but the delegated one.
-registerRunActiveContextRoute(app, runActiveContexts);
-// `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
-// gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
-// omitting it silently disables the gateway rather than silently widening it.
-// `delegatedToolErrorDisclosure()` supplies both error-disclosure options: `isModelSafeToolFailure`
-// lets a failure `withRedactedToolFailures` already redacted (it carries an `ERR-…` id) reach the
-// model as `422 Error <ID>: <reason>`, and `describeInternalError` gives every other failure http-kit
-// would answer with a bare `500 INTERNAL_ERROR` (unknown tool id, timed-out, cancelled, a throwing
-// `resolvePrincipal`) the same redacted `Error <ID>: <reason>` text.
-// Built as a variable, not an inline literal: `describeInternalError` is newer than the published
-// @jini-ai/http-kit 0.3.7 types, and a non-literal argument is not excess-property-checked, so this
-// compiles against both. Against 0.3.7 at runtime the option is inert (bare 500s return) until
-// Tovu's http-kit range is bumped to the release that ships it.
-const delegatedToolRouteDeps = {
-  lifecycle,
-  toolExecutor,
-  resolvePrincipal,
-  toolRegistry: siteTools.registry, toolFamilies: siteTools.families,
-  ...delegatedToolErrorDisclosure({}, {}),
-  // Static jobs live at the site server. Read once through its normal permission gate after a
-  // lost delegated response; the five-second deadline cannot extend or repeat the publish.
-  recoverInterruptedTool: async ({ principal, runId, toolId, result }: {
-    principal: import("@jini-ai/core").Principal; runId: string; toolId: string; result: import("@jini-ai/daemon").ToolExecutionResult;
-  }) => {
-    if (toolId !== "deployment_execute_static_publish") return undefined;
-    try {
-      const checked = await toolExecutor.execute({ principal, run: { id: runId }, toolId: "deployment_get_static_publish_status", input: { executionId: result.executionId } }, { signal: AbortSignal.timeout(5_000) });
-      const output = checked.output as { status?: unknown; message?: unknown } | null;
-      if (checked.status === "completed" && output?.status && typeof output.message === "string") return output.message;
-    } catch { /* A failed status read cannot prove whether the publish started. */ }
-    return publishJobRecoveryMessage({ statusToolId: "deployment_get_static_publish_status" });
-  },
-};
-registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
-  isRegistered: ({ toolId }) => siteTools.registry.has({ toolId }),
-  isReadOnly: ({ toolId }) => checkReadOnlyTool({ toolId, registry: siteTools.registry, messages: defaultDaemonMessages.readOnly }, {}) === null,
-  async messageIdForAttempt({ runId }) {
-    return durableMessageIdsByRunId.get(runId) ?? null;
-  },
-}, {});
-mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });
-// The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
-// content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
-// for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape
-// (ADR-053 Decision 3), which no wired tool currently uses — `content_post_delete` was the only
-// tool that ever took it, and it moved to the exchange shape above.
-// Same non-exemption reasoning as `frontendControl.httpExtension` just below: the
-// browser reaches this through Tovu's session-authenticated proxy, which attaches the bearer token
-// like every other forwarded route, so no `exemptPaths` entry is needed or wanted. See
-// `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
-// `ToolExecutor`/`SurfaceExchangeStore` an exchange delivery actually needs) and
-// `apps/website/src/server/runtime/composition/modules/assistant.ts` for the proxy half.
-registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler });
-// A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/
-// `functionResponse`/`error` re-entering the process that holds the exchange it answers. Unlike
-// the MCP-UI route above, this never touches `toolExecutor` at all (there is no tool-call shape to
-// fall back to for A2UI) — see `a2ui-actions-route.ts`'s own module doc. Same non-exemption
-// reasoning: reached only through Tovu's session-authenticated proxy, which attaches the bearer
-// token like every other forwarded route.
-registerA2uiActionsRoute(app, { surfaceExchanges });
-// The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
-// admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
-// `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`
-// subprocess that holds no token), these two are reached by the browser through Tovu's own
-// session-authenticated proxy, which attaches the bearer like every other forwarded route. See
-// `apps/website/src/server/runtime/composition/modules/assistant.ts`.
-mountJiniRoutes({ app, routes: frontendControl.routes({ host: routeHost }) });
-// Runless WebMCP uses the same policy/exchange/audit stack as a daemon run. The proxy supplies
-// the authenticated principal; the bind token and tab id constrain the effect to its own screen.
-mountJiniRoutes({ app, routes: frontendRequestRoutes({ path: "/api/frontend-sessions/request", control: frontendControl, host: routeHost,
-  executor: toolExecutor, capabilityIds: FRONTEND_CONTROL_CAPABILITIES.filter(entry => entry.id.startsWith("page.")).map(entry => entry.id),
-  resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: routeDeps.workspaceId }),
-}) });
-
-  // Discovery is scoped by each run's credential; the server refreshes its own plugin/settings
-  // state before returning descriptors. The native FTS owner is released with the final run.
-  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: siteTools.catalog }, host: routeHost }) });
-  app.use("/api/components", (req, res, next) => {
-    const caller = resolveDiscoveryCaller(req);
-    if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
-    void siteTools.refreshComponents({ runId: caller.runId }).then(() => {
-      siteTools.withRun({ runId: caller.runId, fn: () => next() });
-    }).catch(() => {
-      res.status(503).json({ error: "component catalog is unavailable", code: "COMPONENT_CATALOG_UNAVAILABLE" });
-    });
-  });
-  mountJiniRoutes({ app, routes: componentCatalogRoutes({ deps: { catalog: siteTools.components }, host: routeHost }) });
-
-  // `createDiskAttachmentStore` is async (it reconciles `uploadDirectory` against the previous
-  // process on construction — see its own doc), so it cannot be a module-scope `const` the way
-  // `agentExecutor`/`toolExecutor` are. Assigned into the scope-local `attachmentStore` binding
-  // `onStarted` reads, and awaited here — before the host mounts this scope — so no request
-  // can ever reach this process while `attachmentStore` is still unset (`onStarted`'s own doc
-  // explains why that matters).
-  //
-  // `retainAcrossRestarts` is NOT optional for this host, and the reason is specific to how this
-  // process is started. The daemon is a `spawn()` child of `src/index.ts`, which dev runs under
-  // `tsx watch` — so every save anywhere in `apps/website/src` kills and respawns it (see
-  // `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`). Without this option the store empties `uploadDirectory` on each
-  // of those constructions, which means an unrelated source edit silently destroys every chat
-  // attachment a user has staged but not yet sent. That is not a hypothetical: an upload was
-  // observed erased by an API reload ~90 seconds later. The store's default is deliberately the
-  // conservative one for hosts whose process lifetime really does bound an upload's; this host is
-  // not one of them.
-  //
-  // Adoption is authenticated, not blind — a file that changed between processes is rejected by the
-  // same integrity gate `claim()` applies, and anything unaccounted for is swept. Reverting to the
-  // previous behavior is deleting this one option.
-  attachmentStore = await createDiskAttachmentStore({
-    uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY,
-  }, {
-    retainAcrossRestarts: true,
-    maxBatchBytes: ATTACHMENT_MAX_BATCH_BYTES,
-  });
-  // Server-side attachment tools consult the sole live owner, including uploads made after boot.
-  // The adapter adds its own full-daemon-token gate; run credentials cannot access this route.
-  registerDaemonAttachmentLookup({ app, store: attachmentStore, host: routeHost, mountRoutes: ({ routes }) => mountJiniRoutes({ app, routes }) }, { env: authEnv });
-  // Registered ahead of `express.json()` in spirit (see `attachments.ts`'s own "mount before any
-  // global body parser" note) even though call order here is necessarily after it (`express.json()`
-  // is synchronous module-scope code above; this file's own body-parser-skip behavior for a
-  // non-JSON `content-type` is what actually protects the upload route — see
-  // `apps/website/src/server/runtime/composition/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
-  // `application/octet-stream` POST survives `express.json()` regardless of registration order).
-  const attachmentDeps: AttachmentsHttpDeps = { store: attachmentStore,
-      acquireActivity: () => idlePark.hold({}, {}),
-      // The trusted-downstream-of-the-bearer-gate header `forwardAttachmentUpload`
-      // (`server/runtime/composition/modules/assistant.ts`) now stamps from the uploading admin's
-      // OWN session — see that function's doc. This is what `chat_list_pending_attachments`
-      // (`list-pending-chat-attachments.ts`) scopes its listing by.
-      resolveOwnerId: ({ request }) => request.headers.get(RUN_PRINCIPAL_HEADER) ?? undefined,
-      // Without this, `@jini-ai/http-kit`'s own default (20 MB) silently undercuts
-      // `TOVU_MAX_UPLOAD_BYTES` for the one media path that reaches it (a chat attachment promoted
-      // to the library, `promote-chat-attachment.ts`) — this route's hard, streaming-enforced byte
-      // cap, not just the client's own pre-check (`AssistantDock.hooks.tsx`'s
-      // `useAttachmentUploader`, which must independently match this so a rejection surfaces before
-      // the bytes are ever sent, not just after).
-      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES };
-  mountJiniRoutes({ app, routes: attachmentUploadRoutes({ deps: attachmentDeps, host: routeHost }) }, { rawBody: true });
-  mountJiniRoutes({ app, routes: attachmentCleanupRoutes({ deps: attachmentDeps, host: routeHost }) });
+  attachmentStore = await openScopeAttachments({ ATTACHMENT_UPLOAD_DIRECTORY });
+  mountScopeAttachments({ app, attachmentStore, routeHost, authEnv, idlePark });
 
   if (optional.probeBridge) await optional.probeBridge();
   else {

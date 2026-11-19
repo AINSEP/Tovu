@@ -52,6 +52,19 @@ export const daemonManifest = new Map<string, Map<string, readonly ts.Statement[
     ["createSiteScope.try", [...scopeTry.tryBlock.statements]],
   ])],
 ]);
+for (const [file, owners] of [
+  ["agent-daemon-scope-http.ts", ["createScopeApp", "resolvePrincipal", "resolveDiscoveryCaller", "mountIntake", "mountGuards", "mountToolAccessLowering", "mountRunRoutes", "mountDelegatedRoutes", "mountSurfaceRoutes", "mountDiscoveryRoutes"]],
+  ["agent-daemon-scope-attachments.ts", ["createAttachmentRunFieldsResolver", "resolveAttachmentRunFields", "readStagedAttachment", "createRunUserMessageDelivery", "deliverRunUserMessage", "openScopeAttachments", "mountScopeAttachments"]],
+] as const) {
+  const source = ts.createSourceFile(file, readFileSync(path.join(import.meta.dirname, "../../", file), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const bodies = new Map<string, readonly ts.Statement[]>([["<file>", [...source.statements]]]);
+  for (const owner of owners) {
+    const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === owner);
+    assert.ok(fn && ts.isFunctionDeclaration(fn) && fn.body, `Missing manifest function ${file}:${owner}`);
+    bodies.set(owner, [...fn.body.statements]);
+  }
+  daemonManifest.set(file, bodies);
+}
 export const daemonStatements = [
   ...rawSource.statements.filter(statement => statement !== scopeFactory),
   ...scopeFactory.body.statements.flatMap(statement => ts.isTryStatement(statement) ? [...statement.tryBlock.statements] : [statement]),

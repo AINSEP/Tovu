@@ -1,3 +1,4 @@
+import { createAttachmentRunFieldsResolver } from "../agent-daemon-scope-attachments.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -8,10 +9,10 @@ import ts from "typescript";
 
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import { sniffContentType } from "@jini-ai/cms/media";
-import { prepareMessageAttachments, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
+import { prepareMessageAttachments } from "@jini-ai/daemon";
 import { createDiskAttachmentStore, stageAttachmentClaim, detectAttachmentKind } from "@jini-ai/daemon/http";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
-import { captureDaemonRun, daemonFunction, daemonInitializer, daemonSource, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { captureDaemonRun, daemonFunction, daemonInitializer } from "./helpers/daemon-source.js";
 
 /**
  * @file Regression coverage for the bug where a non-image chat attachment (a `.md`, a PDF, any
@@ -40,8 +41,8 @@ import { captureDaemonRun, daemonFunction, daemonInitializer, daemonSource, eval
 // AST boundaries scope the scans to live functions; removing comments lets the why comments quote
 // the historical kind filter without satisfying (or tripping) executable-code assertions.
 const sourcePrinter = ts.createPrinter({ removeComments: true });
-const resolveAttachmentRunFieldsSource = sourcePrinter.printNode(ts.EmitHint.Unspecified, daemonFunction("resolveAttachmentRunFields"), daemonSource);
-const onStartedSource = sourcePrinter.printNode(ts.EmitHint.Expression, daemonInitializer("onStarted"), daemonSource);
+const resolveAttachmentRunFieldsSource = sourcePrinter.printNode(ts.EmitHint.Unspecified, daemonFunction("resolveAttachmentRunFields"), daemonFunction("resolveAttachmentRunFields").getSourceFile());
+const onStartedSource = sourcePrinter.printNode(ts.EmitHint.Expression, daemonInitializer("onStarted"), daemonInitializer("onStarted").getSourceFile());
 
 /** Both guards pin the complete delivery contract: adding a filter OR dropping a notice must fail
  * either guard independently. A readable PDF must be named to the agent before executor dispatch. */
@@ -127,13 +128,11 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
     assert.equal(detectAttachmentKind({ body: imageBytes }), "image");
     fs.writeFileSync(imagePath, imageBytes);
     const image = await store.register({ input: { batchId, path: imagePath, name: "screenshot.png", kind: "image", size: imageBytes.length } });
-    const resolve = evaluateDaemonExpression<(required: {
-      run: { id: string }; attachmentIds: readonly string[]; runLifecycle: RunLifecycle; agentId?: string;
-    }, optional: {}) => Promise<Partial<AgentExecutorRunInput> | null>>(daemonFunction("resolveAttachmentRunFields"), {
-      attachmentStore: store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: uploadDirectory } }, stagedAttachmentCleanupByRunId: new Map(),
+    const resolve = createAttachmentRunFieldsResolver({
+      getAttachmentStore: () => store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: uploadDirectory } }, stagedAttachmentCleanupByRunId: new Map(),
       // Source evaluation does not inherit imports. Use the exact production dependencies rather
       // than replacing preparation or MIME detection, so this covers the real binary delivery path.
-      DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, agentReceivesImageAttachments,
+      defaultAgentId: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, agentReceivesImageAttachments,
       // Let the resolver report its original caught error instead of masking it with a fixture error.
       failRunBeforeStart: async () => {},
       console: { error: (...args: unknown[]) => assert.fail(args.map(String).join(" ")) },

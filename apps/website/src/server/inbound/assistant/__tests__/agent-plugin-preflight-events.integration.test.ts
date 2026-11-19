@@ -6,15 +6,15 @@ import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { registerAgentPluginEvents } from "../agent-plugin-preflight-events.js";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createRunScopedCredentials } from "#src/assistant/daemon-access";
-import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
+import { statementsFor, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
 test("server plugin consent reaches only its live owning daemon run", async t => {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "{}" });
   const owners = new Map([[run.id, "member"]]);
   const app = express();
-  const registration = daemonSource.statements.find(statement => ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression)
-    && statement.expression.expression.getText(daemonSource) === "registerAgentPluginEvents");
+  const registration = statementsFor("agent-daemon-scope-http.ts", "mountIntake").find(statement => ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression)
+    && statement.expression.expression.getText(statement.getSourceFile()) === "registerAgentPluginEvents");
   assert.ok(registration, "the real daemon entry must mount its authenticated server plugin event adapter");
   await evaluateDaemonStatements([registration], { app, lifecycle,
     principalByRunId: { get: (runId: string) => { const id = owners.get(runId); return id ? { id } : undefined; } },

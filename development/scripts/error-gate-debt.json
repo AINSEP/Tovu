@@ -1957,10 +1957,15 @@
   {
     "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
     "rule": "catch-reads-error",
-    "value": 4
+    "value": 2
   },
   {
-    "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
+    "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },

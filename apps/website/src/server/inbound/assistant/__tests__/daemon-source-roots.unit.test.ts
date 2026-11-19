@@ -5,12 +5,15 @@ import { daemonStatements, daemonSource, daemonManifest, daemonInitializer, daem
 import { daemonEntrySource } from './helpers/daemon-entry-source.js';
 
 test('daemon attachment and catalog fixtures inspect the site factory while shutdown fixtures inspect the process entry', () => {
-  const calls = daemonStatements.filter(ts.isExpressionStatement)
-    .map(statement => statement.expression)
-    .filter(ts.isCallExpression)
-    .map(call => call.expression.getText(daemonSource));
-  assert.ok(calls.includes('registerDaemonAttachmentLookup'));
-  assert.ok(calls.includes('mountJiniRoutes'));
+  const body = statementsFor('agent-daemon-scope-http.ts', 'createScopeApp');
+  const calls = body.filter(ts.isExpressionStatement).map(statement => statement.expression)
+    .filter(ts.isCallExpression).map(call => call.expression.getText(call.getSourceFile()));
+  assert.deepEqual(calls, ['mountIntake', 'mountGuards', 'mountRunRoutes', 'mountDelegatedRoutes', 'mountSurfaceRoutes']);
+  const rootCalls = daemonStatements.map(statement => statement.getText(statement.getSourceFile()));
+  assert.ok(rootCalls.some(text => text.includes('createScopeApp(')));
+  const opened = rootCalls.findIndex(text => text.includes('attachmentStore = await openScopeAttachments('));
+  const mounted = rootCalls.findIndex(text => text.startsWith('mountScopeAttachments('));
+  assert.ok(opened >= 0 && mounted > opened);
   assert.ok(daemonEntrySource.statements.some(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === 'exitDaemon'));
   assert.ok(!daemonStatements.some(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === 'exitDaemon'));
 });
