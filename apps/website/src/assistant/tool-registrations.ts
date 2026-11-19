@@ -133,7 +133,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
     providerConfig?: ProviderConfigSource;
   } &
   AssistantHistoryHostDeps &
-  import("../features/post/tool-registrations.js").ContentStatsToolDeps &
+  import("../features/post/content-stats-tool.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
   DeployOpsToolDeps & CommentsToolDeps &
   PermanentDeleteHostDeps &

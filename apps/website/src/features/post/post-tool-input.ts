@@ -1,3 +1,6 @@
+// Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch
+// notes this file's narrowing was reported under), not a field this file could re-source from a
+// domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'`. Everything else this file needs comes from `@jini-ai/cms/core`.
 import { ToolInputError, requireObject, requireString } from "@jini-ai/core";

@@ -150,7 +150,7 @@ test('media slug reference scans traverse deeply nested TipTap documents without
 
 test('assistant contracts advertise both Media modes and allow placement content on existing post widgets', async () => {
   const { widgetsAgentToolCatalog } = await import('@jini-ai/cms/widgets');
-  const { TIPTAP_DOC_SCHEMA } = await import('#src/features/post/agent-tools');
+  const { TIPTAP_DOC_SCHEMA } = await import('#src/features/post/tiptap-doc-schema');
   for (const name of ['widgets_create_instance', 'widgets_update_instance']) {
     const schema = widgetsAgentToolCatalog.find(tool => tool.name === name)!.inputSchema as any;
     assert.ok(schema.properties.config.description.includes('mode:html'));

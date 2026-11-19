@@ -246,7 +246,7 @@
     "apps/website/src/features/post/publish-content.ts -> apps/website/src/features/taxonomy/publish-term-ids.ts",
     "apps/website/src/features/post/template-options.ts -> apps/website/src/features/presentation/index.ts",
     "apps/website/src/features/post/template-options.ts -> apps/website/src/features/theme/index.ts",
-    "apps/website/src/features/post/tool-registrations.ts -> apps/website/src/features/content-duplication/derive-available-name.ts",
+    "apps/website/src/features/post/post-tool-duplicate.ts -> apps/website/src/features/content-duplication/derive-available-name.ts",
     "apps/website/src/features/project-keys/service.ts -> apps/website/src/features/custom-credentials/plugin-credential-card.ts",
     "apps/website/src/features/project-keys/tools.ts -> apps/website/src/features/custom-credentials/plugin-credential-card.ts",
     "apps/website/src/features/publish-content/backstop-policy.ts -> apps/website/src/features/webhooks/secret-scan-guard.ts",

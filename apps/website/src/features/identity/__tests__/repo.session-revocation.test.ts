@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { SqlPrincipalRepo, SqlSessionRepo } from "../repo.js";
+import { SqlPrincipalRepo } from "../repo.js";
+import { SqlSessionRepo } from "../repo.authentication.js";
 
 /**
  * @file A session save must never undo a revocation (security: lost update on a session row).

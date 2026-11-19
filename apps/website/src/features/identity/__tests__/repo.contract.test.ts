@@ -9,18 +9,10 @@ import { authorize, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPr
 import { authenticateApiKey } from "../api-key-service.js";
 import { InMemoryApiKeyRepo } from "../repo.memory.js";
 import type { ApiKeyRepoPort } from "../api-key-types.js";
-import {
-  SqlApiKeyRepo,
-  SqlPolicyPermissionRepo,
-  SqlPolicyRepo,
-  SqlPrincipalPolicyRepo,
-  SqlPrincipalRepo,
-  SqlPrincipalRoleRepo,
-  SqlRolePolicyRepo,
-  SqlRoleRepo,
-  SqlSessionRepo,
-  SqlUserRepo,
-} from "../repo.js";
+import { SqlPrincipalRepo, SqlUserRepo } from "../repo.js";
+import { SqlPrincipalPolicyRepo, SqlPrincipalRoleRepo, SqlRolePolicyRepo } from "../repo.assignments.js";
+import { SqlApiKeyRepo, SqlSessionRepo } from "../repo.authentication.js";
+import { SqlPolicyPermissionRepo, SqlPolicyRepo, SqlRoleRepo } from "../repo.authorization.js";
 import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
 
 /**

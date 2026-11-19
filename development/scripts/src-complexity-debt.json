@@ -121,7 +121,7 @@
       "value": 13
     },
     {
-      "file": "apps/website/src/features/post/tool-registrations.ts",
+      "file": "apps/website/src/features/post/post-tool-duplicate.ts",
       "function": "duplicatePostOrPage#1",
       "line": 1377,
       "rule": "complexity",
