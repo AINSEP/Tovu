@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildPostRecord } from "./post-record.fixture.js";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { collectCoverMediaRefs, projectPostBody, resolveCoverImage, type CoverImagePost } from "../cover-image.js";
+import { collectCoverMediaRefs, projectPostBody, resolveCoverImage, type CoverImagePost } from "#src/contracts/core/cover-image";
 
 const photo = { id: "photo", width: 1200, height: 800, contentType: "image/jpeg" };
 const mediaLookup = ({ ref }: { ref: string }) => ref === "photo" || ref === "photo-slug" ? photo : null;

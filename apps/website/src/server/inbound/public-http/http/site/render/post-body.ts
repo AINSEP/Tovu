@@ -5,7 +5,7 @@ import type { SiteRenderContext } from "../render-context.js";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { renderHtmlPageBody } from "./page-body.js";
 import { renderDocNode } from "./content-html.js";
-import { projectPostBody } from "#src/features/post/rendering";
+import { projectPostBody } from "#src/contracts/core/cover-image";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";

@@ -63,7 +63,7 @@ export interface PluginCapabilityToolDeps {
   readonly executablePluginToolRegistry?: ToolRegistry;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
-  readonly postRead: PluginPostReadPort;
+  readonly postRead: PluginPostReadPort<PostRecord>;
   /** Re-read on EVERY call by each registration's policy — see the Jini registrar's "Revocation". */
   readonly pluginActivationRepo: PluginActivationRepoPort;
   /** Runs ONE attached plugin's beforeSave filter on a draft without saving — the composition

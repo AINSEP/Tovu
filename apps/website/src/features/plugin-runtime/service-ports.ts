@@ -1,10 +1,9 @@
 /** Consumer-owned service boundaries for plugin execution and install policy. */
 import type { HostSignals } from "@tovu/contracts/host-signals";
-import type { PostRecord } from "../post/index.js";
 
 /** Reads a required post, preserving the post owner's existing not-found error. */
-export interface PluginPostReadPort {
-  readRequired(input: { workspaceId: string; id: string }, options?: Record<string, never>): Promise<PostRecord>;
+export interface PluginPostReadPort<Post> {
+  readRequired(input: { workspaceId: string; id: string }, options?: Record<string, never>): Promise<Post>;
 }
 
 /** Provider/assistant-face relationships and safe linked-switch error details. */
