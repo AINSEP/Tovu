@@ -28,9 +28,9 @@ describe("new-page HTML tab metadata validation regression", () => {
       return metadataWrite({ target, patch });
     };
     const htmlWrite = port.updatePageHtml.bind(port);
-    port.updatePageHtml = async ({ id, html }) => {
+    port.updatePageHtml = async ({ id, html, expectedVersion }) => {
       order.push("html");
-      return htmlWrite({ id, html });
+      return htmlWrite({ id, html, expectedVersion });
     };
     // One deps object for every render — a fresh literal per render re-fires the editor's
     // dependency-keyed effects forever (the worker ran out of heap).

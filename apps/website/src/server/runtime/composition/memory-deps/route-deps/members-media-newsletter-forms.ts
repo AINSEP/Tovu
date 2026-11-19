@@ -1,6 +1,7 @@
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberSessionRepo, InMemoryMagicLinkTokenRepo } from "#src/features/members/index";
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
+import type { OutboundEmail } from "#src/platform/mail/index";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { InMemoryWebhookSubscriptionRepo, InMemoryWebhookDeliveryRepo } from "#src/features/webhooks/index";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
@@ -17,6 +18,13 @@ import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/ra
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { InMemoryDatabaseLedgerRepo, InMemoryMigrationRunsRepo } from "#src/features/database/repo.memory";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
+
+/** Nothing is delivered locally, so the preview is the mail: the full body carries the sign-in or
+ * confirmation link an operator has to be able to follow from the log. */
+function logConsoleMail({ message }: { message: OutboundEmail }): void {
+  const body = message.text ?? message.html;
+  console.log(`[mail:console] to=${message.to.email} subject=${JSON.stringify(message.subject)}${body === undefined ? "" : `\n${body}`}`);
+}
 
 /** Redirects, members, mailer, menus, webhooks and the media stores. */
 export function memoryMemberMediaDeps(required: MemoryRootContext, _optional = {}) {
@@ -50,7 +58,7 @@ export function memoryMemberMediaDeps(required: MemoryRootContext, _optional = {
     // composition resolves `local` by default (no test sets TOVU_RUNTIME_MODE), so the gate stays
     // inert here — existing tests are unaffected (INV-06).
     mailer: wrapMailerWithPurposeGate({
-      inner: toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() } }).create({ credential: { token: "" }, kit: {} as never }) }),
+      inner: toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: logConsoleMail }).create({ credential: { token: "" }, kit: {} as never }) }),
       mode: resolveRuntimeMode(),
       durableOutboxReady: () => false,
     }),

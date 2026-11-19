@@ -1624,6 +1624,70 @@
     {
       "id": "c16792653055",
       "reason": "Pointer to Jini's ports.ts/types.ts; platform/mail/index.ts line 2 already carries the same pointer."
+    },
+    {
+      "id": "883eca02a27d",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "60eac92a1fca",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "11c850cbb0da",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "7a96406fba5b",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "0444257efa69",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "f275cab21d9b",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "c6222729ee95",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "d71873ec3ed1",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "6bf2452d4ffc",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "145d473e5a09",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "790923855ce4",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "964cff67688d",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "0e38f7220067",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "2123d82eea01",
+      "reason": "tv-rf-d03 replaced this local LCOV parsing with @jini-ai/devops/checks/coverage; the helper/field this documented no longer exists in Tovu."
+    },
+    {
+      "id": "0f7bb0702784",
+      "reason": "tv-rf-d03 replaced this local LCOV parsing with @jini-ai/devops/checks/coverage; the helper/field this documented no longer exists in Tovu."
+    },
+    {
+      "id": "9ed2c4d209a6",
+      "reason": "tv-rf-d03 replaced this local LCOV parsing with @jini-ai/devops/checks/coverage; the helper/field this documented no longer exists in Tovu."
     }
   ]
 }

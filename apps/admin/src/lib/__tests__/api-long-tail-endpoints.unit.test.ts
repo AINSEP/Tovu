@@ -136,10 +136,10 @@ test("getPage builds a bare GET on /pages/:id", async () => {
 
 test("updatePageHtml PUTs the html body to /pages/:id/html", async () => {
   const { calls, body } = stubFetchCapturing();
-  await pagesApi.updatePageHtml({ id: "pg1", html: "<p>hi</p>" });
+  await pagesApi.updatePageHtml({ id: "pg1", html: "<p>hi</p>", expectedVersion: 3 });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/pages/pg1/html`);
   expect(calls[0].init?.method).toBe("PUT");
-  expect(body()).toEqual({ html: "<p>hi</p>" });
+  expect(body()).toEqual({ html: "<p>hi</p>", expectedVersion: 3 });
 });
 
 test("deletePage DELETEs /pages/:id", async () => {

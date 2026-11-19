@@ -85,7 +85,7 @@ test("createFormsModule().start() registers the C-009 notify subscriber without 
   const handle = createFormsModule({
     tracker: createTracker({}),
     bus,
-    mailer: toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() } }).create({ credential: { token: "" }, kit: {} as never }) }),
+    mailer: toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: () => {} }).create({ credential: { token: "" }, kit: {} as never }) }),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
     formSubmissionRepo: new InMemoryFormSubmissionRepo(),
   });
