@@ -115,23 +115,15 @@ function userCreateOutcome(required: { run: SecretCardRun<Record<string, unknown
     app: { appName: "tovu-identity-user-create-outcome", appVersion: "1" }, preferredFrameSize: ["100%", "240px"],
   };
 }
-
-/**
- * Jini's identity registrations with `identity_role_delete`/`identity_policy_delete`/
- * `identity_user_create` gated behind the human; every other tool passes through unchanged.
- *
- * @complexity O(n) in the registration count; each gate adds one or two repo reads per call.
- */
-export function buildGatedIdentityRegistrations(
-  routeDeps: TovuIdentityToolDeps,
-  surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
-): ToolRegistration[] {
   /** Each family supplies its own label and service permission; Jini owns the asking sequence.
    * The inner service reauthorizes at write time; the snapshot prevents callback input retargeting. */
   // SQL list ports promise a set, not row order. Canonicalize both snapshots so an
   // unchanged set cannot invalidate confirmation just because query order changed.
   // O(n log n) local sorting across n dependency rows; no additional repo reads.
-  const deleteReferences = async ({ kind, id }: { kind: "role" | "policy"; id: string }, _options = {}): Promise<Record<string, readonly { id: string; permission?: string }[]>> => {
+  
+
+function createIdentityDeleteReferences(routeDeps: TovuIdentityToolDeps) {
+  return async ({ kind, id }: { kind: "role" | "policy"; id: string }, _options = {}): Promise<Record<string, readonly { id: string; permission?: string }[]>> => {
     const references: Record<string, readonly { id: string; permission?: string }[]> = kind === "role"
       ? { principals: await routeDeps.principalRoleRepo.listByRoleId({ workspaceId: routeDeps.workspaceId, roleId: id }), policies: await routeDeps.rolePolicyRepo.listByRoleId({ workspaceId: routeDeps.workspaceId, roleId: id }) }
       : { principals: await routeDeps.principalPolicyRepo.listByPolicyId({ workspaceId: routeDeps.workspaceId, policyId: id }), roles: await routeDeps.rolePolicyRepo.listByPolicyId({ workspaceId: routeDeps.workspaceId, policyId: id }), permissions: await routeDeps.policyPermissionRepo.listByPolicyId({ workspaceId: routeDeps.workspaceId, policyId: id }) };
@@ -141,7 +133,10 @@ export function buildGatedIdentityRegistrations(
       return 0;
     })]));
   };
-  const confirmedDelete = ({ registration, kind }: { registration: ToolRegistration; kind: "role" | "policy" }, _options = {}): ToolRegistration => ({
+}
+
+function createConfirmedIdentityDelete({ routeDeps, surfaces, identity, deleteReferences }: { routeDeps: TovuIdentityToolDeps; surfaces: ChatDeleteSurfaceDeps; identity: Parameters<typeof assertUserAccountAction>[0]['deps']; deleteReferences: ReturnType<typeof createIdentityDeleteReferences> }) {
+  return ({ registration, kind }: { registration: ToolRegistration; kind: "role" | "policy" }, _options = {}): ToolRegistration => ({
     ...registration,
     handler: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
@@ -173,8 +168,10 @@ export function buildGatedIdentityRegistrations(
       },
     }, { flag: "deleted", batch: true }),
   });
+}
 
-  const createUserWithHumanPassword = ({ inner, publishedSchema }: { inner: ToolHandler; publishedSchema: unknown }, _options = {}): ToolHandler => async (ctx, options = {}) => {
+function createHumanPasswordUserHandler({ routeDeps, surfaces, identity }: { routeDeps: TovuIdentityToolDeps; surfaces: ChatDeleteSurfaceDeps; identity: Parameters<typeof assertUserAccountAction>[0]['deps'] }) {
+  return ({ inner, publishedSchema }: { inner: ToolHandler; publishedSchema: unknown }, _options = {}): ToolHandler => async (ctx, options = {}) => {
     if (typeof ctx.input === "object" && ctx.input !== null && "password" in ctx.input) {
       throw new ToolInputError({ message: `IDENTITY_PASSWORD_NOT_ACCEPTED: ${USER_CREATE_TOOL_ID}: do not pass a password. The user types the new ` +
           "user's first password into the form this tool shows. Nothing was created." });
@@ -213,19 +210,9 @@ export function buildGatedIdentityRegistrations(
     if (failureMessage !== undefined) throw new ToolInputError({ message: failureMessage });
     return result;
   };
+}
 
-  const hostClock = routeDeps.clock;
-  const clock: Clock = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(hostClock.nowIso()) };
-  const identity = {
-    repos: { transactions: routeDeps.transactions, principals: routeDeps.principalRepo, users: routeDeps.userRepo,
-      sessions: routeDeps.sessionRepo, roles: routeDeps.roleRepo, policies: routeDeps.policyRepo,
-      policyPermissions: routeDeps.policyPermissionRepo, rolePolicies: routeDeps.rolePolicyRepo,
-      principalRoles: routeDeps.principalRoleRepo, principalPolicies: routeDeps.principalPolicyRepo },
-    hasher: routeDeps.passwordHasher, clock, idGen: routeDeps.idGen, tokens: routeDeps.tokens,
-  };
-  const usernameChanges = createUsernameChangePort({ outbox: routeDeps.outbox, isInTrash: routeDeps.isInTrash, idGen: routeDeps.idGen,
-    seededOwnerPrincipalId: routeDeps.ownerPrincipalId });
-  return withToolMetadata({ registrations: buildIdentityRegistrations({ ...routeDeps, clock, usernameChanges }), metadata: toolMetadata }).map((registration): ToolRegistration => {
+function gateIdentityRegistration(registration: ToolRegistration, { routeDeps, identity, confirmedDelete, createUserWithHumanPassword }: { routeDeps: TovuIdentityToolDeps; identity: Parameters<typeof assertUserAccountAction>[0]['deps']; confirmedDelete: ReturnType<typeof createConfirmedIdentityDelete>; createUserWithHumanPassword: ReturnType<typeof createHumanPasswordUserHandler> }): ToolRegistration {
     switch (registration.descriptor.id) {
       case "identity_user_disable":
         return { ...registration, handler: async (ctx, options = {}) => {
@@ -266,7 +253,36 @@ export function buildGatedIdentityRegistrations(
       default:
         return registration;
     }
-  });
+  }
+
+
+/**
+ * Jini's identity registrations with `identity_role_delete`/`identity_policy_delete`/
+ * `identity_user_create` gated behind the human; every other tool passes through unchanged.
+ *
+ * @complexity O(n) in the registration count; each gate adds one or two repo reads per call.
+ */
+export function buildGatedIdentityRegistrations(
+  routeDeps: TovuIdentityToolDeps,
+  surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+): ToolRegistration[] {
+
+  const hostClock = routeDeps.clock;
+  const clock: Clock = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(hostClock.nowIso()) };
+  const identity = {
+    repos: { transactions: routeDeps.transactions, principals: routeDeps.principalRepo, users: routeDeps.userRepo,
+      sessions: routeDeps.sessionRepo, roles: routeDeps.roleRepo, policies: routeDeps.policyRepo,
+      policyPermissions: routeDeps.policyPermissionRepo, rolePolicies: routeDeps.rolePolicyRepo,
+      principalRoles: routeDeps.principalRoleRepo, principalPolicies: routeDeps.principalPolicyRepo },
+    hasher: routeDeps.passwordHasher, clock, idGen: routeDeps.idGen, tokens: routeDeps.tokens,
+  };
+  const usernameChanges = createUsernameChangePort({ outbox: routeDeps.outbox, isInTrash: routeDeps.isInTrash, idGen: routeDeps.idGen,
+    seededOwnerPrincipalId: routeDeps.ownerPrincipalId });
+  const deleteReferences = createIdentityDeleteReferences(routeDeps);
+  const confirmedDelete = createConfirmedIdentityDelete({ routeDeps, surfaces, identity, deleteReferences });
+  const createUserWithHumanPassword = createHumanPasswordUserHandler({ routeDeps, surfaces, identity });
+
+  return withToolMetadata({ registrations: buildIdentityRegistrations({ ...routeDeps, clock, usernameChanges }), metadata: toolMetadata }).map(registration => gateIdentityRegistration(registration, { routeDeps, identity, confirmedDelete, createUserWithHumanPassword }));
 }
 
 /**

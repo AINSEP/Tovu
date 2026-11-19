@@ -48,30 +48,11 @@ export const PROPOSE_CREDENTIAL_SAVE_FAILED = 'The person submitted the form but
 /** Repository rules a site backup enforces (`site_backup_plan`), shown on the form beside the provider's token help. */
 const BACKUP_REPOSITORY_RULES = 'For a site backup, the repository must be private and already have at least one commit (for example a README).';
 
-/** Opens the registry-defined human form and parks this tool call until answered or aborted.
- * @param spec - Tool context, explicit store dependencies and the shared exchange store.
- * @example await proposeSourceControlCredential({ ctx, deps, surfaces });
- * @returns Safe save status; throws ToolInputError for invalid model input or absent form channel.
- * @complexity Time O(p + f) provider/field count before one existing credential save; space O(f).
- */
-export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionContext; deps: SourceControlCredentialSetupDeps; surfaces: AssistantSurfaceDeps }, optional: ToolExecutionOptions = {}): Promise<ProposalResult> {
-  const { ctx, deps, surfaces } = spec;
-  const { provider, label } = parseProposalInput({ input: ctx.input });
-  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'source-control.credentials.write' }, { entityType: 'source-control' });
-  // An ended run must not load plugins; the engine classifies abandonment without opening a card.
-  const registry = ctx.signal.aborted ? undefined : await deps.loadSourceControlProviders({ workspaceId: deps.workspaceId });
-  const descriptor = registry?.get({ providerId: provider })?.descriptor;
-  if (!ctx.signal.aborted && !descriptor?.credential) {
-    throw new ToolInputError({ message: 'No enabled source control provider declares this credential form. Call source_control_get_capabilities for available hosts.' });
-  }
-  const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
-  const pluginCard = ctx.signal.aborted ? undefined : await findPluginCredentialCard({ loadCards: deps.loadPluginCredentialCards, workspaceId: deps.workspaceId, saveKind: 'source-control', target: provider });
-  const card = defineSecretCardTool<{
+    
+function sourceControlCredentialForm(pluginCard: Awaited<ReturnType<typeof findPluginCredentialCard>>): Parameters<typeof defineSecretCardTool<{
     descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
-  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>({
-    toolId: CREDENTIAL_SAVE_TOOL_ID,
-    prepare: async () => ({ descriptor: ctx.signal.aborted ? undefined : descriptor, provider, label, locale }),
-    form: ({ prep }) => {
+  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>>[0]['form'] {
+  return ({ prep }) => {
       const descriptor = prep.descriptor;
       if (!descriptor?.credential) throw new ToolInputError({ message: 'Source control credential form has no provider configuration.' });
       const credential = descriptor.credential;
@@ -86,10 +67,17 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
               ? { ...base, secret: true, allowBlank: !field.required } : base;
           })],
       } });
-    },
+    };
+}
+
+
     // Saves only provider-declared fields through the admin POST's existing store function.
     // Returns an explicit safe projection; errors may quote secrets and are never forwarded.
-    save: ({ values, prep, signal }) => {
+    
+function sourceControlCredentialSaver(deps: SourceControlCredentialSetupDeps): Parameters<typeof defineSecretCardTool<{
+    descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
+  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>>[0]['save'] {
+  return ({ values, prep, signal }) => {
       if (!prep.descriptor) throw new ToolInputError({ message: 'Source control credential save has no provider configuration.' });
       const connection = connectionFromForm({ descriptor: prep.descriptor, values });
       const store = deps.sourceControlCredentialSetRepo;
@@ -123,8 +111,14 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
         loadSourceControlProviders: deps.loadSourceControlProviders,
         ...(deps.customCredentialsHttpClient ? { httpClient: deps.customCredentialsHttpClient } : {}),
       }, input: { workspaceId: deps.workspaceId, label: values.label, connection, ...(store.project ? { isDefault: false } : {}) } });
-    },
-    result: ({ prep, run }): ProposalResult => {
+    };
+}
+
+
+    
+const sourceControlCredentialResult: Parameters<typeof defineSecretCardTool<{
+    descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
+  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>>[0]['result'] = ({ prep, run }): ProposalResult => {
       const declined = { saved: false, credentialId: null, provider: prep.provider, label: prep.label, cancelled: run.status === 'cancelled' };
       if (run.status !== 'saved') {
         const message = declinedMessage({ prep, run });
@@ -134,9 +128,14 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
       const connection = credential.connection ?? 'saved';
       return { saved: true, credentialId: credential.id, provider: prep.provider, label: credential.label, tokenHint: credential.tokenHint, connection,
         message: savedMessage({ credential, locale: prep.locale }) };
-    },
+    };
+
+
     // Renders a value-free save outcome on the form's URI, supplied by the engine.
-    outcome: ({ prep, run }) => {
+    
+const sourceControlCredentialOutcome: Parameters<typeof defineSecretCardTool<{
+    descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
+  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>>[0]['outcome'] = ({ prep, run }) => {
       if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
       const saved = run.status === 'saved';
       let message = PROPOSE_CREDENTIAL_SAVE_FAILED;
@@ -146,7 +145,36 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
         case 'failed': message = run.safeMessage; break;
       }
       return { title: saved ? 'Credential saved' : 'Credential not saved', state: saved ? 'success' : 'failure', message };
-    },
+    };
+
+
+/** Opens the registry-defined human form and parks this tool call until answered or aborted.
+ * @param spec - Tool context, explicit store dependencies and the shared exchange store.
+ * @example await proposeSourceControlCredential({ ctx, deps, surfaces });
+ * @returns Safe save status; throws ToolInputError for invalid model input or absent form channel.
+ * @complexity Time O(p + f) provider/field count before one existing credential save; space O(f).
+ */
+export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionContext; deps: SourceControlCredentialSetupDeps; surfaces: AssistantSurfaceDeps }, optional: ToolExecutionOptions = {}): Promise<ProposalResult> {
+  const { ctx, deps, surfaces } = spec;
+  const { provider, label } = parseProposalInput({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'source-control.credentials.write' }, { entityType: 'source-control' });
+  // An ended run must not load plugins; the engine classifies abandonment without opening a card.
+  const registry = ctx.signal.aborted ? undefined : await deps.loadSourceControlProviders({ workspaceId: deps.workspaceId });
+  const descriptor = registry?.get({ providerId: provider })?.descriptor;
+  if (!ctx.signal.aborted && !descriptor?.credential) {
+    throw new ToolInputError({ message: 'No enabled source control provider declares this credential form. Call source_control_get_capabilities for available hosts.' });
+  }
+  const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
+  const pluginCard = ctx.signal.aborted ? undefined : await findPluginCredentialCard({ loadCards: deps.loadPluginCredentialCards, workspaceId: deps.workspaceId, saveKind: 'source-control', target: provider });
+  const card = defineSecretCardTool<{
+    descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
+  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>({
+    toolId: CREDENTIAL_SAVE_TOOL_ID,
+    prepare: async () => ({ descriptor: ctx.signal.aborted ? undefined : descriptor, provider, label, locale }),
+    form: sourceControlCredentialForm(pluginCard),
+    save: sourceControlCredentialSaver(deps),
+    result: sourceControlCredentialResult,
+    outcome: sourceControlCredentialOutcome,
   }, {
     uriHost: 'tovu',
     text: { noEmitter: 'source_control_propose_credential requires an interactive form channel. Nothing was saved.', saveFailure: PROPOSE_CREDENTIAL_SAVE_FAILED },

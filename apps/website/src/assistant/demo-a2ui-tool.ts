@@ -146,25 +146,57 @@ function noAnswerResult({ reason }: { reason: "expired" | "abandoned" }, _option
         : "The A2UI surface was abandoned because the run ended. Do not assume any action was taken.",
   };
 }
+function initialDemoComponents(surfaceId: string): AgentToRendererMessage {
+  return {
+          version: "v1.0",
+          updateComponents: {
+            surfaceId,
+            components: [
+              { id: "root", component: "Column", children: ["title", "status", "actionButton"] },
+              { id: "title", component: "Text", text: "A2UI demo", variant: "body" },
+              { id: "status", component: "Text", text: { path: "/status" } },
+              {
+                id: "actionButton",
+                component: "Button",
+                child: "actionLabel",
+                variant: "primary",
+                action: { event: { name: CONTINUE_ACTION, context: { step: "first" } } },
+              },
+              { id: "actionLabel", component: "Text", text: "Continue" },
+            ],
+          },
+        };
+}
 
-/**
- * Builds this tool's registration unconditionally; the owner policy is in `demo-choices-tool.ts`.
- *
- * @param required._routeDeps - Unused; this tool touches no domain dependency. Present because every domain
- * builder shares one signature.
- * @param required.surfaces - Supplies the exchange store. Must be the same instance
- * `registerA2uiActionsRoute` was mounted with, or a clicked action reaches nothing.
- * @returns A single registration.
- * @complexity O(1) at build time; the handler itself is O(1) per turn plus the two round trips it
- * awaits.
- * @overallScore 100
- */
-export function buildDemoA2uiRegistrations(
-  { _routeDeps, surfaces }: { _routeDeps: unknown; surfaces: AssistantSurfaceDeps },
-  _optional = {},
-): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
-    [DEMO_A2UI_TOOL_ID]: async (ctx, { emitSurface } = {}) => {
+function continuedDemoComponents(surfaceId: string, firstStep: RoundTripStep, firstAction: ActionMessagePayload | undefined): AgentToRendererMessage {
+  return {
+          version: "v1.0",
+          updateComponents: {
+            surfaceId,
+            components: [
+              {
+                id: "status",
+                component: "Text",
+                text:
+                  `You triggered "${firstStep.name}" at ${firstAction?.timestamp ?? "an unknown time"}. ` +
+                  "Click Finish to send your answer to the agent.",
+                variant: "body",
+              },
+              {
+                id: "actionButton",
+                component: "Button",
+                child: "actionLabel",
+                variant: "primary",
+                action: { event: { name: FINISH_ACTION, context: { step: "second" } } },
+              },
+              { id: "actionLabel", component: "Text", text: "Finish" },
+            ],
+          },
+        };
+}
+
+function createDemoA2uiHandler(surfaces: AssistantSurfaceDeps): ToolHandler {
+  return async (ctx, { emitSurface } = {}) => {
       // Unlike `demo-choices-tool.ts`, there is no degraded second path for a missing emit seam —
       // see this module's doc for why A2UI has no equivalent of MCP-UI's legacy two-call shape.
       if (!emitSurface) {
@@ -202,25 +234,7 @@ export function buildDemoA2uiRegistrations(
             dataModel: { status: "Click Continue to send an action to the agent." },
           },
         });
-        await emitA2ui({
-          version: "v1.0",
-          updateComponents: {
-            surfaceId,
-            components: [
-              { id: "root", component: "Column", children: ["title", "status", "actionButton"] },
-              { id: "title", component: "Text", text: "A2UI demo", variant: "body" },
-              { id: "status", component: "Text", text: { path: "/status" } },
-              {
-                id: "actionButton",
-                component: "Button",
-                child: "actionLabel",
-                variant: "primary",
-                action: { event: { name: CONTINUE_ACTION, context: { step: "first" } } },
-              },
-              { id: "actionLabel", component: "Text", text: "Continue" },
-            ],
-          },
-        });
+        await emitA2ui(initialDemoComponents(surfaceId));
 
         const first = await exchange.receive({});
         if (first.status !== "received") return noAnswerResult({ reason: first.status });
@@ -232,30 +246,7 @@ export function buildDemoA2uiRegistrations(
         // The second turn REFLECTS the first action, per this tool's whole reason for existing:
         // `status`'s text and the button's own action name both change in response to what the human
         // just did, proving the round trip carries real information rather than a scripted replay.
-        await emitA2ui({
-          version: "v1.0",
-          updateComponents: {
-            surfaceId,
-            components: [
-              {
-                id: "status",
-                component: "Text",
-                text:
-                  `You triggered "${firstStep.name}" at ${firstAction?.timestamp ?? "an unknown time"}. ` +
-                  "Click Finish to send your answer to the agent.",
-                variant: "body",
-              },
-              {
-                id: "actionButton",
-                component: "Button",
-                child: "actionLabel",
-                variant: "primary",
-                action: { event: { name: FINISH_ACTION, context: { step: "second" } } },
-              },
-              { id: "actionLabel", component: "Text", text: "Finish" },
-            ],
-          },
-        });
+        await emitA2ui(continuedDemoComponents(surfaceId, firstStep, firstAction));
 
         const second = await exchange.receive({});
         if (second.status !== "received") return noAnswerResult({ reason: second.status });
@@ -272,7 +263,28 @@ export function buildDemoA2uiRegistrations(
         // return (no-answer) or an abort.
         exchange.close({});
       }
-    },
+    };
+}
+
+
+/**
+ * Builds this tool's registration unconditionally; the owner policy is in `demo-choices-tool.ts`.
+ *
+ * @param required._routeDeps - Unused; this tool touches no domain dependency. Present because every domain
+ * builder shares one signature.
+ * @param required.surfaces - Supplies the exchange store. Must be the same instance
+ * `registerA2uiActionsRoute` was mounted with, or a clicked action reaches nothing.
+ * @returns A single registration.
+ * @complexity O(1) at build time; the handler itself is O(1) per turn plus the two round trips it
+ * awaits.
+ * @overallScore 100
+ */
+export function buildDemoA2uiRegistrations(
+  { _routeDeps, surfaces }: { _routeDeps: unknown; surfaces: AssistantSurfaceDeps },
+  _optional = {},
+): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    [DEMO_A2UI_TOOL_ID]: createDemoA2uiHandler(surfaces),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

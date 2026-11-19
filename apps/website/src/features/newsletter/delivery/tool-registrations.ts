@@ -94,37 +94,9 @@ async function requireMassLaunchReady(deps: NewsletterToolDeps): Promise<void> {
   const result = await evaluateLaunchGate({ deps: toNewsletterSendPipelineDeps(deps).launchGateDeps, workspaceId: deps.workspaceId, isTestSend: false });
   if (!result.met) throw new ToolInputError({ message: `NEWSLETTER_LAUNCH_GATE_BLOCKED: ${result.unmetPreconditions.join(", ")}. Enable newsletter sending and bind Members consent before launching a mass send.` });
 }
-
-/**
- * Builds handlers over existing services. Human consent is scoped to an unchanged campaign.
- * @param deps - Existing newsletter services and owner identity, bound at boot.
- * @param surfaces - Shared browser-only exchange store (a local store is useful for isolated callers).
- * @returns Four durable-write registrations; none supports a model-supplied confirmation flag.
- * @throws ToolInputError for permissions, missing configuration, invalid input or stale consent.
- * @complexity O(1) registration setup; launch uses the existing pipeline's audience cost.
- */
-export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToolDeps, surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
-    newsletter_send_test: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.send_test" }, { entityType: "newsletter_campaign" });
-      if (Object.keys(input).some((key) => key !== "campaignId")) throw new ToolInputError({ message: "NEWSLETTER_OWNER_ONLY: Test sends only use the site owner's stored email. Remove recipient fields and retry." });
-      const campaignId = requireString({ input: input, key: "campaignId" });
-      const mailOff = mailOffResult(deps);
-      if (mailOff) return mailOff;
-      await deps.newsletterReady;
-      const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: await deps.ownerPrincipalId });
-      if (!owner?.email?.trim()) throw new ToolInputError({ message: "NEWSLETTER_OWNER_EMAIL_MISSING: Set the site owner's email in their user profile before sending a test." });
-      ctx.signal.throwIfAborted();
-      const { results } = await sendTestCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId, testAddresses: [owner.email] } });
-      // Provider error text can carry an email or endpoint; the caller receives only a fixed recovery note.
-      if (results[0]?.outcome !== "sent") return { delivered: false, mailDeliveryAvailable: true, note: "The mail provider did not accept the test email. Check the email provider configuration and retry." };
-      return { delivered: true, mailDeliveryAvailable: true };
-    },
-  };
-  for (const toolId of ["newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign"]) {
-    type Prepared = { refusal: NonNullable<ReturnType<typeof mailOffResult>> } | { campaignId: string; existing: CampaignRecord; scheduledAt: string | null };
-    handlers[toolId] = approvalToolHandler<Prepared>({ surfaces, prepare: async ({ ctx }) => {
+type Prepared = { refusal: NonNullable<ReturnType<typeof mailOffResult>> } | { campaignId: string; existing: CampaignRecord; scheduledAt: string | null };
+function createNewsletterCampaignPreparation(deps: NewsletterDeliveryToolDeps, toolId: string): Parameters<typeof approvalToolHandler<Prepared>>[0]['prepare'] {
+  return async ({ ctx }) => {
       const input = requireInputRecord({ input: ctx.input });
       const campaignId = requireString({ input: input, key: "campaignId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: toolId === "newsletter_schedule_campaign" ? "admin.newsletter.campaign.schedule" : "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
@@ -136,7 +108,11 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
       const scheduledAt = toolId === "newsletter_schedule_campaign" ? requireString({ input: input, key: "scheduledAt" }) : null;
       if (scheduledAt !== null && !isValidScheduleTimestamp({ value: scheduledAt })) throw new NewsletterValidationError({ message: "scheduledAt must be a valid ISO date-time string with an explicit timezone", field: "scheduledAt", reason: "format" });
       return { campaignId, existing: structuredClone(existing), scheduledAt };
-    }, describe: ({ prepared }) => {
+    };
+}
+
+function createNewsletterCampaignDescription(deps: NewsletterDeliveryToolDeps, toolId: string): Parameters<typeof approvalToolHandler<Prepared>>[0]['describe'] {
+  return ({ prepared }) => {
       let title = "Send this newsletter?";
       if (toolId === "newsletter_schedule_campaign") title = "Schedule this newsletter?";
       if (toolId === "newsletter_resume_campaign") title = "Resume this newsletter?";
@@ -148,7 +124,11 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
         { label: "Subject", value: existing.subject }, { label: "Campaign", value: campaignId }, { label: "Subscriber list", value: existing.listId }, { label: "Status", value: existing.status },
         ...(scheduledAt === null ? [] : [{ label: "Scheduled date", value: scheduledAt }]),
       ] };
-    }, run: async ({ ctx, prepared }) => {
+    };
+}
+
+function createNewsletterCampaignRun(deps: NewsletterDeliveryToolDeps, toolId: string): Parameters<typeof approvalToolHandler<Prepared>>[0]['run'] {
+  return async ({ ctx, prepared }) => {
       if ("refusal" in prepared) return prepared.refusal;
       const { campaignId, existing, scheduledAt } = prepared;
       // Authorization and mail configuration may change while the human reads the card.
@@ -186,9 +166,45 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
         return processingAttentionResult({ campaignId, status: campaign.status });
       }
       return { confirmed: true, started: true, campaignId, status: campaign.status, delivered: false, mailDeliveryAvailable: true };
-    } }, { ask: ({ prepared }) => !("refusal" in prepared),
+    };
+}
+
+function createNewsletterCampaignHandler(deps: NewsletterDeliveryToolDeps, surfaces: AssistantSurfaceDeps, toolId: string): ToolHandler {
+  return approvalToolHandler<Prepared>({ surfaces, prepare: createNewsletterCampaignPreparation(deps, toolId), describe: createNewsletterCampaignDescription(deps, toolId), run: createNewsletterCampaignRun(deps, toolId) }, { ask: ({ prepared }) => !("refusal" in prepared),
       declined: ({ reason }) => ({ confirmed: false, reason, delivered: false, mailDeliveryAvailable: true }),
     });
+}
+
+
+/**
+ * Builds handlers over existing services. Human consent is scoped to an unchanged campaign.
+ * @param deps - Existing newsletter services and owner identity, bound at boot.
+ * @param surfaces - Shared browser-only exchange store (a local store is useful for isolated callers).
+ * @returns Four durable-write registrations; none supports a model-supplied confirmation flag.
+ * @throws ToolInputError for permissions, missing configuration, invalid input or stale consent.
+ * @complexity O(1) registration setup; launch uses the existing pipeline's audience cost.
+ */
+export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToolDeps, surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    newsletter_send_test: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.send_test" }, { entityType: "newsletter_campaign" });
+      if (Object.keys(input).some((key) => key !== "campaignId")) throw new ToolInputError({ message: "NEWSLETTER_OWNER_ONLY: Test sends only use the site owner's stored email. Remove recipient fields and retry." });
+      const campaignId = requireString({ input: input, key: "campaignId" });
+      const mailOff = mailOffResult(deps);
+      if (mailOff) return mailOff;
+      await deps.newsletterReady;
+      const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: await deps.ownerPrincipalId });
+      if (!owner?.email?.trim()) throw new ToolInputError({ message: "NEWSLETTER_OWNER_EMAIL_MISSING: Set the site owner's email in their user profile before sending a test." });
+      ctx.signal.throwIfAborted();
+      const { results } = await sendTestCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId, testAddresses: [owner.email] } });
+      // Provider error text can carry an email or endpoint; the caller receives only a fixed recovery note.
+      if (results[0]?.outcome !== "sent") return { delivered: false, mailDeliveryAvailable: true, note: "The mail provider did not accept the test email. Check the email provider configuration and retry." };
+      return { delivered: true, mailDeliveryAvailable: true };
+    },
+  };
+  for (const toolId of ["newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign"]) {
+    handlers[toolId] = createNewsletterCampaignHandler(deps, surfaces, toolId);
   }
   // authorizeSend's gate result is safe vocabulary; its generic message alone omits the reason.
   const guarded: Record<string, ToolHandler> = {};

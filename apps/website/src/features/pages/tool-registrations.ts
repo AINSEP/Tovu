@@ -527,11 +527,9 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
   return (store.embedWarnings?.() ?? []).map(warning => warning.message);
 }
 
-export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
     // Resolve against this handler's site dependencies, after scope selection and permission checks.
     // Region selection stays outside the document fallback so a failed lookup cannot return a full page.
-    pages_read_html: async (ctx) => {
+    async function readPageHtml(routeDeps: PagesToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
 
@@ -553,9 +551,10 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       if (input.regionId === undefined) return result;
       const region = requireRegion({ scan, id, handle: requireString({ input, key: "regionId" }) });
       return { ...result, html: page.html.slice(region.start, region.end) };
-    },
+    }
 
-    pages_write_html: async (ctx) => {
+
+    async function writePageHtml(routeDeps: PagesToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PAGES_EDIT_HTML_PERMISSION }, { entityType: "post" });
 
@@ -597,13 +596,14 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       // mistake, but a deliberately hidden element is legal (see `hidden-until-script.ts`).
       const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html }), describeUnsafeRegions({ scan }), ...embedWarningMessages({ store })] });
       return { written: true, id, regions: regionHandlesIn({ scan }), version: requireCapturedVersion(store), ...warning };
-    },
+    }
+
 
     /**
      * The one-section edit. Read, splice, version-conditioned write — server-side, so the model
      * never has to hold or re-emit the rest of the document.
      */
-    pages_write_region: async (ctx) => {
+    async function writePageRegion(routeDeps: PagesToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PAGES_EDIT_HTML_PERMISSION }, { entityType: "post" });
 
@@ -672,13 +672,14 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         version: requireCapturedVersion(store),
         ...warning,
       };
-    },
+    }
+
 
     /**
      * The section reorder. Read, cut-and-reinsert one whole region element, version-conditioned
      * write — so "swap these two sections" never means re-sending the page.
      */
-    pages_move_region: async (ctx) => {
+    async function movePageRegion(routeDeps: PagesToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PAGES_EDIT_HTML_PERMISSION }, { entityType: "post" });
 
@@ -723,7 +724,18 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       }
       const movedScan = scanHtmlRegions({ html: moved.html });
       return { written: true, id, handle, regions: regionHandlesIn({ scan: movedScan }), version: requireCapturedVersion(store), ...joinWarnings({ warnings: embedWarningMessages({ store }) }) };
-    },
+    }
+
+
+
+
+
+export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    pages_read_html: (ctx) => readPageHtml(routeDeps, ctx),
+    pages_write_html: (ctx) => writePageHtml(routeDeps, ctx),
+    pages_write_region: (ctx) => writePageRegion(routeDeps, ctx),
+    pages_move_region: (ctx) => movePageRegion(routeDeps, ctx),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

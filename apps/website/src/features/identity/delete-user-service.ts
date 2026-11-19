@@ -268,6 +268,21 @@ async function assertDestructiveAccountInvariants(required: {
  *  Module-level, not per-workspace: this codebase runs one workspace per process (CIC U-001), so a
  *  single chain is exactly as serialized as a per-workspace map would be, with no map to leak. */
 let tail: Promise<unknown> = Promise.resolve();
+function trashRemovalInput({ identity, input, target, title, subtitle }: {
+  identity: DeleteUserDeps['identity']; input: DeleteUserInput;
+  target: NonNullable<Awaited<ReturnType<DeleteUserDeps['identity']['repos']['principals']['findById']>>>; title: string; subtitle: string | null;
+}): Parameters<RemoveUserFn>[0] {
+  return {
+      workspaceId: input.workspaceId,
+      id: target.id,
+      display: { title, subtitle },
+      at: new Date(identity.clock.nowMs()).toISOString(),
+      expectedVersion: null,
+      actor: { principalId: input.callerPrincipalId },
+    };
+}
+
+
 
 /**
  * Moves a user (or the orphan `api_key` "runner" principal) to the Trash. Checked in order: caller
@@ -332,14 +347,7 @@ export async function trashUser(required: {
       );
     }
 
-    return removeUser({
-      workspaceId: input.workspaceId,
-      id: target.id,
-      display: { title, subtitle },
-      at: new Date(identity.clock.nowMs()).toISOString(),
-      expectedVersion: null,
-      actor: { principalId: input.callerPrincipalId },
-    });
+    return removeUser(trashRemovalInput({ identity, input, target, title, subtitle }));
   };
 
   // Keep the local queue's historical ordering, and join the shared transaction so competing

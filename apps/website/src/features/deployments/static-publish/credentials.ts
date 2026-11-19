@@ -105,6 +105,32 @@ function chosenConnectionUnavailableFromEnvReason(target: StaticPublishTargetId)
 }
 
 type EnvCredentialResult = { readonly token: string; readonly fields: Readonly<Record<string, string>> } | { readonly reason: string };
+  /** The first set, non-blank var of `tokenVars` (blank counts as unset). The failure reason names
+   *  every var the operator could have set, not just the first. */
+  function readToken(env: NodeJS.ProcessEnv, target: StaticPublishTargetId, tokenVars: readonly string[]): { token: string } | { reason: string } {
+    for (const envVar of tokenVars) {
+      const token = env[envVar]?.trim();
+      if (token) return { token };
+    }
+    const reason =
+      tokenVars.length === 1
+        ? `${tokenVars[0]} is not set — publishing to ${target} requires a token with write access configured in the server environment`
+        : `none of ${tokenVars.join(", ")} is set — publishing to ${target} requires a token with write access configured in the server environment (any one of these env vars)`;
+    return { reason };
+  }
+
+
+  /** Every declared extra field's env var, or the first one missing. */
+  function readFields(env: NodeJS.ProcessEnv, target: StaticPublishTargetId, fallback: DeployTargetEnvFallback): { fields: Record<string, string> } | { reason: string } {
+    const fields: Record<string, string> = {};
+    for (const [field, envVar] of Object.entries(fallback.fields ?? {})) {
+      const value = env[envVar]?.trim();
+      if (!value) return { reason: `${envVar} is not set — publishing to ${target} requires both a token (${fallback.tokenVars.join(" or ")}) and ${envVar}` };
+      fields[field] = value;
+    }
+    return { fields };
+  }
+
 
 /**
  * Builds a `PublishCredentialSource` that resolves a target's token (and any extra credential fields)
@@ -126,30 +152,6 @@ export function createEnvPublishCredentialSource(
   },
   { env = process.env }: { env?: NodeJS.ProcessEnv } = {},
 ): PublishCredentialSourceWithChoice {
-  /** The first set, non-blank var of `tokenVars` (blank counts as unset). The failure reason names
-   *  every var the operator could have set, not just the first. */
-  function readToken(target: StaticPublishTargetId, tokenVars: readonly string[]): { token: string } | { reason: string } {
-    for (const envVar of tokenVars) {
-      const token = env[envVar]?.trim();
-      if (token) return { token };
-    }
-    const reason =
-      tokenVars.length === 1
-        ? `${tokenVars[0]} is not set — publishing to ${target} requires a token with write access configured in the server environment`
-        : `none of ${tokenVars.join(", ")} is set — publishing to ${target} requires a token with write access configured in the server environment (any one of these env vars)`;
-    return { reason };
-  }
-
-  /** Every declared extra field's env var, or the first one missing. */
-  function readFields(target: StaticPublishTargetId, fallback: DeployTargetEnvFallback): { fields: Record<string, string> } | { reason: string } {
-    const fields: Record<string, string> = {};
-    for (const [field, envVar] of Object.entries(fallback.fields ?? {})) {
-      const value = env[envVar]?.trim();
-      if (!value) return { reason: `${envVar} is not set — publishing to ${target} requires both a token (${fallback.tokenVars.join(" or ")}) and ${envVar}` };
-      fields[field] = value;
-    }
-    return { fields };
-  }
 
   async function readCredential({ target, requestedWorkspaceId }: { target: StaticPublishTargetId; requestedWorkspaceId: UUID }, { credentialId }: { credentialId?: UUID } = {}): Promise<EnvCredentialResult> {
     // An env var is never "the saved connection the operator chose" — a chosen id must resolve to
@@ -166,9 +168,9 @@ export function createEnvPublishCredentialSource(
     if (descriptor === undefined) return { reason: unknownTargetReason(target) };
     if (descriptor.env === undefined) return { reason: noEnvFallbackReason(target) };
 
-    const tokenResult = readToken(target, descriptor.env.tokenVars);
+    const tokenResult = readToken(env, target, descriptor.env.tokenVars);
     if ("reason" in tokenResult) return tokenResult;
-    const fieldsResult = readFields(target, descriptor.env);
+    const fieldsResult = readFields(env, target, descriptor.env);
     if ("reason" in fieldsResult) return fieldsResult;
     return { token: tokenResult.token, fields: fieldsResult.fields };
   }

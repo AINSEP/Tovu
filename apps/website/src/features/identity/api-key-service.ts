@@ -252,6 +252,46 @@ function readOptionalExpiry({ value }: { value: unknown }, _options = {}): ISODa
   // accident of the offset the caller happened to send.
   return new Date(parsed).toISOString();
 }
+function apiKeyPolicySnapshot({ snapshotPolicyId, workspaceId, keyId, label }: { snapshotPolicyId: string; workspaceId: UUID; keyId: string; label: string }): Parameters<ApiKeyServiceDeps['repos']['policies']['save']>[0] {
+  return {
+      id: snapshotPolicyId,
+      workspaceId,
+      name: `api-key:${keyId}`,
+      description: `Issuance snapshot for API key '${label}'`,
+      isBuiltin: false,
+      isFrozen: true,
+    };
+}
+
+function apiKeySnapshotPermission({ deps, workspaceId, snapshotPolicyId, row }: { deps: ApiKeyServiceDeps; workspaceId: UUID; snapshotPolicyId: string; row: Awaited<ReturnType<typeof collectSnapshotSourceRows>>[number] }): Parameters<ApiKeyServiceDeps['repos']['policyPermissions']['save']>[0] {
+  return {
+        id: deps.idGen.newId(),
+        workspaceId,
+        policyId: snapshotPolicyId,
+        permission: row.permission,
+        resourceType: row.resourceType ?? null,
+        constraintJson: row.constraintJson ?? null,
+      };
+}
+
+function issuedApiKeyRecord({ deps, keyId, workspaceId, boundPrincipalId, label, minted, snapshotPolicyId, expiresAt }: {
+  deps: ApiKeyServiceDeps; keyId: string; workspaceId: UUID; boundPrincipalId: string; label: string;
+  minted: ReturnType<typeof mintApiKey>; snapshotPolicyId: string; expiresAt: ApiKeyRecord['expiresAt'];
+}, keyHash: string): ApiKeyRecord {
+  return {
+      id: keyId,
+      workspaceId,
+      principalId: boundPrincipalId,
+      label,
+      keyHash,
+      prefix: minted.prefix,
+      issuedPolicyId: snapshotPolicyId,
+      createdAt: new Date(deps.clock.nowMs()).toISOString(),
+      expiresAt,
+    };
+}
+
+
 
 /**
  * `ISSUE_API_KEY` (state.spec §3). Snapshots the requested policies into a fresh `isFrozen` policy,
@@ -312,26 +352,12 @@ export async function issueApiKey(required: {
 
     // The frozen snapshot: a machine-owned policy, 1:1 with this key. `name` embeds the key id so it
     // is unique per workspace (the `policies` table's own uniqueness constraint) without a retry loop.
-    await deps.repos.policies.save({
-      id: snapshotPolicyId,
-      workspaceId,
-      name: `api-key:${keyId}`,
-      description: `Issuance snapshot for API key '${label}'`,
-      isBuiltin: false,
-      isFrozen: true,
-    });
+    await deps.repos.policies.save(apiKeyPolicySnapshot({ snapshotPolicyId, workspaceId, keyId, label }));
 
     // Copied field-identically — `resourceType`/`constraintJson` are preserved per row and never
     // widened. A snapshot that dropped a constraint would grant MORE than its source.
     for (const row of sourceRows) {
-      await deps.repos.policyPermissions.save({
-        id: deps.idGen.newId(),
-        workspaceId,
-        policyId: snapshotPolicyId,
-        permission: row.permission,
-        resourceType: row.resourceType ?? null,
-        constraintJson: row.constraintJson ?? null,
-      });
+      await deps.repos.policyPermissions.save(apiKeySnapshotPermission({ deps, workspaceId, snapshotPolicyId, row }));
     }
 
     await deps.repos.principalPolicies.save({
@@ -342,17 +368,7 @@ export async function issueApiKey(required: {
     });
 
     const minted = mintApiKey();
-    const apiKey: ApiKeyRecord = {
-      id: keyId,
-      workspaceId,
-      principalId: boundPrincipalId,
-      label,
-      keyHash: await deps.secretHasher.hash({ secret: minted.secret }),
-      prefix: minted.prefix,
-      issuedPolicyId: snapshotPolicyId,
-      createdAt: new Date(deps.clock.nowMs()).toISOString(),
-      expiresAt,
-    };
+    const apiKey: ApiKeyRecord = issuedApiKeyRecord({ deps, keyId, workspaceId, boundPrincipalId, label, minted, snapshotPolicyId, expiresAt }, await deps.secretHasher.hash({ secret: minted.secret }));
     await deps.apiKeys.save(apiKey);
 
     return { apiKey, rawKey: minted.rawKey };

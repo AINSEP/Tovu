@@ -65,26 +65,9 @@ function testModeDetails(plan: MailTestSendPlan): { label: string; value: string
   return plan.capture ? [{ label: "Test mode", value: "Captured on this server; nothing is sent" }] : [];
 }
 
-/** Reads delivery configuration after the admin route's permission check, and offers the two
- * approval-gated controls (`mail_set_provider`, `mail_send_test`).
- * @param deps - Site scope, authorization, mailer and the optional status/selection seams.
- * @param surfaces - The authenticated card transport for the approval cards.
- * @returns The three registrations.
- * @throws {ToolInputError} For malformed input or a denied permission.
- * @example buildMailStatusRegistrations(deps, surfaces)[0].handler(ctx)
- * @complexity O(1) per call; a test send is one delivery.
- */
-export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
-  return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-mail", catalogModule: "features/mail-status/agent-tools.ts", catalog: indexCatalogById({ catalog: mailStatusAgentToolCatalog }), derivedRisk: mailStatusDerivedRisk, handlers: withModelFacingErrors({ handlers: {
-    system_get_mail_status: async ctx => {
-      const refresh = requireInputRecord({ input: ctx.input }).refresh === true;
-      await permission({ deps, ctx, name: "admin.forms.manage" });
-      const mailDeliveryAvailable = isMailDeliveryAvailable(deps.mailer);
-      const status = deps.mailStatus ? await deps.mailStatus({ refresh }) : {};
-      return { mailDeliveryAvailable, driver: deps.mailer.capabilities().driver, note: mailDeliveryAvailable ? "Email sending is configured." : MAIL_DELIVERY_UNAVAILABLE_NOTE, ...status };
-    },
     // No rememberKey: a provider switch redirects every email the site sends, so it always asks.
-    mail_set_provider: approvalToolHandler({ surfaces,
+    function createSetMailProviderHandler(deps: MailStatusToolDeps, surfaces: AssistantSurfaceDeps): ToolHandler {
+  return approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
         const providerId = readProviderId({ input: ctx.input });
         await permission({ deps, ctx, name: "settings.workspace.write" });
@@ -106,7 +89,29 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
         await asToolInputError({ run: () => activateMailProvider({ control: providerControl(deps), providerId: prepared.providerId, principalId: ctx.principal.id, expectedRevisionSeq: prepared.revisionSeq }) });
         return { set: true, providerId: prepared.providerId };
       },
-    }, { flag: "set" }),
+    }, { flag: "set" });
+}
+
+
+/** Reads delivery configuration after the admin route's permission check, and offers the two
+ * approval-gated controls (`mail_set_provider`, `mail_send_test`).
+ * @param deps - Site scope, authorization, mailer and the optional status/selection seams.
+ * @param surfaces - The authenticated card transport for the approval cards.
+ * @returns The three registrations.
+ * @throws {ToolInputError} For malformed input or a denied permission.
+ * @example buildMailStatusRegistrations(deps, surfaces)[0].handler(ctx)
+ * @complexity O(1) per call; a test send is one delivery.
+ */
+export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-mail", catalogModule: "features/mail-status/agent-tools.ts", catalog: indexCatalogById({ catalog: mailStatusAgentToolCatalog }), derivedRisk: mailStatusDerivedRisk, handlers: withModelFacingErrors({ handlers: {
+    system_get_mail_status: async ctx => {
+      const refresh = requireInputRecord({ input: ctx.input }).refresh === true;
+      await permission({ deps, ctx, name: "admin.forms.manage" });
+      const mailDeliveryAvailable = isMailDeliveryAvailable(deps.mailer);
+      const status = deps.mailStatus ? await deps.mailStatus({ refresh }) : {};
+      return { mailDeliveryAvailable, driver: deps.mailer.capabilities().driver, note: mailDeliveryAvailable ? "Email sending is configured." : MAIL_DELIVERY_UNAVAILABLE_NOTE, ...status };
+    },
+    mail_set_provider: createSetMailProviderHandler(deps, surfaces),
     mail_send_test: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
         const to = readTestRecipient({ value: requireInputRecord({ input: ctx.input }).to });

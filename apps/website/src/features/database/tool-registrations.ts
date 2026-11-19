@@ -123,34 +123,8 @@ const UNWIRED_DATABASE_TOOL_IDS = new Set([
   "database_get_restore_guidance",
 ]);
 
-export function buildDatabaseRegistrations(
-  routeDeps: DatabaseToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
-): ToolRegistration[] {
-  const migrateHooks = ({ actorId }: { actorId: string }, _options = {}) =>
-    buildMigrateForwardHooks({
-      workspaceId: routeDeps.workspaceId,
-      actorId,
-      clock: routeDeps.clock,
-      idGen: routeDeps.idGen,
-      dbOps: routeDeps.dbOps,
-      restorePointsRepo: routeDeps.restorePointsRepo,
-      databaseLedgerRepo: routeDeps.databaseLedgerRepo,
-    }) as unknown as GatedMutationHooks<unknown, { migrated: true }>;
 
-  const portable = createDatabaseReadTools({
-    readers: databaseInputReaders,
-    workspaceId: routeDeps.workspaceId, introspection: routeDeps.databaseIntrospection,
-    ledger: routeDeps.databaseLedgerRepo, restorePoints: routeDeps.restorePointsRepo,
-    dbOps: routeDeps.dbOps, clock: routeDeps.clock, idGen: routeDeps.idGen,
-    requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
-  }, { messages: TOVU_DATABASE_MESSAGES });
-  const restorePointTool = portable.find(tool => tool.descriptor.id === "backup_create_restore_point");
-  if (restorePointTool === undefined) throw new Error("Database tools have no backup restore point registration");
-  const handlers: Record<string, ToolHandler> = {
-    ...Object.fromEntries(portable.filter(tool => tool.descriptor.id !== "backup_create_restore_point").map(tool => [tool.descriptor.id, tool.handler])),
-
-    database_plan_migrate_forward: async (ctx) => {
+    async function planDatabaseMigrateForward(routeDeps: DatabaseToolDeps, ctx: Parameters<ToolHandler>[0]) {
       requireNoInput({ input: ctx.input });
       // No explicit pre-check here: `gateway.ts`'s plan() calls authorize() unconditionally,
       // BEFORE hooks.computePlan() ever runs — verified directly against its body (see
@@ -172,14 +146,36 @@ export function buildDatabaseRegistrations(
         principalKind: AGENT_TOOL_PRINCIPAL_KIND,
         hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
       });
-    },
+    }
+function migrateForwardDialog() {
+  return ({
+        toolId: MIGRATE_TOOL_ID,
+        errorCode: "DATABASE",
+        title: "Update the database?",
+        description: "Moves this site's database forward to the current schema. It affects the whole site.",
+        details: [{ label: "Restore point", value: "Taken first" }],
+        warning: "A restore point is taken first, so you can go back to how things are now.",
+        danger: true,
+        confirmLabel: "Update database",
+      });
+}
+function createMigrateHooks(routeDeps: DatabaseToolDeps) {
+  return ({ actorId }: { actorId: string }, _options = {}) =>
+    buildMigrateForwardHooks({
+      workspaceId: routeDeps.workspaceId,
+      actorId,
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+      dbOps: routeDeps.dbOps,
+      restorePointsRepo: routeDeps.restorePointsRepo,
+      databaseLedgerRepo: routeDeps.databaseLedgerRepo,
+    }) as unknown as GatedMutationHooks<unknown, { migrated: true }>;
+}
 
 
-    backup_create_restore_point: restorePointTool.handler,
-
-    // Plans as the agent, asks the human, then confirms as the human and executes as the agent
-    // inside the same operation lock and cost-class refusal the admin execute route uses.
-    [MIGRATE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
+function createMigrateForwardHandler(routeDeps: DatabaseToolDeps, surfaces: AssistantSurfaceDeps): ToolHandler {
+const migrateHooks = createMigrateHooks(routeDeps);
+  return humanConfirmedToolHandler(surfaces, {
       flag: "migrated",
       prepare: async ({ ctx }) => {
         refuseUnexpectedKeys(ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input }), []);
@@ -197,16 +193,7 @@ export function buildDatabaseRegistrations(
         }
         return { hooks, plan, costClass };
       },
-      dialog: () => ({
-        toolId: MIGRATE_TOOL_ID,
-        errorCode: "DATABASE",
-        title: "Update the database?",
-        description: "Moves this site's database forward to the current schema. It affects the whole site.",
-        details: [{ label: "Restore point", value: "Taken first" }],
-        warning: "A restore point is taken first, so you can go back to how things are now.",
-        danger: true,
-        confirmLabel: "Update database",
-      }),
+      dialog: migrateForwardDialog,
       run: async ({ ctx, prepared: { hooks, plan, costClass }, confirmer }) => {
         const record = await gatewayConfirm({
           deps: routeDeps.gatedMutations.gatewayDeps,
@@ -231,7 +218,35 @@ export function buildDatabaseRegistrations(
             }),
         });
       },
-    }),
+    });
+}
+
+
+
+export function buildDatabaseRegistrations(
+  routeDeps: DatabaseToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+): ToolRegistration[] {
+
+  const portable = createDatabaseReadTools({
+    readers: databaseInputReaders,
+    workspaceId: routeDeps.workspaceId, introspection: routeDeps.databaseIntrospection,
+    ledger: routeDeps.databaseLedgerRepo, restorePoints: routeDeps.restorePointsRepo,
+    dbOps: routeDeps.dbOps, clock: routeDeps.clock, idGen: routeDeps.idGen,
+    requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
+  }, { messages: TOVU_DATABASE_MESSAGES });
+  const restorePointTool = portable.find(tool => tool.descriptor.id === "backup_create_restore_point");
+  if (restorePointTool === undefined) throw new Error("Database tools have no backup restore point registration");
+  const handlers: Record<string, ToolHandler> = {
+    ...Object.fromEntries(portable.filter(tool => tool.descriptor.id !== "backup_create_restore_point").map(tool => [tool.descriptor.id, tool.handler])),
+    database_plan_migrate_forward: (ctx) => planDatabaseMigrateForward(routeDeps, ctx),
+
+
+    backup_create_restore_point: restorePointTool.handler,
+
+    // Plans as the agent, asks the human, then confirms as the human and executes as the agent
+    // inside the same operation lock and cost-class refusal the admin execute route uses.
+    [MIGRATE_TOOL_ID]: createMigrateForwardHandler(routeDeps, surfaces),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

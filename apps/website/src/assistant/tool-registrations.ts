@@ -400,6 +400,66 @@ function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadabl
   return adapted.filter(registration => peerReadable({ registration }));
 }
 
+  
+function approveAssistantRegistrations(guardedRegistrations: ToolRegistration[], routeDeps: AssistantToolRegistryDeps, guardedSurfaces: ChatDeleteSurfaceDeps): ToolRegistration[] {
+  return guardedRegistrations.map(registration => applyToolApprovalPolicy({ registration, surfaces: guardedSurfaces }, {
+    localeFor: async ({ ctx }, _optional = {}) => {
+      if (!routeDeps.settingsRepo) return "en";
+      const setting = await getEffectiveSetting({ deps: { repo: routeDeps.settingsRepo }, namespace: LANGUAGE_NAMESPACE, key: "locale",
+        scopeContext: { workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id } });
+      return typeof setting?.value === "string" ? setting.value : "en";
+    },
+  }));
+}
+
+
+  
+function scopeAssistantRegistrations(inputRegistrations: ToolRegistration[], { options, peer, routeDeps, surfaces, peerReadable }: { options: NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>['options']>; peer: AssistantToolRegistryDeps['peerSiteReads']; routeDeps: AssistantToolRegistryDeps; surfaces: AssistantSurfaceDeps; peerReadable: (input: { registration: ToolRegistration }) => boolean }): ToolRegistration[] {
+  return options.targetScope !== "off" && peer ? inputRegistrations.flatMap(registration => applyTargetScope({
+    registrations: [registration],
+    isCurrentTarget: ({ target }) => peer.isCurrentSite({ siteName: target }),
+    resolveTarget: async ({ target, toolId, principal }) => {
+      // Installation ownership is checked BEFORE registry discovery or opening another site's files.
+      if (principal.id !== await routeDeps.ownerPrincipalId) throw new ToolInputError({ message: "Only this installation's owner can read other sites." });
+      const resolved = await peer.resolve({ siteName: target, toolId, callerPrincipalId: principal.id,
+        buildRegistrations: ({ deps: peerDeps }, _optional = {}) => buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }),
+      });
+      if (resolved === "current") return resolved;
+      return { principal: resolved.principal, handler: async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
+        // The extra row belongs to the ACTIVE site. Input-key-only executor telemetry cannot
+        // identify the selected registry name; no audit sink is constructed on the target.
+        await routeDeps.toolAttemptAuditSink.append({
+          attemptId: routeDeps.idGen.newId(), executionId: ctx.executionId, workspaceId: routeDeps.workspaceId,
+          runId: ctx.run.id, toolId, principalId: principal.id, phase: "requested", at: nowIso({ clock: routeDeps.clock }),
+        }, { detail: `cross-site read: ${resolved.site.name} (${resolved.site.siteId})` });
+        return resolved.handler(ctx, optional);
+      } };
+    },
+  }, {
+    param: "site", describeParam: "Optional. Another local site's name from sites_list; reads that site instead of this one.",
+    refuseMessage: isReadOnlyTool({ descriptor: registration.descriptor })
+      ? `${registration.descriptor.id} can't read another site yet.`
+      : "Writes run only on the active site. Switch with sites_switch_site first.",
+    scoped: peerReadable,
+  })) : inputRegistrations;
+}
+
+
+  // `items` batches wrap the APPROVED handler, so each item is classified on its own input; see
+  // `batch-tool-inputs.ts` for why the reverse order would let a batch skip an item's approval.
+  
+function batchAssistantRegistrations(scopedRegistrations: ToolRegistration[], options: NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>['options']>): ToolRegistration[] {
+  return applyBatchInputs({ registrations: scopedRegistrations }, { tools: options.batchableTools }).map(registration => {
+    const toolId = registration.descriptor.id;
+    if (!PERMANENT_DELETE_TOOLS.some(tool => tool.id === toolId) || toolId === "trash_empty" || toolId === "deployment_ops_unset_secret") return registration;
+    // The domain's approval lifecycle prepares all selections and asks once. Do not put the
+    // ordinary per-item batch executor around it: that would create one confirmation per item.
+    const plan = withBatchInput({ registration, tool: { toolId } }, { mode: 'plan' });
+    return { ...plan, descriptor: { ...plan.descriptor, description: `${registration.descriptor.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.` } };
+  });
+}
+
+
 /**
  * Builds the complete agent-tool surface for one workspace's route-deps bag.
  *
@@ -469,57 +529,15 @@ export function buildAssistantToolRegistrations(
       await assertChatDeleteAllowed({ toolId: registration.descriptor.id, principalId: ctx.principal.id });
       return registration.handler(ctx, optional);
     } } : registration);
-  const approvedRegistrations = guardedRegistrations.map(registration => applyToolApprovalPolicy({ registration, surfaces: guardedSurfaces }, {
-    localeFor: async ({ ctx }, _optional = {}) => {
-      if (!routeDeps.settingsRepo) return "en";
-      const setting = await getEffectiveSetting({ deps: { repo: routeDeps.settingsRepo }, namespace: LANGUAGE_NAMESPACE, key: "locale",
-        scopeContext: { workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id } });
-      return typeof setting?.value === "string" ? setting.value : "en";
-    },
-  }));
+  const approvedRegistrations = approveAssistantRegistrations(guardedRegistrations, routeDeps, guardedSurfaces);
   // Collapse before target adapters/scoping/batching: every card item selects get/list after its
   // own normalization, and a slug is resolved only after the selected site's permission gate.
   const inputRegistrations = prepareReadRegistrations({ registrations: approvedRegistrations, ownerByToolId, routeDeps: enrichedRouteDeps, options, beforeLookup: assertChatDeleteAllowed });
   const peer = routeDeps.peerSiteReads;
   const peerReadable = ({ registration }: { registration: ToolRegistration }) => !!peer && isReadOnlyTool({ descriptor: registration.descriptor })
     && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? '') && !peer.excludedReadTools?.has(registration.descriptor.id);
-  const scopedRegistrations = options.targetScope !== "off" && peer ? inputRegistrations.flatMap(registration => applyTargetScope({
-    registrations: [registration],
-    isCurrentTarget: ({ target }) => peer.isCurrentSite({ siteName: target }),
-    resolveTarget: async ({ target, toolId, principal }) => {
-      // Installation ownership is checked BEFORE registry discovery or opening another site's files.
-      if (principal.id !== await routeDeps.ownerPrincipalId) throw new ToolInputError({ message: "Only this installation's owner can read other sites." });
-      const resolved = await peer.resolve({ siteName: target, toolId, callerPrincipalId: principal.id,
-        buildRegistrations: ({ deps: peerDeps }, _optional = {}) => buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }),
-      });
-      if (resolved === "current") return resolved;
-      return { principal: resolved.principal, handler: async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
-        // The extra row belongs to the ACTIVE site. Input-key-only executor telemetry cannot
-        // identify the selected registry name; no audit sink is constructed on the target.
-        await routeDeps.toolAttemptAuditSink.append({
-          attemptId: routeDeps.idGen.newId(), executionId: ctx.executionId, workspaceId: routeDeps.workspaceId,
-          runId: ctx.run.id, toolId, principalId: principal.id, phase: "requested", at: nowIso({ clock: routeDeps.clock }),
-        }, { detail: `cross-site read: ${resolved.site.name} (${resolved.site.siteId})` });
-        return resolved.handler(ctx, optional);
-      } };
-    },
-  }, {
-    param: "site", describeParam: "Optional. Another local site's name from sites_list; reads that site instead of this one.",
-    refuseMessage: isReadOnlyTool({ descriptor: registration.descriptor })
-      ? `${registration.descriptor.id} can't read another site yet.`
-      : "Writes run only on the active site. Switch with sites_switch_site first.",
-    scoped: peerReadable,
-  })) : inputRegistrations;
-  // `items` batches wrap the APPROVED handler, so each item is classified on its own input; see
-  // `batch-tool-inputs.ts` for why the reverse order would let a batch skip an item's approval.
-  const batchedRegistrations = applyBatchInputs({ registrations: scopedRegistrations }, { tools: options.batchableTools }).map(registration => {
-    const toolId = registration.descriptor.id;
-    if (!PERMANENT_DELETE_TOOLS.some(tool => tool.id === toolId) || toolId === "trash_empty" || toolId === "deployment_ops_unset_secret") return registration;
-    // The domain's approval lifecycle prepares all selections and asks once. Do not put the
-    // ordinary per-item batch executor around it: that would create one confirmation per item.
-    const plan = withBatchInput({ registration, tool: { toolId } }, { mode: 'plan' });
-    return { ...plan, descriptor: { ...plan.descriptor, description: `${registration.descriptor.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.` } };
-  });
+  const scopedRegistrations = scopeAssistantRegistrations(inputRegistrations, { options, peer, routeDeps, surfaces, peerReadable });
+  const batchedRegistrations = batchAssistantRegistrations(scopedRegistrations, options);
   if (options.includeContentReadCollapse === false) return batchedRegistrations;
   const finalRegistrations = batchedRegistrations;
   // A new collapsed card is a new registered tool too: never exempt it from the guard.

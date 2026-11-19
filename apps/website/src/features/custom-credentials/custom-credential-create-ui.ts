@@ -49,6 +49,24 @@ export interface CreateCredentialPrefill {
   readonly category?: string;
   readonly worksFor?: string[];
 }
+function buildCredentialCategoryField(prefill: CreateCredentialPrefill): SecretCardForm["fields"][number] {
+  return {
+        kind: "enum",
+        name: "category",
+        label: "Category",
+        required: true,
+        options: CUSTOM_CREDENTIAL_CATEGORIES.map((id) => ({ value: id })),
+        // Defaults to "general" (the closed set's catch-all) when the model supplied no prefill hint —
+        // mirrors the admin Access Tokens page's own "Add custom provider" form
+        // (`apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts`'s `emptyCustomAddForm`),
+        // which has always defaulted this field the same way. Without this, `renderSelect` (required +
+        // no `value`) renders a genuinely blank, blocking required select — a human with no obvious
+        // category for e.g. a hosting provider's deploy token had nothing sensible to pick. Still freely changeable before
+        // submit; a bad/unrecognized prefill still starts unselected, per this file's own header.
+        value: prefill.category ?? "general",
+      };
+}
+
 
 /** Shared by the form and its later outcome document — see this file's header, "Why the URI carries
  *  only the exchange id". Reusing the SAME uri for both is what makes the outcome REPLACE the form
@@ -94,21 +112,7 @@ export function buildCreateForm(spec: { prefill: CreateCredentialPrefill; provid
         required: true,
         ...(prefill.baseUrl !== undefined ? { value: prefill.baseUrl } : {}),
       },
-      {
-        kind: "enum",
-        name: "category",
-        label: "Category",
-        required: true,
-        options: CUSTOM_CREDENTIAL_CATEGORIES.map((id) => ({ value: id })),
-        // Defaults to "general" (the closed set's catch-all) when the model supplied no prefill hint —
-        // mirrors the admin Access Tokens page's own "Add custom provider" form
-        // (`apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts`'s `emptyCustomAddForm`),
-        // which has always defaulted this field the same way. Without this, `renderSelect` (required +
-        // no `value`) renders a genuinely blank, blocking required select — a human with no obvious
-        // category for e.g. a hosting provider's deploy token had nothing sensible to pick. Still freely changeable before
-        // submit; a bad/unrecognized prefill still starts unselected, per this file's own header.
-        value: prefill.category ?? "general",
-      },
+      buildCredentialCategoryField(prefill),
       ...(worksForField ? [worksForField] : []),
       {
         kind: "string",

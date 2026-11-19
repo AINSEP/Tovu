@@ -57,36 +57,14 @@ export interface SitePreviewServiceOptions {
 }
 
 const MINUTE_MS = 60_000;
-
-/**
- * @complexity `versions` is O(s + t·q) for s sites, t targets and a queue of at most t entries
- *   (t ≤ the local-site limit + 1, so in practice a handful); the drain is one capture at a time.
- */
-export function createSitePreviewService(
-  { store, capture }: { store: SitePreviewStore; capture: SitePreviewCapturePort },
-  { now = Date.now, refreshMs = 30 * MINUTE_MS, retryMs = 5 * MINUTE_MS, defer = (work) => { setImmediate(work); } }: SitePreviewServiceOptions = {},
-): SitePreviewService {
-  const capturedLifecycle = new Map<string, string>();
-  const failedAt = new Map<string, number>();
-  const queue: SitePreviewTarget[] = [];
+function createPreviewQueue({ store, capture, now, defer, capturedLifecycle, failedAt, queue }: {
+  store: SitePreviewStore; capture: SitePreviewCapturePort; now: () => number; defer: (work: () => void) => void;
+  capturedLifecycle: Map<string, string>; failedAt: Map<string, number>; queue: SitePreviewTarget[];
+}) {
   let active: string | null = null;
+
   let drain: Promise<void> = Promise.resolve();
 
-  /** A capture made before this folder existed belongs to a deleted namesake. */
-  function usableVersion({ name, createdAt }: { name: string; createdAt: string }, _optional = {}): number | null {
-    const version = store.version({ name });
-    const created = Date.parse(createdAt);
-    if (version === null || created > version) return null;
-    return version;
-  }
-
-  function isDue({ target, version }: { target: SitePreviewTarget; version: number | null }, _optional = {}): boolean {
-    if (active === target.name || queue.some((queued) => queued.name === target.name)) return false;
-    const failed = failedAt.get(target.name);
-    if (failed !== undefined && now() - failed < retryMs) return false;
-    if (version === null || capturedLifecycle.get(target.name) !== target.lifecycle) return true;
-    return now() - version >= refreshMs;
-  }
 
   async function runQueue(): Promise<void> {
     try {
@@ -107,6 +85,7 @@ export function createSitePreviewService(
     }
   }
 
+
   function enqueue(target: SitePreviewTarget): void {
     const wasIdle = queue.length === 0 && active === null;
     queue.push(target);
@@ -114,6 +93,38 @@ export function createSitePreviewService(
     drain = new Promise<void>((resolve) => {
       defer(() => { void runQueue().then(resolve, resolve); });
     });
+  }
+  return { enqueue, get active() { return active; }, idle: () => drain };
+}
+
+
+/**
+ * @complexity `versions` is O(s + t·q) for s sites, t targets and a queue of at most t entries
+ *   (t ≤ the local-site limit + 1, so in practice a handful); the drain is one capture at a time.
+ */
+export function createSitePreviewService(
+  { store, capture }: { store: SitePreviewStore; capture: SitePreviewCapturePort },
+  { now = Date.now, refreshMs = 30 * MINUTE_MS, retryMs = 5 * MINUTE_MS, defer = (work) => { setImmediate(work); } }: SitePreviewServiceOptions = {},
+): SitePreviewService {
+  const capturedLifecycle = new Map<string, string>();
+  const failedAt = new Map<string, number>();
+  const queue: SitePreviewTarget[] = [];
+  const queueState = createPreviewQueue({ store, capture, now, defer, capturedLifecycle, failedAt, queue });
+
+  /** A capture made before this folder existed belongs to a deleted namesake. */
+  function usableVersion({ name, createdAt }: { name: string; createdAt: string }, _optional = {}): number | null {
+    const version = store.version({ name });
+    const created = Date.parse(createdAt);
+    if (version === null || created > version) return null;
+    return version;
+  }
+
+  function isDue({ target, version }: { target: SitePreviewTarget; version: number | null }, _optional = {}): boolean {
+    if (queueState.active === target.name || queue.some((queued) => queued.name === target.name)) return false;
+    const failed = failedAt.get(target.name);
+    if (failed !== undefined && now() - failed < retryMs) return false;
+    if (version === null || capturedLifecycle.get(target.name) !== target.lifecycle) return true;
+    return now() - version >= refreshMs;
   }
 
   return {
@@ -126,7 +137,7 @@ export function createSitePreviewService(
       }
       for (const target of targets) {
         if (!createdAtByName.has(target.name)) continue;
-        if (isDue({ target, version: result[target.name] ?? null })) enqueue(target);
+        if (isDue({ target, version: result[target.name] ?? null })) queueState.enqueue(target);
       }
       return result;
     },
@@ -134,7 +145,7 @@ export function createSitePreviewService(
       return store.read({ name });
     },
     idle() {
-      return drain;
+      return queueState.idle();
     },
   };
 }

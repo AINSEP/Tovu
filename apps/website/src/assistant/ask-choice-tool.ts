@@ -362,6 +362,25 @@ function askChoiceExchanges({ surfaces }: { surfaces: AssistantSurfaceDeps }, _o
     },
   };
 }
+function createAskChoiceToolFactory(pendingQuestions: ReturnType<typeof createAskChoiceAnswerTicketStore>, surfaceExchanges: ReturnType<typeof askChoiceExchanges>) {
+  return ({ call }: { call: CustomAnswerCall | undefined }) => createAskChoiceTool({
+    toolId: ASK_CHOICE_TOOL_ID,
+    description: askChoiceAgentToolCatalog[0]!.description,
+    permission: "admin.assistant.use",
+    pendingQuestions,
+    surfaceExchanges: call ? customAnswerExchanges({ exchanges: surfaceExchanges, call }) : surfaceExchanges,
+    presentation: { render: askChoiceFormRenderer({ call }), buildResult: askChoiceToolResult },
+    messages: askChoiceMessages,
+    policy: {
+      // Core ToolExecutor checks the registration's permission before invoking this handler.
+      // Its context intentionally has no authorization escape hatch; retain that single gate.
+      authorize: () => undefined,
+      inputError: ({ message }) => new ToolInputError({ message }),
+      shapeError: ({ message, toolId }) => decorateWithSchema({ message, toolId, catalog: CATALOG_BY_ID }),
+    },
+  });
+}
+
 
 /**
  * Builds this tool's registration, binding Tovu's policy/presentation to the package handler.
@@ -391,22 +410,7 @@ export function buildAskChoiceRegistrations(
     ttlMs: ASK_CHOICE_TICKET_TTL_MS,
   });
   const surfaceExchanges = askChoiceExchanges({ surfaces });
-  const toolFor = ({ call }: { call: CustomAnswerCall | undefined }) => createAskChoiceTool({
-    toolId: ASK_CHOICE_TOOL_ID,
-    description: askChoiceAgentToolCatalog[0]!.description,
-    permission: "admin.assistant.use",
-    pendingQuestions,
-    surfaceExchanges: call ? customAnswerExchanges({ exchanges: surfaceExchanges, call }) : surfaceExchanges,
-    presentation: { render: askChoiceFormRenderer({ call }), buildResult: askChoiceToolResult },
-    messages: askChoiceMessages,
-    policy: {
-      // Core ToolExecutor checks the registration's permission before invoking this handler.
-      // Its context intentionally has no authorization escape hatch; retain that single gate.
-      authorize: () => undefined,
-      inputError: ({ message }) => new ToolInputError({ message }),
-      shapeError: ({ message, toolId }) => decorateWithSchema({ message, toolId, catalog: CATALOG_BY_ID }),
-    },
-  });
+  const toolFor = createAskChoiceToolFactory(pendingQuestions, surfaceExchanges);
   // Construction is O(1); a call with "Something else" gets its own state, the stores stay shared.
   const tool = toolFor({ call: undefined });
   const handlers: Record<string, ToolHandler> = {

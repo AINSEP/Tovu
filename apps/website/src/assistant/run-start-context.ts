@@ -74,6 +74,27 @@ function readRunSettings(
     ...(pageContext === undefined ? {} : { pageContext }),
   };
 }
+function readRunContextEnvelope(contextRef: string) {
+  return JSON.parse(contextRef) as {
+    prompt?: unknown;
+    folders?: unknown;
+    coldStartContext?: unknown;
+    principalId?: unknown;
+    attachmentIds?: unknown;
+    model?: unknown;
+    reasoning?: unknown;
+    pluginRefIds?: unknown;
+    agentPluginState?: unknown;
+    userPrompt?: unknown;
+    conversationId?: unknown;
+    pageContext?: unknown;
+    assistantMessageId?: unknown;
+    recoveryMode?: unknown;
+    recoverySessionId?: unknown;
+    secretRedacted?: unknown;
+  };
+}
+
 
 /**
  * Decodes a run's `contextRef` JSON into the fields `onStarted` needs.
@@ -113,24 +134,7 @@ export function parseRunStartContextRef({ contextRef }: { contextRef: string }, 
   recoveryMode?: "native" | "reconstruction";
   recoverySessionId?: string;
 } {
-  const parsed = JSON.parse(contextRef) as {
-    prompt?: unknown;
-    folders?: unknown;
-    coldStartContext?: unknown;
-    principalId?: unknown;
-    attachmentIds?: unknown;
-    model?: unknown;
-    reasoning?: unknown;
-    pluginRefIds?: unknown;
-    agentPluginState?: unknown;
-    userPrompt?: unknown;
-    conversationId?: unknown;
-    pageContext?: unknown;
-    assistantMessageId?: unknown;
-    recoveryMode?: unknown;
-    recoverySessionId?: unknown;
-    secretRedacted?: unknown;
-  };
+  const parsed = readRunContextEnvelope(contextRef);
   const rawPrompt = requireNonEmptyContextField({ value: parsed.prompt, label: "prompt" });
   const currentText = typeof parsed.userPrompt === "string" ? parsed.userPrompt : rawPrompt;
   const currentRedacted = parsed.secretRedacted === true || redactUserText({ text: currentText }, {}).secretRedacted;
