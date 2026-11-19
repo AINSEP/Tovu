@@ -47,33 +47,8 @@ const CREATE_PASSWORD = "correct-horse-battery-staple";
 const NEW_PASSWORD = "sunrise-tiger-violin-plateau";
 const MISMATCHED_PASSWORD = "sunrise-tiger-violin-WRONG";
 const USERNAME = `e2e-reset-pw-${Date.now()}`;
-
-/** The reset-password `<dialog>`, scoped by its own accessible name (native `<dialog>` is not in
- *  the accessibility tree at all while it lacks the `open` attribute, so this locator only ever
- *  matches the open one — no need to disambiguate against the Disable dialog also mounted on this
- *  screen, the way the unit tests' `dialogFor` helper has to). */
-function resetPasswordDialog(page: Page): Locator {
-  return page.getByRole("dialog", { name: /reset password\?/i });
-}
-
-/**
- * One password field's own `.field` wrapper, given that field's already-resolved input locator —
- * the same reason the unit tests' `fieldFor` helper exists: two fields share the accessible name
- * "Show password"/"Hide password" until one is toggled, so asserting a toggle affects only ITS OWN
- * field requires scoping into that field's own subtree rather than trusting button order.
- *
- * XPath ancestor traversal FROM the input, not `dialog.locator(".field").filter({ has: ... })`:
- * measured live against a real Chromium run, `.filter({ has })` built from a locator that was
- * itself scoped to `dialog` (rather than relative to each `.field` candidate) silently matched
- * ZERO elements — no error, just every downstream `.click()` inside it retrying for the full
- * timeout. `getByLabel(...)` used directly (not through `.filter()`) resolved correctly in the
- * same run (confirmed via the failure's own accessibility-tree snapshot: both fields filled with
- * the right values), so the fix is to stop routing the field lookup through `.filter({ has })` at
- * all and instead walk up from the proven-working input locator.
- */
-function fieldWrapperOf(input: Locator): Locator {
-  return input.locator("xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' field ')][1]");
-}
+const verifyResetPasswordLogin = createPasswordResetVerifyResetPasswordLogin({ USERNAME, NEW_PASSWORD, CREATE_PASSWORD });
+const registerPasswordResetJourney = createPasswordResetPasswordResetJourney({ USERNAME, CREATE_PASSWORD, NEW_PASSWORD, MISMATCHED_PASSWORD, verifyResetPasswordLogin });
 
 test.describe("Reset password — confirm field + reveal toggles, end to end", () => {
   let pageErrors: string[];
@@ -86,6 +61,13 @@ test.describe("Reset password — confirm field + reveal toggles, end to end", (
   test.afterEach(() => {
     expect(pageErrors, "no uncaught page error during this test").toEqual([]);
   });
+  registerPasswordResetJourney();
+});
+});
+
+function createPasswordResetPasswordResetJourney({ USERNAME, CREATE_PASSWORD, NEW_PASSWORD, MISMATCHED_PASSWORD, verifyResetPasswordLogin }: { USERNAME: string; CREATE_PASSWORD: string; NEW_PASSWORD: string; MISMATCHED_PASSWORD: string; verifyResetPasswordLogin: ReturnType<typeof createPasswordResetVerifyResetPasswordLogin> }) {
+
+return function registerPasswordResetJourney() {
 
   test("mismatch blocks submit, each toggle reveals only its own field, and the new password really works while the old one is rejected", async ({
     page,
@@ -163,6 +145,14 @@ test.describe("Reset password — confirm field + reveal toggles, end to end", (
 
     await expect(page.getByText(new RegExp(`password reset for "${USERNAME}"`, "i"))).toBeVisible({ timeout: 10_000 });
     await expect(dialog).not.toBeVisible();
+    await verifyResetPasswordLogin(page);
+  });
+}
+}
+
+function createPasswordResetVerifyResetPasswordLogin({ USERNAME, NEW_PASSWORD, CREATE_PASSWORD }: { USERNAME: string; NEW_PASSWORD: string; CREATE_PASSWORD: string }) {
+
+return async function verifyResetPasswordLogin(page: Page) {
 
     // 7. Log out, then log back in AS THAT USER with the NEW password — the assertion that
     //    actually matters: this can only pass if the reset really took effect server-side.
@@ -177,6 +167,32 @@ test.describe("Reset password — confirm field + reveal toggles, end to end", (
     await attemptLoginAsAdmin(page, { username: USERNAME, password: CREATE_PASSWORD });
     await expect(page.locator(".login-error")).toBeVisible();
     await expect(page.locator(".admin-layout")).toHaveCount(0);
-  });
-});
-});
+  }
+}
+
+/**
+ * One password field's own `.field` wrapper, given that field's already-resolved input locator —
+ * the same reason the unit tests' `fieldFor` helper exists: two fields share the accessible name
+ * "Show password"/"Hide password" until one is toggled, so asserting a toggle affects only ITS OWN
+ * field requires scoping into that field's own subtree rather than trusting button order.
+ *
+ * XPath ancestor traversal FROM the input, not `dialog.locator(".field").filter({ has: ... })`:
+ * measured live against a real Chromium run, `.filter({ has })` built from a locator that was
+ * itself scoped to `dialog` (rather than relative to each `.field` candidate) silently matched
+ * ZERO elements — no error, just every downstream `.click()` inside it retrying for the full
+ * timeout. `getByLabel(...)` used directly (not through `.filter()`) resolved correctly in the
+ * same run (confirmed via the failure's own accessibility-tree snapshot: both fields filled with
+ * the right values), so the fix is to stop routing the field lookup through `.filter({ has })` at
+ * all and instead walk up from the proven-working input locator.
+ */
+function fieldWrapperOf(input: Locator): Locator {
+  return input.locator("xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' field ')][1]");
+}
+
+/** The reset-password `<dialog>`, scoped by its own accessible name (native `<dialog>` is not in
+ *  the accessibility tree at all while it lacks the `open` attribute, so this locator only ever
+ *  matches the open one — no need to disambiguate against the Disable dialog also mounted on this
+ *  screen, the way the unit tests' `dialogFor` helper has to). */
+function resetPasswordDialog(page: Page): Locator {
+  return page.getByRole("dialog", { name: /reset password\?/i });
+}

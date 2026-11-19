@@ -59,35 +59,73 @@ async function createFaq(request: APIRequestContext, title: string, answer: stri
 }
 
 test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
-  // Left installed, the sample shows up in later files' Plugins screenshots (`settings-locale`'s
-  // phone-plugins), so their baselines would depend on run order. Off first: an on plugin can't be removed.
-  test.afterAll(async ({ request }) => {
-    for (const id of ["testimonials-faq", "faq-clash"]) {
-      const state = await pluginState(request, id);
-      if (!state) continue;
-      if (state.enabled) {
-        const off = await request.patch(`${WS_API}/plugins/${id}`, { data: { enabled: false } });
-        expect(off.status(), await off.text()).toBeLessThan(300);
-      }
-      const removed = await request.delete(`${WS_API}/plugins/${id}`);
-      expect(removed.status(), await removed.text()).toBeLessThan(300);
+  registerCodeFreeInstallTest();
+  registerPublicFaqTest();
+  registerCarouselAndConflictTests();
+
+  test("the conflicting plugin's row names the clash, and enabling it is refused while the other is on", { tag: ["@unrun"] }, async ({ page, request }) => {
+    await page.goto("/admin/addons/plugins?tab=downloaded");
+    const row = page.locator(`li.plugin-row[aria-label="${CLASH_NAME}"]`);
+    await row.locator(".plugin-row-summary").click();
+    await expect(row).toContainText(ROW_CONFLICT_HEADING);
+    await expect(row).toContainText(/"faq" is already used by Testimonials \+ FAQ\./);
+    await expect(row).toHaveScreenshot("plugin-row-conflict.png");
+
+    const setEnabled = page.waitForResponse((r) => r.request().method() !== "GET" && /\/plugins\/faq-clash/.test(r.url()));
+    await page.getByRole("button", { name: `Enable ${CLASH_NAME}` }).click();
+    expect((await setEnabled).status()).toBe(409);
+    expect((await pluginState(request, "faq-clash"))?.enabled, "a clashing plugin must stay off").toBe(false);
+    expect((await pluginState(request, "testimonials-faq"))?.enabled, "the holder is untouched").toBe(true);
+    // A readable reason, not a bare code.
+    await expect(page.getByText(/already used|turn the other plugin off/i).first()).toBeVisible();
+    await expect(page.getByText("PLUGIN_CONFLICT", { exact: true })).toHaveCount(0);
+  });
+});
+
+function registerCarouselAndConflictTests() {
+
+  test("a testimonials carousel is keyboard-scrollable and does not widen the page at phone width", { tag: ["@unrun"] }, async ({ page, request }) => {
+    for (let i = 0; i < 4; i++) {
+      const created = await request.post(`${API}/entries`, {
+        data: { type: "testimonial", slug: uniqSlug("t"), title: `Customer ${i}`, fieldsJson: { ext: { site: { quote: `Quote number ${i} is great.`, order: i } } } },
+      });
+      expect(created.status(), await created.text()).toBe(201);
+      const entry = (await created.json()).entry as { id: string; version: number };
+      const published = await request.post(`${API}/entries/${entry.id}/lifecycle`, { data: { op: "publish", expectedVersion: entry.version } });
+      expect(published.status(), await published.text()).toBe(200);
     }
+    const pageSlug = uniqSlug("testimonials-page");
+    await createPublishedPageWithHtml(request, {
+      title: "Testimonials",
+      slug: pageSlug,
+      html: `<main><div data-embed-config='{"type":"collection","typeKey":"testimonial","layout":"carousel","fields":["quote"],"sort":"order"}'></div></main>`,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${PUBLIC_URL}/${pageSlug}`);
+    const carousel = page.locator(".entry-list--testimonial.entry-list--carousel[tabindex='0']");
+    await expect(carousel).toBeVisible();
+    await expect(carousel.locator(".entry-card")).toHaveCount(4);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    await carousel.focus();
+    const before = await carousel.evaluate((el) => el.scrollLeft);
+    await page.keyboard.press("ArrowRight");
+    await expect.poll(() => carousel.evaluate((el) => el.scrollLeft)).toBeGreaterThan(before);
+    await expect(carousel).toHaveScreenshot("public-testimonials-carousel-phone.png");
   });
 
-  test("the install preview says no code runs, lists the content types, and installs switched off", { tag: ["@unrun"] }, async ({ page, request }) => {
-    const dialog = await previewFolder(page, SAMPLE_DIR);
-    await expect(dialog.getByRole("heading", { name: SAMPLE_NAME })).toBeVisible();
+  test("a second plugin declaring the same 'faq' type is flagged in the install preview", { tag: ["@unrun"] }, async ({ page }) => {
+    const dialog = await previewFolder(page, CLASH_DIR);
     await expect(dialog).toContainText(CODE_FREE);
-    await expect(dialog).toContainText(/Content types: .*faq/);
-    await expect(dialog).toContainText("It stays off in every workspace until you turn it on.");
-    await expect(dialog.locator(".plugin-errors"), "a fresh workspace has no name conflicts").toHaveCount(0);
-    await expect(dialog).toHaveScreenshot("plugin-install-preview-tier1.png");
+    const conflicts = dialog.locator(".plugin-errors");
+    await expect(conflicts).toContainText(PREVIEW_CONFLICT_HEADING);
+    await expect(conflicts.getByRole("listitem")).toContainText([/"faq" is already used by Testimonials \+ FAQ\./]);
+    await expect(dialog).toHaveScreenshot("plugin-install-preview-conflict.png");
     await dialog.getByRole("button", { name: "Install (stays off)" }).click();
-    await expect(dialog).toContainText(`${SAMPLE_NAME} is installed and switched off. Turn it on in Downloaded.`);
-    expect((await pluginState(request, "testimonials-faq"))?.enabled).toBe(false);
-    await page.goto("/admin/addons/plugins?tab=downloaded");
-    await expect(page.getByRole("button", { name: `Enable ${SAMPLE_NAME}` })).toBeVisible();
+    await expect(dialog).toContainText("is installed and switched off. Turn it on in Downloaded.");
   });
+}
+
+function registerPublicFaqTest() {
 
   test("enabling it adds the FAQ type; a page marker renders an accordion with FAQPage JSON-LD", { tag: ["@unrun"] }, async ({ page, request }) => {
     await page.goto("/admin/addons/plugins?tab=downloaded");
@@ -131,65 +169,39 @@ test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
     await expect(items.nth(1)).toHaveAttribute("open", "");
     await visitor.close();
   });
+}
 
-  test("a testimonials carousel is keyboard-scrollable and does not widen the page at phone width", { tag: ["@unrun"] }, async ({ page, request }) => {
-    for (let i = 0; i < 4; i++) {
-      const created = await request.post(`${API}/entries`, {
-        data: { type: "testimonial", slug: uniqSlug("t"), title: `Customer ${i}`, fieldsJson: { ext: { site: { quote: `Quote number ${i} is great.`, order: i } } } },
-      });
-      expect(created.status(), await created.text()).toBe(201);
-      const entry = (await created.json()).entry as { id: string; version: number };
-      const published = await request.post(`${API}/entries/${entry.id}/lifecycle`, { data: { op: "publish", expectedVersion: entry.version } });
-      expect(published.status(), await published.text()).toBe(200);
+function registerCodeFreeInstallTest() {
+  // Left installed, the sample shows up in later files' Plugins screenshots (`settings-locale`'s
+  // phone-plugins), so their baselines would depend on run order. Off first: an on plugin can't be removed.
+  test.afterAll(async ({ request }) => {
+    for (const id of ["testimonials-faq", "faq-clash"]) {
+      const state = await pluginState(request, id);
+      if (!state) continue;
+      if (state.enabled) {
+        const off = await request.patch(`${WS_API}/plugins/${id}`, { data: { enabled: false } });
+        expect(off.status(), await off.text()).toBeLessThan(300);
+      }
+      const removed = await request.delete(`${WS_API}/plugins/${id}`);
+      expect(removed.status(), await removed.text()).toBeLessThan(300);
     }
-    const pageSlug = uniqSlug("testimonials-page");
-    await createPublishedPageWithHtml(request, {
-      title: "Testimonials",
-      slug: pageSlug,
-      html: `<main><div data-embed-config='{"type":"collection","typeKey":"testimonial","layout":"carousel","fields":["quote"],"sort":"order"}'></div></main>`,
-    });
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`${PUBLIC_URL}/${pageSlug}`);
-    const carousel = page.locator(".entry-list--testimonial.entry-list--carousel[tabindex='0']");
-    await expect(carousel).toBeVisible();
-    await expect(carousel.locator(".entry-card")).toHaveCount(4);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-    await carousel.focus();
-    const before = await carousel.evaluate((el) => el.scrollLeft);
-    await page.keyboard.press("ArrowRight");
-    await expect.poll(() => carousel.evaluate((el) => el.scrollLeft)).toBeGreaterThan(before);
-    await expect(carousel).toHaveScreenshot("public-testimonials-carousel-phone.png");
   });
 
-  test("a second plugin declaring the same 'faq' type is flagged in the install preview", { tag: ["@unrun"] }, async ({ page }) => {
-    const dialog = await previewFolder(page, CLASH_DIR);
+  test("the install preview says no code runs, lists the content types, and installs switched off", { tag: ["@unrun"] }, async ({ page, request }) => {
+    const dialog = await previewFolder(page, SAMPLE_DIR);
+    await expect(dialog.getByRole("heading", { name: SAMPLE_NAME })).toBeVisible();
     await expect(dialog).toContainText(CODE_FREE);
-    const conflicts = dialog.locator(".plugin-errors");
-    await expect(conflicts).toContainText(PREVIEW_CONFLICT_HEADING);
-    await expect(conflicts.getByRole("listitem")).toContainText([/"faq" is already used by Testimonials \+ FAQ\./]);
-    await expect(dialog).toHaveScreenshot("plugin-install-preview-conflict.png");
+    await expect(dialog).toContainText(/Content types: .*faq/);
+    await expect(dialog).toContainText("It stays off in every workspace until you turn it on.");
+    await expect(dialog.locator(".plugin-errors"), "a fresh workspace has no name conflicts").toHaveCount(0);
+    await expect(dialog).toHaveScreenshot("plugin-install-preview-tier1.png");
     await dialog.getByRole("button", { name: "Install (stays off)" }).click();
-    await expect(dialog).toContainText("is installed and switched off. Turn it on in Downloaded.");
-  });
-
-  test("the conflicting plugin's row names the clash, and enabling it is refused while the other is on", { tag: ["@unrun"] }, async ({ page, request }) => {
+    await expect(dialog).toContainText(`${SAMPLE_NAME} is installed and switched off. Turn it on in Downloaded.`);
+    expect((await pluginState(request, "testimonials-faq"))?.enabled).toBe(false);
     await page.goto("/admin/addons/plugins?tab=downloaded");
-    const row = page.locator(`li.plugin-row[aria-label="${CLASH_NAME}"]`);
-    await row.locator(".plugin-row-summary").click();
-    await expect(row).toContainText(ROW_CONFLICT_HEADING);
-    await expect(row).toContainText(/"faq" is already used by Testimonials \+ FAQ\./);
-    await expect(row).toHaveScreenshot("plugin-row-conflict.png");
-
-    const setEnabled = page.waitForResponse((r) => r.request().method() !== "GET" && /\/plugins\/faq-clash/.test(r.url()));
-    await page.getByRole("button", { name: `Enable ${CLASH_NAME}` }).click();
-    expect((await setEnabled).status()).toBe(409);
-    expect((await pluginState(request, "faq-clash"))?.enabled, "a clashing plugin must stay off").toBe(false);
-    expect((await pluginState(request, "testimonials-faq"))?.enabled, "the holder is untouched").toBe(true);
-    // A readable reason, not a bare code.
-    await expect(page.getByText(/already used|turn the other plugin off/i).first()).toBeVisible();
-    await expect(page.getByText("PLUGIN_CONFLICT", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: `Enable ${SAMPLE_NAME}` })).toBeVisible();
   });
-});
+}
 
 test.describe.serial("AW-7 Tier 2: Content Analyzer", () => {
   // A failure mid-test must not leave the analyzer on for `posts.journey.ts`, which expects it off.

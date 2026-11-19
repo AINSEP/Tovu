@@ -19,6 +19,7 @@ test.use({ viewport: { width: 1280, height: 720 } });
 
 // Migrated from a2ui-transport-contract.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: a2ui-transport-contract", () => {
+const validAction = createTransportValidAction();
   test.use({ storageState: { cookies: [], origins: [] } });
 /**
  * @file Real-HTTP contract tests for the A2UI/MCP-UI inbound transport (ADR-055 Decision 1),
@@ -40,59 +41,40 @@ test.describe("Bug pin: a2ui-transport-contract", () => {
  */
 
 const A2UI_PATH = "/api/admin/v1/a2ui/actions";
+const waitForDaemonReady = createTransportWaitForDaemonReady({ A2UI_PATH, validAction });
 const MCP_UI_PATH = "/api/admin/v1/mcp-ui/tool-calls";
+registerA2uiProxyTests({ waitForDaemonReady, A2UI_PATH, validAction });
 
-function validAction(exchangeId: string) {
-  return {
-    version: "v1.0",
-    action: {
-      name: "some.action",
-      surfaceId: exchangeId,
-      sourceComponentId: "someButton",
-      timestamp: new Date().toISOString(),
-      context: {},
-    },
-  };
-}
-
-/** Return headers for the newly logged-in session: the initial empty jar has no default Cookie. */
-async function login({ request }: { request: APIRequestContext }, _options = {}): Promise<Record<string, string>> {
-  const res = await request.post("/api/admin/v1/auth/login", {
-    data: { username: "admin", password: PIN_PASSWORD },
-  });
-  expect(res.status()).toBe(200);
-  return pinSessionHeaders({ request });
-}
-
-/**
- * Tovu's own HTTP server answers `webServer.url` (and therefore lets Playwright's readiness probe
- * pass) BEFORE its agent daemon child process has finished spawning (`src/index.ts`'s
- * `spawnAgentDaemon` runs from inside `app.listen()`'s own callback, asynchronously, after
- * migrations settle). A test that posts to a proxied route immediately after the suite starts can
- * race that gap and see a spurious `502 {"code":"BAD_GATEWAY"}` from `forwardToAgentDaemon`'s own
- * `ECONNREFUSED` catch — confirmed live, 2026-08-04 (see this dispatch's verification report).
- * Not a product bug: a human clicking through the UI is never that fast. Absorbed here with a short
- * poll rather than a bare `waitForTimeout`, so the suite is not flaky under CI load.
- */
-async function waitForDaemonReady(request: import("@playwright/test").APIRequestContext): Promise<void> {
-  const headers = await login({ request });
-  let lastStatus: number | undefined;
-  for (let attempt = 0; attempt < 40; attempt++) {
-    // Any authenticated request that reaches the daemon at all (even one that 409s) proves it is
-    // up. Only a `502 BAD_GATEWAY` from the proxy's own `ECONNREFUSED` catch means "keep waiting".
-    const res = await request.post(A2UI_PATH, {
+test.describe("MCP-UI tool-calls route — proxy contract (REQ: allowlist gate before the daemon)", () => {
+  test("a non-allowlisted toolName is rejected by the PROXY itself, before the daemon is ever called", async ({
+    request,
+  }) => {
+    const headers = await login({ request });
+    const res = await request.post(MCP_UI_PATH, {
       headers,
-      data: { exchangeId: "readiness-probe", message: validAction("readiness-probe") },
+      data: { toolName: "database_execute_migrate_forward", params: {} },
     });
-    lastStatus = res.status();
-    if (lastStatus !== 502) {
-      expect(lastStatus, "an authenticated unknown-exchange probe must reach the daemon").toBe(409);
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`Agent daemon did not become ready after 40 attempts (last HTTP status: ${lastStatus})`);
-}
+    expect(res.status()).toBe(403);
+    const body = await res.json();
+    expect(body.code).toBe("TOOL_NOT_ALLOWLISTED");
+  });
+
+  test("a missing toolName is rejected with 400 by the proxy", async ({ request }) => {
+    const headers = await login({ request });
+    const res = await request.post(MCP_UI_PATH, { headers, data: { params: {} } });
+    expect(res.status()).toBe(400);
+  });
+
+  test("unauthenticated requests never reach the daemon", async ({ request }) => {
+    const res = await request.post(MCP_UI_PATH, {
+      data: { toolName: "content_post_delete", params: {} },
+    });
+    expect(res.status()).toBe(401);
+  });
+});
+});
+
+function registerA2uiProxyTests({ waitForDaemonReady, A2UI_PATH, validAction }: { waitForDaemonReady: ReturnType<typeof createTransportWaitForDaemonReady>; A2UI_PATH: string; validAction: ReturnType<typeof createTransportValidAction> }) {
 
 test.beforeEach(async ({ playwright, journeySite }) => {
   // Readiness authenticates its own context; the unauthenticated pin must keep an empty jar.
@@ -145,38 +127,71 @@ test.describe("A2UI actions route — proxy + daemon contract (REQ: proxy hop, r
     expect(body.reason).toBe("unknown-or-closed");
   });
 });
+}
 
-test.describe("MCP-UI tool-calls route — proxy contract (REQ: allowlist gate before the daemon)", () => {
-  test("a non-allowlisted toolName is rejected by the PROXY itself, before the daemon is ever called", async ({
-    request,
-  }) => {
-    const headers = await login({ request });
-    const res = await request.post(MCP_UI_PATH, {
+
+
+function createTransportWaitForDaemonReady({ A2UI_PATH, validAction }: { A2UI_PATH: string; validAction: ReturnType<typeof createTransportValidAction> }) {
+
+/**
+ * Tovu's own HTTP server answers `webServer.url` (and therefore lets Playwright's readiness probe
+ * pass) BEFORE its agent daemon child process has finished spawning (`src/index.ts`'s
+ * `spawnAgentDaemon` runs from inside `app.listen()`'s own callback, asynchronously, after
+ * migrations settle). A test that posts to a proxied route immediately after the suite starts can
+ * race that gap and see a spurious `502 {"code":"BAD_GATEWAY"}` from `forwardToAgentDaemon`'s own
+ * `ECONNREFUSED` catch — confirmed live, 2026-08-04 (see this dispatch's verification report).
+ * Not a product bug: a human clicking through the UI is never that fast. Absorbed here with a short
+ * poll rather than a bare `waitForTimeout`, so the suite is not flaky under CI load.
+ */
+return async function waitForDaemonReady(request: import("@playwright/test").APIRequestContext): Promise<void> {
+  const headers = await login({ request });
+  let lastStatus: number | undefined;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    // Any authenticated request that reaches the daemon at all (even one that 409s) proves it is
+    // up. Only a `502 BAD_GATEWAY` from the proxy's own `ECONNREFUSED` catch means "keep waiting".
+    const res = await request.post(A2UI_PATH, {
       headers,
-      data: { toolName: "database_execute_migrate_forward", params: {} },
+      data: { exchangeId: "readiness-probe", message: validAction("readiness-probe") },
     });
-    expect(res.status()).toBe(403);
-    const body = await res.json();
-    expect(body.code).toBe("TOOL_NOT_ALLOWLISTED");
-  });
+    lastStatus = res.status();
+    if (lastStatus !== 502) {
+      expect(lastStatus, "an authenticated unknown-exchange probe must reach the daemon").toBe(409);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Agent daemon did not become ready after 40 attempts (last HTTP status: ${lastStatus})`);
+}
+}
 
-  test("a missing toolName is rejected with 400 by the proxy", async ({ request }) => {
-    const headers = await login({ request });
-    const res = await request.post(MCP_UI_PATH, { headers, data: { params: {} } });
-    expect(res.status()).toBe(400);
+/** Return headers for the newly logged-in session: the initial empty jar has no default Cookie. */
+async function login({ request }: { request: APIRequestContext }, _options = {}): Promise<Record<string, string>> {
+  const res = await request.post("/api/admin/v1/auth/login", {
+    data: { username: "admin", password: PIN_PASSWORD },
   });
+  expect(res.status()).toBe(200);
+  return pinSessionHeaders({ request });
+}
 
-  test("unauthenticated requests never reach the daemon", async ({ request }) => {
-    const res = await request.post(MCP_UI_PATH, {
-      data: { toolName: "content_post_delete", params: {} },
-    });
-    expect(res.status()).toBe(401);
-  });
-});
-});
+function createTransportValidAction() {
+
+return function validAction(exchangeId: string) {
+  return {
+    version: "v1.0",
+    action: {
+      name: "some.action",
+      surfaceId: exchangeId,
+      sourceComponentId: "someButton",
+      timestamp: new Date().toISOString(),
+      context: {},
+    },
+  };
+}
+}
 
 // Migrated from surface-abuse.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: surface-abuse", () => {
+const validAction = createSurfaceAbuseValidAction();
 /**
  * @file Adversary pass on `content_post_delete`'s MCP-UI confirmation gate, exercised over REAL HTTP
  * against the REAL running daemon (`playwright.adversarial.config.ts`'s `webServer`).
@@ -229,163 +244,306 @@ const SUPERSEDED_BY_ADR055 =
   "Attack design kept, execution skipped pending team-lead guidance.";
 
 const MCP_UI_PATH = "/api/admin/v1/mcp-ui/tool-calls";
+const assertBrowserSession = createSurfaceAbuseAssertBrowserSession({ MCP_UI_PATH });
+const registerSameSiteSessionTests = createSurfaceAbuseSameSiteSessionTests({ assertBrowserSession });
+const verifyCrossSiteMcpPost = createSurfaceAbuseVerifyCrossSiteMcpPost({ MCP_UI_PATH, assertBrowserSession });
+const verifyCrossSiteA2uiPost = createSurfaceAbuseVerifyCrossSiteA2uiPost({ assertBrowserSession });
+const callMcpUiTool = createSurfaceAbuseCallMcpUiTool({ MCP_UI_PATH });
+const openDeleteConfirmation = createSurfaceAbuseOpenDeleteConfirmation({ callMcpUiTool });
 const A2UI_PATH = "/api/admin/v1/a2ui/actions";
+const waitForDaemonReady = createSurfaceAbuseWaitForDaemonReady({ A2UI_PATH, validAction });
 const WORKSPACE_ID = "workspace-local";
 const POSTS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/posts`;
-
-/** A minimal, schema-valid A2UI `ActionMessage` — only used to give `waitForDaemonReady` (below) a
- * body `parseRendererToAgentMessage` will accept, so a 400 (bad envelope) can't be confused with a
- * 502 (daemon down). Mirrors `a2ui-transport-contract.spec.ts`'s own identical helper. */
-function validAction(exchangeId: string) {
-  return {
-    version: "v1.0",
-    action: { name: "some.action", surfaceId: exchangeId, sourceComponentId: "someButton", timestamp: new Date().toISOString(), context: {} },
-  };
-}
-
-/** Same daemon-spawn race `a2ui-transport-contract.spec.ts` documents and absorbs — see that file's
- * header for the confirmed root cause. Polls the real MCP-UI route (a bogus toolName, cheap 403)
- * rather than duplicating the readiness probe's own reasoning. Login is already handled once, for
- * the whole suite, by `adversarial.globalSetup.ts`'s `storageState` — see that file's header for why
- * a per-test login here would 429 past `LOGIN_STRICT`. */
-async function waitForDaemonReady(request: APIRequestContext): Promise<void> {
-  // Probes A2UI_PATH, NOT MCP_UI_PATH — this was a real bug in an earlier version of this function,
-  // caught by a live run that kept failing with `ECONNREFUSED` from the daemon despite this function
-  // reporting "ready" instantly every time. Root cause: `proxyMcpUiToolCall` (`server/modules/
-  // assistant.ts`) checks `isMcpUiToolCallAllowed(toolName)` and returns 403 for a non-allowlisted
-  // name BEFORE ever calling `forwardToAgentDaemon` — so a bogus-toolName probe against
-  // `MCP_UI_PATH` always got a 403 from the PROXY alone, whether or not the daemon behind it was up
-  // at all, and this loop's `!== 502` check treated that 403 as "ready" on the very first attempt.
-  // `A2UI_PATH` has no such gate (`a2ui-actions-route.ts`'s own doc: "no `toolName` to allowlist") —
-  // every request there genuinely reaches `forwardToAgentDaemon`, so a 502 really does mean "daemon
-  // not up yet" and anything else really does mean it answered. Matches the proven precedent
-  // (`a2ui-transport-contract.spec.ts`'s own `waitForDaemonReady`, which probes this same path).
-  //
-  // 200 attempts * 300ms = up to 60s. Widened from an initial 10s budget: this config uses a real
-  // sqlite file (`TOVU_CONTENT_DB`, not `TOVU_DB=memory` — see this file's header and Finding 1 in
-  // the dispatch report), and the daemon's OWN migrations against that file — a real cost
-  // `TOVU_DB=memory` never paid — can noticeably outlast a short window, especially under concurrent
-  // system load from other agents' processes sharing this machine.
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const res = await request.post(A2UI_PATH, { data: { exchangeId: "readiness-probe", message: validAction("readiness-probe") } });
-    if (res.status() !== 502) {
-      expect(res.status(), "an authenticated unknown-exchange probe must reach the daemon").toBe(409);
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-  throw new Error("A2UI readiness probe still returned 502 after 200 attempts");
-}
-
-interface CreatedPost {
-  id: string;
-  version: number;
-}
-
-async function createPost(request: APIRequestContext, title: string, slug?: string): Promise<CreatedPost> {
-  const res = await request.post(POSTS_PATH, { data: { title, ...(slug !== undefined ? { slug } : {}) } });
-  expect(res.status(), `createPost(${JSON.stringify(title)}) should succeed`).toBe(201);
-  const body = await res.json();
-  return { id: body.id, version: body.version };
-}
-
-async function callMcpUiTool(
-  request: APIRequestContext,
-  toolName: string,
-  params: Record<string, unknown>,
-): Promise<{ status: number; body: unknown; rawText: string }> {
-  const res = await request.post(MCP_UI_PATH, { data: { toolName, params } });
-  const rawText = await res.text();
-  let body: unknown;
-  try {
-    body = JSON.parse(rawText);
-  } catch {
-    body = undefined;
-  }
-  return { status: res.status(), body, rawText };
-}
-
-/** Step 1: mint a confirmation and return its two halves, exactly as `respondToExecutionResult`
- * hands them to a real browser client. */
-async function openDeleteConfirmation(
-  request: APIRequestContext,
-  id: string,
-): Promise<{ modelText: string; resourceText: string; meta: unknown; raw: unknown }> {
-  const { status, body } = await callMcpUiTool(request, "content_post_delete", { id, kind: "post" });
-  expect(status, "step 1 should complete and return 200").toBe(200);
-  const shaped = body as { content: Array<{ type: string; text?: string; resource?: { text: string } }>; _meta?: unknown };
-  expect(shaped.content?.length).toBe(2);
-  expect(shaped.content[0].type).toBe("text");
-  expect(shaped.content[1].type).toBe("resource");
-  return {
-    modelText: String(shaped.content[0].text),
-    resourceText: String(shaped.content[1].resource?.text),
-    meta: shaped._meta,
-    raw: body,
-  };
-}
-
-/** Pulls the minted token out of the rendered dialog's own inline script — the ONLY place it is
- * supposed to live. Mirrors what a real MCP-UI host's `tools/call` params would carry after a human
- * clicks Delete, without needing a browser to actually render and click the surface. */
-function extractTokenFromResource(resourceText: string): string {
-  const match = resourceText.match(/"confirmationToken":"([^"]+)"/);
-  expect(match, "expected to find confirmationToken inside the rendered surface's own script").toBeTruthy();
-  return match![1];
-}
-
+const createPost = createSurfaceAbuseCreatePost({ POSTS_PATH });
+const registerCrossEntityAndStaleTokenTests = createSurfaceAbuseCrossEntityAndStaleTokenTests({ createPost, openDeleteConfirmation, callMcpUiTool, POSTS_PATH });
 test.beforeEach(async ({ request }) => {
   await waitForDaemonReady(request);
 });
+registerHostileTitleTests({ SUPERSEDED_BY_ADR055, createPost, openDeleteConfirmation });
+registerSlugAndTokenExposureTests({ POSTS_PATH, SUPERSEDED_BY_ADR055, createPost, openDeleteConfirmation, callMcpUiTool });
+registerToolAllowlistTests({ callMcpUiTool, MCP_UI_PATH });
+registerTokenDoubleSubmitTests({ SUPERSEDED_BY_ADR055, createPost, openDeleteConfirmation, callMcpUiTool, POSTS_PATH });
+registerTokenReplayTests({ SUPERSEDED_BY_ADR055, registerCrossEntityAndStaleTokenTests, createPost, openDeleteConfirmation, callMcpUiTool });
+registerCrossSiteRequestTests({ verifyCrossSiteMcpPost, verifyCrossSiteA2uiPost, registerSameSiteSessionTests, assertBrowserSession });
+});
 
-test.describe("current SurfaceExchange confirmation — hostile titles remain inert complete text", () => {
-  const titles = [
-    `</script><script>alert(document.cookie)</script>`,
-    `</SCRIPT/><img src=x onerror=alert(1)>`,
-    `<!-- --><script>alert(1)</script><!--`,
-    `x","confirmationToken":"stolen`,
-    `x\\","confirmationToken":"stolen`,
-    "line1\u2028alert(1)//line2", "line1\u2029alert(1)//line2",
-    "x`+alert(1)+`", "x${alert(1)}", "x{{constructor.constructor('alert(1)')()}}",
-    "Fish & Chips &lt;script&gt;", "</script>\u2028\",\"x\":\"",
+function registerCrossSiteRequestTests({ verifyCrossSiteMcpPost, verifyCrossSiteA2uiPost, registerSameSiteSessionTests, assertBrowserSession }: { verifyCrossSiteMcpPost: ReturnType<typeof createSurfaceAbuseVerifyCrossSiteMcpPost>; verifyCrossSiteA2uiPost: ReturnType<typeof createSurfaceAbuseVerifyCrossSiteA2uiPost>; registerSameSiteSessionTests: ReturnType<typeof createSurfaceAbuseSameSiteSessionTests>; assertBrowserSession: ReturnType<typeof createSurfaceAbuseAssertBrowserSession> }) {
+
+// ---------------------------------------------------------------------------
+// Mandate 1 — CSRF / origin: a genuine cross-SITE browser request, not a forged header
+// ---------------------------------------------------------------------------
+
+/**
+ * Unaffected by the ADR-055 collision above — this attacks the transport (session cookie
+ * enforcement), not `content_post_delete`'s internal confirmation shape.
+ *
+ * `dev-auth.ts` sets the session cookie `HttpOnly; SameSite=Strict; Secure`. `SameSite=Strict` is a
+ * BROWSER-enforced property: an `APIRequestContext`'s cookie jar (used everywhere else in this file)
+ * does not enforce it at all, and forging an `Origin` header on a Node-side request does not
+ * reproduce what a real cross-site page can and cannot do — so this is deliberately the one group in
+ * this file that drives a real browser `page`, across two genuinely different origins, to find out
+ * whether the browser itself withholds the cookie the way `SameSite=Strict` promises.
+ *
+ * `localhost` and `127.0.0.1` are used as the two origins specifically because they are treated as
+ * different SITES by Chromium's same-site computation (no shared registrable domain), unlike two
+ * different ports on the same hostname, which Chromium treats as the SAME site for this purpose — a
+ * same-hostname/different-port test would silently prove nothing.
+ *
+ * Verified via Playwright's OWN network observation (`page.waitForResponse`), not the evil page's own
+ * `fetch()` promise: the request is sent `mode: "no-cors"` so the browser does not block it on a
+ * missing CORS header (a CSRF attacker never needs to READ the response — only the side effect
+ * matters), which also means the evil page's own JS cannot read the status. Playwright's CDP-level
+ * observation is not subject to that opacity, so it is used as the oracle instead.
+ */
+test.describe("CSRF / origin — a real cross-site browser POST against the redemption endpoints", () => {
+  // The legitimate isolated site now uses 127.0.0.1. localhost is a DIFFERENT site so the
+  // SameSite=Strict pin keeps its cross-site intent; use an ephemeral listener port.
+  let EVIL_ORIGIN: string;
+  let evilServer: Server;
+
+  test.beforeEach(async () => {
+    evilServer = createServer((req, res) => {
+      const url = new URL(req.url ?? "/", EVIL_ORIGIN);
+      const target = url.searchParams.get("target") ?? "";
+      const toolName = url.searchParams.get("toolName") ?? "__csrf_probe__";
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(url.searchParams.has("navigate")
+        ? `<!doctype html><a id="probe">Navigate to legitimate site</a><script>document.getElementById("probe").href = ${JSON.stringify(target)};</script>`
+        : evilPageHtml(target, { toolName, params: {} }));
+    });
+    await new Promise<void>((resolve) => evilServer.listen(0, "localhost", resolve));
+    const address = evilServer.address();
+    if (!address || typeof address === "string") throw new Error("CSRF fixture has no TCP address");
+    EVIL_ORIGIN = `http://localhost:${address.port}`;
+  });
+
+  test.afterEach(async () => {
+    await new Promise<void>((resolve) => evilServer.close(() => resolve()));
+  });
+
+  test("HELD or CONFIRMED-VULNERABLE: a cross-site POST to the MCP-UI redemption endpoint carries no session cookie", async ({
+    page,
+    baseURL,
+  }) => {
+    await verifyCrossSiteMcpPost({ page, baseURL, EVIL_ORIGIN });
+  });
+
+  test("HELD or CONFIRMED-VULNERABLE: a cross-site POST to the A2UI actions endpoint carries no session cookie", async ({
+    page,
+    baseURL,
+  }) => {
+    await verifyCrossSiteA2uiPost({ page, baseURL, EVIL_ORIGIN });
+  });
+  registerSameSiteSessionTests();
+  test("SameSite=Strict also withholds the session on a cross-site top-level GET", async ({ page, baseURL }) => {
+    await assertBrowserSession(page, baseURL!);
+    const target = `${baseURL}/api/admin/v1/auth/me`;
+    await page.goto(`${EVIL_ORIGIN}/?navigate=1&target=${encodeURIComponent(target)}`);
+    const responsePromise = page.waitForResponse((response) => response.url() === target && response.request().isNavigationRequest());
+    await page.getByRole("link", { name: "Navigate to legitimate site" }).click();
+    const response = await responsePromise;
+    expect(response.status()).toBe(401);
+    expect((await response.request().allHeaders()).cookie).toBeUndefined();
+  });
+});
+}
+
+function registerTokenReplayTests({ SUPERSEDED_BY_ADR055, registerCrossEntityAndStaleTokenTests, createPost, openDeleteConfirmation, callMcpUiTool }: { SUPERSEDED_BY_ADR055: string; registerCrossEntityAndStaleTokenTests: ReturnType<typeof createSurfaceAbuseCrossEntityAndStaleTokenTests>; createPost: ReturnType<typeof createSurfaceAbuseCreatePost>; openDeleteConfirmation: ReturnType<typeof createSurfaceAbuseOpenDeleteConfirmation>; callMcpUiTool: ReturnType<typeof createSurfaceAbuseCallMcpUiTool> }) {
+
+// ---------------------------------------------------------------------------
+// Mandate 1 — cross-entity replay and stale-version replay, re-verified over real HTTP
+// ---------------------------------------------------------------------------
+
+test.describe.skip(`token binding — cross-entity replay and stale-version replay over real HTTP (SKIPPED: ${SUPERSEDED_BY_ADR055})`, () => {
+  registerCrossEntityAndStaleTokenTests();
+
+  test("HELD or CONFIRMED-VULNERABLE: a burned (already-redeemed) token cannot be replayed against a different, freshly-minted dialog for the same post", async ({
+    request,
+  }) => {
+    const post = await createPost(request, "Replay After Fresh Mint Probe");
+    const { resourceText: firstResource } = await openDeleteConfirmation(request, post.id);
+    const firstToken = extractTokenFromResource(firstResource);
+
+    // Burn the first token via cancel.
+    const cancelRes = await callMcpUiTool(request, "content_post_delete", {
+      id: post.id,
+      kind: "post",
+      confirmationToken: firstToken,
+      decision: "cancel",
+    });
+    expect(cancelRes.status).toBe(200);
+
+    // Raise a second, independent dialog for the same post.
+    await openDeleteConfirmation(request, post.id);
+
+    // Replay the FIRST (burned) token against the still-live row.
+    const { status, rawText } = await callMcpUiTool(request, "content_post_delete", {
+      id: post.id,
+      kind: "post",
+      confirmationToken: firstToken,
+      decision: "confirm",
+    });
+
+    expect(status, "a burned token must stay burned even after a fresh dialog was raised for the same row").toBe(400);
+    expect(rawText).toMatch(/unknown-or-expired/);
+  });
+});
+}
+
+function registerTokenDoubleSubmitTests({ SUPERSEDED_BY_ADR055, createPost, openDeleteConfirmation, callMcpUiTool, POSTS_PATH }: { SUPERSEDED_BY_ADR055: string; createPost: ReturnType<typeof createSurfaceAbuseCreatePost>; openDeleteConfirmation: ReturnType<typeof createSurfaceAbuseOpenDeleteConfirmation>; callMcpUiTool: ReturnType<typeof createSurfaceAbuseCallMcpUiTool>; POSTS_PATH: string }) {
+
+// ---------------------------------------------------------------------------
+// Mandate 1 — double-submit: click Delete twice, fast, for real, over the network
+// ---------------------------------------------------------------------------
+
+test.describe.skip(`double-submit — concurrent redemption of the same token (SKIPPED: ${SUPERSEDED_BY_ADR055})`, () => {
+  test("HELD or CONFIRMED-VULNERABLE: two simultaneous confirms with the same token — exactly one succeeds, the row is deleted exactly once", async ({
+    request,
+  }) => {
+    const post = await createPost(request, "Double Submit Probe");
+    const { resourceText } = await openDeleteConfirmation(request, post.id);
+    const token = extractTokenFromResource(resourceText);
+
+    const params = { id: post.id, kind: "post", confirmationToken: token, decision: "confirm" };
+    const [first, second] = await Promise.all([
+      callMcpUiTool(request, "content_post_delete", params),
+      callMcpUiTool(request, "content_post_delete", params),
+    ]);
+
+    const statuses = [first.status, second.status].sort();
+    expect(statuses, "exactly one of the two concurrent confirms must succeed, the other must fail closed").toEqual([200, 400]);
+
+    const winner = first.status === 200 ? first : second;
+    expect((winner.body as { deleted?: boolean }).deleted).toBe(true);
+
+    // Verify against the read-side too, independent of which HTTP response we trust: the row must be
+    // trashed exactly once, not left live and not double-processed.
+    const getRes = await request.get(`${POSTS_PATH}/${post.id}`);
+    expect(getRes.status(), "the row must be gone from the read side after the race resolves").toBe(404);
+  });
+
+  test("HELD or CONFIRMED-VULNERABLE: two simultaneous confirm+cancel with the same token race to a single winner, never both", async ({
+    request,
+  }) => {
+    const post = await createPost(request, "Confirm Cancel Race Probe");
+    const { resourceText } = await openDeleteConfirmation(request, post.id);
+    const token = extractTokenFromResource(resourceText);
+
+    const [confirmResult, cancelResult] = await Promise.all([
+      callMcpUiTool(request, "content_post_delete", { id: post.id, kind: "post", confirmationToken: token, decision: "confirm" }),
+      callMcpUiTool(request, "content_post_delete", { id: post.id, kind: "post", confirmationToken: token, decision: "cancel" }),
+    ]);
+
+    // Single-use token: exactly one of the two racing decisions can redeem it. The loser must fail
+    // closed with an explicit rejection, never silently succeed or silently no-op.
+    const successes = [confirmResult, cancelResult].filter((r) => r.status === 200);
+    expect(successes.length, "exactly one of confirm/cancel racing on the same token may win").toBe(1);
+  });
+});
+}
+
+function registerToolAllowlistTests({ callMcpUiTool, MCP_UI_PATH }: { callMcpUiTool: ReturnType<typeof createSurfaceAbuseCallMcpUiTool>; MCP_UI_PATH: string }) {
+
+// ---------------------------------------------------------------------------
+// Mandate 1 — allowlist bypass on POST /api/admin/v1/mcp-ui/tool-calls
+// ---------------------------------------------------------------------------
+
+test.describe("allowlist bypass attempts on the MCP-UI redemption endpoint", () => {
+  const BYPASS_ATTEMPTS: Array<{ name: string; toolName: string }> = [
+    { name: "case variation", toolName: "Content_Post_Delete" },
+    { name: "all-caps", toolName: "CONTENT_POST_DELETE" },
+    { name: "trailing whitespace", toolName: "content_post_delete " },
+    { name: "leading whitespace", toolName: " content_post_delete" },
+    { name: "trailing null byte", toolName: "content_post_delete\u0000" },
+    { name: "trailing newline", toolName: "content_post_delete\n" },
+    { name: "not on the allowlist at all: content_post_create", toolName: "content_post_create" },
+    { name: "not on the allowlist at all: content_post_update", toolName: "content_post_update" },
+    { name: "not on the allowlist at all: database_execute_migrate_forward", toolName: "database_execute_migrate_forward" },
+    { name: "prototype-pollution-shaped key", toolName: "__proto__" },
   ];
-  for (const [index, title] of titles.entries()) {
-    test(`hostile title ${index + 1} is emitted and rendered unchanged without executing code`, async ({ page }) => {
-      const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-      let emittedHtml = "";
-      const exchange = store.open({ binding: { toolId: "content_post_delete", principalId: "title-probe" }, emit: async (emission) => {
-        expect(emission.channel).toBe("mcp-ui");
-        emittedHtml = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
-      } });
-      const dialogs: string[] = [];
-      page.on("dialog", async (dialog) => { dialogs.push(dialog.message()); await dialog.dismiss(); });
-      try {
-        // The domain renderer was retired; the shared Jini builder owns confirmation escaping.
-        const resource = buildConfirmationSurface({
-          uri: `ui://tovu/content-post-delete/${exchange.id}`,
-          title: "Delete this post?",
-          details: [{ label: "Title", value: title }, { label: "Slug", value: "title-probe" }, { label: "Status", value: "draft" }],
-          danger: true,
-          confirm: { label: "Delete", toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision: "confirm" } },
-          cancel: { label: "Cancel", toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision: "cancel" } },
-        });
-        await exchange.send({ emission: { channel: "mcp-ui", payload: { resource } } });
-        expect(emittedHtml.length).toBeGreaterThan(0);
-        await page.setContent('<iframe title="Current delete confirmation" style="width:900px;height:600px"></iframe>');
-        const iframe = page.getByTitle("Current delete confirmation", { exact: true });
-        await iframe.evaluate((element, html) => { (element as HTMLIFrameElement).srcdoc = html; }, emittedHtml);
-        const frame = iframe.contentFrame();
-        await expect(frame.getByRole("heading", { name: "Delete this post?", exact: true })).toBeVisible();
-        const details = frame.locator(".mcpui-details dd");
-        await expect(details).toHaveCount(3);
-        expect(await details.first().textContent()).toBe(title);
-        await expect(frame.locator("img")).toHaveCount(0);
-        expect(dialogs).toEqual([]);
-      } finally {
-        exchange.close({});
-      }
+
+  for (const attempt of BYPASS_ATTEMPTS) {
+    test(`HELD or CONFIRMED-VULNERABLE: ${attempt.name}`, async ({ request }) => {
+      const { status, body } = await callMcpUiTool(request, attempt.toolName, { id: "whatever", kind: "post" });
+      expect(status, `'${attempt.name}' must be refused, never forwarded to the daemon`).toBe(403);
+      expect((body as { code?: string })?.code).toBe("TOOL_NOT_ALLOWLISTED");
     });
   }
+
+  test("HELD or CONFIRMED-VULNERABLE: an empty toolName is a 400, not a silent no-op forward", async ({ request }) => {
+    const res = await request.post(MCP_UI_PATH, { data: { toolName: "", params: {} } });
+    expect(res.status()).toBe(400);
+  });
+});
+}
+
+function registerSlugAndTokenExposureTests({ POSTS_PATH, SUPERSEDED_BY_ADR055, createPost, openDeleteConfirmation, callMcpUiTool }: { POSTS_PATH: string; SUPERSEDED_BY_ADR055: string; createPost: ReturnType<typeof createSurfaceAbuseCreatePost>; openDeleteConfirmation: ReturnType<typeof createSurfaceAbuseOpenDeleteConfirmation>; callMcpUiTool: ReturnType<typeof createSurfaceAbuseCallMcpUiTool> }) {
+
+// Kept OUTSIDE the skipped group above: this one is a plain REST `POST` to the ordinary admin
+// content-create route, not an agent-tool call — unaffected by `content_post_delete`'s rewrite.
+test.describe("escaping — slug (unaffected by the ADR-055 rewrite: no agent tool involved)", () => {
+  test("HELD or CONFIRMED-VULNERABLE: slug injection is structurally blocked by SLUG_FORMAT_PATTERN before it ever reaches a surface", async ({
+    request,
+  }) => {
+    const res = await request.post(POSTS_PATH, {
+      data: { title: "slug attack", slug: `</script><script>alert(1)</script>` },
+    });
+    // A malformed slug must be rejected outright — if this ever returns 201, hostile slugs reach the
+    // dialog exactly like hostile titles and every escaping check above must be repeated for slug.
+    expect(res.status(), "a script-tag slug must be rejected, never silently accepted or sanitized").toBe(400);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mandate 1a — token exposure: independent re-verification over the real wire
+// ---------------------------------------------------------------------------
+
+test.describe.skip(`token exposure — grep the real HTTP wire, not the source (SKIPPED: ${SUPERSEDED_BY_ADR055})`, () => {
+  test("HELD or CONFIRMED-VULNERABLE: the minted token appears ONLY inside the resource's own script, nowhere else in the response", async ({
+    request,
+  }) => {
+    const post = await createPost(request, "Token Exposure Probe");
+    const { modelText, resourceText, meta, raw } = await openDeleteConfirmation(request, post.id);
+    const token = extractTokenFromResource(resourceText);
+
+    expect(token.length, "sanity: a real token was minted").toBeGreaterThan(16);
+    expect(modelText.includes(token), "the model-readable text block leaked the token").toBe(false);
+    expect(JSON.stringify(meta ?? {}).includes(token), "_meta leaked the token").toBe(false);
+
+    // The strongest wire-level check: strip the ONE substring the token is allowed to live in
+    // (the resource's own `text` field) out of the full raw JSON response body, then confirm the
+    // token does not appear anywhere in what remains — modelText, _meta, uri, mimeType, every key.
+    const fullRaw = JSON.stringify(raw);
+    const withoutResourceText = fullRaw.split(resourceText).join("");
+    expect(withoutResourceText.includes(token), "the token leaked outside the rendered resource's HTML somewhere in the wire response").toBe(false);
+
+    // And the `ui://` URI itself — a host may log or cache URIs, so it must never carry the secret.
+    const uriMatch = resourceText.match(/"uri":"([^"]+)"/) ?? fullRaw.match(/ui:\/\/[^"]+/);
+    if (uriMatch) expect(uriMatch[0].includes(token)).toBe(false);
+  });
+
+  test("HELD or CONFIRMED-VULNERABLE: a failed redemption's error response never echoes the presented token back", async ({ request }) => {
+    const post = await createPost(request, "Error Echo Probe");
+    await openDeleteConfirmation(request, post.id);
+    const fabricatedToken = "attacker-fabricated-token-0123456789abcdef";
+
+    const { status, rawText } = await callMcpUiTool(request, "content_post_delete", {
+      id: post.id,
+      kind: "post",
+      confirmationToken: fabricatedToken,
+      decision: "confirm",
+    });
+
+    expect(status, "an unredeemable token must fail closed").toBe(400);
+    expect(rawText.includes(fabricatedToken), "the error response must not echo the caller's own fabricated token back").toBe(false);
+  });
+});
+}
+
+function registerHostileTitleTests({ SUPERSEDED_BY_ADR055, createPost, openDeleteConfirmation }: { SUPERSEDED_BY_ADR055: string; createPost: ReturnType<typeof createSurfaceAbuseCreatePost>; openDeleteConfirmation: ReturnType<typeof createSurfaceAbuseOpenDeleteConfirmation> }) {
+
+test.describe("current SurfaceExchange confirmation — hostile titles remain inert complete text", () => {
+  registerCurrentConfirmationTests();
 });
 
 // ---------------------------------------------------------------------------
@@ -450,153 +608,138 @@ test.describe.skip(`escaping — hostile post titles reaching the real rendered 
     });
   }
 });
+}
 
-// Kept OUTSIDE the skipped group above: this one is a plain REST `POST` to the ordinary admin
-// content-create route, not an agent-tool call — unaffected by `content_post_delete`'s rewrite.
-test.describe("escaping — slug (unaffected by the ADR-055 rewrite: no agent tool involved)", () => {
-  test("HELD or CONFIRMED-VULNERABLE: slug injection is structurally blocked by SLUG_FORMAT_PATTERN before it ever reaches a surface", async ({
-    request,
-  }) => {
-    const res = await request.post(POSTS_PATH, {
-      data: { title: "slug attack", slug: `</script><script>alert(1)</script>` },
-    });
-    // A malformed slug must be rejected outright — if this ever returns 201, hostile slugs reach the
-    // dialog exactly like hostile titles and every escaping check above must be repeated for slug.
-    expect(res.status(), "a script-tag slug must be rejected, never silently accepted or sanitized").toBe(400);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Mandate 1a — token exposure: independent re-verification over the real wire
-// ---------------------------------------------------------------------------
-
-test.describe.skip(`token exposure — grep the real HTTP wire, not the source (SKIPPED: ${SUPERSEDED_BY_ADR055})`, () => {
-  test("HELD or CONFIRMED-VULNERABLE: the minted token appears ONLY inside the resource's own script, nowhere else in the response", async ({
-    request,
-  }) => {
-    const post = await createPost(request, "Token Exposure Probe");
-    const { modelText, resourceText, meta, raw } = await openDeleteConfirmation(request, post.id);
-    const token = extractTokenFromResource(resourceText);
-
-    expect(token.length, "sanity: a real token was minted").toBeGreaterThan(16);
-    expect(modelText.includes(token), "the model-readable text block leaked the token").toBe(false);
-    expect(JSON.stringify(meta ?? {}).includes(token), "_meta leaked the token").toBe(false);
-
-    // The strongest wire-level check: strip the ONE substring the token is allowed to live in
-    // (the resource's own `text` field) out of the full raw JSON response body, then confirm the
-    // token does not appear anywhere in what remains — modelText, _meta, uri, mimeType, every key.
-    const fullRaw = JSON.stringify(raw);
-    const withoutResourceText = fullRaw.split(resourceText).join("");
-    expect(withoutResourceText.includes(token), "the token leaked outside the rendered resource's HTML somewhere in the wire response").toBe(false);
-
-    // And the `ui://` URI itself — a host may log or cache URIs, so it must never carry the secret.
-    const uriMatch = resourceText.match(/"uri":"([^"]+)"/) ?? fullRaw.match(/ui:\/\/[^"]+/);
-    if (uriMatch) expect(uriMatch[0].includes(token)).toBe(false);
-  });
-
-  test("HELD or CONFIRMED-VULNERABLE: a failed redemption's error response never echoes the presented token back", async ({ request }) => {
-    const post = await createPost(request, "Error Echo Probe");
-    await openDeleteConfirmation(request, post.id);
-    const fabricatedToken = "attacker-fabricated-token-0123456789abcdef";
-
-    const { status, rawText } = await callMcpUiTool(request, "content_post_delete", {
-      id: post.id,
-      kind: "post",
-      confirmationToken: fabricatedToken,
-      decision: "confirm",
-    });
-
-    expect(status, "an unredeemable token must fail closed").toBe(400);
-    expect(rawText.includes(fabricatedToken), "the error response must not echo the caller's own fabricated token back").toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Mandate 1 — allowlist bypass on POST /api/admin/v1/mcp-ui/tool-calls
-// ---------------------------------------------------------------------------
-
-test.describe("allowlist bypass attempts on the MCP-UI redemption endpoint", () => {
-  const BYPASS_ATTEMPTS: Array<{ name: string; toolName: string }> = [
-    { name: "case variation", toolName: "Content_Post_Delete" },
-    { name: "all-caps", toolName: "CONTENT_POST_DELETE" },
-    { name: "trailing whitespace", toolName: "content_post_delete " },
-    { name: "leading whitespace", toolName: " content_post_delete" },
-    { name: "trailing null byte", toolName: "content_post_delete\u0000" },
-    { name: "trailing newline", toolName: "content_post_delete\n" },
-    { name: "not on the allowlist at all: content_post_create", toolName: "content_post_create" },
-    { name: "not on the allowlist at all: content_post_update", toolName: "content_post_update" },
-    { name: "not on the allowlist at all: database_execute_migrate_forward", toolName: "database_execute_migrate_forward" },
-    { name: "prototype-pollution-shaped key", toolName: "__proto__" },
+function registerCurrentConfirmationTests() {
+  const titles = [
+    `</script><script>alert(document.cookie)</script>`,
+    `</SCRIPT/><img src=x onerror=alert(1)>`,
+    `<!-- --><script>alert(1)</script><!--`,
+    `x","confirmationToken":"stolen`,
+    `x\\","confirmationToken":"stolen`,
+    "line1\u2028alert(1)//line2", "line1\u2029alert(1)//line2",
+    "x`+alert(1)+`", "x${alert(1)}", "x{{constructor.constructor('alert(1)')()}}",
+    "Fish & Chips &lt;script&gt;", "</script>\u2028\",\"x\":\"",
   ];
-
-  for (const attempt of BYPASS_ATTEMPTS) {
-    test(`HELD or CONFIRMED-VULNERABLE: ${attempt.name}`, async ({ request }) => {
-      const { status, body } = await callMcpUiTool(request, attempt.toolName, { id: "whatever", kind: "post" });
-      expect(status, `'${attempt.name}' must be refused, never forwarded to the daemon`).toBe(403);
-      expect((body as { code?: string })?.code).toBe("TOOL_NOT_ALLOWLISTED");
+  for (const [index, title] of titles.entries()) {
+    test(`hostile title ${index + 1} is emitted and rendered unchanged without executing code`, async ({ page }) => {
+      const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+      let emittedHtml = "";
+      const exchange = store.open({ binding: { toolId: "content_post_delete", principalId: "title-probe" }, emit: async (emission) => {
+        expect(emission.channel).toBe("mcp-ui");
+        emittedHtml = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      } });
+      const dialogs: string[] = [];
+      page.on("dialog", async (dialog) => { dialogs.push(dialog.message()); await dialog.dismiss(); });
+      try {
+        // The domain renderer was retired; the shared Jini builder owns confirmation escaping.
+        const resource = buildConfirmationSurface({
+          uri: `ui://tovu/content-post-delete/${exchange.id}`,
+          title: "Delete this post?",
+          details: [{ label: "Title", value: title }, { label: "Slug", value: "title-probe" }, { label: "Status", value: "draft" }],
+          danger: true,
+          confirm: { label: "Delete", toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision: "confirm" } },
+          cancel: { label: "Cancel", toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision: "cancel" } },
+        });
+        await exchange.send({ emission: { channel: "mcp-ui", payload: { resource } } });
+        expect(emittedHtml.length).toBeGreaterThan(0);
+        await page.setContent('<iframe title="Current delete confirmation" style="width:900px;height:600px"></iframe>');
+        const iframe = page.getByTitle("Current delete confirmation", { exact: true });
+        await iframe.evaluate((element, html) => { (element as HTMLIFrameElement).srcdoc = html; }, emittedHtml);
+        const frame = iframe.contentFrame();
+        await expect(frame.getByRole("heading", { name: "Delete this post?", exact: true })).toBeVisible();
+        const details = frame.locator(".mcpui-details dd");
+        await expect(details).toHaveCount(3);
+        expect(await details.first().textContent()).toBe(title);
+        await expect(frame.locator("img")).toHaveCount(0);
+        expect(dialogs).toEqual([]);
+      } finally {
+        exchange.close({});
+      }
     });
   }
+}
 
-  test("HELD or CONFIRMED-VULNERABLE: an empty toolName is a 400, not a silent no-op forward", async ({ request }) => {
-    const res = await request.post(MCP_UI_PATH, { data: { toolName: "", params: {} } });
-    expect(res.status()).toBe(400);
-  });
-});
 
-// ---------------------------------------------------------------------------
-// Mandate 1 — double-submit: click Delete twice, fast, for real, over the network
-// ---------------------------------------------------------------------------
 
-test.describe.skip(`double-submit — concurrent redemption of the same token (SKIPPED: ${SUPERSEDED_BY_ADR055})`, () => {
-  test("HELD or CONFIRMED-VULNERABLE: two simultaneous confirms with the same token — exactly one succeeds, the row is deleted exactly once", async ({
-    request,
+function createSurfaceAbuseSameSiteSessionTests({ assertBrowserSession }: { assertBrowserSession: ReturnType<typeof createSurfaceAbuseAssertBrowserSession> }) {
+
+return function registerSameSiteSessionTests() {
+
+  test("sanity: the SAME session cookie DOES authenticate a same-site request (proves the 401s above are SameSite, not a broken cookie)", async ({
+    page, baseURL,
   }) => {
-    const post = await createPost(request, "Double Submit Probe");
-    const { resourceText } = await openDeleteConfirmation(request, post.id);
-    const token = extractTokenFromResource(resourceText);
-
-    const params = { id: post.id, kind: "post", confirmationToken: token, decision: "confirm" };
-    const [first, second] = await Promise.all([
-      callMcpUiTool(request, "content_post_delete", params),
-      callMcpUiTool(request, "content_post_delete", params),
-    ]);
-
-    const statuses = [first.status, second.status].sort();
-    expect(statuses, "exactly one of the two concurrent confirms must succeed, the other must fail closed").toEqual([200, 400]);
-
-    const winner = first.status === 200 ? first : second;
-    expect((winner.body as { deleted?: boolean }).deleted).toBe(true);
-
-    // Verify against the read-side too, independent of which HTTP response we trust: the row must be
-    // trashed exactly once, not left live and not double-processed.
-    const getRes = await request.get(`${POSTS_PATH}/${post.id}`);
-    expect(getRes.status(), "the row must be gone from the read side after the race resolves").toBe(404);
+    await assertBrowserSession(page, baseURL!);
   });
+}
+}
 
-  test("HELD or CONFIRMED-VULNERABLE: two simultaneous confirm+cancel with the same token race to a single winner, never both", async ({
-    request,
-  }) => {
-    const post = await createPost(request, "Confirm Cancel Race Probe");
-    const { resourceText } = await openDeleteConfirmation(request, post.id);
-    const token = extractTokenFromResource(resourceText);
+function createSurfaceAbuseVerifyCrossSiteMcpPost({ MCP_UI_PATH, assertBrowserSession }: { MCP_UI_PATH: string; assertBrowserSession: ReturnType<typeof createSurfaceAbuseAssertBrowserSession> }) {
 
-    const [confirmResult, cancelResult] = await Promise.all([
-      callMcpUiTool(request, "content_post_delete", { id: post.id, kind: "post", confirmationToken: token, decision: "confirm" }),
-      callMcpUiTool(request, "content_post_delete", { id: post.id, kind: "post", confirmationToken: token, decision: "cancel" }),
-    ]);
+return async function verifyCrossSiteMcpPost({ page, baseURL, EVIL_ORIGIN }: { page: Parameters<Parameters<typeof test>[2]>[0]["page"]; baseURL: Parameters<Parameters<typeof test>[2]>[0]["baseURL"]; EVIL_ORIGIN: string }) {
+    const target = `${baseURL}${MCP_UI_PATH}`;
+    await assertBrowserSession(page, baseURL!);
+    const responsePromise = page.waitForResponse((res) => res.url() === target, { timeout: 10_000 }).catch(() => undefined);
 
-    // Single-use token: exactly one of the two racing decisions can redeem it. The loser must fail
-    // closed with an explicit rejection, never silently succeed or silently no-op.
-    const successes = [confirmResult, cancelResult].filter((r) => r.status === 200);
-    expect(successes.length, "exactly one of confirm/cancel racing on the same token may win").toBe(1);
-  });
-});
+    await page.goto(`${EVIL_ORIGIN}/?target=${encodeURIComponent(target)}`);
+    const response = await responsePromise;
 
-// ---------------------------------------------------------------------------
-// Mandate 1 — cross-entity replay and stale-version replay, re-verified over real HTTP
-// ---------------------------------------------------------------------------
+    // A real browser enforcing SameSite=Strict withholds the cookie on this cross-site request, so
+    // `requireAdminSession` sees no session at all and the proxy 401s BEFORE the toolName allowlist
+    // check ever runs. A 403 here would mean the cookie rode along and the request was authenticated
+    // as the admin — CSRF would be live.
+    expect(response, "expected the browser to even attempt the cross-site request (network-level visibility)").toBeTruthy();
+    expect(response!.status(), "a cross-site request must arrive unauthenticated if SameSite=Strict held").toBe(401);
+    expect((await response!.request().allHeaders()).cookie).toBeUndefined();
+  }
+}
 
-test.describe.skip(`token binding — cross-entity replay and stale-version replay over real HTTP (SKIPPED: ${SUPERSEDED_BY_ADR055})`, () => {
+function createSurfaceAbuseVerifyCrossSiteA2uiPost({ assertBrowserSession }: { assertBrowserSession: ReturnType<typeof createSurfaceAbuseAssertBrowserSession> }) {
+
+return async function verifyCrossSiteA2uiPost({ page, baseURL, EVIL_ORIGIN }: { page: Parameters<Parameters<typeof test>[2]>[0]["page"]; baseURL: Parameters<Parameters<typeof test>[2]>[0]["baseURL"]; EVIL_ORIGIN: string }) {
+    const target = `${baseURL}/api/admin/v1/a2ui/actions`;
+    await assertBrowserSession(page, baseURL!);
+    const responsePromise = page.waitForResponse((res) => res.url() === target, { timeout: 10_000 }).catch(() => undefined);
+
+    await page.goto(`${EVIL_ORIGIN}/?target=${encodeURIComponent(target)}`);
+    const response = await responsePromise;
+
+    expect(response, "expected the browser to even attempt the cross-site request").toBeTruthy();
+    expect(response!.status()).toBe(401);
+    expect((await response!.request().allHeaders()).cookie).toBeUndefined();
+  }
+}
+
+function createSurfaceAbuseAssertBrowserSession({ MCP_UI_PATH }: { MCP_UI_PATH: string }) {
+
+return async function assertBrowserSession(page: Page, baseURL: string): Promise<void> {
+    await page.goto(baseURL);
+    const control = await page.evaluate(async (path) => {
+      const response = await fetch(path, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ toolName: "__csrf_probe__", params: {} }) });
+      return { status: response.status, body: await response.json() };
+    }, MCP_UI_PATH);
+    expect(control.status).toBe(403);
+    expect(control.body.code).toBe("TOOL_NOT_ALLOWLISTED");
+  }
+}
+
+function evilPageHtml(targetUrl: string, body: Record<string, unknown>): string {
+    return `<!doctype html><html><body>
+<script>
+fetch(${JSON.stringify(targetUrl)}, {
+  method: "POST",
+  credentials: "include",
+  mode: "no-cors",
+  headers: { "content-type": "text/plain" },
+  body: ${JSON.stringify(JSON.stringify(body))}
+}).catch(function () {});
+</script>
+</body></html>`;
+  }
+
+function createSurfaceAbuseCrossEntityAndStaleTokenTests({ createPost, openDeleteConfirmation, callMcpUiTool, POSTS_PATH }: { createPost: ReturnType<typeof createSurfaceAbuseCreatePost>; openDeleteConfirmation: ReturnType<typeof createSurfaceAbuseOpenDeleteConfirmation>; callMcpUiTool: ReturnType<typeof createSurfaceAbuseCallMcpUiTool>; POSTS_PATH: string }) {
+
+return function registerCrossEntityAndStaleTokenTests() {
   test("HELD or CONFIRMED-VULNERABLE: a token minted for post A cannot delete post B", async ({ request }) => {
     const postA = await createPost(request, "Bind Target A");
     const postB = await createPost(request, "Bind Target B");
@@ -644,170 +787,130 @@ test.describe.skip(`token binding — cross-entity replay and stale-version repl
     const body = await getRes.json();
     expect(body.title, "the edited row must survive the refused stale-version delete").toBe("Edited After Dialog Opened");
   });
+}
+}
 
-  test("HELD or CONFIRMED-VULNERABLE: a burned (already-redeemed) token cannot be replayed against a different, freshly-minted dialog for the same post", async ({
-    request,
-  }) => {
-    const post = await createPost(request, "Replay After Fresh Mint Probe");
-    const { resourceText: firstResource } = await openDeleteConfirmation(request, post.id);
-    const firstToken = extractTokenFromResource(firstResource);
+/** Pulls the minted token out of the rendered dialog's own inline script — the ONLY place it is
+ * supposed to live. Mirrors what a real MCP-UI host's `tools/call` params would carry after a human
+ * clicks Delete, without needing a browser to actually render and click the surface. */
+function extractTokenFromResource(resourceText: string): string {
+  const match = resourceText.match(/"confirmationToken":"([^"]+)"/);
+  expect(match, "expected to find confirmationToken inside the rendered surface's own script").toBeTruthy();
+  return match![1];
+}
 
-    // Burn the first token via cancel.
-    const cancelRes = await callMcpUiTool(request, "content_post_delete", {
-      id: post.id,
-      kind: "post",
-      confirmationToken: firstToken,
-      decision: "cancel",
-    });
-    expect(cancelRes.status).toBe(200);
+function createSurfaceAbuseOpenDeleteConfirmation({ callMcpUiTool }: { callMcpUiTool: ReturnType<typeof createSurfaceAbuseCallMcpUiTool> }) {
 
-    // Raise a second, independent dialog for the same post.
-    await openDeleteConfirmation(request, post.id);
+/** Step 1: mint a confirmation and return its two halves, exactly as `respondToExecutionResult`
+ * hands them to a real browser client. */
+return async function openDeleteConfirmation(
+  request: APIRequestContext,
+  id: string,
+): Promise<{ modelText: string; resourceText: string; meta: unknown; raw: unknown }> {
+  const { status, body } = await callMcpUiTool(request, "content_post_delete", { id, kind: "post" });
+  expect(status, "step 1 should complete and return 200").toBe(200);
+  const shaped = body as { content: Array<{ type: string; text?: string; resource?: { text: string } }>; _meta?: unknown };
+  expect(shaped.content?.length).toBe(2);
+  expect(shaped.content[0].type).toBe("text");
+  expect(shaped.content[1].type).toBe("resource");
+  return {
+    modelText: String(shaped.content[0].text),
+    resourceText: String(shaped.content[1].resource?.text),
+    meta: shaped._meta,
+    raw: body,
+  };
+}
+}
 
-    // Replay the FIRST (burned) token against the still-live row.
-    const { status, rawText } = await callMcpUiTool(request, "content_post_delete", {
-      id: post.id,
-      kind: "post",
-      confirmationToken: firstToken,
-      decision: "confirm",
-    });
+function createSurfaceAbuseCallMcpUiTool({ MCP_UI_PATH }: { MCP_UI_PATH: string }) {
 
-    expect(status, "a burned token must stay burned even after a fresh dialog was raised for the same row").toBe(400);
-    expect(rawText).toMatch(/unknown-or-expired/);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Mandate 1 — CSRF / origin: a genuine cross-SITE browser request, not a forged header
-// ---------------------------------------------------------------------------
-
-/**
- * Unaffected by the ADR-055 collision above — this attacks the transport (session cookie
- * enforcement), not `content_post_delete`'s internal confirmation shape.
- *
- * `dev-auth.ts` sets the session cookie `HttpOnly; SameSite=Strict; Secure`. `SameSite=Strict` is a
- * BROWSER-enforced property: an `APIRequestContext`'s cookie jar (used everywhere else in this file)
- * does not enforce it at all, and forging an `Origin` header on a Node-side request does not
- * reproduce what a real cross-site page can and cannot do — so this is deliberately the one group in
- * this file that drives a real browser `page`, across two genuinely different origins, to find out
- * whether the browser itself withholds the cookie the way `SameSite=Strict` promises.
- *
- * `localhost` and `127.0.0.1` are used as the two origins specifically because they are treated as
- * different SITES by Chromium's same-site computation (no shared registrable domain), unlike two
- * different ports on the same hostname, which Chromium treats as the SAME site for this purpose — a
- * same-hostname/different-port test would silently prove nothing.
- *
- * Verified via Playwright's OWN network observation (`page.waitForResponse`), not the evil page's own
- * `fetch()` promise: the request is sent `mode: "no-cors"` so the browser does not block it on a
- * missing CORS header (a CSRF attacker never needs to READ the response — only the side effect
- * matters), which also means the evil page's own JS cannot read the status. Playwright's CDP-level
- * observation is not subject to that opacity, so it is used as the oracle instead.
- */
-test.describe("CSRF / origin — a real cross-site browser POST against the redemption endpoints", () => {
-  // The legitimate isolated site now uses 127.0.0.1. localhost is a DIFFERENT site so the
-  // SameSite=Strict pin keeps its cross-site intent; use an ephemeral listener port.
-  let EVIL_ORIGIN: string;
-  let evilServer: Server;
-  async function assertBrowserSession(page: Page, baseURL: string): Promise<void> {
-    await page.goto(baseURL);
-    const control = await page.evaluate(async (path) => {
-      const response = await fetch(path, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ toolName: "__csrf_probe__", params: {} }) });
-      return { status: response.status, body: await response.json() };
-    }, MCP_UI_PATH);
-    expect(control.status).toBe(403);
-    expect(control.body.code).toBe("TOOL_NOT_ALLOWLISTED");
+return async function callMcpUiTool(
+  request: APIRequestContext,
+  toolName: string,
+  params: Record<string, unknown>,
+): Promise<{ status: number; body: unknown; rawText: string }> {
+  const res = await request.post(MCP_UI_PATH, { data: { toolName, params } });
+  const rawText = await res.text();
+  let body: unknown;
+  try {
+    body = JSON.parse(rawText);
+  } catch {
+    body = undefined;
   }
+  return { status: res.status(), body, rawText };
+}
+}
 
-  function evilPageHtml(targetUrl: string, body: Record<string, unknown>): string {
-    return `<!doctype html><html><body>
-<script>
-fetch(${JSON.stringify(targetUrl)}, {
-  method: "POST",
-  credentials: "include",
-  mode: "no-cors",
-  headers: { "content-type": "text/plain" },
-  body: ${JSON.stringify(JSON.stringify(body))}
-}).catch(function () {});
-</script>
-</body></html>`;
+function createSurfaceAbuseCreatePost({ POSTS_PATH }: { POSTS_PATH: string }) {
+
+return async function createPost(request: APIRequestContext, title: string, slug?: string): Promise<CreatedPost> {
+  const res = await request.post(POSTS_PATH, { data: { title, ...(slug !== undefined ? { slug } : {}) } });
+  expect(res.status(), `createPost(${JSON.stringify(title)}) should succeed`).toBe(201);
+  const body = await res.json();
+  return { id: body.id, version: body.version };
+}
+}
+
+function createSurfaceAbuseWaitForDaemonReady({ A2UI_PATH, validAction }: { A2UI_PATH: string; validAction: ReturnType<typeof createSurfaceAbuseValidAction> }) {
+
+/** Same daemon-spawn race `a2ui-transport-contract.spec.ts` documents and absorbs — see that file's
+ * header for the confirmed root cause. Polls the real MCP-UI route (a bogus toolName, cheap 403)
+ * rather than duplicating the readiness probe's own reasoning. Login is already handled once, for
+ * the whole suite, by `adversarial.globalSetup.ts`'s `storageState` — see that file's header for why
+ * a per-test login here would 429 past `LOGIN_STRICT`. */
+return async function waitForDaemonReady(request: APIRequestContext): Promise<void> {
+  // Probes A2UI_PATH, NOT MCP_UI_PATH — this was a real bug in an earlier version of this function,
+  // caught by a live run that kept failing with `ECONNREFUSED` from the daemon despite this function
+  // reporting "ready" instantly every time. Root cause: `proxyMcpUiToolCall` (`server/modules/
+  // assistant.ts`) checks `isMcpUiToolCallAllowed(toolName)` and returns 403 for a non-allowlisted
+  // name BEFORE ever calling `forwardToAgentDaemon` — so a bogus-toolName probe against
+  // `MCP_UI_PATH` always got a 403 from the PROXY alone, whether or not the daemon behind it was up
+  // at all, and this loop's `!== 502` check treated that 403 as "ready" on the very first attempt.
+  // `A2UI_PATH` has no such gate (`a2ui-actions-route.ts`'s own doc: "no `toolName` to allowlist") —
+  // every request there genuinely reaches `forwardToAgentDaemon`, so a 502 really does mean "daemon
+  // not up yet" and anything else really does mean it answered. Matches the proven precedent
+  // (`a2ui-transport-contract.spec.ts`'s own `waitForDaemonReady`, which probes this same path).
+  //
+  // 200 attempts * 300ms = up to 60s. Widened from an initial 10s budget: this config uses a real
+  // sqlite file (`TOVU_CONTENT_DB`, not `TOVU_DB=memory` — see this file's header and Finding 1 in
+  // the dispatch report), and the daemon's OWN migrations against that file — a real cost
+  // `TOVU_DB=memory` never paid — can noticeably outlast a short window, especially under concurrent
+  // system load from other agents' processes sharing this machine.
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const res = await request.post(A2UI_PATH, { data: { exchangeId: "readiness-probe", message: validAction("readiness-probe") } });
+    if (res.status() !== 502) {
+      expect(res.status(), "an authenticated unknown-exchange probe must reach the daemon").toBe(409);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
   }
+  throw new Error("A2UI readiness probe still returned 502 after 200 attempts");
+}
+}
 
-  test.beforeEach(async () => {
-    evilServer = createServer((req, res) => {
-      const url = new URL(req.url ?? "/", EVIL_ORIGIN);
-      const target = url.searchParams.get("target") ?? "";
-      const toolName = url.searchParams.get("toolName") ?? "__csrf_probe__";
-      res.writeHead(200, { "content-type": "text/html" });
-      res.end(url.searchParams.has("navigate")
-        ? `<!doctype html><a id="probe">Navigate to legitimate site</a><script>document.getElementById("probe").href = ${JSON.stringify(target)};</script>`
-        : evilPageHtml(target, { toolName, params: {} }));
-    });
-    await new Promise<void>((resolve) => evilServer.listen(0, "localhost", resolve));
-    const address = evilServer.address();
-    if (!address || typeof address === "string") throw new Error("CSRF fixture has no TCP address");
-    EVIL_ORIGIN = `http://localhost:${address.port}`;
-  });
+function createSurfaceAbuseValidAction() {
 
-  test.afterEach(async () => {
-    await new Promise<void>((resolve) => evilServer.close(() => resolve()));
-  });
+/** A minimal, schema-valid A2UI `ActionMessage` — only used to give `waitForDaemonReady` (below) a
+ * body `parseRendererToAgentMessage` will accept, so a 400 (bad envelope) can't be confused with a
+ * 502 (daemon down). Mirrors `a2ui-transport-contract.spec.ts`'s own identical helper. */
+return function validAction(exchangeId: string) {
+  return {
+    version: "v1.0",
+    action: { name: "some.action", surfaceId: exchangeId, sourceComponentId: "someButton", timestamp: new Date().toISOString(), context: {} },
+  };
+}
+}
 
-  test("HELD or CONFIRMED-VULNERABLE: a cross-site POST to the MCP-UI redemption endpoint carries no session cookie", async ({
-    page,
-    baseURL,
-  }) => {
-    const target = `${baseURL}${MCP_UI_PATH}`;
-    await assertBrowserSession(page, baseURL!);
-    const responsePromise = page.waitForResponse((res) => res.url() === target, { timeout: 10_000 }).catch(() => undefined);
 
-    await page.goto(`${EVIL_ORIGIN}/?target=${encodeURIComponent(target)}`);
-    const response = await responsePromise;
 
-    // A real browser enforcing SameSite=Strict withholds the cookie on this cross-site request, so
-    // `requireAdminSession` sees no session at all and the proxy 401s BEFORE the toolName allowlist
-    // check ever runs. A 403 here would mean the cookie rode along and the request was authenticated
-    // as the admin — CSRF would be live.
-    expect(response, "expected the browser to even attempt the cross-site request (network-level visibility)").toBeTruthy();
-    expect(response!.status(), "a cross-site request must arrive unauthenticated if SameSite=Strict held").toBe(401);
-    expect((await response!.request().allHeaders()).cookie).toBeUndefined();
-  });
-
-  test("HELD or CONFIRMED-VULNERABLE: a cross-site POST to the A2UI actions endpoint carries no session cookie", async ({
-    page,
-    baseURL,
-  }) => {
-    const target = `${baseURL}/api/admin/v1/a2ui/actions`;
-    await assertBrowserSession(page, baseURL!);
-    const responsePromise = page.waitForResponse((res) => res.url() === target, { timeout: 10_000 }).catch(() => undefined);
-
-    await page.goto(`${EVIL_ORIGIN}/?target=${encodeURIComponent(target)}`);
-    const response = await responsePromise;
-
-    expect(response, "expected the browser to even attempt the cross-site request").toBeTruthy();
-    expect(response!.status()).toBe(401);
-    expect((await response!.request().allHeaders()).cookie).toBeUndefined();
-  });
-
-  test("sanity: the SAME session cookie DOES authenticate a same-site request (proves the 401s above are SameSite, not a broken cookie)", async ({
-    page, baseURL,
-  }) => {
-    await assertBrowserSession(page, baseURL!);
-  });
-  test("SameSite=Strict also withholds the session on a cross-site top-level GET", async ({ page, baseURL }) => {
-    await assertBrowserSession(page, baseURL!);
-    const target = `${baseURL}/api/admin/v1/auth/me`;
-    await page.goto(`${EVIL_ORIGIN}/?navigate=1&target=${encodeURIComponent(target)}`);
-    const responsePromise = page.waitForResponse((response) => response.url() === target && response.request().isNavigationRequest());
-    await page.getByRole("link", { name: "Navigate to legitimate site" }).click();
-    const response = await responsePromise;
-    expect(response.status()).toBe(401);
-    expect((await response.request().allHeaders()).cookie).toBeUndefined();
-  });
-});
-});
+interface CreatedPost {
+  id: string;
+  version: number;
+}
 
 // Migrated from surface-resilience.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: surface-resilience", () => {
+const validAction = createSurfaceResilienceValidAction();
 /**
  * @file Resilience pass on the A2UI/MCP-UI inbound transport, exercised over REAL HTTP against the
  * REAL running daemon (`playwright.adversarial.config.ts`'s `webServer`).
@@ -838,83 +941,29 @@ test.describe("Bug pin: surface-resilience", () => {
  */
 
 const A2UI_PATH = "/api/admin/v1/a2ui/actions";
+const waitForDaemonReady = createSurfaceResilienceWaitForDaemonReady({ A2UI_PATH, validAction });
 const MCP_UI_PATH = "/api/admin/v1/mcp-ui/tool-calls";
-
-function validAction(exchangeId: string) {
-  return {
-    version: "v1.0",
-    action: { name: "some.action", surfaceId: exchangeId, sourceComponentId: "someButton", timestamp: new Date().toISOString(), context: {} },
-  };
-}
-
-/** Same daemon-spawn race every other file in this suite absorbs — see `surface-abuse.spec.ts`'s
- * copy of this function for the full account of two real bugs a live run caught here: (1) probing
- * `MCP_UI_PATH` is useless for readiness — its own allowlist gate 403s a bogus toolName BEFORE the
- * daemon is ever reached, so the probe always looked "ready" instantly; fixed by probing `A2UI_PATH`
- * instead, which has no such gate. (2) the original 10s budget was too short for a real sqlite
- * file's migrations (`TOVU_CONTENT_DB`, this config's Finding-1 fix) under concurrent system load;
- * widened to 60s. */
-async function waitForDaemonReady(request: APIRequestContext): Promise<void> {
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const res = await request.post(A2UI_PATH, { data: { exchangeId: "readiness-probe", message: validAction("readiness-probe") } });
-    if (res.status() !== 502) {
-      expect(res.status(), "an authenticated unknown-exchange probe must reach the daemon").toBe(409);
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
-  throw new Error("A2UI readiness probe still returned 502 after 200 attempts");
-}
-
-test.beforeEach(async ({ request }) => {
-  await waitForDaemonReady(request);
-});
+registerSurfaceFloodTests({ waitForDaemonReady, A2UI_PATH, validAction });
+registerMalformedSurfaceTests({ A2UI_PATH, validAction, MCP_UI_PATH });
 
 // ---------------------------------------------------------------------------
-// Concurrent flood against unknown exchange ids — the route must stay correct under load, not
-// just under one request at a time (adversarial-test-design: aggregate/concurrent risk).
+// Exchange-id GUESS/enumeration resistance
 // ---------------------------------------------------------------------------
 
-test.describe("concurrent delivery flood against exchange ids that do not exist", () => {
-  test("HELD or CONFIRMED-VULNERABLE: 50 concurrent A2UI deliveries to 50 distinct unknown exchange ids all resolve cleanly, none hang or 5xx", async ({
+test.describe("unknown exchange ids are refused", () => {
+  test("HELD or CONFIRMED-VULNERABLE: 30 sequential unknown ids are all refused", async ({
     request,
   }) => {
-    const ids = Array.from({ length: 50 }, (_, i) => `flood-unknown-${i}-${Date.now()}`);
-    const results = await Promise.all(
-      ids.map((id) => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })),
-    );
-
-    for (const res of results) {
-      expect(res.status(), "every delivery to a never-opened exchange must 409, never hang or 500").toBe(409);
-    }
-  });
-
-  test("HELD or CONFIRMED-VULNERABLE: 20 concurrent deliveries to the SAME unknown exchange id are all refused identically — no partial state, no crash", async ({
-    request,
-  }) => {
-    const id = `flood-same-unknown-${Date.now()}`;
-    const results = await Promise.all(
-      Array.from({ length: 20 }, () => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })),
-    );
-
-    for (const res of results) {
-      expect(res.status()).toBe(409);
-      const body = await res.json();
-      expect(body.reason).toBe("unknown-or-closed");
-    }
-  });
-
-  test("HELD or CONFIRMED-VULNERABLE: the daemon survives the flood and answers a completely unrelated, well-formed request immediately after", async ({
-    request,
-  }) => {
-    // Keep the load and the subsequent health check in one test, including isolated retries.
-    const ids = Array.from({ length: 50 }, (_, i) => `health-flood-${i}-${Date.now()}`);
-    const flood = await Promise.all(ids.map((id) => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })));
-    for (const response of flood) expect(response.status()).toBe(409);
-    const res = await request.post(A2UI_PATH, { data: { exchangeId: "post-flood-sanity-check", message: validAction("post-flood-sanity-check") } });
-    expect(res.status()).toBe(409);
+    // This HTTP check covers unknown-id refusal. Default UUIDv4 shape and live concurrent
+    // exchanges are checked in contracts/core/__tests__/tool-surface-exchanges.test.ts.
+    const guesses = Array.from({ length: 30 }, (_, i) => `00000000-0000-0000-0000-${String(i).padStart(12, "0")}`);
+    const results = await Promise.all(guesses.map((id) => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })));
+    for (const res of results) expect(res.status()).toBe(409);
   });
 });
+});
+
+function registerMalformedSurfaceTests({ A2UI_PATH, validAction, MCP_UI_PATH }: { A2UI_PATH: string; validAction: ReturnType<typeof createSurfaceResilienceValidAction>; MCP_UI_PATH: string }) {
 
 // ---------------------------------------------------------------------------
 // Malformed / hostile bodies at the transport boundary
@@ -983,20 +1032,89 @@ test.describe("malformed and oversized bodies", () => {
     expect(res.status(), "an unparsed body must not be silently treated as a valid call").toBe(400);
   });
 });
+}
+
+function registerSurfaceFloodTests({ waitForDaemonReady, A2UI_PATH, validAction }: { waitForDaemonReady: ReturnType<typeof createSurfaceResilienceWaitForDaemonReady>; A2UI_PATH: string; validAction: ReturnType<typeof createSurfaceResilienceValidAction> }) {
+
+test.beforeEach(async ({ request }) => {
+  await waitForDaemonReady(request);
+});
 
 // ---------------------------------------------------------------------------
-// Exchange-id GUESS/enumeration resistance
+// Concurrent flood against unknown exchange ids — the route must stay correct under load, not
+// just under one request at a time (adversarial-test-design: aggregate/concurrent risk).
 // ---------------------------------------------------------------------------
 
-test.describe("unknown exchange ids are refused", () => {
-  test("HELD or CONFIRMED-VULNERABLE: 30 sequential unknown ids are all refused", async ({
+test.describe("concurrent delivery flood against exchange ids that do not exist", () => {
+  test("HELD or CONFIRMED-VULNERABLE: 50 concurrent A2UI deliveries to 50 distinct unknown exchange ids all resolve cleanly, none hang or 5xx", async ({
     request,
   }) => {
-    // This HTTP check covers unknown-id refusal. Default UUIDv4 shape and live concurrent
-    // exchanges are checked in contracts/core/__tests__/tool-surface-exchanges.test.ts.
-    const guesses = Array.from({ length: 30 }, (_, i) => `00000000-0000-0000-0000-${String(i).padStart(12, "0")}`);
-    const results = await Promise.all(guesses.map((id) => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })));
-    for (const res of results) expect(res.status()).toBe(409);
+    const ids = Array.from({ length: 50 }, (_, i) => `flood-unknown-${i}-${Date.now()}`);
+    const results = await Promise.all(
+      ids.map((id) => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })),
+    );
+
+    for (const res of results) {
+      expect(res.status(), "every delivery to a never-opened exchange must 409, never hang or 500").toBe(409);
+    }
+  });
+
+  test("HELD or CONFIRMED-VULNERABLE: 20 concurrent deliveries to the SAME unknown exchange id are all refused identically — no partial state, no crash", async ({
+    request,
+  }) => {
+    const id = `flood-same-unknown-${Date.now()}`;
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })),
+    );
+
+    for (const res of results) {
+      expect(res.status()).toBe(409);
+      const body = await res.json();
+      expect(body.reason).toBe("unknown-or-closed");
+    }
+  });
+
+  test("HELD or CONFIRMED-VULNERABLE: the daemon survives the flood and answers a completely unrelated, well-formed request immediately after", async ({
+    request,
+  }) => {
+    // Keep the load and the subsequent health check in one test, including isolated retries.
+    const ids = Array.from({ length: 50 }, (_, i) => `health-flood-${i}-${Date.now()}`);
+    const flood = await Promise.all(ids.map((id) => request.post(A2UI_PATH, { data: { exchangeId: id, message: validAction(id) } })));
+    for (const response of flood) expect(response.status()).toBe(409);
+    const res = await request.post(A2UI_PATH, { data: { exchangeId: "post-flood-sanity-check", message: validAction("post-flood-sanity-check") } });
+    expect(res.status()).toBe(409);
   });
 });
-});
+}
+
+function createSurfaceResilienceWaitForDaemonReady({ A2UI_PATH, validAction }: { A2UI_PATH: string; validAction: ReturnType<typeof createSurfaceResilienceValidAction> }) {
+
+/** Same daemon-spawn race every other file in this suite absorbs — see `surface-abuse.spec.ts`'s
+ * copy of this function for the full account of two real bugs a live run caught here: (1) probing
+ * `MCP_UI_PATH` is useless for readiness — its own allowlist gate 403s a bogus toolName BEFORE the
+ * daemon is ever reached, so the probe always looked "ready" instantly; fixed by probing `A2UI_PATH`
+ * instead, which has no such gate. (2) the original 10s budget was too short for a real sqlite
+ * file's migrations (`TOVU_CONTENT_DB`, this config's Finding-1 fix) under concurrent system load;
+ * widened to 60s. */
+return async function waitForDaemonReady(request: APIRequestContext): Promise<void> {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const res = await request.post(A2UI_PATH, { data: { exchangeId: "readiness-probe", message: validAction("readiness-probe") } });
+    if (res.status() !== 502) {
+      expect(res.status(), "an authenticated unknown-exchange probe must reach the daemon").toBe(409);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  throw new Error("A2UI readiness probe still returned 502 after 200 attempts");
+}
+}
+
+function createSurfaceResilienceValidAction() {
+
+return function validAction(exchangeId: string) {
+  return {
+    version: "v1.0",
+    action: { name: "some.action", surfaceId: exchangeId, sourceComponentId: "someButton", timestamp: new Date().toISOString(), context: {} },
+  };
+}
+}

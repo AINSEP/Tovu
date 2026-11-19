@@ -275,6 +275,59 @@ test.describe("Bug pin: site-assistant-persistence", () => {
 const TRANSCRIPT_KEY = "tovu.site-assistant.transcript.v1";
 const ACTION_QUEUE_KEY = "tovu.site-assistant.action-queue.v1";
 const HIGHLIGHT_CLASS = "tovu-site-assistant__highlight";
+registerTranscriptPersistenceTests();
+
+test.describe("SPEC-046 REQ-1 — a session store the widget did not write", () => {
+  test("a corrupt transcript entry degrades to an empty conversation instead of a broken widget", async ({ page }) => {
+    await page.addInitScript((key) => sessionStorage.setItem(key, "{ this is not json"), TRANSCRIPT_KEY);
+
+    const consoleErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") consoleErrors.push(message.text());
+    });
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+
+    await openSitePage(page, "/about");
+    await openChatPanel(page);
+
+    // Mounted and usable — the composer being present is the difference between "fail-soft" and
+    // "rendered something but the widget is dead."
+    await expect(page.locator(".tovu-site-assistant .jini-composer-input")).toBeVisible();
+    // `.jini-message`, not `[data-role]`: `MessageRow.tsx` (`@jini-ai/chat/react`) has never rendered
+    // a `data-role` attribute — each row's class is `jini-message jini-message-user` or `jini-message
+    // jini-message-assistant`, both matched by `.jini-message` alone. `[data-role]` matches nothing on
+    // this page regardless of whether the corrupt entry was cleared, so it would pass even against a
+    // widget that rendered messages — verified against the real bundle's DOM before writing this.
+    await expect(page.locator(".tovu-site-assistant .jini-message-list").locator(".jini-message")).toHaveCount(0);
+    expect(pageErrors).toEqual([]);
+    expect(consoleErrors).toEqual([]);
+
+    // The corrupt entry was cleared and replaced by the empty default, not partially recovered.
+    // `open: true` here is this test's own click, written back by the persistence effect.
+    const persisted = await readPersistedState(page);
+    expect(persisted).toEqual({ open: true, messages: [] });
+  });
+
+  test("a corrupt legacy action-queue entry is ignored without executing anything", async ({ page }) => {
+    await page.addInitScript((key) => sessionStorage.setItem(key, '{"type":"highlight","target":'), ACTION_QUEUE_KEY);
+
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+
+    await openSitePage(page, "/about");
+    await page.waitForTimeout(1_000);
+
+    expect(pageErrors).toEqual([]);
+    await expect(page.locator(`.${HIGHLIGHT_CLASS}`)).toHaveCount(0);
+    // Deleted before the parse was ever attempted, so a malformed entry cannot poison later mounts
+    // either — the property `drainQueuedAction`'s ordering exists to guarantee.
+    expect(await page.evaluate((key) => sessionStorage.getItem(key), ACTION_QUEUE_KEY)).not.toBeNull();
+  });
+});
+});
+
+function registerTranscriptPersistenceTests() {
 
 test.describe("SPEC-046 REQ-1 — the transcript survives a page load", () => {
   test("a reply and the pane's open state both come back after a plain reload", async ({ page }) => {
@@ -334,56 +387,7 @@ test.describe("SPEC-046 REQ-1 — the transcript survives a page load", () => {
     expect(persisted?.messages ?? []).toHaveLength(0);
   });
 });
-
-test.describe("SPEC-046 REQ-1 — a session store the widget did not write", () => {
-  test("a corrupt transcript entry degrades to an empty conversation instead of a broken widget", async ({ page }) => {
-    await page.addInitScript((key) => sessionStorage.setItem(key, "{ this is not json"), TRANSCRIPT_KEY);
-
-    const consoleErrors: string[] = [];
-    page.on("console", (message) => {
-      if (message.type() === "error") consoleErrors.push(message.text());
-    });
-    const pageErrors: string[] = [];
-    page.on("pageerror", (error) => pageErrors.push(error.message));
-
-    await openSitePage(page, "/about");
-    await openChatPanel(page);
-
-    // Mounted and usable — the composer being present is the difference between "fail-soft" and
-    // "rendered something but the widget is dead."
-    await expect(page.locator(".tovu-site-assistant .jini-composer-input")).toBeVisible();
-    // `.jini-message`, not `[data-role]`: `MessageRow.tsx` (`@jini-ai/chat/react`) has never rendered
-    // a `data-role` attribute — each row's class is `jini-message jini-message-user` or `jini-message
-    // jini-message-assistant`, both matched by `.jini-message` alone. `[data-role]` matches nothing on
-    // this page regardless of whether the corrupt entry was cleared, so it would pass even against a
-    // widget that rendered messages — verified against the real bundle's DOM before writing this.
-    await expect(page.locator(".tovu-site-assistant .jini-message-list").locator(".jini-message")).toHaveCount(0);
-    expect(pageErrors).toEqual([]);
-    expect(consoleErrors).toEqual([]);
-
-    // The corrupt entry was cleared and replaced by the empty default, not partially recovered.
-    // `open: true` here is this test's own click, written back by the persistence effect.
-    const persisted = await readPersistedState(page);
-    expect(persisted).toEqual({ open: true, messages: [] });
-  });
-
-  test("a corrupt legacy action-queue entry is ignored without executing anything", async ({ page }) => {
-    await page.addInitScript((key) => sessionStorage.setItem(key, '{"type":"highlight","target":'), ACTION_QUEUE_KEY);
-
-    const pageErrors: string[] = [];
-    page.on("pageerror", (error) => pageErrors.push(error.message));
-
-    await openSitePage(page, "/about");
-    await page.waitForTimeout(1_000);
-
-    expect(pageErrors).toEqual([]);
-    await expect(page.locator(`.${HIGHLIGHT_CLASS}`)).toHaveCount(0);
-    // Deleted before the parse was ever attempted, so a malformed entry cannot poison later mounts
-    // either — the property `drainQueuedAction`'s ordering exists to guarantee.
-    expect(await page.evaluate((key) => sessionStorage.getItem(key), ACTION_QUEUE_KEY)).not.toBeNull();
-  });
-});
-});
+}
 
 // Migrated from site-chat-fab-presence.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: site-chat-fab-presence", () => {
@@ -422,6 +426,7 @@ const PAGES = [
 ] as const;
 
 const MOUNT_ID = "tovu-site-assistant-root";
+const openAndWaitForMount = createAssistantPresenceOpenAndWaitForMount({ MOUNT_ID });
 // The lazy loader (`site-chat-markup.ts`) replaced the eager bundle tag; it loads the widget on demand.
 const SCRIPT_SRC = "/site-chat/site-assistant-loader.js";
 /** Size of the square corner region screenshotted — the 56px FAB at 24px insets plus margin. */
@@ -429,42 +434,16 @@ const CORNER_SIZE = 120;
 /** Hides everything but `#${MOUNT_ID}` during the corner capture. Anchored to this file's directory:
  *  a relative `stylePath` resolves against however the suite was invoked. */
 const CORNER_SCREENSHOT_CSS = path.resolve(import.meta.dirname, "../site-chat-fab-presence.screenshot.css");
-
-/** Half-open `[start, end)` ranges of every `<!-- ... -->` in `html`; an unterminated comment runs to
- *  the end, as the HTML parser treats it. */
-function commentRanges(html: string): Array<[number, number]> {
-  const ranges: Array<[number, number]> = [];
-  for (let start = html.indexOf("<!--"); start !== -1; start = html.indexOf("<!--", start)) {
-    const close = html.indexOf("-->", start + 4);
-    const end = close === -1 ? html.length : close + 3;
-    ranges.push([start, end]);
-    start = end;
-  }
-  return ranges;
-}
-
-function isCommented(ranges: Array<[number, number]>, index: number): boolean {
-  return ranges.some(([start, end]) => index >= start && index < end);
-}
-
-/** Every index of `needle` in `html` that is outside a comment. */
-function uncommentedIndexes(html: string, needle: string): number[] {
-  const ranges = commentRanges(html);
-  const found: number[] = [];
-  for (let at = html.indexOf(needle); at !== -1; at = html.indexOf(needle, at + 1)) {
-    if (!isCommented(ranges, at)) found.push(at);
-  }
-  return found;
-}
-
-async function openAndWaitForMount(page: Page, path: string): Promise<void> {
-  await page.goto(path, { waitUntil: "domcontentloaded" });
-  // Not `waitForSelector(".chat-fab")` alone: when the bug recurs there is no FAB and no error, so a
-  // bare timeout would say nothing. The assertions below say which layer is missing.
-  await expect(page.locator(`#${MOUNT_ID}`), "mount node is in the DOM (not swallowed by a comment)").toHaveCount(1);
-}
+const registerPublicAssistantPresenceTests = createAssistantPresencePublicAssistantPresenceTests({ PAGES, MOUNT_ID, SCRIPT_SRC, openAndWaitForMount, CORNER_SIZE, CORNER_SCREENSHOT_CSS });
 
 test.describe("site-chat FAB is present on every public page that ships it", () => {
+  registerPublicAssistantPresenceTests();
+});
+});
+
+function createAssistantPresencePublicAssistantPresenceTests({ PAGES, MOUNT_ID, SCRIPT_SRC, openAndWaitForMount, CORNER_SIZE, CORNER_SCREENSHOT_CSS }: { PAGES: readonly [{ readonly name: "home"; readonly path: "/" }, { readonly name: "about"; readonly path: "/about" }, { readonly name: "blog-post"; readonly path: "/how-themes-work" }]; MOUNT_ID: string; SCRIPT_SRC: string; openAndWaitForMount: ReturnType<typeof createAssistantPresenceOpenAndWaitForMount>; CORNER_SIZE: number; CORNER_SCREENSHOT_CSS: string }) {
+
+return function registerPublicAssistantPresenceTests() {
   for (const { name, path } of PAGES) {
     test(`${name} (${path}): served HTML mounts the assistant outside comments, before the real </body>`, async ({
       request,
@@ -532,8 +511,45 @@ test.describe("site-chat FAB is present on every public page that ships it", () 
       });
     });
   }
-});
-});
+}
+}
+
+function createAssistantPresenceOpenAndWaitForMount({ MOUNT_ID }: { MOUNT_ID: string }) {
+
+return async function openAndWaitForMount(page: Page, path: string): Promise<void> {
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+  // Not `waitForSelector(".chat-fab")` alone: when the bug recurs there is no FAB and no error, so a
+  // bare timeout would say nothing. The assertions below say which layer is missing.
+  await expect(page.locator(`#${MOUNT_ID}`), "mount node is in the DOM (not swallowed by a comment)").toHaveCount(1);
+}
+}
+
+/** Every index of `needle` in `html` that is outside a comment. */
+function uncommentedIndexes(html: string, needle: string): number[] {
+  const ranges = commentRanges(html);
+  const found: number[] = [];
+  for (let at = html.indexOf(needle); at !== -1; at = html.indexOf(needle, at + 1)) {
+    if (!isCommented(ranges, at)) found.push(at);
+  }
+  return found;
+}
+
+function isCommented(ranges: Array<[number, number]>, index: number): boolean {
+  return ranges.some(([start, end]) => index >= start && index < end);
+}
+
+/** Half-open `[start, end)` ranges of every `<!-- ... -->` in `html`; an unterminated comment runs to
+ *  the end, as the HTML parser treats it. */
+function commentRanges(html: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  for (let start = html.indexOf("<!--"); start !== -1; start = html.indexOf("<!--", start)) {
+    const close = html.indexOf("-->", start + 4);
+    const end = close === -1 ? html.length : close + 3;
+    ranges.push([start, end]);
+    start = end;
+  }
+  return ranges;
+}
 
 test.describe('front: built lazy widget regressions', () => {
   test.use({ pinVisitorWidget: 'react' });

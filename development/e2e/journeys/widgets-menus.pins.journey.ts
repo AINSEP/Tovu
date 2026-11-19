@@ -97,422 +97,75 @@ test.describe("Bug pin: ai-menu-widget-embeds", () => {
 const RUNS_PATH = "/api/runs";
 const MENU_SLUG = "qa-e2e-menu";
 const PAGE_SLUG = "qa-e2e-page";
+const verifyCreatedPageToolCall = createWidgetEmbedVerifyCreatedPageToolCall({ PAGE_SLUG });
 const POST_SLUG = "qa-e2e-post";
+const verifyCreatedPostToolCall = createWidgetEmbedVerifyCreatedPostToolCall({ POST_SLUG });
+const verifyWidgetEmbedToolCalls = createWidgetEmbedVerifyWidgetEmbedToolCalls({ verifyCreatedPageToolCall, verifyCreatedPostToolCall });
 const MENU_LINK_LABEL = "Example Link";
 const MENU_LINK_HREF = "https://example.com/qa-e2e";
 const TEXT_WIDGET_MARKER = "QA-E2E-TEXT-WIDGET-MARKER-8f21c";
-
-async function login(request: APIRequestContext): Promise<void> {
-  const res = await request.post("/api/admin/v1/auth/login", { data: { username: "admin", password: PIN_PASSWORD } });
-  expect(res.status()).toBe(200);
-}
-
-/** Same wire envelope as `surface-live-agent.spec.ts`'s `RunWireEvent` — see that file's own doc for
- * why this is hand-mirrored rather than imported from `@jini-ai/protocol` (not yet a resolvable
- * Tovu dependency). `input` added here (absent in the delete-only test) because this test needs to
- * discriminate BETWEEN calls to the same tool name (two `widgets_create_instance` calls, two
- * `content_post_create` calls) by their arguments, not just by name. */
-interface RunWireEvent {
-  kind: string;
-  payload?: {
-    type?: string;
-    id?: string;
-    name?: string;
-    input?: unknown;
-    toolUseId?: string;
-    content?: string;
-    isError?: boolean;
-    status?: string;
-  };
-}
-
-function describeEvent(event: RunWireEvent): string {
-  if (event.kind === "agent" && event.payload?.type === "tool_use") return `agent:tool_use(${event.payload.name})`;
-  if (event.kind === "agent" && event.payload?.type === "tool_result") return `agent:tool_result(err=${Boolean(event.payload.isError)})`;
-  return event.kind === "agent" ? `agent:${event.payload?.type ?? "?"}` : event.kind;
-}
-
-async function* streamRunEvents(baseURL: string, runId: string, cookieHeader: string): AsyncGenerator<RunWireEvent> {
-  const response = await fetch(`${baseURL}/api/runs/${runId}/events`, {
-    headers: { accept: "text/event-stream", cookie: cookieHeader },
-  });
-  if (!response.body) throw new Error("no response body for SSE stream");
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) return;
-      buffer += decoder.decode(value, { stream: true });
-      let sepIndex: number;
-      while ((sepIndex = buffer.indexOf("\n\n")) !== -1) {
-        const rawEvent = buffer.slice(0, sepIndex);
-        buffer = buffer.slice(sepIndex + 2);
-        const dataLines = rawEvent
-          .split("\n")
-          .filter((line) => line.startsWith("data:"))
-          .map((line) => line.slice(5).trim());
-        if (dataLines.length === 0) continue;
-        try {
-          yield JSON.parse(dataLines.join("\n")) as RunWireEvent;
-        } catch {
-          // Non-JSON control frames — skip rather than fail the whole read on one bad frame.
-        }
-      }
-    }
-  } finally {
-    reader.cancel().catch(() => undefined);
-  }
-}
-
-function cookieHeaderFrom(setCookie: string[]): string {
-  return setCookie.map((raw) => raw.split(";")[0]).join("; ");
-}
-
-/** One recorded tool_use/tool_result pair, JSON-parsed content where possible. `content` on the wire
- * is always a plain string (`agent-executor.ts`'s `asString` coercion) — usually the tool handler's
- * JSON-stringified result, but a thrown domain error's message on failure, which is why `parsed` is
- * optional rather than assumed. */
-interface ToolCallRecord {
-  name: string;
-  input: unknown;
-  content: string;
-  isError: boolean;
-  parsed?: Record<string, unknown>;
-}
-
-function tryParseJson(content: string): Record<string, unknown> | undefined {
-  try {
-    const parsed = JSON.parse(content) as unknown;
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function inputObj(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" ? (input as Record<string, unknown>) : {};
-}
-
-test("LIVE AGENT: create a menu, a menu-widget, and a text widget; embed both into a real Page and verify on the public site; prove a Post embed cannot resolve", { tag: "@real-service" }, async ({ request, baseURL }) => {
-  test.setTimeout(9 * 60_000);
-
-  await waitForAgentDaemon();
-
-  const loginRes = await fetch(`${baseURL}/api/admin/v1/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username: "admin", password: PIN_PASSWORD }),
-  });
-  expect(loginRes.status).toBe(200);
-  const setCookie = loginRes.headers.getSetCookie?.() ?? [];
-  expect(setCookie.length).toBeGreaterThan(0);
-  const cookieHeader = cookieHeaderFrom(setCookie);
-  await login(request);
-
-  // ---- Step 5's markup is a `data-agent-element` region, not `<!doctype html><html><body>` (changed
-  // 2026-09-09). Two reasons, both real: PAGE_HTML_CONTRACT has always forbidden page chrome in a
-  // page body (the theme's template owns it, so emitting <html>/<body> produces a doubled page), and
-  // as of the same date `pages_write_html` REFUSES a top-level element with no handle rather than
-  // warning about it — so the old prompt now fails the call it is asserting succeeds. This test is
-  // about widget embeds reaching the rendered page, and the embed <div>s below are unchanged. ----
-  // ---- Direct, ordered, narrow prompt — same philosophy as surface-live-agent.spec.ts's own: this
-  // test is not evaluating prompt-following generally, only that the transport and tools work once
-  // called. Every argument is spelled out so a real model has nothing to guess. Step 7 is expected
-  // to FAIL — the model is told so explicitly, so a real failure there doesn't derail the run. ----
-  const prompt = `Call the following tools in this exact order, using the id returned by each call where a
-later step needs one. Do not call any other tools. Do not ask the user anything in text — just
-execute the sequence, then stop.
-
-1. menus_create_menu with { "title": "QA E2E Menu", "slug": "${MENU_SLUG}", "items": [ { "id": "item-1", "label": "${MENU_LINK_LABEL}", "target": { "kind": "url", "href": "${MENU_LINK_HREF}" } } ] }
-2. widgets_create_instance with { "widgetType": "menu", "title": "QA E2E Menu Widget", "config": { "menuRef": "<the menu id returned by step 1>" } }
-3. widgets_create_instance with { "widgetType": "text", "title": "QA E2E Text Widget", "config": { "body": "${TEXT_WIDGET_MARKER}" } }
-4. content_post_create with { "kind": "page", "title": "QA E2E Page", "slug": "${PAGE_SLUG}", "status": "published" }
-5. pages_write_html with { "id": "<the page id returned by step 4>", "html": "<section data-agent-element=\\"page-body\\" data-agent-role=\\"region\\"><h1>QA E2E Page</h1><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 2>\\"></div><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 3>\\"></div></section>" }
-6. content_post_create with { "kind": "post", "title": "QA E2E Post", "slug": "${POST_SLUG}", "status": "published" }
-7. widgets_insert_embed with { "hostEntryId": "<the post id returned by step 6>", "baseVersion": 1, "widgetEntryId": "<the widget instance id returned by step 3>" }. This call is expected to fail because a real blog post cannot host a widget embed today — that is fine and expected. If it fails, report the error in your final message and do NOT retry it.`;
-
-  const runRes = await request.post(RUNS_PATH, {
-    data: { contextRef: JSON.stringify({ prompt }), agentId: "claude" },
-  });
-  expect(runRes.status(), `run start should succeed: ${await runRes.text().catch(() => "")}`).toBe(201);
-  const runBody = await runRes.json();
-  const runId: string = runBody.run.id;
-
-  // ---- Stream the WHOLE run (no human-confirmation park/resume needed here, unlike
-  // surface-live-agent.spec.ts's content_post_delete) — collect every tool_use/tool_result pair. ----
-  const pendingToolUses = new Map<string, { name: string; input: unknown }>();
-  const calls: ToolCallRecord[] = [];
-  const seenTypes: string[] = [];
-
-  for await (const event of streamRunEvents(baseURL!, runId, cookieHeader)) {
-    seenTypes.push(describeEvent(event));
-    if (event.kind === "agent" && event.payload?.type === "tool_use") {
-      const id = event.payload.id ?? "";
-      pendingToolUses.set(id, { name: event.payload.name ?? "", input: event.payload.input });
-    } else if (event.kind === "agent" && event.payload?.type === "tool_result") {
-      const toolUseId = event.payload.toolUseId ?? "";
-      const use = pendingToolUses.get(toolUseId);
-      const content = event.payload.content ?? "";
-      calls.push({
-        name: use?.name ?? "(unknown)",
-        input: use?.input,
-        content,
-        isError: Boolean(event.payload.isError),
-        parsed: tryParseJson(content),
-      });
-    } else if (event.kind === "end" || event.kind === "error") {
-      break;
-    }
-  }
-
-  const diag = () => `tool calls seen: ${calls.map((c) => `${c.name}${c.isError ? "(error)" : ""}`).join(", ") || "(none)"}; events: ${seenTypes.join(", ")}`;
-
-  // ---- Locate each expected call by name + discriminating input, not by position — tolerant of the
-  // model interleaving extra read-only calls (e.g. widgets_list_regions) around the required ones. ----
-  const menuCreate = calls.find((c) => c.name === "menus_create_menu" && !c.isError);
-  expect(menuCreate, `expected a successful menus_create_menu call. ${diag()}`).toBeTruthy();
-  const menuId = String((menuCreate!.parsed?.menu as Record<string, unknown> | undefined)?.id ?? "");
-  expect(menuId, `menus_create_menu result had no menu.id: ${menuCreate!.content}`).toBeTruthy();
-
-  const menuWidgetCreate = calls.find((c) => c.name === "widgets_create_instance" && inputObj(c.input).widgetType === "menu" && !c.isError);
-  expect(menuWidgetCreate, `expected a successful widgets_create_instance(menu) call. ${diag()}`).toBeTruthy();
-  const menuWidgetId = String((menuWidgetCreate!.parsed?.instance as Record<string, unknown> | undefined)?.id ?? "");
-  expect(menuWidgetId, `widgets_create_instance(menu) result had no instance.id: ${menuWidgetCreate!.content}`).toBeTruthy();
-
-  const textWidgetCreate = calls.find((c) => c.name === "widgets_create_instance" && inputObj(c.input).widgetType === "text" && !c.isError);
-  expect(textWidgetCreate, `expected a successful widgets_create_instance(text) call. ${diag()}`).toBeTruthy();
-  const textWidgetId = String((textWidgetCreate!.parsed?.instance as Record<string, unknown> | undefined)?.id ?? "");
-  expect(textWidgetId, `widgets_create_instance(text) result had no instance.id: ${textWidgetCreate!.content}`).toBeTruthy();
-
-  const pageCreate = calls.find((c) => c.name === "content_post_create" && inputObj(c.input).kind === "page" && !c.isError);
-  expect(pageCreate, `expected a successful content_post_create(page) call. ${diag()}`).toBeTruthy();
-  const pagePost = pageCreate!.parsed?.post as Record<string, unknown> | undefined;
-  const pageId = String(pagePost?.id ?? "");
-  const pageSlug = String(pagePost?.slug ?? PAGE_SLUG);
-  expect(pageId, `content_post_create(page) result had no post.id: ${pageCreate!.content}`).toBeTruthy();
-
-  const pagesWrite = calls.find((c) => c.name === "pages_write_html" && !c.isError);
-  expect(pagesWrite, `expected a successful pages_write_html call. ${diag()}`).toBeTruthy();
-  expect(pagesWrite!.parsed?.written, `pages_write_html did not report written:true: ${pagesWrite!.content}`).toBe(true);
-
-  const postCreate = calls.find((c) => c.name === "content_post_create" && inputObj(c.input).kind === "post" && !c.isError);
-  expect(postCreate, `expected a successful content_post_create(post) call. ${diag()}`).toBeTruthy();
-  const postPost = postCreate!.parsed?.post as Record<string, unknown> | undefined;
-  const postId = String(postPost?.id ?? "");
-  const postSlug = String(postPost?.slug ?? POST_SLUG);
-  expect(postId, `content_post_create(post) result had no post.id: ${postCreate!.content}`).toBeTruthy();
-
-  // ---- The gap, proven live: the attempted embed into the real post must fail, not silently
-  // succeed. Matched by hostEntryId so a model retry with different args doesn't get confused for a
-  // different, unrelated call. ----
-  const embedAttempt = calls.find((c) => c.name === "widgets_insert_embed" && inputObj(c.input).hostEntryId === postId);
-  expect(embedAttempt, `expected the assistant to attempt widgets_insert_embed against the post. ${diag()}`).toBeTruthy();
-  expect(embedAttempt!.isError, `widgets_insert_embed against a real post should fail (no reachable host) — it succeeded instead: ${embedAttempt!.content}`).toBe(true);
-  expect(embedAttempt!.content).toContain("WIDGETS_INSTANCE_NOT_FOUND");
-  expect(embedAttempt!.content).toContain(`host entry '${postId}' was not found`);
-
-  await request.post(`${RUNS_PATH}/${runId}/cancel`, { data: {} }).catch(() => undefined);
-
-  // ==== PUBLIC-SITE VERIFICATION — the whole point per the brief: the admin/tool layer reporting
-  // success proves nothing about what a visitor actually sees. Every assertion below reads the
-  // PUBLIC (unauthenticated) route, not an admin preview or API response. ====
-
-  const pageRes = await fetch(`${PIN_PUBLIC_URL}/${pageSlug}`);
-  expect(pageRes.status, `public page GET should succeed`).toBe(200);
-  const pageHtml = await pageRes.text();
-
-  // Shared helpers (defined below, re-run against deliberately broken states in the
-  // MUTATION-VERIFY section) — using the SAME functions here as in the red-checks is the whole
-  // point: this is not two independently-written checks that might quietly diverge.
-  assertMenuWidgetRendered(pageHtml, { linkLabel: MENU_LINK_LABEL, linkHref: MENU_LINK_HREF });
-  assertTextWidgetRendered(pageHtml, { marker: TEXT_WIDGET_MARKER });
-  assertNoPlaceholder(pageHtml);
-
-  const postRes = await fetch(`${PIN_PUBLIC_URL}/${postSlug}`);
-  expect(postRes.status, `public post GET should succeed`).toBe(200);
-  const postHtml = await postRes.text();
-
-  // The post itself is real and published...
-  expect(postHtml.includes("QA E2E Post"), "public post HTML missing the post's own title").toBe(true);
-  // ...but carries NO widget markup at all — the failed embed left no trace, confirming the gap is a
-  // clean rejection, not a silent no-op that half-wrote something.
-  assertNoWidgetMarkup(postHtml);
-});
-
-// ============================================================================================
-// SHARED ASSERTION HELPERS — used by the live-agent test above AND red-checked by the
-// MUTATION-VERIFY tests below against deliberately broken states. Each `include`s a UNIQUE
-// string this file controls (a specific href, a specific marker) — not a generic tag name — so
-// an unrelated widget/theme element elsewhere on the page cannot accidentally satisfy it. Every
-// exact string emitted below is single-sourced in `src/server/http/site/render.ts` (verified by
-// direct grep before this file was written — no shipped theme's CSS/JS emits any of them either).
-// ============================================================================================
-
-function assertMenuWidgetRendered(html: string, opts: { linkLabel: string; linkHref: string }): void {
-  expect(html.includes('class="widget widget-menu"'), `missing the rendered menu widget:\n${html}`).toBe(true);
-  expect(html.includes(`>${opts.linkLabel}</a>`), "menu item did not render as a real resolved link").toBe(true);
-  expect(html.includes(opts.linkHref), "menu item's href did not resolve to the real target URL").toBe(true);
-}
-
-function assertMenuWidgetAbsent(html: string): void {
-  expect(html.includes('class="widget widget-menu"'), `expected NO rendered menu widget, but found one:\n${html}`).toBe(false);
-}
-
-function assertTextWidgetRendered(html: string, opts: { marker: string }): void {
-  expect(html.includes('class="widget widget-text"'), `missing the rendered text widget:\n${html}`).toBe(true);
-  expect(html.includes(opts.marker), "text widget's body did not render").toBe(true);
-}
-
-function assertTextWidgetAbsent(html: string): void {
-  expect(html.includes('class="widget widget-text"'), `expected NO rendered text widget, but found one:\n${html}`).toBe(false);
-}
-
-/** Neither embed degraded to the safe-but-empty REQ-28 placeholder — a placeholder passing would
- * mean the page LOOKED fine while actually serving nothing, the exact admin-vs-public trap this
- * whole file exists to catch. `renderWidgetPlaceholder()` (`render.ts`) is the ONLY emitter of
- * this exact string in the entire codebase (grepped, including every theme's CSS/JS). */
-function assertNoPlaceholder(html: string): void {
-  expect(html.includes("widget-placeholder"), "a widget degraded to the unresolved placeholder instead of real content").toBe(false);
-}
-
-/** No widget-shaped markup anywhere — every widget render function in `render.ts` (text,
- * social-links, recent-entries, menu, contact-form, placeholder) shares the `class="widget `
- * prefix, confirmed by direct grep, so this one substring check covers all of them. */
-function assertNoWidgetMarkup(html: string): void {
-  expect(html.includes('class="widget'), `unexpectedly contains widget markup:\n${html}`).toBe(false);
-}
-
-// ============================================================================================
-// MUTATION-VERIFY — fast, deterministic, HTTP-only (no live agent, no cost). These construct the
-// exact same shapes the live agent constructs above, directly via the admin HTTP routes the AI
-// tools themselves call into, then deliberately break one mechanism at a time and confirm the
-// SAME assertion helpers above go red. This is the E2E-layer equivalent of
-// `development/scripts/mutation-sweep.mjs` for this feature: proof the assertions discriminate
-// "the feature works" from "the page loaded", not an assumption.
-// ============================================================================================
-
-interface AdminWidget {
-  id: string;
-}
-interface AdminMenu {
-  id: string;
-}
-interface AdminPost {
-  id: string;
-  slug: string;
-}
-interface AdminArea {
-  version: number;
-}
+const startWidgetEmbedRun = createWidgetEmbedStartWidgetEmbedRun({ MENU_SLUG, MENU_LINK_LABEL, MENU_LINK_HREF, TEXT_WIDGET_MARKER, PAGE_SLUG, POST_SLUG, RUNS_PATH });
+registerLiveWidgetEmbedJourney({ startWidgetEmbedRun, verifyWidgetEmbedToolCalls, RUNS_PATH, MENU_LINK_LABEL, MENU_LINK_HREF, TEXT_WIDGET_MARKER });
 
 const WS = "workspace-local";
-// APIRequestContext drops the Secure session cookie over HTTP loopback (`bug-pin-auth.ts`), so every
-// admin write below sends the session explicitly.
+const setRegionPlacementsHttp = createWidgetEmbedSetRegionPlacementsHttp({ WS });
+const bindRegionHttp = createWidgetEmbedBindRegionHttp({ WS });
+const writePageHtmlHttp = createWidgetEmbedWritePageHtmlHttp({ WS });
+const createPostHttp = createWidgetEmbedCreatePostHttp({ WS });
+const createPageHttp = createWidgetEmbedCreatePageHttp({ WS });
+const createWidgetHttp = createWidgetEmbedCreateWidgetHttp({ WS });
+const createMenuHttp = createWidgetEmbedCreateMenuHttp({ WS });
+const registerWidgetEmbedMutationTests = createWidgetEmbedWidgetEmbedMutationTests({ createMenuHttp, createWidgetHttp, createPageHttp, writePageHtmlHttp });
+registerWidgetMutationSuite({ registerWidgetEmbedMutationTests, createPageHttp, writePageHtmlHttp, TEXT_WIDGET_MARKER, MENU_LINK_LABEL, MENU_LINK_HREF, createWidgetHttp, createPostHttp, WS });
+registerThemeRegionProbe({ createWidgetHttp, bindRegionHttp, setRegionPlacementsHttp, createPostHttp });
+});
 
-async function createMenuHttp(request: APIRequestContext, body: { title: string; slug: string; items?: unknown[] }): Promise<AdminMenu> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/menus`, { data: body, headers: await pinSessionHeaders({ request }) });
-  expect(res.status(), `menu create failed: ${await res.text().catch(() => "")}`).toBe(201);
-  return (await res.json()).menu as AdminMenu;
-}
+function registerThemeRegionProbe({ createWidgetHttp, bindRegionHttp, setRegionPlacementsHttp, createPostHttp }: { createWidgetHttp: ReturnType<typeof createWidgetEmbedCreateWidgetHttp>; bindRegionHttp: ReturnType<typeof createWidgetEmbedBindRegionHttp>; setRegionPlacementsHttp: ReturnType<typeof createWidgetEmbedSetRegionPlacementsHttp>; createPostHttp: ReturnType<typeof createWidgetEmbedCreatePostHttp> }) {
 
-async function createWidgetHttp(request: APIRequestContext, body: { widgetType: string; title: string; config: unknown }): Promise<AdminWidget> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/widgets`, { data: body, headers: await pinSessionHeaders({ request }) });
-  expect(res.status(), `widget create failed: ${await res.text().catch(() => "")}`).toBe(201);
-  return (await res.json()).widget as AdminWidget;
-}
-
-async function createPageHttp(request: APIRequestContext, body: { title: string; slug: string; status: string }): Promise<AdminPost> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/pages`, { data: body, headers: await pinSessionHeaders({ request }) });
-  expect(res.status(), `page create failed: ${await res.text().catch(() => "")}`).toBe(201);
-  return (await res.json()).post as AdminPost;
-}
-
-async function createPostHttp(request: APIRequestContext, body: { title: string; slug: string; status: string }): Promise<AdminPost> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/posts`, { data: body, headers: await pinSessionHeaders({ request }) });
-  expect(res.status(), `post create failed: ${await res.text().catch(() => "")}`).toBe(201);
-  return (await res.json()).post as AdminPost;
-}
-
-async function writePageHtmlHttp(request: APIRequestContext, pageId: string, html: string): Promise<void> {
-  const res = await request.put(`/api/admin/v1/workspaces/${WS}/pages/${pageId}/html`, { data: { html }, headers: await pinSessionHeaders({ request }) });
-  expect(res.status(), `pages/html write failed: ${await res.text().catch(() => "")}`).toBe(200);
-}
-
-async function bindRegionHttp(request: APIRequestContext, regionKey: string): Promise<AdminArea> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/widgets/regions`, { data: { regionKey }, headers: await pinSessionHeaders({ request }) });
-  expect(res.status(), `region bind failed: ${await res.text().catch(() => "")}`).toBe(201);
-  return (await res.json()).area as AdminArea;
-}
-
-async function setRegionPlacementsHttp(request: APIRequestContext, regionKey: string, baseVersion: number, widgetEntryId: string): Promise<void> {
-  const res = await request.put(`/api/admin/v1/workspaces/${WS}/widgets/regions/${regionKey}`, {
-    data: { baseVersion, placements: [{ placementId: `probe-${regionKey}`, widgetEntryId, enabled: true }] },
-    headers: await pinSessionHeaders({ request }),
-  });
-  expect(res.status(), `region placement write failed: ${await res.text().catch(() => "")}`).toBe(200);
-}
-
-test.describe("MUTATION-VERIFY: menu/widget-in-Page render assertions, red-checked", () => {
+test.describe("EMPIRICAL PROBE: theme regions — observed, not just grepped", () => {
   test.beforeEach(async ({ request }) => {
     await login(request);
   });
 
-  test("positive control: menu widget + text widget both render for real when both embeds are present", async ({ request, baseURL }) => {
-    const menu = await createMenuHttp(request, {
-      title: "Mutation Positive Menu",
-      slug: "mutation-positive-menu",
-      items: [{ id: "item-1", label: "Positive Link", target: { kind: "url", href: "https://example.com/mutation-positive" } }],
-    });
-    const menuWidget = await createWidgetHttp(request, { widgetType: "menu", title: "Mutation Positive Menu Widget", config: { menuRef: menu.id } });
-    const textWidget = await createWidgetHttp(request, { widgetType: "text", title: "Mutation Positive Text Widget", config: { body: "MUTATION-POSITIVE-TEXT-MARKER" } });
-    const page = await createPageHttp(request, { title: "Mutation Positive Page", slug: "mutation-positive-page", status: "published" });
-    await writePageHtmlHttp(
-      request,
-      page.id,
-      `<html><body><h1>Positive</h1><div data-embed-type="widget" data-embed-id="${menuWidget.id}"></div><div data-embed-type="widget" data-embed-id="${textWidget.id}"></div></body></html>`
-    );
+  test("a widget bound to the header/footer regions and placed does not render on the live public home page or a live public post", async ({ request, baseURL }) => {
+    const widget = await createWidgetHttp(request, { widgetType: "text", title: "Region Probe Widget", config: { body: "REGION-PROBE-MARKER" } });
 
-    const html = await (await fetch(`${PIN_PUBLIC_URL}/mutation-positive-page`)).text();
-    assertMenuWidgetRendered(html, { linkLabel: "Positive Link", linkHref: "https://example.com/mutation-positive" });
-    assertTextWidgetRendered(html, { marker: "MUTATION-POSITIVE-TEXT-MARKER" });
-    assertNoPlaceholder(html);
+    for (const regionKey of ["header", "footer"]) {
+      const area = await bindRegionHttp(request, regionKey);
+      await setRegionPlacementsHttp(request, regionKey, area.version, widget.id);
+    }
+
+    const post = await createPostHttp(request, { title: "Region Probe Post", slug: "mutation-region-probe-post", status: "published" });
+
+    const homeRes = await fetch(`${PIN_PUBLIC_URL}/`);
+    const postRes = await fetch(`${PIN_PUBLIC_URL}/mutation-region-probe-post`);
+    expect(homeRes.status).toBe(200);
+    expect(postRes.status).toBe(200);
+    const homeHtml = await homeRes.text();
+    const postHtml = await postRes.text();
+    expect(homeHtml).toMatch(/<main\b/);
+    expect(homeHtml).toMatch(/<h1\b/);
+    expect(postHtml).toContain("Region Probe Post");
+
+    // THE OBSERVATION (not an inference): with the widget genuinely bound AND placed in both
+    // regions a theme commonly declares, it appears on NEITHER the home page NOR a real post. This
+    // pins the current, empirically-confirmed behavior — every shipped `theme.json` under
+    // `content/themes/**` was independently checked and none declares a `regions` field, so
+    // `resolvePageWidgets` (`src/widgets/resolver-service.ts`) never has anything to iterate. If a
+    // theme ever starts declaring regions, THESE assertions are the ones that will flip and need
+    // updating — that is the intended trip-wire, not flakiness.
+    expect(homeHtml.includes("REGION-PROBE-MARKER"), "region-bound widget unexpectedly rendered on the home page — theme-regions may no longer be dead; re-verify before treating this as fixed").toBe(false);
+    expect(postHtml.includes("REGION-PROBE-MARKER"), "region-bound widget unexpectedly rendered on a post page — theme-regions may no longer be dead; re-verify before treating this as fixed").toBe(false);
+    expect(homeHtml.includes('class="widget'), "unexpected widget markup on the home page").toBe(false);
+    expect(postHtml.includes('class="widget'), "unexpected widget markup on the post page").toBe(false);
   });
+});
+}
 
-  test("RED-CHECK: removing the menu embed div makes assertMenuWidgetRendered fail (the text widget still renders, isolating the break)", async ({ request, baseURL }) => {
-    const textWidget = await createWidgetHttp(request, { widgetType: "text", title: "No-Menu Text Widget", config: { body: "NO-MENU-TEXT-MARKER" } });
-    const page = await createPageHttp(request, { title: "No Menu Embed", slug: "mutation-no-menu-embed", status: "published" });
-    // Deliberately no data-embed-type div for a menu widget at all — the mechanism under test is
-    // literally absent from the authored page.
-    await writePageHtmlHttp(request, page.id, `<html><body><h1>No Menu</h1><div data-embed-type="widget" data-embed-id="${textWidget.id}"></div></body></html>`);
+function registerWidgetMutationSuite({ registerWidgetEmbedMutationTests, createPageHttp, writePageHtmlHttp, TEXT_WIDGET_MARKER, MENU_LINK_LABEL, MENU_LINK_HREF, createWidgetHttp, createPostHttp, WS }: { registerWidgetEmbedMutationTests: ReturnType<typeof createWidgetEmbedWidgetEmbedMutationTests>; createPageHttp: ReturnType<typeof createWidgetEmbedCreatePageHttp>; writePageHtmlHttp: ReturnType<typeof createWidgetEmbedWritePageHtmlHttp>; TEXT_WIDGET_MARKER: string; MENU_LINK_LABEL: string; MENU_LINK_HREF: string; createWidgetHttp: ReturnType<typeof createWidgetEmbedCreateWidgetHttp>; createPostHttp: ReturnType<typeof createWidgetEmbedCreatePostHttp>; WS: string }) {
 
-    const html = await (await fetch(`${PIN_PUBLIC_URL}/mutation-no-menu-embed`)).text();
-    // Proves the break is isolated to the menu assertion, not a broken page/route/resolver overall.
-    assertTextWidgetRendered(html, { marker: "NO-MENU-TEXT-MARKER" });
-    // THE RED-CHECK: the exact same helper the live-agent test relies on must fail here.
-    expect(() => assertMenuWidgetRendered(html, { linkLabel: "Positive Link", linkHref: "https://example.com/mutation-positive" })).toThrow();
-    assertMenuWidgetAbsent(html);
-  });
-
-  test("RED-CHECK: removing the text widget embed div makes assertTextWidgetRendered fail (the menu still renders, isolating the break)", async ({ request, baseURL }) => {
-    const menu = await createMenuHttp(request, {
-      title: "No-Text Menu",
-      slug: "mutation-no-text-menu",
-      items: [{ id: "item-1", label: "No Text Link", target: { kind: "url", href: "https://example.com/no-text" } }],
-    });
-    const menuWidget = await createWidgetHttp(request, { widgetType: "menu", title: "No-Text Menu Widget", config: { menuRef: menu.id } });
-    const page = await createPageHttp(request, { title: "No Text Embed", slug: "mutation-no-text-embed", status: "published" });
-    // Deliberately no data-embed-type div for the text widget at all.
-    await writePageHtmlHttp(request, page.id, `<html><body><h1>No Text</h1><div data-embed-type="widget" data-embed-id="${menuWidget.id}"></div></body></html>`);
-
-    const html = await (await fetch(`${PIN_PUBLIC_URL}/mutation-no-text-embed`)).text();
-    assertMenuWidgetRendered(html, { linkLabel: "No Text Link", linkHref: "https://example.com/no-text" });
-    // THE RED-CHECK — the marker here is unused deliberately: no text widget was ever embedded, so
-    // no marker value could satisfy this; the assertion must fail regardless of what's asked for.
-    expect(() => assertTextWidgetRendered(html, { marker: "UNUSED-MARKER-NO-TEXT-WIDGET-EXISTS" })).toThrow();
-    assertTextWidgetAbsent(html);
-  });
+test.describe("MUTATION-VERIFY: menu/widget-in-Page render assertions, red-checked", () => {
+  registerWidgetEmbedMutationTests();
 
   test("RED-CHECK: an embed pointing at a nonexistent widget id renders nothing — the rendered-widget assertions go red while the page itself still looks fine", async ({ request, baseURL }) => {
     const page = await createPageHttp(request, { title: "Bogus Embed", slug: "mutation-bogus-embed", status: "published" });
@@ -574,43 +227,511 @@ test.describe("MUTATION-VERIFY: menu/widget-in-Page render assertions, red-check
     expect(() => assertNoWidgetMarkup(withSyntheticWidget)).toThrow();
   });
 });
+}
 
-test.describe("EMPIRICAL PROBE: theme regions — observed, not just grepped", () => {
+function registerLiveWidgetEmbedJourney({ startWidgetEmbedRun, verifyWidgetEmbedToolCalls, RUNS_PATH, MENU_LINK_LABEL, MENU_LINK_HREF, TEXT_WIDGET_MARKER }: { startWidgetEmbedRun: ReturnType<typeof createWidgetEmbedStartWidgetEmbedRun>; verifyWidgetEmbedToolCalls: ReturnType<typeof createWidgetEmbedVerifyWidgetEmbedToolCalls>; RUNS_PATH: string; MENU_LINK_LABEL: string; MENU_LINK_HREF: string; TEXT_WIDGET_MARKER: string }) {
+
+test("LIVE AGENT: create a menu, a menu-widget, and a text widget; embed both into a real Page and verify on the public site; prove a Post embed cannot resolve", { tag: "@real-service" }, async ({ request, baseURL }) => {
+  const { cookieHeader, runId } = await startWidgetEmbedRun({ request, baseURL });
+  const { calls, diag } = await collectWidgetToolCalls(baseURL, runId, cookieHeader);
+  const { pageSlug, postSlug } = verifyWidgetEmbedToolCalls({ calls, diag });
+
+  await request.post(`${RUNS_PATH}/${runId}/cancel`, { data: {} }).catch(() => undefined);
+
+  // ==== PUBLIC-SITE VERIFICATION — the whole point per the brief: the admin/tool layer reporting
+  // success proves nothing about what a visitor actually sees. Every assertion below reads the
+  // PUBLIC (unauthenticated) route, not an admin preview or API response. ====
+
+  const pageRes = await fetch(`${PIN_PUBLIC_URL}/${pageSlug}`);
+  expect(pageRes.status, `public page GET should succeed`).toBe(200);
+  const pageHtml = await pageRes.text();
+
+  // Shared helpers (defined below, re-run against deliberately broken states in the
+  // MUTATION-VERIFY section) — using the SAME functions here as in the red-checks is the whole
+  // point: this is not two independently-written checks that might quietly diverge.
+  assertMenuWidgetRendered(pageHtml, { linkLabel: MENU_LINK_LABEL, linkHref: MENU_LINK_HREF });
+  assertTextWidgetRendered(pageHtml, { marker: TEXT_WIDGET_MARKER });
+  assertNoPlaceholder(pageHtml);
+
+  const postRes = await fetch(`${PIN_PUBLIC_URL}/${postSlug}`);
+  expect(postRes.status, `public post GET should succeed`).toBe(200);
+  const postHtml = await postRes.text();
+
+  // The post itself is real and published...
+  expect(postHtml.includes("QA E2E Post"), "public post HTML missing the post's own title").toBe(true);
+  // ...but carries NO widget markup at all — the failed embed left no trace, confirming the gap is a
+  // clean rejection, not a silent no-op that half-wrote something.
+  assertNoWidgetMarkup(postHtml);
+});
+}
+
+
+
+function createWidgetEmbedWidgetEmbedMutationTests({ createMenuHttp, createWidgetHttp, createPageHttp, writePageHtmlHttp }: { createMenuHttp: ReturnType<typeof createWidgetEmbedCreateMenuHttp>; createWidgetHttp: ReturnType<typeof createWidgetEmbedCreateWidgetHttp>; createPageHttp: ReturnType<typeof createWidgetEmbedCreatePageHttp>; writePageHtmlHttp: ReturnType<typeof createWidgetEmbedWritePageHtmlHttp> }) {
+
+return function registerWidgetEmbedMutationTests() {
   test.beforeEach(async ({ request }) => {
     await login(request);
   });
 
-  test("a widget bound to the header/footer regions and placed does not render on the live public home page or a live public post", async ({ request, baseURL }) => {
-    const widget = await createWidgetHttp(request, { widgetType: "text", title: "Region Probe Widget", config: { body: "REGION-PROBE-MARKER" } });
+  test("positive control: menu widget + text widget both render for real when both embeds are present", async ({ request, baseURL }) => {
+    const menu = await createMenuHttp(request, {
+      title: "Mutation Positive Menu",
+      slug: "mutation-positive-menu",
+      items: [{ id: "item-1", label: "Positive Link", target: { kind: "url", href: "https://example.com/mutation-positive" } }],
+    });
+    const menuWidget = await createWidgetHttp(request, { widgetType: "menu", title: "Mutation Positive Menu Widget", config: { menuRef: menu.id } });
+    const textWidget = await createWidgetHttp(request, { widgetType: "text", title: "Mutation Positive Text Widget", config: { body: "MUTATION-POSITIVE-TEXT-MARKER" } });
+    const page = await createPageHttp(request, { title: "Mutation Positive Page", slug: "mutation-positive-page", status: "published" });
+    await writePageHtmlHttp(
+      request,
+      page.id,
+      `<html><body><h1>Positive</h1><div data-embed-type="widget" data-embed-id="${menuWidget.id}"></div><div data-embed-type="widget" data-embed-id="${textWidget.id}"></div></body></html>`
+    );
 
-    for (const regionKey of ["header", "footer"]) {
-      const area = await bindRegionHttp(request, regionKey);
-      await setRegionPlacementsHttp(request, regionKey, area.version, widget.id);
-    }
-
-    const post = await createPostHttp(request, { title: "Region Probe Post", slug: "mutation-region-probe-post", status: "published" });
-
-    const homeRes = await fetch(`${PIN_PUBLIC_URL}/`);
-    const postRes = await fetch(`${PIN_PUBLIC_URL}/mutation-region-probe-post`);
-    expect(homeRes.status).toBe(200);
-    expect(postRes.status).toBe(200);
-    const homeHtml = await homeRes.text();
-    const postHtml = await postRes.text();
-    expect(homeHtml).toMatch(/<main\b/);
-    expect(homeHtml).toMatch(/<h1\b/);
-    expect(postHtml).toContain("Region Probe Post");
-
-    // THE OBSERVATION (not an inference): with the widget genuinely bound AND placed in both
-    // regions a theme commonly declares, it appears on NEITHER the home page NOR a real post. This
-    // pins the current, empirically-confirmed behavior — every shipped `theme.json` under
-    // `content/themes/**` was independently checked and none declares a `regions` field, so
-    // `resolvePageWidgets` (`src/widgets/resolver-service.ts`) never has anything to iterate. If a
-    // theme ever starts declaring regions, THESE assertions are the ones that will flip and need
-    // updating — that is the intended trip-wire, not flakiness.
-    expect(homeHtml.includes("REGION-PROBE-MARKER"), "region-bound widget unexpectedly rendered on the home page — theme-regions may no longer be dead; re-verify before treating this as fixed").toBe(false);
-    expect(postHtml.includes("REGION-PROBE-MARKER"), "region-bound widget unexpectedly rendered on a post page — theme-regions may no longer be dead; re-verify before treating this as fixed").toBe(false);
-    expect(homeHtml.includes('class="widget'), "unexpected widget markup on the home page").toBe(false);
-    expect(postHtml.includes('class="widget'), "unexpected widget markup on the post page").toBe(false);
+    const html = await (await fetch(`${PIN_PUBLIC_URL}/mutation-positive-page`)).text();
+    assertMenuWidgetRendered(html, { linkLabel: "Positive Link", linkHref: "https://example.com/mutation-positive" });
+    assertTextWidgetRendered(html, { marker: "MUTATION-POSITIVE-TEXT-MARKER" });
+    assertNoPlaceholder(html);
   });
-});
-});
+
+  test("RED-CHECK: removing the menu embed div makes assertMenuWidgetRendered fail (the text widget still renders, isolating the break)", async ({ request, baseURL }) => {
+    const textWidget = await createWidgetHttp(request, { widgetType: "text", title: "No-Menu Text Widget", config: { body: "NO-MENU-TEXT-MARKER" } });
+    const page = await createPageHttp(request, { title: "No Menu Embed", slug: "mutation-no-menu-embed", status: "published" });
+    // Deliberately no data-embed-type div for a menu widget at all — the mechanism under test is
+    // literally absent from the authored page.
+    await writePageHtmlHttp(request, page.id, `<html><body><h1>No Menu</h1><div data-embed-type="widget" data-embed-id="${textWidget.id}"></div></body></html>`);
+
+    const html = await (await fetch(`${PIN_PUBLIC_URL}/mutation-no-menu-embed`)).text();
+    // Proves the break is isolated to the menu assertion, not a broken page/route/resolver overall.
+    assertTextWidgetRendered(html, { marker: "NO-MENU-TEXT-MARKER" });
+    // THE RED-CHECK: the exact same helper the live-agent test relies on must fail here.
+    expect(() => assertMenuWidgetRendered(html, { linkLabel: "Positive Link", linkHref: "https://example.com/mutation-positive" })).toThrow();
+    assertMenuWidgetAbsent(html);
+  });
+
+  test("RED-CHECK: removing the text widget embed div makes assertTextWidgetRendered fail (the menu still renders, isolating the break)", async ({ request, baseURL }) => {
+    const menu = await createMenuHttp(request, {
+      title: "No-Text Menu",
+      slug: "mutation-no-text-menu",
+      items: [{ id: "item-1", label: "No Text Link", target: { kind: "url", href: "https://example.com/no-text" } }],
+    });
+    const menuWidget = await createWidgetHttp(request, { widgetType: "menu", title: "No-Text Menu Widget", config: { menuRef: menu.id } });
+    const page = await createPageHttp(request, { title: "No Text Embed", slug: "mutation-no-text-embed", status: "published" });
+    // Deliberately no data-embed-type div for the text widget at all.
+    await writePageHtmlHttp(request, page.id, `<html><body><h1>No Text</h1><div data-embed-type="widget" data-embed-id="${menuWidget.id}"></div></body></html>`);
+
+    const html = await (await fetch(`${PIN_PUBLIC_URL}/mutation-no-text-embed`)).text();
+    assertMenuWidgetRendered(html, { linkLabel: "No Text Link", linkHref: "https://example.com/no-text" });
+    // THE RED-CHECK — the marker here is unused deliberately: no text widget was ever embedded, so
+    // no marker value could satisfy this; the assertion must fail regardless of what's asked for.
+    expect(() => assertTextWidgetRendered(html, { marker: "UNUSED-MARKER-NO-TEXT-WIDGET-EXISTS" })).toThrow();
+    assertTextWidgetAbsent(html);
+  });
+}
+}
+
+function createWidgetEmbedSetRegionPlacementsHttp({ WS }: { WS: string }) {
+
+return async function setRegionPlacementsHttp(request: APIRequestContext, regionKey: string, baseVersion: number, widgetEntryId: string): Promise<void> {
+  const res = await request.put(`/api/admin/v1/workspaces/${WS}/widgets/regions/${regionKey}`, {
+    data: { baseVersion, placements: [{ placementId: `probe-${regionKey}`, widgetEntryId, enabled: true }] },
+    headers: await pinSessionHeaders({ request }),
+  });
+  expect(res.status(), `region placement write failed: ${await res.text().catch(() => "")}`).toBe(200);
+}
+}
+
+function createWidgetEmbedBindRegionHttp({ WS }: { WS: string }) {
+
+return async function bindRegionHttp(request: APIRequestContext, regionKey: string): Promise<AdminArea> {
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/widgets/regions`, { data: { regionKey }, headers: await pinSessionHeaders({ request }) });
+  expect(res.status(), `region bind failed: ${await res.text().catch(() => "")}`).toBe(201);
+  return (await res.json()).area as AdminArea;
+}
+}
+
+function createWidgetEmbedWritePageHtmlHttp({ WS }: { WS: string }) {
+
+return async function writePageHtmlHttp(request: APIRequestContext, pageId: string, html: string): Promise<void> {
+  const res = await request.put(`/api/admin/v1/workspaces/${WS}/pages/${pageId}/html`, { data: { html }, headers: await pinSessionHeaders({ request }) });
+  expect(res.status(), `pages/html write failed: ${await res.text().catch(() => "")}`).toBe(200);
+}
+}
+
+function createWidgetEmbedCreatePostHttp({ WS }: { WS: string }) {
+
+return async function createPostHttp(request: APIRequestContext, body: { title: string; slug: string; status: string }): Promise<AdminPost> {
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/posts`, { data: body, headers: await pinSessionHeaders({ request }) });
+  expect(res.status(), `post create failed: ${await res.text().catch(() => "")}`).toBe(201);
+  return (await res.json()).post as AdminPost;
+}
+}
+
+function createWidgetEmbedCreatePageHttp({ WS }: { WS: string }) {
+
+return async function createPageHttp(request: APIRequestContext, body: { title: string; slug: string; status: string }): Promise<AdminPost> {
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/pages`, { data: body, headers: await pinSessionHeaders({ request }) });
+  expect(res.status(), `page create failed: ${await res.text().catch(() => "")}`).toBe(201);
+  return (await res.json()).post as AdminPost;
+}
+}
+
+function createWidgetEmbedCreateWidgetHttp({ WS }: { WS: string }) {
+
+return async function createWidgetHttp(request: APIRequestContext, body: { widgetType: string; title: string; config: unknown }): Promise<AdminWidget> {
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/widgets`, { data: body, headers: await pinSessionHeaders({ request }) });
+  expect(res.status(), `widget create failed: ${await res.text().catch(() => "")}`).toBe(201);
+  return (await res.json()).widget as AdminWidget;
+}
+}
+
+function createWidgetEmbedCreateMenuHttp({ WS }: { WS: string }) {
+// APIRequestContext drops the Secure session cookie over HTTP loopback (`bug-pin-auth.ts`), so every
+// admin write below sends the session explicitly.
+
+return async function createMenuHttp(request: APIRequestContext, body: { title: string; slug: string; items?: unknown[] }): Promise<AdminMenu> {
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/menus`, { data: body, headers: await pinSessionHeaders({ request }) });
+  expect(res.status(), `menu create failed: ${await res.text().catch(() => "")}`).toBe(201);
+  return (await res.json()).menu as AdminMenu;
+}
+}
+
+/** No widget-shaped markup anywhere — every widget render function in `render.ts` (text,
+ * social-links, recent-entries, menu, contact-form, placeholder) shares the `class="widget `
+ * prefix, confirmed by direct grep, so this one substring check covers all of them. */
+function assertNoWidgetMarkup(html: string): void {
+  expect(html.includes('class="widget'), `unexpectedly contains widget markup:\n${html}`).toBe(false);
+}
+
+/** Neither embed degraded to the safe-but-empty REQ-28 placeholder — a placeholder passing would
+ * mean the page LOOKED fine while actually serving nothing, the exact admin-vs-public trap this
+ * whole file exists to catch. `renderWidgetPlaceholder()` (`render.ts`) is the ONLY emitter of
+ * this exact string in the entire codebase (grepped, including every theme's CSS/JS). */
+function assertNoPlaceholder(html: string): void {
+  expect(html.includes("widget-placeholder"), "a widget degraded to the unresolved placeholder instead of real content").toBe(false);
+}
+
+function assertTextWidgetAbsent(html: string): void {
+  expect(html.includes('class="widget widget-text"'), `expected NO rendered text widget, but found one:\n${html}`).toBe(false);
+}
+
+function assertTextWidgetRendered(html: string, opts: { marker: string }): void {
+  expect(html.includes('class="widget widget-text"'), `missing the rendered text widget:\n${html}`).toBe(true);
+  expect(html.includes(opts.marker), "text widget's body did not render").toBe(true);
+}
+
+function assertMenuWidgetAbsent(html: string): void {
+  expect(html.includes('class="widget widget-menu"'), `expected NO rendered menu widget, but found one:\n${html}`).toBe(false);
+}
+
+// ============================================================================================
+// SHARED ASSERTION HELPERS — used by the live-agent test above AND red-checked by the
+// MUTATION-VERIFY tests below against deliberately broken states. Each `include`s a UNIQUE
+// string this file controls (a specific href, a specific marker) — not a generic tag name — so
+// an unrelated widget/theme element elsewhere on the page cannot accidentally satisfy it. Every
+// exact string emitted below is single-sourced in `src/server/http/site/render.ts` (verified by
+// direct grep before this file was written — no shipped theme's CSS/JS emits any of them either).
+// ============================================================================================
+
+function assertMenuWidgetRendered(html: string, opts: { linkLabel: string; linkHref: string }): void {
+  expect(html.includes('class="widget widget-menu"'), `missing the rendered menu widget:\n${html}`).toBe(true);
+  expect(html.includes(`>${opts.linkLabel}</a>`), "menu item did not render as a real resolved link").toBe(true);
+  expect(html.includes(opts.linkHref), "menu item's href did not resolve to the real target URL").toBe(true);
+}
+
+function createWidgetEmbedStartWidgetEmbedRun({ MENU_SLUG, MENU_LINK_LABEL, MENU_LINK_HREF, TEXT_WIDGET_MARKER, PAGE_SLUG, POST_SLUG, RUNS_PATH }: { MENU_SLUG: string; MENU_LINK_LABEL: string; MENU_LINK_HREF: string; TEXT_WIDGET_MARKER: string; PAGE_SLUG: string; POST_SLUG: string; RUNS_PATH: string }) {
+
+return async function startWidgetEmbedRun({ request, baseURL }: { request: Parameters<Parameters<typeof test>[2]>[0]["request"]; baseURL: Parameters<Parameters<typeof test>[2]>[0]["baseURL"] }) {
+  test.setTimeout(9 * 60_000);
+
+  await waitForAgentDaemon();
+
+  const loginRes = await fetch(`${baseURL}/api/admin/v1/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "admin", password: PIN_PASSWORD }),
+  });
+  expect(loginRes.status).toBe(200);
+  const setCookie = loginRes.headers.getSetCookie?.() ?? [];
+  expect(setCookie.length).toBeGreaterThan(0);
+  const cookieHeader = cookieHeaderFrom(setCookie);
+  await login(request);
+
+  // ---- Step 5's markup is a `data-agent-element` region, not `<!doctype html><html><body>` (changed
+  // 2026-09-09). Two reasons, both real: PAGE_HTML_CONTRACT has always forbidden page chrome in a
+  // page body (the theme's template owns it, so emitting <html>/<body> produces a doubled page), and
+  // as of the same date `pages_write_html` REFUSES a top-level element with no handle rather than
+  // warning about it — so the old prompt now fails the call it is asserting succeeds. This test is
+  // about widget embeds reaching the rendered page, and the embed <div>s below are unchanged. ----
+  // ---- Direct, ordered, narrow prompt — same philosophy as surface-live-agent.spec.ts's own: this
+  // test is not evaluating prompt-following generally, only that the transport and tools work once
+  // called. Every argument is spelled out so a real model has nothing to guess. Step 7 is expected
+  // to FAIL — the model is told so explicitly, so a real failure there doesn't derail the run. ----
+  const prompt = `Call the following tools in this exact order, using the id returned by each call where a
+later step needs one. Do not call any other tools. Do not ask the user anything in text — just
+execute the sequence, then stop.
+
+1. menus_create_menu with { "title": "QA E2E Menu", "slug": "${MENU_SLUG}", "items": [ { "id": "item-1", "label": "${MENU_LINK_LABEL}", "target": { "kind": "url", "href": "${MENU_LINK_HREF}" } } ] }
+2. widgets_create_instance with { "widgetType": "menu", "title": "QA E2E Menu Widget", "config": { "menuRef": "<the menu id returned by step 1>" } }
+3. widgets_create_instance with { "widgetType": "text", "title": "QA E2E Text Widget", "config": { "body": "${TEXT_WIDGET_MARKER}" } }
+4. content_post_create with { "kind": "page", "title": "QA E2E Page", "slug": "${PAGE_SLUG}", "status": "published" }
+5. pages_write_html with { "id": "<the page id returned by step 4>", "html": "<section data-agent-element=\\"page-body\\" data-agent-role=\\"region\\"><h1>QA E2E Page</h1><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 2>\\"></div><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 3>\\"></div></section>" }
+6. content_post_create with { "kind": "post", "title": "QA E2E Post", "slug": "${POST_SLUG}", "status": "published" }
+7. widgets_insert_embed with { "hostEntryId": "<the post id returned by step 6>", "baseVersion": 1, "widgetEntryId": "<the widget instance id returned by step 3>" }. This call is expected to fail because a real blog post cannot host a widget embed today — that is fine and expected. If it fails, report the error in your final message and do NOT retry it.`;
+
+  const runRes = await request.post(RUNS_PATH, {
+    data: { contextRef: JSON.stringify({ prompt }), agentId: "claude" },
+  });
+  expect(runRes.status(), `run start should succeed: ${await runRes.text().catch(() => "")}`).toBe(201);
+  const runBody = await runRes.json();
+  const runId: string = runBody.run.id;
+  return { cookieHeader, runId };
+}
+}
+
+async function collectWidgetToolCalls(baseURL: string | undefined, runId: string, cookieHeader: string) {
+
+  // ---- Stream the WHOLE run (no human-confirmation park/resume needed here, unlike
+  // surface-live-agent.spec.ts's content_post_delete) — collect every tool_use/tool_result pair. ----
+  const pendingToolUses = new Map<string, { name: string; input: unknown }>();
+  const calls: ToolCallRecord[] = [];
+  const seenTypes: string[] = [];
+
+  for await (const event of streamRunEvents(baseURL!, runId, cookieHeader)) {
+    seenTypes.push(describeEvent(event));
+    if (recordWidgetStreamEvent(event, pendingToolUses, calls)) break;
+  }
+
+  const diag = () => `tool calls seen: ${calls.map((c) => `${c.name}${c.isError ? "(error)" : ""}`).join(", ") || "(none)"}; events: ${seenTypes.join(", ")}`;
+  return { calls, diag };
+}
+
+function recordWidgetStreamEvent(event: RunWireEvent, pendingToolUses: Map<string, { name: string; input: unknown }>, calls: ToolCallRecord[]) {
+    if (event.kind === "agent" && event.payload?.type === "tool_use") {
+      recordWidgetToolUse(event, pendingToolUses);
+    } else if (event.kind === "agent" && event.payload?.type === "tool_result") {
+      recordWidgetToolResult(event, pendingToolUses, calls);
+    } else if (event.kind === "end" || event.kind === "error") {
+      return true;
+    }
+    return false;
+}
+
+function recordWidgetToolResult(event: RunWireEvent, pendingToolUses: Map<string, { name: string; input: unknown }>, calls: ToolCallRecord[]) {
+      const toolUseId = event.payload.toolUseId ?? "";
+      const use = pendingToolUses.get(toolUseId);
+      const content = event.payload.content ?? "";
+      calls.push({
+        name: use?.name ?? "(unknown)",
+        input: use?.input,
+        content,
+        isError: Boolean(event.payload.isError),
+        parsed: tryParseJson(content),
+      });
+    
+}
+
+function recordWidgetToolUse(event: RunWireEvent, pendingToolUses: Map<string, { name: string; input: unknown }>) {
+      const id = event.payload.id ?? "";
+      pendingToolUses.set(id, { name: event.payload.name ?? "", input: event.payload.input });
+    
+}
+
+function createWidgetEmbedVerifyWidgetEmbedToolCalls({ verifyCreatedPageToolCall, verifyCreatedPostToolCall }: { verifyCreatedPageToolCall: ReturnType<typeof createWidgetEmbedVerifyCreatedPageToolCall>; verifyCreatedPostToolCall: ReturnType<typeof createWidgetEmbedVerifyCreatedPostToolCall> }) {
+
+return function verifyWidgetEmbedToolCalls({ calls, diag }: { calls: ToolCallRecord[]; diag: () => string }) {
+  verifyCreatedMenuToolCall(calls, diag);
+  verifyCreatedWidgetToolCalls(calls, diag);
+  const { pageSlug } = verifyCreatedPageToolCall(calls, diag);
+
+  const pagesWrite = calls.find((c) => c.name === "pages_write_html" && !c.isError);
+  expect(pagesWrite, `expected a successful pages_write_html call. ${diag()}`).toBeTruthy();
+  expect(pagesWrite!.parsed?.written, `pages_write_html did not report written:true: ${pagesWrite!.content}`).toBe(true);
+  const { postId, postSlug } = verifyCreatedPostToolCall(calls, diag);
+
+  // ---- The gap, proven live: the attempted embed into the real post must fail, not silently
+  // succeed. Matched by hostEntryId so a model retry with different args doesn't get confused for a
+  // different, unrelated call. ----
+  const embedAttempt = calls.find((c) => c.name === "widgets_insert_embed" && inputObj(c.input).hostEntryId === postId);
+  expect(embedAttempt, `expected the assistant to attempt widgets_insert_embed against the post. ${diag()}`).toBeTruthy();
+  expect(embedAttempt!.isError, `widgets_insert_embed against a real post should fail (no reachable host) — it succeeded instead: ${embedAttempt!.content}`).toBe(true);
+  expect(embedAttempt!.content).toContain("WIDGETS_INSTANCE_NOT_FOUND");
+  expect(embedAttempt!.content).toContain(`host entry '${postId}' was not found`);
+  return { pageSlug, postSlug };
+}
+}
+
+function verifyCreatedMenuToolCall(calls: ToolCallRecord[], diag: () => string) {
+
+  // ---- Locate each expected call by name + discriminating input, not by position — tolerant of the
+  // model interleaving extra read-only calls (e.g. widgets_list_regions) around the required ones. ----
+  const menuCreate = calls.find((c) => c.name === "menus_create_menu" && !c.isError);
+  expect(menuCreate, `expected a successful menus_create_menu call. ${diag()}`).toBeTruthy();
+  const menuId = String((menuCreate!.parsed?.menu as Record<string, unknown> | undefined)?.id ?? "");
+  expect(menuId, `menus_create_menu result had no menu.id: ${menuCreate!.content}`).toBeTruthy();
+}
+
+function verifyCreatedWidgetToolCalls(calls: ToolCallRecord[], diag: () => string) {
+
+  const menuWidgetCreate = calls.find((c) => c.name === "widgets_create_instance" && inputObj(c.input).widgetType === "menu" && !c.isError);
+  expect(menuWidgetCreate, `expected a successful widgets_create_instance(menu) call. ${diag()}`).toBeTruthy();
+  const menuWidgetId = String((menuWidgetCreate!.parsed?.instance as Record<string, unknown> | undefined)?.id ?? "");
+  expect(menuWidgetId, `widgets_create_instance(menu) result had no instance.id: ${menuWidgetCreate!.content}`).toBeTruthy();
+
+  const textWidgetCreate = calls.find((c) => c.name === "widgets_create_instance" && inputObj(c.input).widgetType === "text" && !c.isError);
+  expect(textWidgetCreate, `expected a successful widgets_create_instance(text) call. ${diag()}`).toBeTruthy();
+  const textWidgetId = String((textWidgetCreate!.parsed?.instance as Record<string, unknown> | undefined)?.id ?? "");
+  expect(textWidgetId, `widgets_create_instance(text) result had no instance.id: ${textWidgetCreate!.content}`).toBeTruthy();
+}
+
+function createWidgetEmbedVerifyCreatedPageToolCall({ PAGE_SLUG }: { PAGE_SLUG: string }) {
+
+return function verifyCreatedPageToolCall(calls: ToolCallRecord[], diag: () => string) {
+
+  const pageCreate = calls.find((c) => c.name === "content_post_create" && inputObj(c.input).kind === "page" && !c.isError);
+  expect(pageCreate, `expected a successful content_post_create(page) call. ${diag()}`).toBeTruthy();
+  const pagePost = pageCreate!.parsed?.post as Record<string, unknown> | undefined;
+  const pageId = String(pagePost?.id ?? "");
+  const pageSlug = String(pagePost?.slug ?? PAGE_SLUG);
+  expect(pageId, `content_post_create(page) result had no post.id: ${pageCreate!.content}`).toBeTruthy();
+  return { pageSlug };
+}
+}
+
+function createWidgetEmbedVerifyCreatedPostToolCall({ POST_SLUG }: { POST_SLUG: string }) {
+
+return function verifyCreatedPostToolCall(calls: ToolCallRecord[], diag: () => string) {
+
+  const postCreate = calls.find((c) => c.name === "content_post_create" && inputObj(c.input).kind === "post" && !c.isError);
+  expect(postCreate, `expected a successful content_post_create(post) call. ${diag()}`).toBeTruthy();
+  const postPost = postCreate!.parsed?.post as Record<string, unknown> | undefined;
+  const postId = String(postPost?.id ?? "");
+  const postSlug = String(postPost?.slug ?? POST_SLUG);
+  expect(postId, `content_post_create(post) result had no post.id: ${postCreate!.content}`).toBeTruthy();
+  return { postId, postSlug };
+}
+}
+
+function inputObj(input: unknown): Record<string, unknown> {
+  return input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+}
+
+function tryParseJson(content: string): Record<string, unknown> | undefined {
+  try {
+    const parsed = JSON.parse(content) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function cookieHeaderFrom(setCookie: string[]): string {
+  return setCookie.map((raw) => raw.split(";")[0]).join("; ");
+}
+
+async function* streamRunEvents(baseURL: string, runId: string, cookieHeader: string): AsyncGenerator<RunWireEvent> {
+  const response = await fetch(`${baseURL}/api/runs/${runId}/events`, {
+    headers: { accept: "text/event-stream", cookie: cookieHeader },
+  });
+  if (!response.body) throw new Error("no response body for SSE stream");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      buffer += decoder.decode(value, { stream: true });
+      let sepIndex: number;
+      while ((sepIndex = buffer.indexOf("\n\n")) !== -1) {
+        const rawEvent = buffer.slice(0, sepIndex);
+        buffer = buffer.slice(sepIndex + 2);
+        const dataLines = rawEvent
+          .split("\n")
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trim());
+        if (dataLines.length === 0) continue;
+        try {
+          yield JSON.parse(dataLines.join("\n")) as RunWireEvent;
+        } catch {
+          // Non-JSON control frames — skip rather than fail the whole read on one bad frame.
+        }
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => undefined);
+  }
+}
+
+function describeEvent(event: RunWireEvent): string {
+  if (event.kind === "agent" && event.payload?.type === "tool_use") return `agent:tool_use(${event.payload.name})`;
+  if (event.kind === "agent" && event.payload?.type === "tool_result") return `agent:tool_result(err=${Boolean(event.payload.isError)})`;
+  return event.kind === "agent" ? `agent:${event.payload?.type ?? "?"}` : event.kind;
+}
+
+async function login(request: APIRequestContext): Promise<void> {
+  const res = await request.post("/api/admin/v1/auth/login", { data: { username: "admin", password: PIN_PASSWORD } });
+  expect(res.status()).toBe(200);
+}
+
+
+
+/** Same wire envelope as `surface-live-agent.spec.ts`'s `RunWireEvent` — see that file's own doc for
+ * why this is hand-mirrored rather than imported from `@jini-ai/protocol` (not yet a resolvable
+ * Tovu dependency). `input` added here (absent in the delete-only test) because this test needs to
+ * discriminate BETWEEN calls to the same tool name (two `widgets_create_instance` calls, two
+ * `content_post_create` calls) by their arguments, not just by name. */
+interface RunWireEvent {
+  kind: string;
+  payload?: {
+    type?: string;
+    id?: string;
+    name?: string;
+    input?: unknown;
+    toolUseId?: string;
+    content?: string;
+    isError?: boolean;
+    status?: string;
+  };
+}
+
+
+/** One recorded tool_use/tool_result pair, JSON-parsed content where possible. `content` on the wire
+ * is always a plain string (`agent-executor.ts`'s `asString` coercion) — usually the tool handler's
+ * JSON-stringified result, but a thrown domain error's message on failure, which is why `parsed` is
+ * optional rather than assumed. */
+interface ToolCallRecord {
+  name: string;
+  input: unknown;
+  content: string;
+  isError: boolean;
+  parsed?: Record<string, unknown>;
+}
+
+
+// ============================================================================================
+// MUTATION-VERIFY — fast, deterministic, HTTP-only (no live agent, no cost). These construct the
+// exact same shapes the live agent constructs above, directly via the admin HTTP routes the AI
+// tools themselves call into, then deliberately break one mechanism at a time and confirm the
+// SAME assertion helpers above go red. This is the E2E-layer equivalent of
+// `development/scripts/mutation-sweep.mjs` for this feature: proof the assertions discriminate
+// "the feature works" from "the page loaded", not an assumption.
+// ============================================================================================
+
+interface AdminWidget {
+  id: string;
+}
+
+interface AdminMenu {
+  id: string;
+}
+
+interface AdminPost {
+  id: string;
+  slug: string;
+}
+
+interface AdminArea {
+  version: number;
+}

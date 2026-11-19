@@ -69,6 +69,10 @@ async function verifyImport(
   expect(css).toContain("1080px");
   expect(css).toContain("Lumen Display");
   expect(css).toContain("assets/fonts/display.woff2");
+  await verifyImportedThemePreview({ page, request, themeId, siteOrigin });
+}
+
+async function verifyImportedThemePreview({ page, request, themeId, siteOrigin }: { page: Page; request: APIRequestContext; themeId: string; siteOrigin: string }) {
 
   // Explore renders the inactive copy without activating it or publishing the imported drafts.
   // Compare actual computed layout/font with the starter, not just changed CSS bytes.
@@ -93,7 +97,55 @@ async function verifyImport(
 }
 
 test.describe("0.1.13 A1 local reference site import", { tag: ["@unrun", "@isolated-site"] }, () => {
+  registerSiteImportTests();
+});
+
+function registerSiteImportTests() {
   test("one casual request imports in batches and rebuilds an inactive theme through tovu-theme", async ({ page, request, fixtureSite, journeySite }) => {
+    await runScriptedSiteImport({ page, request, fixtureSite, journeySite });
+  });
+
+  test("a real model chooses the import and reference-rebuild skills from the same casual request", { tag: ["@live"] }, async ({ page, request, fixtureSite, journeySite }) => {
+    test.setTimeout(12 * 60_000);
+    const api = requestApi({ request });
+    await journeyJson({ api, url: `${WS_API}/presentation`, method: "PATCH", data: { activeThemeId: "tovu-starter" } });
+    const before = await journeyJson<{ availableThemeIds: string[] }>({ api, url: `${WS_API}/presentation` });
+    await observeCards({ page });
+    const chat = createAdminChatDriver({ page }, { answerTimeoutMs: 10 * 60_000 });
+    await chat.open({ navigate: true });
+    const conversationId = await chat.newConversation();
+    await chat.send({ text: `Can you copy this site for me? ${fixtureSite.origin}/` });
+    await chat.waitForAnswer({ outcome: "succeeded" });
+    const messages = await journeyJson<{ messages: { role: string; content: string }[] }>({ api, url: `/api/assistant/chats/${conversationId}/messages` });
+    const uses = findAll(messages, (row) => row.kind === "tool_use");
+    const calls: Pick<RecordedCall, "toolId" | "input">[] = uses.map((row) => {
+      const input = (row.input ?? {}) as Record<string, unknown>;
+      return { toolId: typeof input.toolId === "string" ? input.toolId : String(row.name), input: (typeof input.toolId === "string" ? input.input : input) as Record<string, unknown> };
+    });
+    const wire = JSON.stringify(messages);
+    expect(wire).toContain("site-import");
+    expect(wire.includes("agent_plugin_tovu_theme") || wire.includes("tovu-theme/skills/tovu-theme/SKILL.md")).toBe(true);
+    expect(calls.filter((call) => call.toolId === "assistant_ask_choice").length).toBeLessThanOrEqual(1);
+    const proseQuestions = messages.messages.filter((message) => message.role === "assistant")
+      .reduce((count, message) => count + (message.content.replace(/\]\([^)]*\)/g, "]").match(/\?/g) ?? []).length, 0);
+    expect(proseQuestions, "at most one question in assistant prose, excluding markdown URL queries").toBeLessThanOrEqual(1);
+    const cards = await page.evaluate(() => (window as unknown as { importCards: string[] }).importCards);
+    expect(cards.filter((uri) => !uri.includes("ask-choice"))).toEqual([]);
+    expect(cards.filter((uri) => uri.includes("ask-choice")).length).toBeLessThanOrEqual(1);
+    for (const toolId of ["web_fetch_page", "media_import_from_url", "content_post_create", "theme_write_file"]) {
+      expect(calls.some((call) => call.toolId === toolId && Array.isArray(call.input.items) && call.input.items.length > 1), `${toolId} is batched by the model`).toBe(true);
+    }
+    const presentation = await journeyJson<{ availableThemeIds: string[]; settings: { activeThemeId: string } }>({ api, url: `${WS_API}/presentation` });
+    const copies = presentation.availableThemeIds.filter((id) => !before.availableThemeIds.includes(id));
+    // Count only this run's new copies, protecting every theme that existed before the prompt.
+    expect(copies).toHaveLength(1);
+    expect(presentation.settings.activeThemeId).toBe("tovu-starter");
+    expect(calls.some((call) => call.toolId === "web_screenshot_page" && call.input.sitePath === "/" && call.input.themeId === copies[0])).toBe(true);
+    await verifyImport({ page, request, themeId: copies[0]!, siteOrigin: journeySite.apiURL });
+  });
+}
+
+async function runScriptedSiteImport({ page, request, fixtureSite, journeySite }: { page: Parameters<Parameters<typeof test>[2]>[0]["page"]; request: Parameters<Parameters<typeof test>[2]>[0]["request"]; fixtureSite: Parameters<Parameters<typeof test>[2]>[0]["fixtureSite"]; journeySite: Parameters<Parameters<typeof test>[2]>[0]["journeySite"] }) {
     test.setTimeout(240_000);
     const api = requestApi({ request });
     await journeyJson({ api, url: `${WS_API}/presentation`, method: "PATCH", data: { activeThemeId: "tovu-starter" } });
@@ -142,44 +194,4 @@ test.describe("0.1.13 A1 local reference site import", { tag: ["@unrun", "@isola
       expect(fixtureSite.requests().some((url) => url.startsWith("/cart/"))).toBe(false);
       await verifyImport({ page, request, themeId, siteOrigin: journeySite.apiURL });
     } finally { try { await restore?.(); } finally { await fake.close(); } }
-  });
-
-  test("a real model chooses the import and reference-rebuild skills from the same casual request", { tag: ["@live"] }, async ({ page, request, fixtureSite, journeySite }) => {
-    test.setTimeout(12 * 60_000);
-    const api = requestApi({ request });
-    await journeyJson({ api, url: `${WS_API}/presentation`, method: "PATCH", data: { activeThemeId: "tovu-starter" } });
-    const before = await journeyJson<{ availableThemeIds: string[] }>({ api, url: `${WS_API}/presentation` });
-    await observeCards({ page });
-    const chat = createAdminChatDriver({ page }, { answerTimeoutMs: 10 * 60_000 });
-    await chat.open({ navigate: true });
-    const conversationId = await chat.newConversation();
-    await chat.send({ text: `Can you copy this site for me? ${fixtureSite.origin}/` });
-    await chat.waitForAnswer({ outcome: "succeeded" });
-    const messages = await journeyJson<{ messages: { role: string; content: string }[] }>({ api, url: `/api/assistant/chats/${conversationId}/messages` });
-    const uses = findAll(messages, (row) => row.kind === "tool_use");
-    const calls: Pick<RecordedCall, "toolId" | "input">[] = uses.map((row) => {
-      const input = (row.input ?? {}) as Record<string, unknown>;
-      return { toolId: typeof input.toolId === "string" ? input.toolId : String(row.name), input: (typeof input.toolId === "string" ? input.input : input) as Record<string, unknown> };
-    });
-    const wire = JSON.stringify(messages);
-    expect(wire).toContain("site-import");
-    expect(wire.includes("agent_plugin_tovu_theme") || wire.includes("tovu-theme/skills/tovu-theme/SKILL.md")).toBe(true);
-    expect(calls.filter((call) => call.toolId === "assistant_ask_choice").length).toBeLessThanOrEqual(1);
-    const proseQuestions = messages.messages.filter((message) => message.role === "assistant")
-      .reduce((count, message) => count + (message.content.replace(/\]\([^)]*\)/g, "]").match(/\?/g) ?? []).length, 0);
-    expect(proseQuestions, "at most one question in assistant prose, excluding markdown URL queries").toBeLessThanOrEqual(1);
-    const cards = await page.evaluate(() => (window as unknown as { importCards: string[] }).importCards);
-    expect(cards.filter((uri) => !uri.includes("ask-choice"))).toEqual([]);
-    expect(cards.filter((uri) => uri.includes("ask-choice")).length).toBeLessThanOrEqual(1);
-    for (const toolId of ["web_fetch_page", "media_import_from_url", "content_post_create", "theme_write_file"]) {
-      expect(calls.some((call) => call.toolId === toolId && Array.isArray(call.input.items) && call.input.items.length > 1), `${toolId} is batched by the model`).toBe(true);
-    }
-    const presentation = await journeyJson<{ availableThemeIds: string[]; settings: { activeThemeId: string } }>({ api, url: `${WS_API}/presentation` });
-    const copies = presentation.availableThemeIds.filter((id) => !before.availableThemeIds.includes(id));
-    // Count only this run's new copies, protecting every theme that existed before the prompt.
-    expect(copies).toHaveLength(1);
-    expect(presentation.settings.activeThemeId).toBe("tovu-starter");
-    expect(calls.some((call) => call.toolId === "web_screenshot_page" && call.input.sitePath === "/" && call.input.themeId === copies[0])).toBe(true);
-    await verifyImport({ page, request, themeId: copies[0]!, siteOrigin: journeySite.apiURL });
-  });
-});
+  }
