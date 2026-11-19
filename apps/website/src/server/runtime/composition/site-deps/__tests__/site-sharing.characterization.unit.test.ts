@@ -23,7 +23,7 @@ function eagerReads(statements: readonly ts.Node[], getters: readonly string[]):
   for (const statement of statements) visit(statement, false);
   return eager;
 }
-const FILES: Record<string, URL> = {"configureSiteSharing":"../site-sharing.ts"};
+const FILES: Record<string, string> = {"configureSiteSharing":"../site-sharing.ts"};
 
 test("H3: the calls keep their place and the root declares none of the functions", () => {
   const body = bodyOf(parse(DEPS), "composeSiteRouteDeps");

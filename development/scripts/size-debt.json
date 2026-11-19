@@ -618,13 +618,6 @@
       "value": 84
     },
     {
-      "file": "apps/website/src/server/runtime/composition/deps.ts",
-      "function": "<file>",
-      "line": 763,
-      "rule": "max-lines",
-      "value": 1926
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
       "function": "createAssistantByokModule#1",
       "line": 514,

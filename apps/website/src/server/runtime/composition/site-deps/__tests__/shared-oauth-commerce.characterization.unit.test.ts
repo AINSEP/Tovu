@@ -23,7 +23,7 @@ function eagerReads(statements: readonly ts.Node[], getters: readonly string[]):
   for (const statement of statements) visit(statement, false);
   return eager;
 }
-const FILES: Record<string, URL> = {"compositionSharedOAuth":"../shared-oauth-commerce.ts","compositionCommerce":"../shared-oauth-commerce.ts"};
+const FILES: Record<string, string> = {"compositionSharedOAuth":"../shared-oauth-commerce.ts","compositionCommerce":"../shared-oauth-commerce.ts"};
 
 test("H2: the calls keep their place and the root declares none of the functions", () => {
   const body = bodyOf(parse(DEPS), "composeSiteRouteDeps");
