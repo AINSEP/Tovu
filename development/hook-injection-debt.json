@@ -1177,12 +1177,6 @@
         "apps/admin/src/lib/widget-embed-extension.tsx"
       ]
     },
-    "WiredThemePreviewReloadButton::useThemePreviewReloadButton": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/themes/ThemePreviewReloadButton.tsx"
-      ]
-    },
     "WorkspaceChatPane::useWorkspaceChatPane": {
       "count": 1,
       "files": [

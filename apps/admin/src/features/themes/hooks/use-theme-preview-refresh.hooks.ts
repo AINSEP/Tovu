@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { t } from "../themes-i18n";
+import { useEffect, useState } from "react";
 import {
   freshPreviewUrl,
-  reloadThemePreviews,
   subscribeThemePreviewRefresh,
   type ThemePreviewRefresh,
 } from "../theme-preview-refresh";
@@ -38,22 +35,6 @@ export function useThemePreviewRefresh(
     }),
     revision: frame.revision,
   };
-}
-
-/** Shows reload failures using the current admin locale; server-provided Error messages stay intact. */
-export function useThemePreviewReloadButton(
-  _required: Record<string, never> = {},
-  { reload = reloadThemePreviews }: { reload?: () => Promise<void> } = {},
-) {
-  const locale = useAdminLocale();
-  const [error, setError] = useState<string | null>(null);
-  const onReload = useCallback(() => {
-    setError(null);
-    void reload().catch((error: unknown) =>
-      setError(error instanceof Error ? error.message : t({ locale, key: "preview reload failed" })),
-    );
-  }, [reload, locale]);
-  return { label: t({ locale: locale, key: "Reload preview" }), reload: onReload, error };
 }
 
 /** Keeps dirty content on the POST path. Entry previews stay on their authenticated render route:

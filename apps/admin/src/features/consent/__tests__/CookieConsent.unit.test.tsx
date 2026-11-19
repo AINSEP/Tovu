@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '../../../__tests__/render-with-jini-kits';
 import { ApiError } from '@/lib/admin-http/request';
 import { navigate } from '@/lib/router';
+import { adminKit } from '@/integrations/jini-kits';
 import { ConsentOverviewTab, type ConsentOverviewTabProps } from '../ConsentOverviewTab';
 import { CookieConsent } from '../CookieConsent';
 import type { ConsentRevisionsPort } from '../settings.hooks';
@@ -33,6 +34,17 @@ describe('CookieConsent: tabs', () => {
     expect(await screen.findByRole('group', { name: legend })).toBeInTheDocument();
     expect(screen.getByRole('tab', { selected: true })).toHaveTextContent(tab);
     expect(screen.queryByRole('region', { name: 'Banner preview' }) !== null).toBe(preview);
+  });
+
+  it('uses the host light palette for all three native color inputs when tokens are unset', async () => {
+    renderPage(fakeConsentPort(), 'look');
+    await screen.findByRole('group', { name: 'Look & position' });
+    const light = adminKit.theme.defaultAdminTheme.light;
+    for (const [label, color] of [['Background', light.bg], ['Text', light.text], ['Border', light.border]] as const) {
+      const input = screen.getByLabelText(label);
+      expect(input).toHaveAttribute('type', 'color');
+      expect(input).toHaveValue(color);
+    }
   });
 
   it('opens Overview for an absent or unknown tab', async () => {

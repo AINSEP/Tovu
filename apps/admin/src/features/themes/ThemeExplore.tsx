@@ -1,6 +1,6 @@
 import { createThemePublishClick } from "./ThemeExplore.hooks";
 import { themeExplorePreviewMode, useThemeExplorePreview, type ThemeExplorePreviewMode } from "./hooks/use-theme-explore-preview.hooks";
-import { WiredThemePreviewReloadButton } from "./ThemePreviewReloadButton";
+import { WiredThemePreviewReloadButton } from "./ThemePreviewReloadControl";
 import { type KeyboardEvent, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";

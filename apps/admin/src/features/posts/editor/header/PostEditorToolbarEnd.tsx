@@ -1,4 +1,4 @@
-import { WiredThemePreviewReloadButton } from "../../../themes/ThemePreviewReloadButton";
+import { WiredThemePreviewReloadButton } from "../../../themes/ThemePreviewReloadControl";
 import { PostEditorTemplatePicker } from "../template/PostEditorTemplatePicker";
 import { type PostEditorView } from "../../hooks/use-post-editor.hooks";
 

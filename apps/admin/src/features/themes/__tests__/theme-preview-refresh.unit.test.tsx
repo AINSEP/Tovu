@@ -9,7 +9,7 @@ import {
   subscribeThemePreviewRefresh,
 } from "../theme-preview-refresh";
 import { useThemePreviewRefresh } from "../hooks/use-theme-preview-refresh.hooks";
-import { ThemePreviewReloadButton, WiredThemePreviewReloadButton } from "../ThemePreviewReloadButton";
+import { WiredThemePreviewReloadButton } from "../ThemePreviewReloadControl";
 import { THEMES_DICT } from "../themes-i18n";
 afterEach(resetThemePreviewRefresh);
 
@@ -74,12 +74,11 @@ it("fresh URLs preserve absolute site origin, queries and fragments", () => {
   );
 });
 
-it("reload button has translated label and tooltip and signals a new refresh", () => {
+it("reload button has translated label and tooltip and signals a new refresh", async () => {
   let calls = 0;
   render(
-    <ThemePreviewReloadButton
-      label="Reload preview"
-      reload={() => {
+    <WiredThemePreviewReloadButton
+      reloadPreviews={async () => {
         calls++;
       }}
     />,
@@ -87,7 +86,8 @@ it("reload button has translated label and tooltip and signals a new refresh", (
   const button = screen.getByRole("button", { name: "Reload preview" });
   expect(button.getAttribute("title")).toBe("Reload preview");
   expect(button.querySelector("svg")?.getAttribute("stroke-width")).toBe("1.5");
-  fireEvent.click(button);
+  expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  await act(async () => { fireEvent.click(button); });
   expect(calls).toBe(1);
 });
 

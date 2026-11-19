@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-q
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { Themes } from "../Themes";
-import { WiredThemePreviewReloadButton } from "../ThemePreviewReloadButton";
+import { WiredThemePreviewReloadButton } from "../ThemePreviewReloadControl";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes } from "../hooks/use-themes.hooks";
 import { THEMES_DICT, t } from "../themes-i18n";

@@ -1,12 +1,12 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields, type ConsentFieldProblem } from "@jini-ai/admin/consent/react";
+import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields, CONSENT_PREVIEW_DESKTOP_WIDTH, type ConsentFieldProblem } from "@jini-ai/cookie-consent/react";
 
 import type { CSSProperties } from "react";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { navigate } from "@/lib/router";
+import { adminKit } from "@/integrations/jini-kits";
 import { ConsentOverviewTab } from "./ConsentOverviewTab";
 import { useConsentTranslate, type ConsentTranslation } from "./consent-i18n";
-import { CONSENT_PREVIEW_DESKTOP_WIDTH } from "@jini-ai/admin/consent/react";
 import { canResetConsentCss, consentStatusKey, resolveConsentTabId, type ConsentTabId } from "./rules";
 import { defaultConsentRevisionsPort, type ConsentRevisionsPort } from "./settings.hooks";
 import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness, type ConsentPageController } from "./use-consent-page.hooks";
@@ -16,7 +16,7 @@ import "./consent-settings.css";
 /**
  * @file Administration → Cookie Consent (`/admin/consent?tab=overview|banner|look|rules`). Edits
  * autosave as a draft revision; the live site changes only on Publish. The fields and the sandboxed
- * preview are Jini's (`@jini-ai/admin/consent/react`); this file binds them to the revisions API.
+ * preview are Jini's (`@jini-ai/cookie-consent/react`); this file binds them to the revisions API.
  */
 
 export interface CookieConsentProps {
@@ -147,7 +147,7 @@ function EditorTab({ tab, page, port, translation, delays, hooks = { useConsentP
   return (
     <div className="consent-editor consent-editor-with-preview">
       <div className="card">
-        {tab === "banner" ? <ConsentBannerFields {...fields} bannerModes={bannerModes} /> : <ConsentLookFields {...fields} placements={placements} />}
+        {tab === "banner" ? <ConsentBannerFields {...fields} bannerModes={bannerModes} /> : <ConsentLookFields {...fields} placements={placements} lightColors={adminKit.theme.defaultAdminTheme.light} />}
         {tab === "look" && <ResetStyle page={page} t={translation.t} disabled={fields.disabled} />}
       </div>
       <ConsentPreviewPane page={page} preview={preview} fit={fit} translation={translation} />

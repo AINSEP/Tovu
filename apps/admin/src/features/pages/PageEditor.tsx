@@ -1,6 +1,6 @@
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
-import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
+import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadControl";
 import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
