@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { DeployError, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployPublishProgress, type DeployTarget, type UnknownRecord } from "@jini-ai/devops/deploy";
 
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
-import { withDeclaredHosts } from "#src/contracts/core/public-page-security-headers";
+import { withDeclaredHosts } from "@jini-ai/core/contracts/server/security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -225,9 +225,9 @@ export type ResolvedPublishCredential = DeployTargetCredential;
 export interface StaticPublishDeps {
   readonly credentialSource: PublishCredentialSource;
   /** Current public policy supplied by the host; publishing carries it to the target as data. */
-  readonly publicPageSecurityHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
+  readonly publicPageSecurityHeaders?: () => import("@jini-ai/core/contracts/server/security-headers").SecurityHeaderSet;
   /** External hosts of enabled plugin exports, added to the site-wide header set a static host applies. */
-  readonly pluginExportHosts?: () => Promise<import("#src/contracts/core/public-page-security-headers").DeclaredPageHosts>;
+  readonly pluginExportHosts?: () => Promise<import("@jini-ai/core/contracts/server/security-headers").DeclaredPageHosts>;
   /** This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the only
    *  place a target id, its config fields and its host behavior come from. */
   readonly loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
@@ -450,7 +450,7 @@ function buildSuccessPublishOutcome({ targetId, result, basePath }: { targetId: 
 /** Public header data and existing publish metadata share one provider call; no extra I/O. */
 function publishOptions({ input, formDestination, readHeaders }: {
   input: StaticPublishInput; formDestination: FormDestinationPublishInput | undefined;
-  readHeaders: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
+  readHeaders: () => import("@jini-ai/core/contracts/server/security-headers").SecurityHeaderSet;
 }) {
   return { responseHeaders: readHeaders(),
     ...(input.onProgress ? { onProgress: (progress: DeployPublishProgress) => input.onProgress?.({ progress }) } : {}),
@@ -477,7 +477,7 @@ async function publishAndMapOutcome(
   },
   { formDestination, readHeaders = () => publicPageSecurityHeaders({}) }: {
     formDestination?: FormDestinationPublishInput;
-    readHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
+    readHeaders?: () => import("@jini-ai/core/contracts/server/security-headers").SecurityHeaderSet;
   } = {},
 ): Promise<StaticPublishOutcome> {
   try {

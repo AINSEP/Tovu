@@ -7,7 +7,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, duplicateDisplayNames, isCardOpenKey, isCardOpenable, siteCardTone } from "./SiteGrid.hooks.js";
+import { cardOpenClass, databaseLabel, isCardOpenable, siteCardTone } from "./SiteGrid.hooks.js";
+import { isCardOpenKey, cardOpenProps, closeMenuThen, duplicateDisplayNames } from "@jini-ai/ui/site-card";
 import type { SiteRecord } from "../contracts/project.js";
 
 /** Stand-ins for the two DOM nodes involved. Identity is all `isCardOpenKey` compares, so plain

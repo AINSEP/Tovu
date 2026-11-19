@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createPublicPageSecurityHeaderSet } from '../../public-page-security-headers.js';
 import { publicPageSecurityHeaders, readPublicThemeResources } from '../../../../features/theme/public-page-security-headers.js';
 import { PAGE_HTML_CONTRACT } from '../../page-html.js';
-import { addDeclaredHostsToPolicy } from '../../public-page-security-headers.js';
+import { addDeclaredHostsToPolicy } from '@jini-ai/core/contracts/server/security-headers';
 
 test('page guidance sends third-party widgets to plugin embeds and names no vendor host', () => {
   const guidance = PAGE_HTML_CONTRACT.split('- EXTERNAL RESOURCES:')[1]!.split('\n')[0]!;

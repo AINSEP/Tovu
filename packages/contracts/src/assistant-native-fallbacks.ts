@@ -1,4 +1,5 @@
-import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability, type AssistantCliPermissions } from "./assistant-subagents-policy.js";
+import { fillNativePermissions, projectNativePermissions } from "@jini-ai/agent-runtime/native-permissions";
+import { CLI_CAPABILITY_KEYS, type AssistantCliCapability, type AssistantCliPermissions } from "./assistant-subagents-policy.js";
 import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "./host-signals.js";
 
 /** The master supplies every default, personal MCP included: owner decision 2026-11-10
@@ -10,8 +11,8 @@ import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions 
  * @complexity O(1) time/space for the fixed capability list.
  * @example assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }); */
 export function assistantCliPermissions(required: { enabled: boolean; capabilities?: Partial<Record<AssistantCliCapability, boolean>>; byAgent?: AssistantCliPermissions["byAgent"] }, _optional = {}): AssistantCliPermissions {
-  return { ...(required.byAgent ? { byAgent: required.byAgent } : {}), enabled: required.enabled, capabilities: Object.fromEntries(ASSISTANT_CLI_CAPABILITIES.map(({ key }) =>
-    [key, required.capabilities?.[key] ?? required.enabled])) as Record<AssistantCliCapability, boolean> };
+  const filled = fillNativePermissions({ capabilityKeys: CLI_CAPABILITY_KEYS, enabled: required.enabled, ...(required.capabilities === undefined ? {} : { capabilities: required.capabilities }) });
+  return { ...(required.byAgent ? { byAgent: required.byAgent } : {}), ...filled };
 }
 
 /** Product policy shared by the site daemon and Electron host. No I/O or framework imports. */
@@ -77,9 +78,8 @@ export function resolveAssistantCliPermissions(required: {
   isOwner: boolean; env: Readonly<Record<string, string | undefined>>; settings: AssistantCliPermissions; agentId?: string;
 }, optional: HostSignalOptions = {}): AssistantCliPermissions {
   if (!resolveFullCliAccess({ isOwner: required.isOwner, env: required.env }, optional)) return assistantCliPermissions({ enabled: false });
-  const override = required.agentId ? required.settings.byAgent?.[required.agentId] : undefined;
-  return assistantCliPermissions({ ...required.settings, enabled: override?.enabled ?? required.settings.enabled,
-    capabilities: { ...required.settings.capabilities, ...override?.capabilities } });
+  const { enabled, capabilities } = projectNativePermissions({ settings: required.settings, capabilityKeys: CLI_CAPABILITY_KEYS, ...(required.agentId === undefined ? {} : { agentId: required.agentId }) });
+  return { ...(required.settings.byAgent ? { byAgent: required.settings.byAgent } : {}), enabled, capabilities };
 }
 
 /** Locked run policy (SEC-assistant-env-isolation-2026-09-07 Finding 2).

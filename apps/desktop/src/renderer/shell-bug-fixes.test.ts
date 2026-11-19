@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { siteNameError, namePasteHandler } from '../contracts/site-name.js';
 import { humanSiteError, siteOperationError, tabAfterClose, readyNoticeStillTrue, dismissOnEscape } from './site-shell-policy.js';
 import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from './find-query-scheduler.js';
-import { revealActiveTab, tabOverflow } from './use-tab-strip.hooks.js';
+import { revealActiveTab, tabOverflow } from '@jini-ai/ui/tab-strip';
 import { canSubmitRename } from './use-site-rename.hooks.js';
 import { deleteActionCopy } from './SiteGrid.hooks.js';
 import { describeAddFailure } from './use-add-site.hooks.js';
@@ -89,7 +89,7 @@ test('D-24: IPC and AddSitePointerError class prefixes never reach the operator'
 
 test('D-26: the active tab scrolls into view and overflow buttons expose the hidden direction', () => {
   const calls: unknown[] = [];
-  revealActiveTab({ strip: { querySelector: <T extends Element>(selector: string) => {
+  revealActiveTab({ activeSelector: ".is-active", strip: { querySelector: <T extends Element>(selector: string) => {
     assert.equal(selector, '.is-active');
     return { scrollIntoView: (options: unknown) => calls.push(options) } as unknown as T;
   } } });

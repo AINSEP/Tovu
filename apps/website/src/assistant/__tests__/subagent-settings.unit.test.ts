@@ -75,7 +75,7 @@ for (const [name, value] of [
 
 test("a malformed snapshot rethrows the validation error when the caller opts into propagation", async () => {
   await assert.rejects(readAssistantCliPermissions(cliRequired({ snapshot: userLayer({ enabled: true }) }), { readFailure: "throw" }),
-    { message: "Invalid CLI permissions" });
+    { name: "Error", message: "Invalid CLI permissions" });
 });
 
 test("a failed legacy fallback denies all access instead of defaulting ON", async () => {
@@ -132,6 +132,7 @@ test("per-agent choices survive reads and apply only to the selected agent after
   const saved = { ...assistantCliPermissions({ enabled: true }), byAgent: { antigravity: { capabilities: { userMcp: true } }, claude: { capabilities: { shell: false } } } };
   const parsed = await readAssistantCliPermissions(cliRequired({ snapshot: userLayer(saved) }));
   assert.deepEqual(parsed.byAgent, saved.byAgent);
+  assert.strictEqual(parsed.byAgent, saved.byAgent);
   const resolve = (agentId: string, isOwner = true) => resolveAssistantCliPermissions({ isOwner, env: {}, settings: parsed, agentId });
   assert.equal(resolve("antigravity").capabilities.userMcp, true);
   assert.equal(resolve("claude").capabilities.userMcp, true); // the site default, on since 2026-11-10

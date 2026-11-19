@@ -1,4 +1,4 @@
-import { addDeclaredHostsToPolicy, REPORT_ONLY_HEADER } from "#src/contracts/core/public-page-security-headers";
+import { addDeclaredHostsToPolicy, CSP_REPORT_ONLY_HEADER } from "@jini-ai/core/contracts/server/security-headers";
 import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-partials";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { randomUUID } from "node:crypto";
@@ -108,10 +108,10 @@ export function resolvePerVisitorResponse({ req, res }: { req: Request; res: Res
  * @complexity O(html length) — one pass for each of the three transforms it composes.
  */
 /** The page's report-only policy names what its plugin exports declared; nothing is added otherwise. O(hosts). */
-function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: import("#src/contracts/core/public-page-security-headers").DeclaredPageHosts | undefined }, _optional: Record<string, never> = {}): void {
+function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: import("@jini-ai/core/contracts/server/security-headers").DeclaredPageHosts | undefined }, _optional: Record<string, never> = {}): void {
   const response = req.res;
-  const policy = response?.getHeader?.(REPORT_ONLY_HEADER);
-  if (hosts && response && typeof policy === "string") response.setHeader(REPORT_ONLY_HEADER, addDeclaredHostsToPolicy({ policy, hosts }));
+  const policy = response?.getHeader?.(CSP_REPORT_ONLY_HEADER);
+  if (hosts && response && typeof policy === "string") response.setHeader(CSP_REPORT_ONLY_HEADER, addDeclaredHostsToPolicy({ policy, hosts }));
 }
 
 async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Request; html: string; formResult: FormSubmissionRedirectResult | undefined; deps: RouteDeps }, _optional = {}): Promise<string> {

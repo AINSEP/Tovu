@@ -1,4 +1,4 @@
-import type { SecurityHeaderSet } from "#src/contracts/core/public-page-security-headers";
+import type { SecurityHeaderSet } from "@jini-ai/core/contracts/server/security-headers";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { escapeHtml } from "#src/platform/html/escape";
 

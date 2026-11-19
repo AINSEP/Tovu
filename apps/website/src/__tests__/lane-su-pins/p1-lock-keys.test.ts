@@ -3,7 +3,9 @@ import { describe, test } from "node:test";
 
 import { createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 
-import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
+import { SqlFormPullLeaseRepo } from "@jini-ai/cms/forms/sql";
+import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { registerConfiguredOrigin } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
@@ -93,7 +95,7 @@ describe("P1 lock keys: form delivery (JSON-array keys)", () => {
   test("delivery plan once() is keyed by workspace and submission", async () => {
     const { kernel, keys } = recordingKernel();
     await assert.rejects(
-      new SqlFormDeliveryRepo({ kernel }).once({ workspaceId: WS, submissionId: "sub-1", build: async () => { throw new Error("plan builder reached"); } }),
+      createSiteFormDeliveryRepo({ kernel }).once({ workspaceId: WS, submissionId: "sub-1", build: async () => { throw new Error("plan builder reached"); } }),
       /plan builder reached/,
     );
     assert.deepEqual(keys, [JSON.stringify(["form-delivery-plan", WS, "sub-1"])]);
@@ -102,7 +104,7 @@ describe("P1 lock keys: form delivery (JSON-array keys)", () => {
 
   test("receiver pull claim is keyed by workspace and receiver", async () => {
     const { kernel, keys } = recordingKernel();
-    const claim = await new SqlFormPullLeaseRepo({ kernel }).claim({ workspaceId: WS, receiverKey: "recv-1", token: "t", nowIso: "2026-11-17T00:00:00.000Z", recentMs: 1000, leaseMs: 60_000 });
+    const claim = await new SqlFormPullLeaseRepo({ kernel: schemaErasedKernel({ store: kernel }), table: "form_receiver_pulls" }).claim({ workspaceId: WS, receiverKey: "recv-1", token: "t", nowIso: "2026-11-17T00:00:00.000Z", recentMs: 1000, leaseMs: 60_000 });
     assert.equal(claim.claimed, true);
     assert.equal(keys[0], '["form-receiver-pull","lane-su-ws","recv-1"]');
     assert.equal(keys.length, 1);

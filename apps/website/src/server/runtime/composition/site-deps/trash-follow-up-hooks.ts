@@ -14,7 +14,7 @@ import type { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo } f
 import type { SqlitePostRepo } from "#src/features/post/index";
 import type { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import type { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
-import type { SqlFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-repo";
+import type { SqlFormDeliveryRepo } from "@jini-ai/cms/forms/sql";
 import type { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
 import type { SqliteTermRepo, SqliteTaxonomyRevisionRepo } from "#src/features/taxonomy/repo.sqlite";
 import type { SqliteTrashRepo } from "#src/features/trash/index";

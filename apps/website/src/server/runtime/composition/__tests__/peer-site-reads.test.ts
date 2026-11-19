@@ -11,7 +11,7 @@ import { CONTENT_MIGRATIONS } from '#src/platform/db/migrations/index';
 import { LEDGER_TABLE } from '#src/platform/db/migrations/runner';
 import { SqlitePresentationSettingsRepo } from '#src/features/presentation/index';
 import { planFormDeliveries } from '@jini-ai/cms/forms';
-import { SqlFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-repo';
+import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
 import { buildAssistantToolRegistrations } from '#src/assistant/tool-registrations';
 import { CrossSiteUnavailable, createPeerSiteReads } from '../peer-site-reads.js';
 import { peerFixture } from './peer-site-reads.fixture.js';
@@ -133,7 +133,7 @@ test("forms_delivery_status on B reads only B's delivery rows, never A's, and ne
   // Both sites hold a plan for the SAME submission id: a fallback to A's kernel or workspace would surface A's binding.
   for (const site of [f.a, f.b]) {
     await planFormDeliveries({ workspaceId: site.workspaceId, submissionId: 's1', formId: 'form', deps: {
-      plans: new SqlFormDeliveryRepo({ kernel: site.kernel }),
+      plans: createSiteFormDeliveryRepo({ kernel: site.kernel }),
       bindings: async () => [{ bindingId: `${site.name}-binding`, adapterId: 'adapter', connectionRef: 'conn', enabled: true, config: {} }],
       snapshot: async () => ({ form: { slug: 'form', fields: [{ name: 'email', required: true }] },
         submission: { id: 's1', answers: { email: `${site.name}-answer@example.com` }, submittedAt: site.clock.nowIso() } }),

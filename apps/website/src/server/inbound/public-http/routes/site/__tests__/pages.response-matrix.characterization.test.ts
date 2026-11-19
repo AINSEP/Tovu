@@ -20,7 +20,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import test, { type TestContext } from "node:test";
 
-import { REPORT_ONLY_HEADER } from "#src/contracts/core/public-page-security-headers";
+import { CSP_REPORT_ONLY_HEADER } from "@jini-ai/core/contracts/server/security-headers";
 import { InMemoryMemberSessionRepo, type MemberSessionRecord } from "#src/features/members/index";
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import { ROOT_SLUG } from "#src/features/post/post";
@@ -153,7 +153,7 @@ async function capture(baseUrl: string, path: string, headers: Record<string, st
   const attemptIds = Array.from(body.matchAll(ATTEMPT_INPUT), (match) => match[2] ?? "");
   // The test server's port is random and reaches the body through absolute URLs (canonical, feed).
   const stable = body.replace(ATTEMPT_INPUT, "$1<attempt>$3").replaceAll(baseUrl, "http://site.test");
-  const reportOnly = res.headers.get(REPORT_ONLY_HEADER);
+  const reportOnly = res.headers.get(CSP_REPORT_ONLY_HEADER);
   const row: Row = {
     status: res.status,
     cacheControl: res.headers.get("cache-control"),

@@ -20,7 +20,7 @@ import {
   type AdminSurfaceRequestContext,
   type AdminSurfaceSource,
 } from "#src/features/agent-plugins/admin-surfaces/surfaces";
-import { isSameOriginAdminWrite } from "#src/features/agent-plugins/admin-surfaces/same-origin";
+import { isSameOriginBrowserWrite } from "@jini-ai/core/contracts/server";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.js";
@@ -39,7 +39,7 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
  *
  * Why the two POSTs need more than the session: bootstrap data may carry a short-lived access token
  * and actions run host handlers, so both refuse API-key credentials (a surface is a browser UI) and
- * cross-origin requests (`same-origin.ts`) BEFORE authorization or any lookup. The surface files
+ * cross-origin requests (`isSameOriginBrowserWrite`) BEFORE authorization or any lookup. The surface files
  * themselves are served by the public route in `public-http/routes/agent-plugin-surfaces/files.ts`,
  * because a sandboxed frame's module-script fetches carry no cookie.
  *
@@ -67,9 +67,16 @@ async function admit(req: Request, res: Response, deps: AgentPluginsRouteDeps, p
 }
 
 /** The CSRF and credential-kind gates for the two writes; `false` when a 403 was already sent.
+ * Why on top of the `SameSite=Strict` session cookie: these two routes hand a surface short-lived
+ * credentials and run host handlers on its behalf, so a request must also prove it came from this
+ * admin origin's own scripts. A browser always sends `Origin` on a cross-origin or POST fetch, and
+ * a sandboxed frame's requests carry `Origin: null`, which never matches: the frame must go through
+ * the host page, never straight to these routes. Fetch metadata, when the browser sends it, must
+ * agree. This is browser protection, not proof against a client that forges every header; such a
+ * client still needs the session cookie.
  * @complexity O(1). */
 function admitWrite(req: Request, res: Response): boolean {
-  if (!isSameOriginAdminWrite({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site") })) {
+  if (!isSameOriginBrowserWrite({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site") })) {
     res.status(403).json({ error: "admin surface requests must come from the admin page itself", code: "CROSS_ORIGIN_REFUSED" });
     return false;
   }

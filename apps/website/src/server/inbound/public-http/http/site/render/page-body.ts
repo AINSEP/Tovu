@@ -6,7 +6,7 @@ import { substituteHtmlEmbeds, type PageHtmlEmbedRef, type EmbedOccurrence } fro
 import { isPageEmbedType } from "@jini-ai/cms/widgets/page-embed-types";
 import { renderWidgetIr } from "./content-html.js";
 import { readMediaAssetMetadata, readMediaTransformVersions } from "./widgets/post-content.js";
-import { projectPostBody } from "#src/contracts/core/cover-image";
+import { projectPostBody } from "@jini-ai/cms/media/cover-image";
 import type { JsonValue } from "@jini-ai/core/primitives";
 
 /** REQ-28-shaped default for an embed reference this render never resolved (never attempted, beyond
@@ -146,7 +146,7 @@ function withCurrentPostByline(
 function withPresentedPostBody(ir: WidgetRenderIR, { ref, post }: { ref: PageHtmlEmbedRef; post: PostRecord | undefined }): WidgetRenderIR {
   if (!post || !isPostEntityRef(ref) || ir.componentId !== "post-content" || !refNamesEntity(ref, post)) return ir;
   const metadata = readMediaAssetMetadata({ value: ir.props.mediaAssetMetadata });
-  return { ...ir, props: { ...ir.props, bodyJson: projectPostBody({ post: { ...post, bodyJson: ir.props.bodyJson } }, {
+  return { ...ir, props: { ...ir.props, bodyJson: projectPostBody({ post: { ...post, bodyJson: ir.props.bodyJson },
     mediaLookup: ({ ref: mediaRef }) => metadata.get(mediaRef) ?? null,
     hasPublicTransform: readMediaTransformVersions({ value: ir.props.mediaTransformVersions }).has("public"),
   }) as JsonValue } };

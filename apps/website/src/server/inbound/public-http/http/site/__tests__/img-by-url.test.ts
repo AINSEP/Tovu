@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
-import { projectPostBody, resolveCoverImage } from "#src/contracts/core/cover-image";
+import { projectPostBody, resolveCoverImage } from "@jini-ai/cms/media/cover-image";
 import { featuredImageView } from "../render/template-render-data.js";
 import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
 
@@ -15,8 +15,8 @@ test("Img by URL: public rendering preserves safe src-only images and refuses ja
     assert.equal(renderWidgetIr({ componentId: "post-content", props: { title: "Cat", header: false, bodyJson: doc } }), `<div class="post-detail-body">${expected}</div>`);
     const post = buildPostRecord({ bodyJson: doc, featuredMediaId: null });
     assert.equal(featuredImageView({ ctx: { mediaAssetMetadata: new Map(), mediaTransformVersions: new Map([["public", 1]]) }, post }), null);
-    assert.equal(projectPostBody({ post }, { mediaLookup, hasPublicTransform: true }), doc);
-    assert.equal(resolveCoverImage({ post }, { mediaLookup, allowExternalHttps: true })?.url ?? null, src.startsWith("https://") ? src : null);
+    assert.equal(projectPostBody({ post, mediaLookup, hasPublicTransform: true }), doc);
+    assert.equal(resolveCoverImage({ post, mediaLookup }, { allowExternalHttps: true })?.url ?? null, src.startsWith("https://") ? src : null);
   }
   const placeholder = '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">Cat</span></figure>';
   for (const src of ["javascript:alert(1)", "JaVaScRiPt:alert(1)", "data:image/png;base64,AAAA", "//example.com/cat.png", "/\\example.com/cat.png", "/api/admin/v1/workspaces/ws/media/id/./original", "https://user:pass@example.com/cat.png"]) {

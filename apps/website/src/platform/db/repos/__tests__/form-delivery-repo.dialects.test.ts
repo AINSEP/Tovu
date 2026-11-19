@@ -4,9 +4,11 @@ import { test } from "node:test";
 
 import { type FormDeliveryBinding, type FormDeliveryPlan, planFormDeliveries } from "@jini-ai/cms/forms";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { ContentKernel } from "../../content-kernel.js";
-import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "../form-delivery-repo.js";
+import { schemaErasedKernel, type ContentKernel } from "../../content-kernel.js";
+import { SqlFormPullLeaseRepo, type SqlFormDeliveryRepo } from "@jini-ai/cms/forms/sql";
+import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
+import { outboxEventValues } from "@jini-ai/db/events";
 
 /**
  * @file Security pins for form delivery persistence (migration 0019) on SQLite and PGlite:
@@ -63,7 +65,7 @@ describeEachDialect(
   "form delivery repo security",
   {
     tables: ["form_delivery_plans", "form_delivery_jobs", "form_receiver_pulls", "outbox_events"],
-    make: (kernel: ContentKernel) => ({ kernel, repo: new SqlFormDeliveryRepo({ kernel }), leases: new SqlFormPullLeaseRepo({ kernel }), outbox: outboxOn({ kernel }) }),
+    make: (kernel: ContentKernel) => ({ kernel, repo: createSiteFormDeliveryRepo({ kernel }), leases: new SqlFormPullLeaseRepo({ kernel: schemaErasedKernel({ store: kernel }), table: "form_receiver_pulls" }), outbox: outboxOn({ kernel }) }),
   },
   (make) => {
     test("reference jobs store no answers, replay unchanged and stop after purge", async () => {
@@ -197,6 +199,40 @@ describeEachDialect(
       await ctx.outbox.markDelivered({ id: "wa-job-1" });
       assert.deepEqual((await ctx.repo.recentUnfinished({ workspaceId: "wa" })).map(row => row.bindingId), ["b3", "b2"]);
       assert.deepEqual((await ctx.repo.recentUnfinished({ workspaceId: "wa" }, { limit: 1 })).map(row => row.bindingId), ["b3"]);
+    });
+
+    test("the default recent limit returns the newest 50 of 51 jobs and an explicit limit returns two", async () => {
+      const ctx = make();
+      for (let index = 0; index < 51; index += 1) {
+        await plan(ctx, "wa", [`b${index}`], { submissionId: `s${index}`, nowIso: at(index * 1_000) });
+      }
+      assert.deepEqual((await ctx.repo.recentUnfinished({ workspaceId: "wa" })).map(row => row.bindingId),
+        Array.from({ length: 50 }, (_, index) => `b${50 - index}`));
+      assert.deepEqual((await ctx.repo.recentUnfinished({ workspaceId: "wa" }, { limit: 2 })).map(row => row.bindingId), ["b50", "b49"]);
+    });
+
+    test("a duplicate binding with distinct job IDs rolls back the plan, job index and outbox", async () => {
+      const ctx = make();
+      await assert.rejects(plan(ctx, "wa", ["b1", "b1"]));
+      assert.deepEqual(await ctx.kernel.run(db => db.selectFrom("form_delivery_plans").selectAll().execute()), []);
+      assert.deepEqual(await ctx.kernel.run(db => db.selectFrom("form_delivery_jobs").selectAll().execute()), []);
+      assert.deepEqual(await ctx.kernel.run(db => db.selectFrom("outbox_events").selectAll().execute()), []);
+    });
+
+    test("the injected outbox mapper receives planned jobs in order and supplies the stored rows", async () => {
+      const ctx = make();
+      const calls: Parameters<typeof outboxEventValues>[0][] = [];
+      const nextAttemptAt = at(123_000);
+      const repo = createSiteFormDeliveryRepo({ kernel: ctx.kernel }, { outboxRow: event => {
+        calls.push(event);
+        return { ...outboxEventValues(event), next_attempt_at: nextAttemptAt };
+      } });
+      const planned = await plan({ repo }, "wa", ["b2", "b1"]);
+      assert.deepEqual(calls, planned.jobs);
+      for (const job of planned.jobs) {
+        const row = await ctx.kernel.run(db => db.selectFrom("outbox_events").select(["id", "next_attempt_at"]).where("id", "=", job.id).executeTakeFirstOrThrow());
+        assert.deepEqual(row, { id: job.id, next_attempt_at: nextAttemptAt });
+      }
     });
 
     test("a status read returns only an allowlisted error code, never the raw outbox error text", async () => {

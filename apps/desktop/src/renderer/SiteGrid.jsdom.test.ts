@@ -520,7 +520,7 @@ test('Enter or Space on the card opens it; the same key on anything inside the c
   // The defect this originally caught: a control's keydown bubbles to the card's handler, which —
   // unguarded — called `preventDefault()`, cancelling the click the browser was about to synthesize
   // from the key, and opened the project underneath it. Keyboard users could not reach that
-  // control's own behaviour at all. `isCardOpenKey` is the guard (`SiteGrid.hooks.test.ts`); the
+  // control's own behaviour at all. Jini's `isCardOpenKey` is the guard (`SiteGrid.hooks.test.ts`); the
   // handler carrying it is `cardOpenProps`, spread onto the card. That is TWO hops between the
   // predicate and the DOM, which is why this presses real keys on the rendered card: either hop
   // alone could be correct while the card had no keyboard behaviour at all.

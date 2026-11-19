@@ -1,3 +1,5 @@
+import type { NativeCapabilities } from "@jini-ai/core/contracts/agents";
+
 /** Host policy: Full CLI access defaults ON locally; only the owner's admin action may change this grant. */
 export const ASSISTANT_SUBAGENTS_NAMESPACE = "core.assistant-full-cli";
 export const ASSISTANT_SUBAGENTS_KEY = "enabled";
@@ -13,7 +15,10 @@ export const ASSISTANT_CLI_CAPABILITIES = [
   { key: "workflows", label: "Workflows", description: "Use scheduled tasks, worktrees and remote workflows." },
   { key: "loginEnvironment", label: "Your shell environment", description: "Start runs with your login shell's PATH and environment." },
 ] as const;
+export const CLI_CAPABILITY_KEYS = ASSISTANT_CLI_CAPABILITIES.map(({ key }) => key);
 export type AssistantCliCapability = typeof ASSISTANT_CLI_CAPABILITIES[number]["key"];
+type Assert<T extends true> = T;
+export type AssistantCliCapabilityKeysMatch = Assert<[Exclude<AssistantCliCapability, keyof NativeCapabilities> | Exclude<keyof NativeCapabilities, AssistantCliCapability>] extends [never] ? true : false>;
 export interface AssistantCliAgentPermissions { enabled?: boolean; capabilities?: Partial<Record<AssistantCliCapability, boolean>> }
 export interface AssistantCliPermissions { enabled: boolean; capabilities: Record<AssistantCliCapability, boolean>; byAgent?: Record<string, AssistantCliAgentPermissions> }
 export const ASSISTANT_SUBAGENTS_WRITE_REASON = "Only the owner can change Full CLI access through Admin AI Assistant settings.";

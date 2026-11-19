@@ -14,7 +14,8 @@ import { InMemorySettingsRepo, ensureSettingDefinitions, SCOPE_BIT } from "@jini
 import { FORM_PULL_LEASE_MS } from "#src/features/form-destinations/index";
 import { closeSqliteConnection, sqliteKernel } from "#src/platform/db/kernel/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
+import { SqlFormPullLeaseRepo } from "@jini-ai/cms/forms/sql";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { composeFormSubmissions, type FormSubmissionsCompositionDeps } from "../form-submissions.js";
 
 /** @file The composed form destination pull: saved keys → destination pages → import → acknowledge → outbox. */
@@ -31,7 +32,7 @@ after(() => { for (const store of openStores) closeSqliteConnection(store); });
 function realLeases(): SqlFormPullLeaseRepo {
   const db = openContentDb(":memory:");
   openStores.push({ source: db });
-  return new SqlFormPullLeaseRepo({ kernel: sqliteKernel({ source: db }) });
+  return new SqlFormPullLeaseRepo({ kernel: schemaErasedKernel({ store: sqliteKernel({ source: db }) }), table: "form_receiver_pulls" });
 }
 
 function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[]; fail?: string; pull?: () => Promise<FormDestinationPage> }> }) {

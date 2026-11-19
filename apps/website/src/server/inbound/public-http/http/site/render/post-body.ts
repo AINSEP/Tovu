@@ -5,7 +5,7 @@ import type { SiteRenderContext } from "../render-context.js";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { renderHtmlPageBody } from "./page-body.js";
 import { renderDocNode } from "./content-html.js";
-import { projectPostBody } from "#src/contracts/core/cover-image";
+import { projectPostBody } from "@jini-ai/cms/media/cover-image";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
@@ -87,7 +87,7 @@ export function renderPostBody(required: { ctx: SiteRenderContext; post: PostRec
   const body =
     post.bodyFormat === "html"
       ? renderHtmlPageBody({ html: post.bodyHtml ?? "", resolved: ctx.pageHtmlEmbeds })
-      : renderDocNode({ node: projectPostBody({ post }, { mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null,
+      : renderDocNode({ node: projectPostBody({ post, mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null,
           hasPublicTransform: ctx.mediaTransformVersions.has("public") }) as JsonValue }, { inlineResolved: ctx.widgetInlineResolved, mediaTransformVersions: ctx.mediaTransformVersions, mediaAssetMetadata: ctx.mediaAssetMetadata });
   return body + renderAssignedTermsBlock(ctx.assignedTerms);
 }
