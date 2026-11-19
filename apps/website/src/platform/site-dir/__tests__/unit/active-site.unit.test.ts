@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { persistActiveSite, readEnvLine, readPersistedActiveSite, upsertEnvLine } from "../../active-site.js";
+import { readEnvLine, upsertEnvLine } from "@jini-ai/platform/fs";
+import { persistActiveSite, readPersistedActiveSite } from "../../active-site.js";
 
 /**
  * @file 2026-09-04 sites-switcher decision — TDD for `active-site.ts`'s Activate persistence half.
@@ -130,6 +131,23 @@ test("readEnvLine: the FIRST matching line wins — the same one upsertEnvLine w
   const source = "TOVU_SITE=first\nTOVU_SITE=second\n";
   assert.equal(readEnvLine({ source, key: "TOVU_SITE" }), "first");
   assert.equal(upsertEnvLine({ source, key: "TOVU_SITE", value: "third" }), "TOVU_SITE=third\nTOVU_SITE=second\n");
+});
+
+test("persistence replaces and reads the first duplicate TOVU_SITE while preserving unrelated bytes", () => {
+  const cwd = mkRepoRootFixture();
+  const envPath = path.join(cwd, ".env");
+  try {
+    fs.writeFileSync(envPath, "# pending site\nTOVU_SITE=first\nUNRELATED=  keep these bytes  \nTOVU_SITE=second\n");
+
+    persistActiveSite({ name: "queued" }, { cwd });
+
+    const written = fs.readFileSync(envPath, "utf8");
+    assert.equal(written, "# pending site\nTOVU_SITE=queued\nUNRELATED=  keep these bytes  \nTOVU_SITE=second\n");
+    assert.equal(readPersistedActiveSite({ cwd }), "queued");
+    assert.equal(readEnvLine({ source: written, key: "TOVU_SITE" }), "queued");
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 test("readPersistedActiveSite: null when there is no .env file at all", () => {

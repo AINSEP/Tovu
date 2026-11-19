@@ -46,8 +46,7 @@
  * Screenshots land in `ADS-memory/.local-artifacts/site-card-actions-screenshots-<date>/` unless
  * `SITE_POWER_SHOT_DIR` says otherwise. Exits non-zero on the first failed check.
  */
-import { _electron as electron } from 'playwright';
-import type { ElectronApplication, Page } from 'playwright';
+import { withTovuVerificationApp, type Page } from './adapters/live-electron.ts';
 import path from 'node:path';
 import fs from 'node:fs';
 
@@ -376,15 +375,6 @@ async function verifyDark({ win }: { win: Page }, _options = {}): Promise<void> 
   await shot({ win, name: 'dark-stopped-again' });
 }
 
-function launchIsolatedApp(): Promise<ElectronApplication> {
-  return electron.launch({
-    executablePath: path.join(DESKTOP, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'),
-    args: ['.'],
-    cwd: DESKTOP,
-    env: { ...process.env, TOVU_DESKTOP_USER_DATA_DIR: USER_DATA, TOVU_DESKTOP_UI: 'runner' },
-  });
-}
-
 async function main(): Promise<void> {
   const expectedSiteName = seedSitePowerProfile({ siteDir: SITE_DIR, shotDir: SHOT_DIR, userDataDir: USER_DATA }, { fs, log: ({ line }, _options = {}) => console.log(line), now: () => new Date() });
   if (expectedSiteName === null) {
@@ -392,8 +382,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const app = await launchIsolatedApp();
-  try {
+  await withTovuVerificationApp({ desktopDir: DESKTOP, userDataDir: USER_DATA, run: async ({ app }) => {
     const win = await app.firstWindow();
     win.on('pageerror', (error) => console.log('PAGEERROR::', error.message));
     await win.waitForLoadState('domcontentloaded');
@@ -403,9 +392,7 @@ async function main(): Promise<void> {
     await verifyStopped({ win });
     await verifyMenu({ win });
     await verifyDark({ win });
-  } finally {
-    await app.close();
-  }
+  } }, { runner: true });
 
   process.exitCode = report();
 }

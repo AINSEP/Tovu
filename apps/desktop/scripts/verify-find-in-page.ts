@@ -47,8 +47,7 @@
  * "<the site's own title>"}, {id:1, visible:true, title:"Tovu"}]`. `verifyGuest`'s later, warm run
  * never hit this because by then the capture window from its own site's start had long since closed.
  */
-import { _electron as electron } from 'playwright';
-import type { ElectronApplication, Page } from 'playwright';
+import { withTovuVerificationApp, type ElectronApplication, type Page } from './adapters/live-electron.ts';
 import path from 'node:path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -453,13 +452,7 @@ async function main(): Promise<void> {
   console.log('USER_DATA::', USER_DATA);
   console.log('SHOT_DIR::', SHOT_DIR);
 
-  const app = await electron.launch({
-    executablePath: path.join(DESKTOP, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'),
-    args: ['.'],
-    cwd: DESKTOP,
-    env: { ...process.env, TOVU_DESKTOP_USER_DATA_DIR: USER_DATA },
-  });
-  try {
+  await withTovuVerificationApp({ desktopDir: DESKTOP, userDataDir: USER_DATA, run: async ({ app }) => {
     const win = await app.firstWindow();
     win.on('pageerror', (error) => console.log('PAGEERROR::', error.message));
     await win.waitForLoadState('domcontentloaded');
@@ -471,9 +464,7 @@ async function main(): Promise<void> {
     if (includeGuest) await verifyColdGuest({ app, win, homeWindowId });
     await verifyTopLevel({ app, win, homeWindowId });
     if (includeGuest) await verifyGuest({ app, win, homeWindowId });
-  } finally {
-    await app.close();
-  }
+  } });
 
   process.exitCode = report();
 }

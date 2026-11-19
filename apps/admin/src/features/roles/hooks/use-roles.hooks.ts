@@ -5,7 +5,7 @@ import { describeApiError, KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../roles-i18n";
 import { defaultRolesPort } from "./roles-dependencies.hooks";
-import type { RolesPort } from "./roles-port.hooks";
+import type { RolesPort } from "@jini-ai/user-management/react";
 
 /**
  * @file Everything the "Roles & Permissions" screen does, so `Roles.tsx` is only markup.
@@ -49,7 +49,7 @@ import type { RolesPort } from "./roles-port.hooks";
  * directly, same shape as every other migrated create form in this sweep.
  *
  * `useX(dependencies)` / `useWiredX()` conversion (2026-08-14): every `api.xxx()` call below is now
- * `port.xxx()` — see `roles-port.hooks.ts` for the interface and `roles-dependencies.hooks.ts` for
+ * `port.xxx()` — see `@jini-ai/user-management/react` for the port and `roles-dependencies.hooks.ts` for
  * the real binding, the only file left that imports `lib/api` as a value for this feature. Same
  * "no ref/dep-array needed" note as `use-users.hooks.ts`'s identical section: every write here goes
  * through `useFetchMutation` (via `@jini-ai/ui/fetch-query`), which takes a fresh `run` closure every
@@ -216,7 +216,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
   const list = useFetchQuery({
     key: KEYS.list,
     fetch: async () => {
-      const [r, p] = await Promise.all([port.listRoles(), port.listPolicies()]);
+      const [r, p] = await Promise.all([port.listRoles({}), port.listPolicies({})]);
       return { roles: r.roles, policies: p.policies };
     },
   });

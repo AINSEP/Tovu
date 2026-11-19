@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPolicyPermission } from "@/features/roles/api/roles-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { createFakeRolesPort, defaultRolesPort } from "../hooks/roles-dependencies.hooks";
+import { createFakeRolesPort } from "@jini-ai/user-management/react/testing";
+import { defaultRolesPort } from "../hooks/roles-dependencies.hooks";
 import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";
 
 /**
@@ -29,6 +30,14 @@ import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";
  * identical split: this file's bulk stays a `fetch`-stubbed `useWiredRoles` suite, and a new
  * "injected port" group at the bottom composes `useRoles` directly against `createFakeRolesPort`
  * with no `fetch` stub at all.
+ *
+ * The Jini in-memory RolesPort fake — "every port gets a fake" (see `assistant-chats-
+ * dependencies.hooks.ts`) — mirrors `posts-list-dependencies.hooks.ts`'s `createFakePostsListPort`:
+ * mutations write through to the same backing arrays the list methods read, so a test can assert a
+ * write's outcome by reading the exposed `roles`/`policies` arrays back, with no `fetch` stub.
+ * Seeded permission rows let a test open a policy that already has permissions without writing
+ * them one call at a time; the exposed permission store lets removal tests read the outcome back.
+ * The fake's role/policy IDs derive from store size, so callers can name each row explicitly.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -71,17 +80,17 @@ describe("roles port contracts", () => {
   });
 
   it("an unseeded fake starts empty and keeps created and renamed records in its list results", async () => {
-    const port = createFakeRolesPort();
-    expect(await port.listRoles()).toEqual({ roles: [] });
-    expect(await port.listPolicies()).toEqual({ policies: [] });
+    const port = createFakeRolesPort({});
+    expect(await port.listRoles({})).toEqual({ roles: [] });
+    expect(await port.listPolicies({})).toEqual({ policies: [] });
     const { role } = await port.createRole({ name: "Writer" });
     const { policy } = await port.createPolicy({ name: "Read" });
     expect(role).toEqual({ id: "fake-role-1", workspaceId: "fake-ws", name: "Writer", isBuiltin: false });
     expect(policy).toEqual({ id: "fake-policy-1", workspaceId: "fake-ws", name: "Read", description: undefined, isBuiltin: false, isFrozen: false });
     await port.updateRole({ roleId: role.id, name: "Editor" });
     await port.updatePolicy({ policyId: policy.id });
-    expect(await port.listRoles()).toEqual({ roles: [{ ...role, name: "Editor" }] });
-    expect(await port.listPolicies()).toEqual({ policies: [policy] });
+    expect(await port.listRoles({})).toEqual({ roles: [{ ...role, name: "Editor" }] });
+    expect(await port.listPolicies({})).toEqual({ policies: [policy] });
     await port.deleteRole({ roleId: role.id });
     await port.deletePolicy({ policyId: policy.id });
     expect(port.roles).toEqual([]);
@@ -89,7 +98,7 @@ describe("roles port contracts", () => {
   });
 
   it("fake writes to missing roles and policies reject without changing siblings", async () => {
-    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
     await expect(port.updateRole({ roleId: "absent", name: "Overwrite" })).rejects.toThrow("fake role not found: absent");
     await expect(port.deleteRole({ roleId: "absent" })).rejects.toThrow("fake role not found: absent");
     await expect(port.updatePolicy({ policyId: "absent" }, { name: "Overwrite" })).rejects.toThrow("fake policy not found: absent");
@@ -101,9 +110,11 @@ describe("roles port contracts", () => {
     expect(port.policyPermissions).toEqual([]);
   });
 
+  // Mirrors the server's membership proof: a row is only removable through the policy it
+  // actually belongs to, so a test cannot get a cross-policy delete past the fake either.
   it("permission removal proves policy membership and leaves another policy's row intact", async () => {
     const permission: AdminPolicyPermission = { id: "permission", workspaceId: "w1", policyId: "other", permission: "content.read", resourceType: null, constraintJson: null };
-    const port = createFakeRolesPort({ policies: [POLICY, { ...POLICY, id: "other" }], initialPolicyPermissions: [permission] });
+    const port = createFakeRolesPort({}, { policies: [POLICY, { ...POLICY, id: "other" }], initialPolicyPermissions: [permission] });
     await expect(port.removePolicyPermission({ policyId: POLICY.id, policyPermissionId: permission.id })).rejects.toThrow("policy permission 'permission' was not found on policy 'p1'");
     await expect(port.removePolicyPermission({ policyId: "absent", policyPermissionId: permission.id })).rejects.toThrow("fake policy not found: absent");
     expect(await port.listPolicyPermissions({ policyId: POLICY.id })).toEqual({ policyPermissions: [] });
@@ -114,7 +125,7 @@ describe("roles port contracts", () => {
   for (const operation of ["createRole", "updateRole", "deleteRole", "createPolicy", "updatePolicy", "deletePolicy", "listPermissions"] as const) {
     it(`the fake propagates configured ${operation} failures without changing its state`, async () => {
       const failure = new Error(`${operation} denied`);
-      const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY], [`${operation}Error`]: failure });
+      const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY], [`${operation}Error`]: failure });
       const actions = {
         createRole: () => port.createRole({ name: "New" }), updateRole: () => port.updateRole({ roleId: ROLE.id, name: "New" }),
         deleteRole: () => port.deleteRole({ roleId: ROLE.id }), createPolicy: () => port.createPolicy({ name: "New" }),
@@ -491,8 +502,28 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
    *  locale request to a fixed response, so every assertion below on `fetchMock` still only counts
    *  the calls `RolesPort` itself would have made. */
 
+  it("retains a written permission's resource type when listing the open policy", async () => {
+    const port = createFakeRolesPort({}, { policies: [POLICY] });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
+    act(() => result.current.togglePermissionForm({ policyId: POLICY.id }));
+    await waitFor(() => expect(result.current.permissionsLoading).toBe(false));
+    act(() => {
+      result.current.setPermissionInput("content.write");
+      result.current.setResourceTypeInput("post");
+    });
+
+    await act(async () => result.current.onWritePermission({ policyId: POLICY.id }));
+
+    expect(result.current.permissionRows).toHaveLength(1);
+    expect(result.current.permissionRows[0]).toMatchObject({
+      policyId: POLICY.id, permission: "content.write", resourceType: "post",
+    });
+    expect(result.current.rowError).toBeNull();
+  });
+
   it("loads roles and policies through the injected port, without touching fetch", async () => {
-    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
@@ -502,7 +533,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onCreateRole writes through the injected port and the list reflects the new role", async () => {
-    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
@@ -519,7 +550,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onCreatePolicy stores the name and description, clears both fields, and reloads", async () => {
-    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
     act(() => {
@@ -538,7 +569,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onCreatePolicy keeps both fields and reports a failed create", async () => {
-    const port = createFakeRolesPort({ policies: [POLICY], createPolicyError: new Error("create denied") });
+    const port = createFakeRolesPort({}, { policies: [POLICY], createPolicyError: new Error("create denied") });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
     act(() => {
@@ -558,7 +589,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   it("opens a policy without a description with an empty description draft", async () => {
     const { description: _description, ...fields } = POLICY;
     const policy = { ...fields, id: "p2", name: "No description" };
-    const port = createFakeRolesPort({ policies: [POLICY, policy] });
+    const port = createFakeRolesPort({}, { policies: [POLICY, policy] });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).not.toBeNull());
     act(() => result.current.startEditPolicy(POLICY));
@@ -570,7 +601,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onSavePolicy persists both edited fields, closes the edit row, and reloads", async () => {
-    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
     act(() => result.current.startEditPolicy(POLICY));
@@ -587,7 +618,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onSavePolicy keeps the edit row and both drafts on failure", async () => {
-    const port = createFakeRolesPort({ policies: [POLICY], updatePolicyError: new Error("update denied") });
+    const port = createFakeRolesPort({}, { policies: [POLICY], updatePolicyError: new Error("update denied") });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([POLICY]));
     act(() => result.current.startEditPolicy(POLICY));
@@ -605,7 +636,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onDeleteRole removes the pending role through the injected port", async () => {
-    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
 
@@ -629,7 +660,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   };
 
   it("togglePermissionForm loads the policy's current permissions when it opens", async () => {
-    const port = createFakeRolesPort({
+    const port = createFakeRolesPort({}, {
       roles: [ROLE],
       policies: [POLICY],
       initialPolicyPermissions: [PERMISSION_ROW],
@@ -645,7 +676,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("togglePermissionForm clears the loaded rows when it closes", async () => {
-    const port = createFakeRolesPort({
+    const port = createFakeRolesPort({}, {
       roles: [ROLE],
       policies: [POLICY],
       initialPolicyPermissions: [PERMISSION_ROW],
@@ -663,7 +694,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("onRemovePermission removes the row through the injected port and refreshes the list", async () => {
     const other = { ...PERMISSION_ROW, id: "pp-2", permission: "content.read" };
-    const port = createFakeRolesPort({
+    const port = createFakeRolesPort({}, {
       roles: [ROLE],
       policies: [POLICY],
       initialPolicyPermissions: [PERMISSION_ROW, other],
@@ -685,7 +716,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onRemovePermission sets rowError from the injected port's configured failure and keeps the row", async () => {
-    const port = createFakeRolesPort({
+    const port = createFakeRolesPort({}, {
       roles: [ROLE],
       policies: [POLICY],
       initialPolicyPermissions: [PERMISSION_ROW],
@@ -706,7 +737,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onWritePermission sets rowError from the injected port's configured failure", async () => {
-    const port = createFakeRolesPort({
+    const port = createFakeRolesPort({}, {
       roles: [ROLE],
       policies: [POLICY],
       writePermissionError: new Error("boom"),
@@ -725,7 +756,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   describe("pendingPermissionRemove / onConfirmRemovePermission (C1)", () => {
     it("setPendingPermissionRemove opens the confirmation without touching the port", async () => {
-      const port = createFakeRolesPort({
+      const port = createFakeRolesPort({}, {
         roles: [ROLE],
         policies: [POLICY],
         initialPolicyPermissions: [PERMISSION_ROW],
@@ -743,7 +774,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     it("onConfirmRemovePermission removes the pending row, refreshes the list, and closes the confirmation", async () => {
       const other = { ...PERMISSION_ROW, id: "pp-2", permission: "content.read" };
-      const port = createFakeRolesPort({
+      const port = createFakeRolesPort({}, {
         roles: [ROLE],
         policies: [POLICY],
         initialPolicyPermissions: [PERMISSION_ROW, other],
@@ -765,7 +796,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
 
     it("is a no-op with nothing pending", async () => {
-      const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY], initialPolicyPermissions: [PERMISSION_ROW] });
+      const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY], initialPolicyPermissions: [PERMISSION_ROW] });
       const removeSpy = vi.spyOn(port, "removePolicyPermission");
       const { result } = renderHook(() => useRoles({ port }), { wrapper });
       await waitFor(() => expect(result.current.roles).not.toBeNull());
@@ -778,7 +809,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
 
     it("a failed confirmed removal closes the confirmation and surfaces the exact error, keeping the row", async () => {
-      const port = createFakeRolesPort({
+      const port = createFakeRolesPort({}, {
         roles: [ROLE],
         policies: [POLICY],
         initialPolicyPermissions: [PERMISSION_ROW],
@@ -801,7 +832,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     it("a removal settling while a second removal is in flight must not clear the second row's busy state", async () => {
       const other = { ...PERMISSION_ROW, id: "pp-2", permission: "content.read" };
-      const port = createFakeRolesPort({
+      const port = createFakeRolesPort({}, {
         roles: [ROLE],
         policies: [POLICY],
         initialPolicyPermissions: [PERMISSION_ROW, other],
@@ -864,7 +895,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   it("switching panels while the first load is in flight must not let the stale panel's rows win", async () => {
     const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
     const deferred: Record<string, { resolve: (v: { policyPermissions: AdminPolicyPermission[] }) => void }> = {};
-    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY, otherPolicy] });
+    const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY, otherPolicy] });
     port.listPolicyPermissions = vi.fn(({ policyId }: { policyId: string }) => {
       return new Promise<{ policyPermissions: AdminPolicyPermission[] }>((resolve) => {
         deferred[policyId] = { resolve };
@@ -909,7 +940,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       id: "other-perm", workspaceId: "w1", policyId: otherPolicy.id,
       permission: "other.read", resourceType: null, constraintJson: null,
     }];
-    const port = createFakeRolesPort({ policies: [POLICY, otherPolicy], initialPolicyPermissions: rows });
+    const port = createFakeRolesPort({}, { policies: [POLICY, otherPolicy], initialPolicyPermissions: rows });
     const listPermissions = port.listPolicyPermissions.bind(port);
     let rejectOld!: (reason: Error) => void;
     port.listPolicyPermissions = ({ policyId }) => policyId === POLICY.id
@@ -936,7 +967,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   it("onSaveRole: a stale save settling after the operator moved to editing a DIFFERENT role must not close that row's edit UI", async () => {
     const roleB = { id: "rB", workspaceId: "w1", name: "Beta", isBuiltin: false };
     let resolveA!: (v: { role: typeof ROLE }) => void;
-    const port = createFakeRolesPort({ roles: [ROLE, roleB], policies: [POLICY] });
+    const port = createFakeRolesPort({}, { roles: [ROLE, roleB], policies: [POLICY] });
     port.updateRole = vi.fn(() => new Promise<{ role: typeof ROLE }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
@@ -964,7 +995,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   it("onSavePolicy: a stale save settling after the operator moved to editing a DIFFERENT policy must not close that row's edit UI", async () => {
     const policyB = { id: "pB", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
     let resolveA!: (v: { policy: typeof POLICY }) => void;
-    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY, policyB] });
+    const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY, policyB] });
     port.updatePolicy = vi.fn(() => new Promise<{ policy: typeof POLICY }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
@@ -994,7 +1025,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   it("onDeleteRole: a stale delete settling after the operator opened a DIFFERENT row's delete confirmation must not silently close it", async () => {
     const roleB = { id: "rB", workspaceId: "w1", name: "Beta", isBuiltin: false };
     let resolveA!: () => void;
-    const port = createFakeRolesPort({ roles: [ROLE, roleB], policies: [POLICY] });
+    const port = createFakeRolesPort({}, { roles: [ROLE, roleB], policies: [POLICY] });
     port.deleteRole = vi.fn(() => new Promise<void>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
@@ -1024,7 +1055,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   it("onWritePermission: a stale write settling after the operator switched panels and typed a NEW value must not clear it", async () => {
     let resolveA!: (v: { policyPermission: unknown }) => void;
     const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
-    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY, otherPolicy] });
+    const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY, otherPolicy] });
     port.writePolicyPermission = vi.fn(() => new Promise<{ policyPermission: unknown }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
@@ -1061,7 +1092,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
       const rowA = { id: "pp-a", workspaceId: "w1", policyId: POLICY.id, permission: "content.read", resourceType: null, constraintJson: null };
       const rowB = { id: "pp-b", workspaceId: "w1", policyId: otherPolicy.id, permission: "other.read", resourceType: null, constraintJson: null };
-      const port = createFakeRolesPort({
+      const port = createFakeRolesPort({}, {
         roles: [ROLE],
         policies: [POLICY, otherPolicy],
         initialPolicyPermissions: [rowA, rowB],
@@ -1110,7 +1141,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       const rowA1 = { id: "pp-a1", workspaceId: "w1", policyId: POLICY.id, permission: "content.read", resourceType: null, constraintJson: null };
       const rowA2 = { id: "pp-a2", workspaceId: "w1", policyId: POLICY.id, permission: "content.write", resourceType: null, constraintJson: null };
       const rowB = { id: "pp-b", workspaceId: "w1", policyId: otherPolicy.id, permission: "other.read", resourceType: null, constraintJson: null };
-      const port = createFakeRolesPort({
+      const port = createFakeRolesPort({}, {
         roles: [ROLE],
         policies: [POLICY, otherPolicy],
         initialPolicyPermissions: [rowA1, rowA2, rowB],
@@ -1153,7 +1184,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     // updater. React 18 Strict Mode double-invokes a functional `setState` updater in dev, so every
     // open used to fire two list requests.
     it("togglePermissionForm fires exactly one list request per open, even under Strict Mode", async () => {
-      const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+      const port = createFakeRolesPort({}, { roles: [ROLE], policies: [POLICY] });
       const listSpy = vi.spyOn(port, "listPolicyPermissions");
       function strictWrapper({ children }: { children: React.ReactNode }) {
         return (
