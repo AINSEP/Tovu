@@ -37,7 +37,6 @@ export {
   type PublicPostReaderPort,
   type PostRepoPort,
   type PostBodyFormat,
-  type PostKind,
   type BeforeSaveHookPort,
   type UpdatePostInput,
   type PostAutosaveSnapshot,

@@ -24,5 +24,5 @@
  * Integration-secret persistence is a seam for outbound connectors, not ownership of their runtime.
  */
 // Canonical webhook ABI; Tovu supplies persistence and outbound HTTP policy.
-export type { IntegrationSecretRepoPort, KeyringPort, RootKeyHandle as SiteKeyHandle, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
+export type { IntegrationSecretRepoPort, RootKeyHandle as SiteKeyHandle, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort  } from "@jini-ai/integrations/webhooks";
 export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "../../platform/http/index.js";

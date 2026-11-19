@@ -6,7 +6,7 @@ import test from "node:test";
 import express from "express";
 import { JSDOM } from "jsdom";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import { NO_THEME_ID } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { consentFixture } from "#src/features/consent/__tests__/fixture";
 import { dispatchHttpRequest, dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";

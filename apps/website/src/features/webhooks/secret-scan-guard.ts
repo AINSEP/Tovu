@@ -1,3 +1,4 @@
+import { scanTextForSecrets } from "../../contracts/core/secret-scan.js";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -167,32 +168,6 @@ function gitCommand(_required: Record<string, never>, _options: Record<string, n
 function listTrackedFiles({ repoRoot }: { repoRoot: string }, _optional: Record<string, never> = {}): string[] {
   const out = execFileSync(gitCommand({}), ["ls-files", "-z"], { cwd: repoRoot, encoding: "utf8" });
   return out.split("\0").filter(Boolean);
-}
-
-export interface SecretScanHit {
-  readonly patternName: string;
-  /** Character offset within the scanned text where the match starts. */
-  readonly index: number;
-  /** The exact matched substring — the allowlist is scoped to this, not just (file, patternName),
-   *  so a NEW different secret matching the same pattern in an already-allowlisted file is still
-   *  caught (see file header's Allowlist section). */
-  readonly value: string;
-}
-
-/** Core scanner, unit-testable directly against synthetic text (no filesystem, no git).
- *  @complexity O(p*n), p = pattern count (fixed, small), n = text length. */
-export function scanTextForSecrets({ text }: { text: string }, _optional = {}): SecretScanHit[] {
-  const hits: SecretScanHit[] = [];
-  for (const { name, pattern } of SECRET_PATTERNS) {
-    const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
-    const re = new RegExp(pattern.source, flags);
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(text)) !== null) {
-      hits.push({ patternName: name, index: match.index, value: match[0] });
-      if (match[0].length === 0) re.lastIndex += 1; // guard against zero-length matches looping
-    }
-  }
-  return hits;
 }
 
 export interface SecretScanViolation {

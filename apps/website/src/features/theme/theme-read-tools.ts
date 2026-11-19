@@ -1,7 +1,7 @@
 import { findThemeOrThrow, isShapeRejection, type ThemeToolDeps } from "./asset-operations.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refresh.js";
-import { NO_THEME_ID } from "./active-theme.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
 import { optionalThemeReadInteger, pageThemeReadContent, selectThemeReadContent, themeReadSelection } from "./theme-read-content.js";

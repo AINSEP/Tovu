@@ -5,7 +5,8 @@ import { pushBundleToPeer, type PeerCallDeps, type NotSupportedByLiveEntry } fro
 import { createCompositePeerBlobSource, type CompositeBlobStoreRead } from "./composite-blob-source.js";
 import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows, tagTrashingRows } from "./report-labels.js";
 import { entryPublicPath } from "#src/platform/routing/index";
-import type { PostRecord } from "../post/contracts.js";
+/** The post fields `entryPublicPath` reads, named `PostRecord` so the cast at its call below stays as written. */
+type PostRecord = Parameters<typeof entryPublicPath>[0]["post"];
 import type { PublishScope } from "./ui/contract.js";
 
 export interface PlanPublishToPeerDeps {

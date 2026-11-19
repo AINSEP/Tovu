@@ -1,4 +1,4 @@
-import { ProjectKeyCreateConflictError } from "../project-keys/create-vault.js";
+import { ProjectKeyCreateConflictError } from "#src/contracts/core/credential-store";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError } from "@jini-ai/core/contracts/vault";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';

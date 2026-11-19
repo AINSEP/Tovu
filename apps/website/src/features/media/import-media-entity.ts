@@ -2,8 +2,13 @@ import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-conten
 
 import { MediaConflictError, MediaSourceImmutableError, resolveWriteOnceSource, replaceMediaFile, MediaValidationError, sniffContentType } from "./index.js";
 import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord, VersionedMediaRepoPort } from "./index.js";
-import type { MediaSourceReplacement } from "#src/features/publish-content/type-registry";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
+
+/** The reviewed source a replace-on-import may overwrite (publish-content's precheck refusal carries it). */
+interface MediaSourceReplacement {
+  readonly version: number;
+  readonly sourceSha256: string;
+}
 
 /**
  * @file Task 12 of the publish-content (Publish Content) feature —

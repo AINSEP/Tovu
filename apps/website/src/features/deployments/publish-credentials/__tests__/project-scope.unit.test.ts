@@ -312,3 +312,12 @@ test('a Deployments-page save attaches its project key to this site and survives
   assert.equal(orphan.isDefault, false);
   assert.deepEqual(await attachments.usersOf({ keyId: orphan.id }), []);
 });
+
+test("a projectKeyCreateVault conflict maps to PublishCredentialDuplicateLabelError", async () => {
+  const project = projectStore();
+  await saveVercel(site(project).deps, SITE_A, "Taken", secret("first"));
+  const view = attachedOnlyVault({ vault: project.vault, attachments: fakeAttachments(), siteId: SITE_B });
+  const b = site({ ...project, vault: view, createVault: projectKeyCreateVault({ owner: project.vault, view }) });
+  await assert.rejects(saveVercel(b.deps, SITE_B, "Taken", secret("second")), error =>
+    error instanceof PublishCredentialDuplicateLabelError && error.message.includes("P25_KEY_CREATE_CONFLICT"));
+});

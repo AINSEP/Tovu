@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import type { KeyringPort } from "../../features/webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { resolveMediaProviderCredential } from "../../features/media/provider-credential-store.js";
 import { createRouteDeps } from "../runtime/composition/app.js";

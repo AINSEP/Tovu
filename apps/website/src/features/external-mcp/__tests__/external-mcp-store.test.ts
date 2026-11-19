@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, deleteExternalMcpServer, externalMcpAdmissionRevision, listExternalMcpServerViews, openExternalMcpOAuthPayload, parseAllowedToolNames, parseArgs, parseEnvBlock, parseWriteAllowedToolNames, readEnabledExternalMcpConfigs, saveExternalMcpServer, toResolvedFederatedConnections } from "../external-mcp-store.js";
 import { FEDERATED_CONNECTION_DEFAULTS, admitRemoteTools, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";

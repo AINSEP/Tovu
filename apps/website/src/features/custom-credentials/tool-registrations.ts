@@ -12,7 +12,7 @@ import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { withCustomCredentialSetup } from "./credential-recovery.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale } from '../settings/index.js';
+import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock } from "@jini-ai/core/primitives";
 
@@ -31,7 +31,7 @@ import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { ToolContributor } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";
 import {

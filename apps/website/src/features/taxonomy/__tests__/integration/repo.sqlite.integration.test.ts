@@ -18,7 +18,8 @@ import {
   createPostBackedContentLookup,
   InMemoryContentLookup,
 } from "../../index.js";
-import type { DeletableTermRepoPort, TermListPort, TermRepoPort } from "../../index.js";
+import type { DeletableTermRepoPort } from "../../index.js";
+import type { TermListPort, TermRepoPort } from "@jini-ai/cms/taxonomy";
 import { openPreparedContentDb } from "../../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 
 /**

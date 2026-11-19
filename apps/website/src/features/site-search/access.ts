@@ -10,8 +10,9 @@
 import { encodeSearchKey, type SearchAccessPort, type SearchDocumentKey } from "@jini-ai/search";
 
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { MemberContext } from "../members/index.js";
-import type { PostKind } from "../post/contracts.js";
+/** The member-context fields search reads; `members`' `MemberContext` satisfies it structurally. */
+type SearchMemberContext = { readonly isAuthenticated: boolean; readonly activeTierIds: readonly string[]; readonly isPaid: boolean };
+import type { PostKind } from "#src/contracts/core/post-kind";
 import { CMS_SEARCH_COLLECTIONS, MEMBER_AUDIENCE, cmsSearchVisibility, isRowLive, toNowIso } from "./cms-document-source.js";
 
 /**
@@ -20,7 +21,7 @@ import { CMS_SEARCH_COLLECTIONS, MEMBER_AUDIENCE, cmsSearchVisibility, isRowLive
  * Uses the same tokens `cmsSearchVisibility` writes, so the two cannot drift apart.
  * @complexity O(a) in the active tier count.
  */
-export function memberSearchAudiences(required: { context: MemberContext }, _optional: Record<string, never> = {}): string[] {
+export function memberSearchAudiences(required: { context: SearchMemberContext }, _optional: Record<string, never> = {}): string[] {
   const { context } = required;
   if (!context.isAuthenticated) return [];
   return [MEMBER_AUDIENCE.members, ...(context.isPaid ? [MEMBER_AUDIENCE.paid] : []), ...context.activeTierIds.map((tierId) => MEMBER_AUDIENCE.tier({ tierId }))];

@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { laneForPurpose } from "@jini-ai/platform/mail";
 import type { MailRepoDeps, MailRepoOptions } from "./ledger.repo.js";
-import type { MailTestModeSetting } from "#src/features/settings/index";
+import type { MailTestModeSetting } from "#src/contracts/core/settings-vocabulary";
 import type { MailerSendOptions, MailerSendResult, OutboundEmail } from "#src/platform/mail/index";
 
 /** The delivery policy's per-result observer. Declared here (not in server/) so features never import server code. */

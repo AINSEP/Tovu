@@ -20,7 +20,6 @@ import type { DeployTargetInspection as PluginDeployTargetInspection, DeployTarg
 export type {
   DeployCredentialCheck,
   DeployFetchTimeouts,
-  DeployTargetCredential,
   ResponseHeaderSet,
   SigV4ClientOptions,
 } from "@jini-ai/devops/deploy";
@@ -29,7 +28,6 @@ export type {
  *  ABI names carry a `Plugin` prefix there and keep their host names here. */
 export type {
   PluginSigV4Client as SigV4Client,
-  PluginDeployHostKit as DeployHostKit,
   PluginDeployTargetCreateContext as DeployTargetCreateContext,
   PluginDeployCredentialCheckContext as DeployCredentialCheckContext,
   HostDeployPublishInput,

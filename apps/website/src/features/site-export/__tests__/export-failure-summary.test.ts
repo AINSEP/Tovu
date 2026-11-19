@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { firstExportFailure } from "../export-failure-summary.js";
-import type { ExportReport } from "../site-exporter.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
 
 // F4.3/F4.1: different collection sizes catch a combined count on the mixed-failure path.
 test("route precedence reports the route collection count even when more assets also failed", () => {

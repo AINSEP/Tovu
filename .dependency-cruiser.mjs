@@ -689,7 +689,7 @@ const PUBLIC_ENTRIES = {
   "features/navigation": ["render-entry"],
   "features/post": ["contracts", "rendering", "read-model", "post"],
   "features/presentation": ["active-theme-id"],
-  "features/settings": ["contracts", "site-title"],
+  "features/settings": ["site-title"],
   "features/taxonomy": ["contracts", "render-entry", "content-targets", "term-sync"],
   "features/theme": [
     "catalog", "rendering", "asset-operations", "static-render", "render-contract", "font-links",

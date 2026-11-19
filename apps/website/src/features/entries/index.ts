@@ -8,7 +8,7 @@
 export type { EntryStatus, EntryFieldsJson, EntryRecord, OwningContentType, ActorIdentityInput } from "@jini-ai/cms/entries";
 export type { Result } from "@jini-ai/core/primitives";
 
-export type { EntryListPort } from "@jini-ai/cms/entries";
+
 export { listEntries } from "@jini-ai/cms/entries";
 
 export type { FieldValidationError, ValidateFieldsResult } from "@jini-ai/cms/entries";
@@ -40,7 +40,6 @@ export {
 export type {
   AuthorizeFn,
   EntryRevisionInput,
-  EntryRepoPort,
   ContentTypeLookupPort,
   OutboxPort,
   WatermarkPort,

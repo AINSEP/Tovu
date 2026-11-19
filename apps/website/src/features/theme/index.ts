@@ -109,11 +109,9 @@ export {
   ThemeStylingRequiredError,
   DEFAULT_THEME_ID,
   DEFAULT_THEME_IDS,
-  NO_THEME_ID,
   type ActiveThemeResolution,
   type ActiveThemeResolutionDeps,
 } from "./active-theme.js";
-export { RENAMED_THEME_IDS, themeIdCandidates } from "./theme-id-aliases.js";
 
 // ADR-020 §3 (C6) Tier-2 guardrail: re-exported so `apps/website/src/server/inbound/public-http/http/site/liquid-render.ts`
 // can run the same lint defensively at render time that `loadTheme()` runs at publish time.

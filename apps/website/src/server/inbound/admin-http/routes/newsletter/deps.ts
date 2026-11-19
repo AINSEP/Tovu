@@ -32,7 +32,7 @@ import type { ListsDeps } from "#src/features/newsletter/lists";
 import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
 import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/features/newsletter/subscriptions";
 import type { UnsubscribeDeps } from "#src/features/newsletter/unsubscribe";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { RouteDeps } from "#src/server/routes/types";
 
 export interface NewsletterRouteDeps extends RouteDeps {

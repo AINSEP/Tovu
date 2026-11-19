@@ -1,7 +1,8 @@
 import { listPublishedPosts } from "#src/features/post/post";
 import { createMemberAccessResolver } from "#src/features/members/access-resolver";
 import { resolveRenderThemeId } from "../../../../middleware/render-theme-override.js";
-import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { checkSiteRelativeTarget } from "#src/platform/routing/index";
 import type { RouteRegistrar } from "#src/server/routes/types";

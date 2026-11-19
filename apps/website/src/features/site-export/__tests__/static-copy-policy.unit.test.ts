@@ -18,7 +18,8 @@ import { publishStaticSite } from "../../deployments/static-publish/adapter.js";
 import type { DeployFile } from "@jini-ai/devops/deploy";
 import type { LoadedDeployTarget } from "../../deployments/deploy-targets/types.js";
 import { exportPublicOrigin, rewriteRenderOrigins } from "../public-origin-policy.js";
-import { downloadForms, exportHtml } from "../export-html-policy.js";
+import { exportHtml } from "../export-html-policy.js";
+import { downloadForms } from "#src/features/site-backup/static-download-html";
 
 const PUBLIC = "https://public.example.test";
 const MEDIA = "/m/cover/public.v1/image.webp";

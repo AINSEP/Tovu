@@ -1,4 +1,4 @@
-import { deploymentRefusal } from '#src/features/consent/service';
+import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
 import type { StaticPublishToolDeps } from '../publish-tool-deps.js';
 
 /** Consent remains a fail-closed check before publish approval and effects. */

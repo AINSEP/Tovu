@@ -5,8 +5,8 @@ import * as sourceControl from "@jini-ai/devops/source-control";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { CREDENTIAL_MESSAGES } from "@jini-ai/platform/secrets/credential-token";
 
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import type { ExportReport } from "#src/features/site-export/index";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import { validateCommitTarget } from "./commit-target.js";
 import type { RepositoryTargetValidator, SourceControlProvider } from "./provider-module.js";
 import { resolveDefaultForSourceControl } from "./store.js";

@@ -1,8 +1,5 @@
 import { extractAssetUrls, extractCssUrls, type ExportReport } from "@jini-ai/devops/static-export";
-
-export interface ThemePreviewExportSize {
-  themeCount: number; htmlSizeMultiplier: number; sizeMultiplier: number; additionalPages: number;
-}
+import type { ThemePreviewExportSize } from "#src/contracts/core/export-report";
 
 /** Measured bytes relative to the normal routes and their assets, using the export owner's crawlers.
  * O(export bytes), with the same one CSS-hop boundary as the exporter. Shared assets count once. */

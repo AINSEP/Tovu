@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
-import { projectPostBody, resolveCoverImage } from "#src/features/post/cover-image";
+import { projectPostBody, resolveCoverImage } from "#src/contracts/core/cover-image";
 import { featuredImageView } from "../render/template-render-data.js";
 import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
 

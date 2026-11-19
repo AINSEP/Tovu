@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect, type ContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { ContentTypeListPort, ContentTypeRecord, ContentTypeRepoPort, ContentTypeRevisionInput } from "../index.js";
+import type { ContentTypeRecord, ContentTypeRevisionInput  } from "../index.js";
+import type { ContentTypeListPort, ContentTypeRepoPort } from "@jini-ai/cms/content-types";
 import { SqliteContentTypeRepo } from "../repo.sqlite.js";
 
 /**

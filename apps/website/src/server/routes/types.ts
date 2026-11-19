@@ -8,7 +8,7 @@ import type { SeoHostBindings } from "#src/features/seo/index";
 import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
 
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PeerSiteReads } from "#src/assistant/host-ports";
@@ -52,7 +52,7 @@ import type {
   MemberTierRepoPort,
 } from "../../features/members/index.js";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
-import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../features/navigation/index.js";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RemoveMenuFn } from "../../features/navigation/index.js";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
@@ -97,27 +97,19 @@ import type {
   SiteStatusPort,
 } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
-import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/index.js";
+import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
-import type { ContentTypeListPort } from "../../features/content-types/index.js";
-import type { EntryRepoPort } from "../../features/entries/index.js";
-import type { EntryListPort } from "../../features/entries/index.js";
+import type { ContentTypeListPort } from "@jini-ai/cms/content-types";
+import type { EntryRepoPort } from "@jini-ai/cms/entries";
+import type { EntryListPort } from "@jini-ai/cms/entries";
 import type { EntryDisplayListPort, EntryListExcludingTypesPort } from "../../features/entries/public-list.js";
 import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
 import type {
   AssignmentCountEntryTermRepoPort,
   DeletableTaxonomyRepoPort,
   DeletableTermRepoPort,
-  EntryTermRepoPort,
-  TaxonomyListPort,
-  TaxonomyRepoPort,
-  TaxonomyRevisionRepoPort,
-  TermListPort,
-  TermRepoPort,
-  UnassignableEntryTermRepoPort,
-  ImportableTaxonomyRepoPort,
-  ImportableTermRepoPort,
 } from "../../features/taxonomy/index.js";
+import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermListPort, TermRepoPort, UnassignableEntryTermRepoPort, ImportableTaxonomyRepoPort, ImportableTermRepoPort } from "@jini-ai/cms/taxonomy";
 import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
@@ -442,7 +434,7 @@ export interface MembersDeps {
   /** The mail provider's own sender-domain verdict, separate from DNS (`mail_dns_status`, the mail-dns route). */
   mailSenderDomainVerification?: import("@jini-ai/platform/mail").SenderDomainVerificationPort;
   /** Fresh `core.mail.testMode`, so a test send reports a redirect or capture truthfully. */
-  mailTestMode?: () => Promise<import("#src/features/settings/mail-provider").MailTestModeSetting>;
+  mailTestMode?: () => Promise<import("#src/contracts/core/settings-vocabulary").MailTestModeSetting>;
   /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
   mailTestProvider?: () => Promise<string | null>;
   mailTestRequests?: Map<string, Promise<import("#src/features/mail-status/test-send").MailTestSendResult>>;

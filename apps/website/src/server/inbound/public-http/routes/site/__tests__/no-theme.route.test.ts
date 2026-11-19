@@ -8,7 +8,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { InMemoryPresentationSettingsRepo, type PresentationSettingsRecord } from "#src/features/presentation/index";
-import { NO_THEME_ID } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**

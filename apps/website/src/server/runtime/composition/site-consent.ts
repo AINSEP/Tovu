@@ -14,8 +14,9 @@ import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound
 import { findPublishedPostBySlug } from '#src/features/post/post';
 import { isBarePageChoice } from '#src/features/theme/static-template-choice';
 import { isFullHtmlDocument } from '../../inbound/public-http/http/site/bare-page.js';
-import type { ConsentProblem } from '#src/features/consent/validation';
-import { NO_THEME_ID, resolveActiveTheme } from '#src/features/theme/active-theme';
+import type { ConsentProblem } from '#src/contracts/core/consent-refusal';
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme } from '#src/features/theme/active-theme';
 
 /** Reuse the existing local-render owner (bounded reads, timeout, finally-close, no external URL).
  * @example bindSiteConsentService({ deps })

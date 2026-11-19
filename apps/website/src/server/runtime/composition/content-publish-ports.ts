@@ -1,4 +1,4 @@
-import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "#src/features/content-types/index";
+import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import type { PostRepoPort } from "#src/features/post/post";
 import { createContentTargetPorts } from "#src/features/taxonomy/collection-term-policy";

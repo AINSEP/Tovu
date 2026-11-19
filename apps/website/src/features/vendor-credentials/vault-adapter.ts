@@ -7,7 +7,8 @@ import {
   type VaultMeta,
 } from "@jini-ai/core/contracts/vault";
 import type { Clock } from "@jini-ai/core/primitives";
-import type { KeyringPort, SecretSealerPort, SealedSecret } from "../webhooks/index.js";
+import type { SealedSecret  } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { SourceControlCredentialSetRecord } from "../source-control/types.js";
 import type { VendorCredentialProjectScope, VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "./types.js";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";

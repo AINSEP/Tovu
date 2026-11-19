@@ -3,7 +3,7 @@ import path from "node:path";
 import { parseFragment, serialize, type DefaultTreeAdapterMap } from "parse5";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
-import { NO_THEME_ID } from "#src/features/theme/active-theme";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { sanitizePageHtml } from "@jini-ai/cms/widgets/html";
 
 /**

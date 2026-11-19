@@ -1,3 +1,4 @@
+import type { ExportReport } from "#src/contracts/core/export-report";
 import type { SiteCookieConsentDeps } from '../../contracts/headless/site-cookie-consent.js';
 import type { RequestListener } from "node:http";
 import { resolveConfiguredOrigin } from "@jini-ai/core/contracts/server/verified-origin";
@@ -12,7 +13,7 @@ import { resolveThemeLayout } from "#src/features/theme/index";
 import { type RouteManifestDeps } from "./route-manifest.js";
 import { withSecurityMeta } from "./static-security-headers.js";
 import { buildPreviewExportManifest } from "./theme-preview-manifest.js";
-import { themePreviewExportSize, type ThemePreviewExportSize } from "./theme-preview-report.js";
+import { themePreviewExportSize } from "./theme-preview-report.js";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { rewriteExportMediaResponse, type ExportMediaUrlDeps } from "./media-original-urls.js";
 import { exportPublicOrigin, rewriteExportOriginResponse } from "./public-origin-policy.js";
@@ -20,14 +21,6 @@ import { exportHtml } from "./export-html-policy.js";
 export { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
 export type { ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";
 import type { ExportReport as BaseExportReport } from "@jini-ai/devops/static-export";
-export interface ExportReport extends BaseExportReport {
-  /** Static pages were rendered before cookie preferences became available. */
-  consentWarning?: string;
-  /** Public registry evidence used for this copy; absent when identity/discovery falls back. */
-  publicOrigin?: string;
-  /** Configured page multiplier and measured HTML byte multiplier; assets are crawled/deduplicated. */
-  themePreview?: ThemePreviewExportSize;
-}
 export { firstExportFailure, type ExportFailureSummary } from "./export-failure-summary.js";
 
 // App boot is injected via createSiteApp(): importing apps/website/src/server/runtime/composition/app.ts, even lazily, would close

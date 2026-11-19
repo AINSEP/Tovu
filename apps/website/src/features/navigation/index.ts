@@ -28,7 +28,6 @@ export type {
 export { NAV_MENU_CONTENT_TYPE, NAV_FIELD_NAMESPACE, NAV_DOC_TYPE } from "@jini-ai/cms/navigation";
 
 export type {
-  NavLocationBindingRepoPort,
   NavResolveContext,
   NavTargetResolver,
   NavMenuReadModel,
@@ -62,7 +61,6 @@ export { createNavMenuReadModel, type NavMenuReadModelDeps } from "@jini-ai/cms/
 export {
   InMemoryMenuRepo,
   InMemoryNavLocationBindingRepo,
-  type MenuRepoPort,
 } from "@jini-ai/cms/navigation";
 
 /**

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, CustomCredentialNotFoundError, CustomCredentialValidationError, type CustomCredentialWriteDeps } from "../store.js";
 import {

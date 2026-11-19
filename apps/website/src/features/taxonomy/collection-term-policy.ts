@@ -3,11 +3,10 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import {
   createContentLookup,
   isContentTypeOnAllowList,
-  type ContentLookupPort,
   type ContentRecordLookupPort,
-  type ContentTypeTaxonomyPolicyPort,
   type EntryRecordLookupPort,
 } from "./index.js";
+import type { ContentLookupPort, ContentTypeTaxonomyPolicyPort } from "@jini-ai/cms/taxonomy";
 
 /**
  * @file Which content Jini's `assignTerms`/`unassignTerms` may tag, and who may tag it. They only

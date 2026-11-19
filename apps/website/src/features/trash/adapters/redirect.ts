@@ -10,7 +10,7 @@
  */
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
-import { REDIRECT_TABLES } from "#src/features/redirects/index";
+import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
 import { loose } from "@jini-ai/cms/trash/sql";
 
 export const REDIRECT_ENTITY_TYPE = "redirect";

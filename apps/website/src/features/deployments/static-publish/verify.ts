@@ -3,9 +3,10 @@ import { credentialText } from '../../../contracts/core/credential-copy.js';
 import type { UUID } from "@jini-ai/core/primitives";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
-import type { DeployCredentialCheck, DeployHostKit, DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
+import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetRegistry  } from "../deploy-targets/types.js";
+import type { PluginDeployHostKit as DeployHostKit, DeployTargetCredential } from "@jini-ai/devops/deploy";
 import { resolveForPublish } from "../publish-credentials/store.js";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 import { projectConnectionForPublish, toDeployTargetCredential } from "./credentials.js";

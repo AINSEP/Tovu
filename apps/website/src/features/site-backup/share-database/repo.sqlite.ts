@@ -10,7 +10,7 @@ import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { validateValueAgainstSchema, type SettingValueSchema } from "@jini-ai/core/settings";
 import { createConsoleLogger, type Logger } from "@jini-ai/core/primitives";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { PUBLISHABLE_SETTINGS } from "#src/features/settings/contracts";
+import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
 import { backfillPostSearchIndex } from "#src/features/post/index";
 import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, archiveRefusalName } from "#src/features/site-backup/share-policy";
 import { computeBlobStorageKey, documentContentType } from "#src/features/media/index";

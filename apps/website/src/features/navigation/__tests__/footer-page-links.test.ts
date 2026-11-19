@@ -12,7 +12,7 @@ import { SqliteMenuRepo } from "../repo.sqlite.js";
 import { toAdminMenuResponse } from "#src/server/inbound/admin-http/http/menus";
 import { SqlPostRepo } from "#src/features/post/repo";
 import { postSearchFor } from "#src/features/post/search-index";
-import { renderHtmlMenu } from "../html-render.js";
+import { renderHtmlMenu } from "#src/platform/html/menu-render";
 import type { NavMenuDoc } from "../index.js";
 
 test("footer repair counts no conversion or watermark when the database refuses the menu update", async (t) => {

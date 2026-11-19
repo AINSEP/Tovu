@@ -1,4 +1,5 @@
-import type { PostKind, PostRecord } from "./post.js";
+import type { PostRecord } from "./post.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
 import { ROOT_SLUG } from "./post.js";
 import type { PostStatus } from "@jini-ai/cms/core";
 import { entryPublicPath } from "#src/platform/routing/index";

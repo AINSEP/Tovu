@@ -10,7 +10,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 
 import type { ExportSiteBoundFn, SourceControlCommitAdapter } from "../commit-site.js";
 import { createSourceControlCredential } from "../store.js";

@@ -6,7 +6,8 @@ import {
   type EmailTemplateStore,
 } from "@jini-ai/platform/mail/email-template-operations";
 
-import { isTrashed, type PostKind, type PostRecord, type PostRepoPort } from "../post/index.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
+import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel: it re-exports a fixed list, and this kind is not part of the Post API.
 import { EMAIL_TEMPLATE_KIND } from "../post/index.js";
 import { PageConcurrentEditError, type PagesHtmlDocumentStoreFactory } from "../pages/index.js";

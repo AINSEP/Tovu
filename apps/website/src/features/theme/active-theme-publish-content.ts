@@ -9,7 +9,7 @@ import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publis
 
 import { writableThemeIds } from "./active-theme.js";
 import type { DiscoveredTheme } from "./theme.js";
-import { RENAMED_THEME_IDS, themeIdCandidates } from "./theme-id-aliases.js";
+import { RENAMED_THEME_IDS, themeIdCandidates } from "#src/contracts/core/theme-ids";
 
 /**
  * @file `active-theme` on the publish factory (`features/publish-content/repo-handler.ts`): which

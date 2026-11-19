@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { DeployTargetRegistry, DeployTargetInspection, DeployHostKit } from '../../deploy-targets/types.js';
+import type { DeployTargetRegistry, DeployTargetInspection } from '../../deploy-targets/types.js';
+import type { PluginDeployHostKit as DeployHostKit } from '@jini-ai/devops/deploy';
 import { createDeployHostKit } from '../../deploy-targets/host-kit.js';
 import { inspectStaticPublish } from '../inspection.js';
 import type { PublishCredentialSource } from '../types.js';

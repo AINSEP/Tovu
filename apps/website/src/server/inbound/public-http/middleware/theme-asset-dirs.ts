@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 
 import { resolvePathWithin } from "#src/contracts/core/path-containment";
-import { themeIdCandidates } from "#src/features/theme/theme-id-aliases";
+import { themeIdCandidates } from "#src/contracts/core/theme-ids";
 
 /**
  * @file Maps a request's `:themeId` to the theme folders `theme-static-assets.ts` may serve from.

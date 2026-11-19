@@ -14,7 +14,7 @@ import { buildPreviewExportManifest } from "#src/features/site-export/theme-prev
 import { buildPreviewSwitcherRegistrations } from "../preview-switcher-tools.js";
 import { readPreviewSwitcher } from "../preview-switcher.js";
 import type { DiscoveredTheme } from "../theme.js";
-import { NO_THEME_ID } from "../active-theme.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 
 /** Owner dispatch 2026-10-20: the actual composed settings writer, HTTP renderer and exporter. */
 async function fixture(t: TestContext) {

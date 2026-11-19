@@ -4,7 +4,7 @@ import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { shortDate, renderPostBody } from "./post-body.js";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { resolveCoverImage } from "#src/features/post/rendering";
+import { resolveCoverImage } from "#src/contracts/core/cover-image";
 import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
 
 /** Currency formatting is shared with the catalog; old currency-less theme fixtures mean USD.

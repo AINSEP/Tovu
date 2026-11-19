@@ -10,7 +10,7 @@ import {
   type SiteProfileDeps,
   type SiteProfileSectionName,
 } from "../site-profile.js";
-import { NO_THEME_ID } from "../../theme/index.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 
 /**
  * @file `buildSiteProfile()`'s two load-bearing properties, tested directly against fake ports:

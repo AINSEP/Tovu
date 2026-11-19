@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createKeyringBackedSigner } from "../signing.keyring.js";
 import { createFixedSecretSigner, verifySignature } from "../signing.js";
-import type { KeyringPort } from "../ports.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { WebhookSubscriptionRecord } from "../types.js";
 
 function makeSubscription(overrides: Partial<WebhookSubscriptionRecord> = {}): WebhookSubscriptionRecord {

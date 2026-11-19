@@ -21,7 +21,7 @@ import { startTestServer } from "../../../server/__tests__/helpers/http-test-ser
 import { createCommerceSiteTestApp } from "#src/server/inbound/public-http/routes/site/__tests__/commerce-site-app";
 import { useSiteChatBuild } from "#src/server/inbound/public-http/http/site/__tests__/site-chat.fixture";
 import { exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
-import type { ExportReport } from "../site-exporter.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
 
 /**
  * @file Regression coverage for `exportSite` (SPEC — static site exporter, 2026-08-15).

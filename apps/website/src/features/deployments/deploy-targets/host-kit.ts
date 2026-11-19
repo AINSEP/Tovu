@@ -18,7 +18,8 @@ import {
 import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
-import type { DeployFetchTimeouts, DeployHostKit, SigV4Client } from "./types.js";
+import type { DeployFetchTimeouts, SigV4Client  } from "./types.js";
+import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 
 /**
  * @file Builds the {@link DeployHostKit} this app injects into every plugin deploy module. Generic:

@@ -14,7 +14,7 @@ import type { VaultRecord, VaultRepoPort } from "@jini-ai/core/contracts/vault";
 
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
-import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";

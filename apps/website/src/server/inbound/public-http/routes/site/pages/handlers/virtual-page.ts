@@ -3,7 +3,8 @@ import type { PublicPostRecord as PostRecord } from "#src/features/post/contract
 import { resolveRenderThemeId } from "../../../../middleware/render-theme-override.js";
 // Keep request rendering separate from theme installation, imports, and agent tools.
 import { resolveTemplateBranchChoice } from "#src/features/theme/static-template-choice";
-import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { RouteDeps } from "#src/server/routes/types";
 import { withListingBatch } from "../listing/listing-batch.js";
 import { resolveSiteAssistantWidgetForRequest } from "../render-context/widgets.js";

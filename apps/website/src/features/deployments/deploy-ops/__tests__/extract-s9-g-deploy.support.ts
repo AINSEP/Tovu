@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { FixedRootKeyKeyring } from '@jini-ai/platform/secrets';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
-import type { KeyringPort, SecretSealerPort } from '../../../webhooks/ports.js';
+import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/webhooks';
 import { HKDF_EXTRACTION_SALT } from '../../../webhooks/keyring.env.js';
 import { InMemoryCustomCredentialSetRepo } from '../../../custom-credentials/repo.memory.js';
 import { createCustomCredential } from '../../../custom-credentials/store.js';

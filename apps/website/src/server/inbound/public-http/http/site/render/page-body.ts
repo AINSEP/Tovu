@@ -6,7 +6,7 @@ import { substituteHtmlEmbeds, type PageHtmlEmbedRef, type EmbedOccurrence } fro
 import { isPageEmbedType } from "@jini-ai/cms/widgets/page-embed-types";
 import { renderWidgetIr } from "./content-html.js";
 import { readMediaAssetMetadata, readMediaTransformVersions } from "./widgets/post-content.js";
-import { projectPostBody } from "#src/features/post/rendering";
+import { projectPostBody } from "#src/contracts/core/cover-image";
 import type { JsonValue } from "@jini-ai/core/primitives";
 
 /** REQ-28-shaped default for an embed reference this render never resolved (never attempted, beyond

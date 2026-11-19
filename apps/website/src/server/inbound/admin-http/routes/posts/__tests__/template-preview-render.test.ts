@@ -8,7 +8,8 @@ import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/ind
 import { InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
 import { resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/static-menus";
-import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { type DiscoveredTheme } from "#src/features/theme/index";
 
 import { bareDeps, barePost } from "./preview-fixtures.js";
 test("real extracted renderer serves an unpublished bare page and pending body without changing the row", async () => {

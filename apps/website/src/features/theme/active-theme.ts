@@ -1,3 +1,4 @@
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { findStoredTheme } from "./theme-discovery.js";
 import { type DiscoveredTheme } from "./theme.js";
 
@@ -81,30 +82,6 @@ export const DEFAULT_THEME_ID = "tovu-starter";
  * and land on step 3's arbitrary first-valid-theme instead of the `tovu-theme` it always got.
  */
 export const DEFAULT_THEME_IDS: readonly string[] = [DEFAULT_THEME_ID, "tovu-theme"];
-
-/**
- * Stored in `active_theme_id` to mean "the operator deliberately turned the theme OFF" — state 3 of
- * the optional-theme feature, where they intend to handle styling themselves.
- *
- * NOT the empty string, deliberately, even though `""` would have needed no thought. `""` is
- * ALREADY taken: `features/presentation/active-theme-id.ts`'s `resolveActiveThemeId` returns it for
- * "this workspace has no `presentation_settings` row yet" (a freshly created workspace, or a
- * `content.db` mid-seed), and its own doc defines that as "fall back". Spelling the deliberate
- * choice `""` too would have made an unwritten workspace render THEMELESS instead of on the default
- * theme — state 3 arriving where state 2 belongs, which is the exact confusion this feature exists
- * to remove. Fixing it from the other side is not available either: teaching `resolveActiveThemeId`
- * to return {@link DEFAULT_THEME_ID} would create the `features/presentation -> features/theme` edge
- * both files' headers exist to prevent.
- *
- * A distinct literal costs nothing the empty string would have saved: the column is `TEXT NOT NULL`
- * on both dialects so there is no DDL either way, and the settings ledger's mirror schema is
- * `{ type: "string" }` with no enum, so it round-trips unchanged.
- *
- * Shadowing: {@link resolveActiveTheme} tests this value BEFORE consulting discovery, so an
- * operator who happens to have a theme folder with this id finds it unreachable rather than finding
- * "no theme" silently meaning "that theme". Deliberate, and the safer direction of the two.
- */
-export const NO_THEME_ID = "none";
 
 /**
  * What {@link resolveActiveTheme} can return. Three outcomes, none of which collapses into another:

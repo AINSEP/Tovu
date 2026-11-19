@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DEFAULT_THEME_ID, DEFAULT_THEME_IDS, NO_THEME_ID, resolveActiveTheme, type ActiveThemeResolution } from "../active-theme.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { DEFAULT_THEME_ID, DEFAULT_THEME_IDS, resolveActiveTheme, type ActiveThemeResolution } from "../active-theme.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**

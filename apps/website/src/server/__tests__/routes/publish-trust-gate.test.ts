@@ -14,7 +14,7 @@ import { derivePublishSigningKey } from "#src/features/publish-trust/keys";
 import { PUBLISH_TRUST_ENV_VAR, parseGrantDocument, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
 import { requirePublishTrust, type PublishTrustAuthDeps } from "#src/server/inbound/admin-http/publish-trust-auth";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { loginAsOwner } from "../helpers/http-test-server.js";
 
 /**

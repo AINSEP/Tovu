@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 
-import type { SecretSealerPort } from "#src/features/webhooks/index";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
 import type { SealedSecret } from "#src/features/webhooks/index";
 

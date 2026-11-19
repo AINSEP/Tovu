@@ -1,6 +1,6 @@
 import path from "node:path";
 import { exportUrlLocations, extractHtmlReferences, outputFileForUrl } from "@jini-ai/devops/static-export";
-import { downloadDocumentBase } from "../site-export/export-html-policy.js";
+import { downloadDocumentBase } from "./static-download-html.js";
 import { validateSharePath, sharePathAlias } from "./share-file-policy.js";
 import { allocateStaticExportThemes, type StaticExportTheme } from "./static-export-selection.js";
 import { checkShareLimits } from "./share-policy.js";

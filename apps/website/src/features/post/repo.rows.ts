@@ -5,11 +5,11 @@ import type { Insertable, Selectable } from "kysely";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import { toBool } from "@jini-ai/core/contracts/storage";
+import type { PostKind } from "#src/contracts/core/post-kind";
 import {
   DEFAULT_BODY_JSON,
   presentScheduleFields,
   type PostBodyFormat,
-  type PostKind,
   type PostRecord,
   type PostRevisionInput,
   type PostRevisionOp,

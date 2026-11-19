@@ -10,7 +10,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
 
 
-import { discoverAllBuiltInThemes, NO_THEME_ID, syncThemeRoster } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { discoverAllBuiltInThemes, syncThemeRoster } from "#src/features/theme/index";
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import {
   buildSetActiveThemeRegistrations,

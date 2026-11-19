@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { PostKind } from "./post.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
 import type { PostStatus } from "@jini-ai/cms/core";
 import type { PostSearchDocument, PostSearchHit, PostSearchQuery } from "./search.js";
 

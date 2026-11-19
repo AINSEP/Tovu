@@ -7,7 +7,8 @@ import express from "express";
 
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { type DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createContentModule } from "../../runtime/composition/modules/content.js";

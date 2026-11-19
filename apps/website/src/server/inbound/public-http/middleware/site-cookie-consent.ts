@@ -21,7 +21,8 @@ import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles }
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from '@jini-ai/platform/fs';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
-import { NO_THEME_ID, resolveActiveTheme } from '#src/features/theme/active-theme';
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme } from '#src/features/theme/active-theme';
 import { siteBannerMode, toSiteCookieConsent } from '#src/features/consent/cookie-consent';
 import type { RouteDeps } from '#src/server/routes/types';
 import { isStaticExportRequest } from "../routes/site/pages/request-policy.js";

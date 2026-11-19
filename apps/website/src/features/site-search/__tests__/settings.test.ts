@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, set as packageSet, ValueValidationFailedError, type AuthorizeFn } from "@jini-ai/core/settings";
 
-import { createSettingsPrincipalLookup } from "../../settings/index.js";
+import { createSettingsPrincipalLookup, set } from "../../settings/index.js";
 import {
   ensureSearchProviderSetting, isSearchProviderId, readSearchProviderSetting, SEARCH_PROVIDER_KEY, SEARCH_SETTINGS_NAMESPACE, writeSearchProviderSetting,
 } from "../settings.js";
@@ -35,16 +35,27 @@ test("reads the builtin default before and after registration; a typed write is 
   assert.equal(await read({ workspaceId: WS }), "builtin", "an unregistered definition reads as the default");
   await ensure();
   assert.equal(await read({ workspaceId: WS }), "builtin");
-  const result = await writeSearchProviderSetting({ deps })({ workspaceId: WS, callerPrincipalId: "owner", providerId: "meilisearch" });
+  const result = await writeSearchProviderSetting({ deps, writeSetting: set })({ workspaceId: WS, callerPrincipalId: "owner", providerId: "meilisearch" });
   assert.equal(result.value, "meilisearch");
   assert.equal(await read({ workspaceId: WS }), "meilisearch");
   assert.equal(await read({ workspaceId: "ws-other" }), "builtin", "per site");
 });
 
+test("each provider write reaches the settings ledger and returns its revision unchanged", async () => {
+  const { settingsRepo, deps, ensure } = ledger();
+  await ensure();
+  const write = writeSearchProviderSetting({ deps, writeSetting: set });
+  const first = await write({ workspaceId: WS, callerPrincipalId: "owner", providerId: "meilisearch" });
+  const second = await write({ workspaceId: WS, callerPrincipalId: "owner", providerId: "algolia_v2" });
+  assert.deepEqual([first.value, second.value], ["meilisearch", "algolia_v2"]);
+  assert.ok(second.revisionSeq > first.revisionSeq);
+  assert.equal(await readSearchProviderSetting({ settingsRepo })({ workspaceId: WS }), "algolia_v2");
+});
+
 test("a write outside the grammar is refused before the ledger; a stored bad value is refused on read", async () => {
   const { settingsRepo, deps, ensure } = ledger();
   await ensure();
-  const write = writeSearchProviderSetting({ deps });
+  const write = writeSearchProviderSetting({ deps, writeSetting: set });
   await assert.rejects(write({ workspaceId: WS, callerPrincipalId: "owner", providerId: "Meili-Search" }), ValueValidationFailedError);
   const read = readSearchProviderSetting({ settingsRepo });
   assert.equal(await read({ workspaceId: WS }), "builtin");

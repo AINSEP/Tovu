@@ -4,7 +4,7 @@ import { assertCredentialFreeField } from "../../contracts/core/credential-token
 import { CredentialInputError, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { ExternalMcpConfigFailure } from "@jini-ai/core/contracts/hosted-mcp";
-import type { SecretSealerPort } from "../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import type { HostedMcpStorePorts } from "@jini-ai/mcp/federation/hosted";
 import { externalMcpVaultPorts } from "./external-mcp-vault.js";

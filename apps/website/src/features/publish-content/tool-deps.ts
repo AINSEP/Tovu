@@ -1,4 +1,4 @@
-import type { PublishHistoryStore } from "#src/features/deployments/static-publish/index";
+import type { PublishHistoryRecorder } from "./peer-transport.js";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { requireToolPermission } from "@jini-ai/cms/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
@@ -66,7 +66,7 @@ export interface PublishContentToolDeps extends PublishContentPullDeps, PublishC
   mediaRepo: TovuPublishPorts["media"]["repo"];
   workspaceRepo: { findById(required: { id: string }, optional?: {}): Promise<{ name?: string } | null> };
   publishContentPeerRepo: PublishContentPeerRepoPort;
-  publishHistoryStore?: PublishHistoryStore;
+  publishHistoryStore?: PublishHistoryRecorder;
   publishContentPeerHttpClient: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["httpClient"];
   siteAssistantSecretSealer: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["sealer"];
   siteAssistantSecretKeyring: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["keyring"];

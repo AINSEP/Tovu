@@ -18,7 +18,8 @@ import { type AgentToolDefinition as PagesAgentToolDefinition } from "@jini-ai/c
 import { pagesAgentToolCatalog } from "./agent-tools.js";
 import { describeScriptRevealedContent } from "./hidden-until-script.js";
 import { requirePageAuthoringHtml } from "./authoring-html.js";
-import { NO_THEME_ID, resolveActiveTheme, syncThemeRoster, type DiscoveredTheme } from "../theme/index.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme, syncThemeRoster, type DiscoveredTheme } from "../theme/index.js";
 import {
   PageConcurrentEditError,
   PageKindMismatchError,

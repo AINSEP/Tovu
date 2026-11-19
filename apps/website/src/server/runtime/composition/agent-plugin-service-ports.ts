@@ -11,7 +11,7 @@ import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-rost
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from '#src/features/custom-credentials/plugin-credential-card';
 import { applyPluginCredentialCard } from '#src/contracts/core/plugin-credential-card';
 import { probeCredentialConnection } from '#src/features/custom-credentials/credentialed-request';
-import { resolveOperatorLocale } from '#src/features/settings/index';
+import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '#src/features/settings/admin-interface';
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from '#src/features/agent-plugins/provider-plugin-link';
 import { AgentPluginNotReadyError, findSoonAgentPlugin } from '#src/features/agent-plugins/soon-lock';

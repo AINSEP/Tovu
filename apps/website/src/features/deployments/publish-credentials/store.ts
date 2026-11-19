@@ -2,11 +2,11 @@ import { assertCredentialFreeField } from '../../../contracts/core/credential-to
 import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken } from '@jini-ai/platform/secrets/credential-token';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
-import { ProjectKeyCreateConflictError } from "../../project-keys/create-vault.js";
+import { ProjectKeyCreateConflictError } from "#src/contracts/core/credential-store";
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/index.js";

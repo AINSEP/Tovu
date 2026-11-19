@@ -6,7 +6,7 @@ import { ModelCatalogCache, unionModels as unionModelCatalog } from "@jini-ai/ag
 import type { Clock } from "@jini-ai/core/primitives";
 import type { AgentModelSummary } from "@jini-ai/daemon/http";
 
-import type { SecretSealerPort } from "../features/webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } from "./execution-credential-store.js";
 
 /**

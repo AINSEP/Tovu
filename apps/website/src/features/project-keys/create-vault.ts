@@ -1,13 +1,7 @@
+import { ProjectKeyCreateConflictError } from '../../contracts/core/credential-store.js';
 import type { ProjectKeyTransaction } from './attachments.js';
 import { ToolInputError } from '@jini-ai/core';
 import { VaultError, type VaultRepoPort } from '@jini-ai/core/contracts/vault';
-
-/** A safe create conflict that each credential domain can map onto its existing form error. */
-export class ProjectKeyCreateConflictError extends ToolInputError {
-  constructor(_required: Record<string, never>, _options = {}) {
-    super({ message: 'Shared Keys already has this key identity or label. Choose Use a saved key, or give the new key a different label. Details: P25_KEY_CREATE_CONFLICT; secret values omitted.' });
-  }
-}
 
 /** Human secret cards create new owner entries. A separate trusted owner-session port may replace
  * granted entries atomically with its grant check. All reads retain the site grant boundary.

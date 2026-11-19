@@ -6,7 +6,8 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
+import type { SealedSecret } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";

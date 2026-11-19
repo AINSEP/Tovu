@@ -25,7 +25,7 @@ import {
 } from "../../media/index.js";
 import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-credential-store.memory.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";

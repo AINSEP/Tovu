@@ -1,7 +1,7 @@
 import { type ThemeTier } from "./render-contract.js";
 import { readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { themeIdCandidates } from "./theme-id-aliases.js";
+import { themeIdCandidates } from "#src/contracts/core/theme-ids";
 import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 import { type DiscoveredTheme, loadTheme } from "./theme.js";
 
