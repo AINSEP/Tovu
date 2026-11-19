@@ -99,7 +99,7 @@ test("without a warn port the CLI permissions denial is logged through console.w
 
 test("the legacy boolean reads the workspace-scoped enabled key", async () => {
   const inputs: unknown[] = [];
-  const required = { ...cliRequired({}), getEffective: async (_deps: unknown, input: unknown) => { inputs.push(input); return null; } };
+  const required = { ...cliRequired({}), getEffective: async ({ deps: _deps, ...input }: { deps: unknown }) => { inputs.push(input); return null; } };
   assert.equal(await readAssistantSubagentsEnabled(required), true);
   assert.deepEqual(inputs, [{ namespace: "core.assistant-full-cli", key: ASSISTANT_SUBAGENTS_KEY, scopeContext: { workspaceId: "site" } }]);
 });

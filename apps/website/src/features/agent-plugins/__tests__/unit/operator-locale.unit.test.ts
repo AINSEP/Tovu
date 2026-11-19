@@ -13,7 +13,7 @@ const required = { deps: { settingsRepo: repo }, workspaceId: "ws-1", principalI
 
 test("reads core.language.locale for this workspace and operator from the settings ledger", async () => {
   const reads: unknown[] = [];
-  const getEffective: GetEffectiveSetting = async (deps, input) => { reads.push({ repo: deps.repo, ...input }); return { value: "pt-BR" }; };
+  const getEffective: GetEffectiveSetting = async ({ deps, ...input }) => { reads.push({ repo: deps.repo, ...input }); return { value: "pt-BR" }; };
   assert.equal(await resolveOperatorLocale(required, { getEffective }), "pt-BR");
   assert.deepEqual(reads, [{ repo, namespace: "core.language", key: "locale", scopeContext: { workspaceId: "ws-1", principalId: "operator-1" } }]);
 });

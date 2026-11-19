@@ -37,7 +37,7 @@ async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChr
     routeDeps: {
       ownerPrincipalId: Promise.resolve(owner), siteBinding: { dir: tmpdir() }, workspaceId: "ws",
       toolAttemptAuditSink: { append: async () => {} }, settingsRepo: {}, siteTitleReady: Promise.resolve(),
-      getEffective: async (_deps: unknown, input: { key: string }) => { reads.push(input); return { value: stored[input.key], sourceLayer: "user", defVersion: 1 }; },
+      getEffective: async ({ deps: _deps, ...input }: { deps: unknown; key: string }) => { reads.push(input); return { value: stored[input.key], sourceLayer: "user", defVersion: 1 }; },
     },
     assistantRuntimeGuidanceContext, assistantCliCapabilitiesContext, probeAssistantChrome: async () => chromeProbed,
     readAssistantCliPermissions: async () => assistantCliPermissions({ enabled }),

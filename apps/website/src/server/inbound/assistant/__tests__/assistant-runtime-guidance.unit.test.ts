@@ -67,7 +67,7 @@ test("run options: --chrome + the whole server allowed when effective, explicit 
 function deps(values: Record<string, unknown>) {
   return {
     settingsRepo: new InMemorySettingsRepo(),
-    getEffective: (async (_d: unknown, input: { key: string }) => (input.key in values ? { value: values[input.key], sourceLayer: "user", defVersion: 1 } : null)) as unknown as typeof getEffective,
+    getEffective: (async ({ deps: _d, ...input }: { deps: unknown; key: string }) => (input.key in values ? { value: values[input.key], sourceLayer: "user", defVersion: 1 } : null)) as unknown as typeof getEffective,
     settingsReady: Promise.resolve(),
     workspaceId: "ws",
   };

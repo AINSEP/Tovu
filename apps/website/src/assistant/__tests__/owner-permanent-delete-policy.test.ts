@@ -53,7 +53,7 @@ function stored(value: unknown) {
   const calls: unknown[] = [];
   const deps = {
     workspaceId: "site-7", settingsReady: Promise.resolve(), settingsRepo: {} as PermanentDeleteSettingsDeps["settingsRepo"],
-    getEffective: (async (required: unknown, optional: unknown) => { calls.push([required, optional]); return value === undefined ? null : { value, sourceLayer: "workspace", defVersion: 1 }; }) as unknown as PermanentDeleteSettingsDeps["getEffective"],
+    getEffective: (async ({ deps: required, ...optional }: { deps: unknown }) => { calls.push([required, optional]); return value === undefined ? null : { value, sourceLayer: "workspace", defVersion: 1 }; }) as unknown as PermanentDeleteSettingsDeps["getEffective"],
   };
   return { deps, calls };
 }

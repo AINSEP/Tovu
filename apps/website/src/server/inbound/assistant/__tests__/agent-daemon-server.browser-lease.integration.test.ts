@@ -42,7 +42,7 @@ async function launchRun({ principal = OWNER, agentId = "claude", useClaudeInChr
       routeDeps: {
         ownerPrincipalId: Promise.resolve(OWNER), siteBinding: { dir: tmpdir() }, workspaceId: `ws-${runId ?? "run"}`,
         toolAttemptAuditSink: { append: async () => {} }, settingsRepo: {}, siteTitleReady: Promise.resolve(),
-        getEffective: async (_deps: unknown, input: { key: string }) => ({ value: input.key === USE_CLAUDE_IN_CHROME_KEY ? useClaudeInChrome : undefined, sourceLayer: "user", defVersion: 1 }),
+        getEffective: async (input: { key: string }) => ({ value: input.key === USE_CLAUDE_IN_CHROME_KEY ? useClaudeInChrome : undefined, sourceLayer: "user", defVersion: 1 }),
       },
       assistantRuntimeGuidanceContext: { run: (input: Parameters<typeof buildAssistantRuntimeGuidance>[0]["input"], fn: () => unknown) => { guidance = buildAssistantRuntimeGuidance({ input }); return fn(); } },
       assistantCliCapabilitiesContext: new AsyncLocalStorage(),

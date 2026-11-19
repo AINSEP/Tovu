@@ -132,7 +132,8 @@ test("settings GET redacts an effective-setting read failure", async (t) => {
     step: "assistant task operation", includeAction: false,
   });
   assert.equal(fault.mock.callCount(), 1);
-  assert.deepEqual(fault.mock.calls[0].arguments[1], {
+  const { deps: _settingsDeps, ...coordinate } = fault.mock.calls[0].arguments[0];
+  assert.deepEqual(coordinate, {
     namespace: "site.assistant", key: "public_enabled", scopeContext: { workspaceId: "ws-7" },
   });
 });
@@ -159,7 +160,7 @@ for (const { method, register, expectedBody } of [
     let release!: () => void;
     deps.assistantSettingsReady = new Promise<void>((resolve) => { release = resolve; });
     const reads: unknown[] = [];
-    deps.getEffective = async (_deps, input) => { reads.push(input); return resolved(true); };
+    deps.getEffective = async ({ deps: _deps, ...input }) => { reads.push(input); return resolved(true); };
     let settled = false;
     const pending = invoke(register, deps, method, "settings").then((capture) => { settled = true; return capture; });
     try {

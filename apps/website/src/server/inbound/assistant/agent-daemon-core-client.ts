@@ -109,7 +109,8 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     try { await Promise.race([drain, expired]); }
     finally { clearTimeout(deadline); }
   }
-  const readEffective: typeof getEffective = async (_deps, input) => {
+  // The repo stays on this side of the RPC; only the setting coordinate crosses it.
+  const readEffective: typeof getEffective = async ({ deps: _deps, ...input }) => {
     const value = await call({ operation: "getEffective", input: input as Extract<DaemonCoreRequest, { operation: "getEffective" }>["input"] });
     if (value === null) return null;
     z.object({ value: z.unknown(), sourceLayer: z.string() }).parse(value);

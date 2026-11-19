@@ -8,7 +8,7 @@ test("launch permissions are read per site/owner and freshly on every turn", asy
   let saved = assistantCliPermissions({ enabled: true, capabilities: { shell: false } });
   const calls: unknown[] = [];
   const required = { settingsRepo: {} as Parameters<typeof readAssistantCliPermissions>[0]["settingsRepo"], settingsReady: Promise.resolve(), workspaceId: "site-a", principalId: "owner-a",
-    getEffective: async (_deps: unknown, input: unknown) => { calls.push(input); return { value: { enabled: saved.enabled, capabilities: { ...saved.capabilities } }, sourceLayer: "user" as const, defVersion: 1 }; } };
+    getEffective: async ({ deps: _deps, ...input }: { deps: unknown }) => { calls.push(input); return { value: { enabled: saved.enabled, capabilities: { ...saved.capabilities } }, sourceLayer: "user" as const, defVersion: 1 }; } };
   assert.equal((await readAssistantCliPermissions(required)).capabilities.shell, false);
   assert.deepEqual(calls[0], { namespace: "core.assistant-full-cli", key: ASSISTANT_CLI_PERMISSIONS_KEY,
     scopeContext: { workspaceId: "site-a", principalId: "owner-a" } });

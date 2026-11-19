@@ -26,13 +26,13 @@ const FALLBACK_LOCALE = "en";
  */
 export async function resolveOperatorLocale(
   required: { deps: OperatorLocaleDeps; workspaceId: string; principalId: string },
-  { getEffective = settingsGetEffective as unknown as GetEffectiveSetting }: { getEffective?: GetEffectiveSetting } = {},
+  { getEffective = settingsGetEffective }: { getEffective?: GetEffectiveSetting } = {},
 ): Promise<string> {
   const { settingsRepo } = required.deps;
   if (!settingsRepo) return FALLBACK_LOCALE;
   try {
-    const resolved = await getEffective({ repo: settingsRepo }, {
-      namespace: LANGUAGE_NAMESPACE, key: "locale",
+    const resolved = await getEffective({
+      deps: { repo: settingsRepo }, namespace: LANGUAGE_NAMESPACE, key: "locale",
       scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId },
     });
     return typeof resolved?.value === "string" && resolved.value ? resolved.value : FALLBACK_LOCALE;

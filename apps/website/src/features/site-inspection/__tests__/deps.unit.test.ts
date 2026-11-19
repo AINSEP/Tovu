@@ -15,7 +15,7 @@ function source() {
     themes: [{ id: "custom-theme" }],
     presentationRepo: { findByWorkspaceId: async (required: { workspaceId: string }) => { assert.deepEqual(required, { workspaceId: "ws-adapter" }); calls.push("theme"); return active; } },
     settingsRepo,
-    getEffective: async (d: unknown, p: unknown) => {
+    getEffective: async ({ deps: d, ...p }: { deps: unknown }) => {
       assert.deepEqual(d, { repo: settingsRepo });
       const params = p as { namespace: string; key: string };
       if (params.namespace === "theme") {

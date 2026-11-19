@@ -10,7 +10,7 @@ function fakeDeps(values: Record<string, unknown>, overrides: Partial<AssistantR
   const reads: unknown[] = [];
   const deps: AssistantRuntimePreferenceDeps = {
     settingsRepo: new InMemorySettingsRepo(),
-    getEffective: (async (_deps: unknown, input: { key: string }) => {
+    getEffective: (async ({ deps: _deps, ...input }: { deps: unknown; key: string }) => {
       reads.push(input);
       return input.key in values ? { value: values[input.key], sourceLayer: "user", defVersion: 1 } : null;
     }) as unknown as typeof getEffective,
