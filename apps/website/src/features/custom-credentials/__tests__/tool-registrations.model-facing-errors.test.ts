@@ -134,7 +134,7 @@ async function call(harness: Harness, toolId: string, input: unknown) {
     input = credentialSaveFixtureInput({ input, kind: "api", rotation: toolId === "custom_credential_set_token" });
     toolId = "credential_save";
   }
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { reportInternalError: reportRouteInternalError, ...harness, reportInternalError: reportRouteInternalError } as never });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } as never });
 }
 
 /** The exact fixed text `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` publishes for a secret-store
