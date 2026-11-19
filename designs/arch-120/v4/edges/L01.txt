@@ -1,0 +1,10 @@
+apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/connect.ts
+apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/external-mcp/contracts.ts
+apps/website/src/features/external-mcp/external-mcp-store.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/object-storage/artifact-provider.ts -> apps/website/src/features/deployments/contracts.ts
+apps/website/src/features/object-storage/registry.ts -> apps/website/src/features/deployments/contracts.ts
+apps/website/src/features/project-keys/site-sealer.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/content-types/index.ts
+apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/entries/index.ts
+apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/navigation/index.ts
+apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/taxonomy/index.ts

@@ -1,0 +1,4 @@
+apps/website/src/features/media/import-media-entity.ts -> apps/website/src/features/publish-content/type-registry.ts
+apps/website/src/features/publish-content/peer-transport.ts -> apps/website/src/features/deployments/static-publish/index.ts
+apps/website/src/features/publish-content/tool-deps.ts -> apps/website/src/features/deployments/static-publish/index.ts
+apps/website/src/features/publish-content/tool-registrations.ts -> apps/website/src/features/deployments/static-publish/index.ts

@@ -1,0 +1,518 @@
+# L01 — Jini-direct types (10 edges, all type-only, J) — one repo (Tovu), Codex-ready
+
+**Problem:** each source imports a type that is declared in a `@jini-ai/*` package and merely
+forwarded by a sibling feature's barrel (`facts/edges.v3.tsv` column `names=origin` shows the
+package for every symbol). The edge is an artefact of the forwarder, not of a domain dependency.
+
+**Change (per edge, exact):**
+- `features/agent-plugins/service-ports.ts:11` → `import type { ApiConnectionConnectStatus } from "@jini-ai/integrations/api-connections"`; `:4` → `import type { ExternalMcpConnectStart } from "@jini-ai/core/contracts/hosted-mcp"` (judge 2 #7: canonical Jini exports).
+- `features/external-mcp/external-mcp-store.ts:7` and `features/project-keys/site-sealer.ts:2` → `@jini-ai/integrations/webhooks` (`SecretSealerPort`, `KeyringPort`).
+- `features/object-storage/artifact-provider.ts:3` → `import type { DeployTargetCredential } from "@jini-ai/devops/deploy"`; `features/object-storage/registry.ts:11` → `import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy"` — **the Tovu barrel forwards Jini's `PluginDeployHostKit` renamed** (`deployments/deploy-targets/types.ts:32`); importing Jini's own `DeployHostKit` instead fails `tsc` at `server/runtime/composition/deps.ts:1008` (SigV4 client shape) — found by the design dry-run, see `facts/dry-run.v3.md` (judge 2 #1 N054–N055).
+- `features/publish-content/tovu-publish-ports.ts:6,7-19,21,3` → `@jini-ai/cms/content-types`, `@jini-ai/cms/taxonomy`, `@jini-ai/cms/entries`, `@jini-ai/cms/navigation` for the listed names. (`tovu-publish-ports.ts:2,1,30` stay — L14 handles them.)
+- **Forwarders (deterministic, judge 3 F3).** From the inventory below, at tip:
+  `ApiConnectionConnectStatus` (forwarded by `api-connections/connect.ts`) and `ExternalMcpConnectStart`
+  (forwarded by `external-mcp/contracts.ts`) have exactly one importer each: `agent-plugins/service-ports.ts`.
+  After the repoint they have none. **Delete those two forwarding lines.** STOP if either line is a
+  declaration rather than a re-export.
+  The other forwarded symbols still have importers outside this lane at tip (inventory counts:
+  `DeployHostKit` 8, `DeployTargetCredential` 4, `KeyringPort` 73, `SecretSealerPort` 63, and the
+  `@jini-ai/cms/*` ports 2–9 each). **Their forwarders stay unchanged.** L01 does not repoint those
+  users, because no reported edge depends on them. The one exception is
+  `vendor-credentials/project-scope.ts:1` (`KeyringPort`, `SecretSealerPort`): L05 repoints it to
+  `@jini-ai/integrations/webhooks` as part of its `contracts/core` move.
+
+**Characterization (named risk: a Jini type differs from the forwarded one, e.g. a Tovu
+`extends`):** `npm run typecheck` + `typecheck:tests` fail on any incompatibility because each
+file's existing uses are now checked against the package type. Named tests:
+`features/object-storage/__tests__/{artifact-provider.unit,index.unit,media-store.unit,env-declarations.contract}.test.ts`,
+`features/agent-plugins/__tests__/unit/{connect-tool.unit,connect-tool.api-connections.unit,connect-skip.unit}.test.ts`,
+`assistant/__tests__/external-mcp-connection-source.operator-read-only.test.ts` (judge 3 F3: the design dry-run ran **5** of these 8 — `object-storage` ×3 and `connect-tool` ×2,
+`facts/dry-run.v3.md:15`. `env-declarations.contract`, `connect-skip.unit` and
+`external-mcp-connection-source.operator-read-only` were not run there. The verifier runs them first, on parent and candidate.)
+
+**Verify:** INDEX-v4 § Gate — run by the verifier on parent and candidate; the executor runs nothing. Named test files = the characterization files above plus the list at the end of this sheet.
+
+Base: Tovu `2d82735a` (integ/merge-3 tip). Expected edge removals: `designs/arch-120/v4/edges/L01.txt` (every line absent from the candidate's `check:architecture` output). Every source line/kind/symbol origin: `facts/edges.v3.tsv` rows with lane `L01`.
+
+---
+
+### Inventory (TypeScript-AST reverse-import index of tip `2d82735a`, all of `apps/website/src`, prod + tests)
+
+#### Edges
+- `agent-plugins/service-ports.ts` -> `api-connections/connect.ts` [J] ApiConnectionConnectStatus <- @jini-ai/integrations/api-connections
+- `agent-plugins/service-ports.ts` -> `external-mcp/contracts.ts` [J] ExternalMcpConnectStart <- @jini-ai/core/contracts/hosted-mcp
+- `external-mcp/external-mcp-store.ts` -> `webhooks/index.ts` [J] SecretSealerPort <- @jini-ai/integrations/webhooks
+- `project-keys/site-sealer.ts` -> `webhooks/index.ts` [J] KeyringPort,SecretSealerPort <- @jini-ai/integrations/webhooks
+- `object-storage/artifact-provider.ts` -> `deployments/contracts.ts` [J] DeployTargetCredential <- @jini-ai/devops/deploy
+- `object-storage/registry.ts` -> `deployments/contracts.ts` [J] DeployHostKit <- @jini-ai/devops/deploy
+- `publish-content/tovu-publish-ports.ts` -> `content-types/index.ts` [J] ContentTypeListPort,ContentTypeRepoPort,IndexProvisionerPort <- @jini-ai/cms/content-types
+- `publish-content/tovu-publish-ports.ts` -> `entries/index.ts` [J] EntryListPort,EntryRepoPort <- @jini-ai/cms/entries
+- `publish-content/tovu-publish-ports.ts` -> `navigation/index.ts` [J] MenuRepoPort,NavLocationBindingRepoPort <- @jini-ai/cms/navigation
+- `publish-content/tovu-publish-ports.ts` -> `taxonomy/index.ts` [J] taxonomy ports <- @jini-ai/cms/taxonomy
+
+#### Every import/re-export of a moved or redirected symbol — repoint each; delete each re-export (no forwarder)
+- `ApiConnectionConnectStatus`:
+    - `features/agent-plugins/service-ports.ts:11` import from `features/api-connections/connect.ts`
+- `ContentTypeListPort`:
+    - `features/content-types/__tests__/repo.dialects.test.ts:6` import from `features/content-types/index.ts`
+    - `features/publish-content/tovu-publish-ports.ts:6` import from `features/content-types/index.ts`
+    - `server/routes/types.ts:102` import from `features/content-types/index.ts`
+    - `server/runtime/composition/content-publish-ports.ts:1` import from `features/content-types/index.ts`
+- `ContentTypeRepoPort`:
+    - `features/content-types/__tests__/repo.dialects.test.ts:6` import from `features/content-types/index.ts`
+    - `features/publish-content/tovu-publish-ports.ts:6` import from `features/content-types/index.ts`
+    - `server/routes/types.ts:100` import from `features/content-types/index.ts`
+    - `server/runtime/composition/content-publish-ports.ts:1` import from `features/content-types/index.ts`
+    - `server/runtime/composition/declared-content-types.ts:2` import from `features/content-types/index.ts`
+- `DeployHostKit`:
+    - `features/deployments/contracts.ts:2` reexport from `features/deployments/deploy-targets/types.ts`
+    - `features/deployments/deploy-targets/host-kit.ts:21` import from `features/deployments/deploy-targets/types.ts`
+    - `features/deployments/static-publish/__tests__/adapter.plugin-targets.unit.test.ts:14` import from `features/deployments/deploy-targets/types.ts`
+    - `features/deployments/static-publish/__tests__/inspection.unit.test.ts:3` import from `features/deployments/deploy-targets/types.ts`
+    - `features/deployments/static-publish/adapter.ts:15` import from `features/deployments/deploy-targets/types.ts`
+    - `features/deployments/static-publish/verify.ts:8` import from `features/deployments/deploy-targets/types.ts`
+    - `features/object-storage/registry.ts:11` import from `features/deployments/contracts.ts`
+    - `server/runtime/composition/__tests__/form-submissions.test.ts:11` import from `features/deployments/deploy-targets/types.ts`
+    - `server/runtime/composition/form-submissions.ts:7` import from `features/deployments/deploy-targets/types.ts`
+- `DeployTargetCredential`:
+    - `features/deployments/contracts.ts:2` reexport from `features/deployments/deploy-targets/types.ts`
+    - `features/deployments/static-publish/adapter.ts:15` import from `features/deployments/deploy-targets/types.ts`
+    - `features/deployments/static-publish/credentials.ts:9` import from `features/deployments/deploy-targets/types.ts`
+    - `features/deployments/static-publish/verify.ts:8` import from `features/deployments/deploy-targets/types.ts`
+    - `features/object-storage/artifact-provider.ts:3` import from `features/deployments/contracts.ts`
+- `EntryListPort`:
+    - `features/publish-content/tovu-publish-ports.ts:21` import from `features/entries/index.ts`
+    - `server/inbound/public-http/routes/site/__tests__/media-rendition.route.test.ts:12` import from `features/entries/index.ts`
+    - `server/routes/types.ts:104` import from `features/entries/index.ts`
+- `EntryRepoPort`:
+    - `features/entries/__tests__/integration/repo.compare-and-set.test.ts:8` import from `features/entries/index.ts`
+    - `features/publish-content/tovu-publish-ports.ts:21` import from `features/entries/index.ts`
+    - `server/routes/types.ts:103` import from `features/entries/index.ts`
+- `ExternalMcpConnectStart`:
+    - `features/agent-plugins/service-ports.ts:4` import from `features/external-mcp/contracts.ts`
+- `IndexProvisionerPort`:
+    - `features/publish-content/tovu-publish-ports.ts:6` import from `features/content-types/index.ts`
+    - `server/routes/types.ts:100` import from `features/content-types/index.ts`
+    - `server/runtime/composition/content-publish-ports.ts:1` import from `features/content-types/index.ts`
+    - `server/runtime/composition/declared-content-types.ts:2` import from `features/content-types/index.ts`
+- `KeyringPort`:
+    - `assistant/__tests__/assistant-vault.unit.test.ts:13` import from `features/webhooks/index.ts`
+    - `assistant/__tests__/execution-credential-store.test.ts:7` import from `features/webhooks/index.ts`
+    - `assistant/__tests__/site-credential-store.test.ts:7` import from `features/webhooks/index.ts`
+    - `assistant/assistant-vault.ts:9` import from `features/webhooks/index.ts`
+    - `assistant/execution-credential-store.ts:3` import from `features/webhooks/index.ts`
+    - `assistant/site-credential-store.ts:3` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/extract-s8-c1-old-shape.types.test.ts:7` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/extract-s8-g-cred.integration.test.ts:17` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts:35` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/resolve-by-label.unit.test.ts:9` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/store.ts:2` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/tool-registrations.ts:34` import from `features/webhooks/index.ts`
+    - `features/database-transfer/destination-store.ts:2` import from `features/webhooks/index.ts`
+    - `features/deployments/deploy-ops/__tests__/extract-s9-g-deploy.support.ts:7` import from `features/webhooks/ports.ts`
+    - `features/deployments/publish-agent-tools.ts:51` import from `features/webhooks/index.ts`
+    - `features/deployments/publish-credentials/__tests__/store.unit.test.ts:6` import from `features/webhooks/index.ts`
+    - `features/deployments/publish-credentials/store.ts:9` import from `features/webhooks/index.ts`
+    - `features/deployments/publish-tool-deps.ts:9` import from `features/webhooks/index.ts`
+    - `features/external-mcp/__tests__/external-mcp-oauth.test.ts:12` import from `features/webhooks/ports.ts`
+    - `features/external-mcp/__tests__/external-mcp-store.test.ts:10` import from `features/webhooks/index.ts`
+    - `features/external-mcp/deps.ts:7` import from `features/webhooks/index.ts`
+    - `features/media-generation/__tests__/tool-registrations.test.ts:28` import from `features/webhooks/index.ts`
+    - `features/media-generation/providers-tools.ts:19` import from `features/webhooks/index.ts`
+    - `features/media/__tests__/provider-credential-store.test.ts:5` import from `features/webhooks/index.ts`
+    - `features/media/provider-credential-store.ts:9` import from `features/webhooks/index.ts`
+    - `features/member-login/oidc-login.ts:9` import from `features/webhooks/index.ts`
+    - `features/newsletter/unsubscribe.ts:17` import from `features/webhooks/index.ts`
+    - `features/project-keys/site-sealer.ts:2` import from `features/webhooks/index.ts`
+    - `features/publish-content/__tests__/disconnect-tool.test.ts:6` import from `features/webhooks/index.ts`
+    - `features/publish-content/destination-credential.ts:3` import from `features/webhooks/index.ts`
+    - `features/publish-content/peers.ts:8` import from `features/webhooks/index.ts`
+    - `features/publish-trust/__tests__/handshake-client.unit.test.ts:7` import from `features/webhooks/index.ts`
+    - `features/publish-trust/__tests__/handshake.test.ts:6` import from `features/webhooks/index.ts`
+    - `features/publish-trust/__tests__/keys-fail-closed-guard.unit.test.ts:43` import()-type from `features/webhooks/index.ts`
+    - `features/publish-trust/__tests__/keys.test.ts:6` import from `features/webhooks/index.ts`
+    - `features/publish-trust/__tests__/session.unit.test.ts:6` import from `features/webhooks/index.ts`
+    - `features/publish-trust/__tests__/support/fixed-keyring.ts:3` import from `features/webhooks/index.ts`
+    - `features/publish-trust/connect.ts:3` import from `features/webhooks/index.ts`
+    - `features/publish-trust/handshake-client.ts:2` import from `features/webhooks/index.ts`
+    - `features/publish-trust/keys.ts:3` import from `features/webhooks/index.ts`
+    - `features/publish-trust/session.ts:4` import from `features/webhooks/index.ts`
+    - `features/source-control/__tests__/store.resolve.unit.test.ts:7` import from `features/webhooks/index.ts`
+    - `features/source-control/__tests__/store.unit.test.ts:7` import from `features/webhooks/index.ts`
+    - `features/source-control/commit-site.ts:8` import from `features/webhooks/index.ts`
+    - `features/source-control/store.ts:7` import from `features/webhooks/index.ts`
+    - `features/source-control/tool-registrations.ts:16` import from `features/webhooks/index.ts`
+    - `features/vendor-credentials/project-scope.ts:1` import from `features/webhooks/index.ts`
+    - `features/vendor-credentials/types.ts:25` import from `features/webhooks/index.ts`
+    - `features/vendor-credentials/vault-adapter.ts:10` import from `features/webhooks/index.ts`
+    - `features/webhooks/__tests__/signing.keyring.test.ts:6` import from `features/webhooks/ports.ts`
+    - `features/webhooks/index.ts:27` reexport from `features/webhooks/ports.ts`
+    - `features/webhooks/keyring.env.ts:11` import from `features/webhooks/ports.ts`
+    - `features/webhooks/keyring.memory.ts:4` import from `features/webhooks/ports.ts`
+    - `features/webhooks/secret-sealer.aesgcm.ts:2` import from `features/webhooks/ports.ts`
+    - `features/webhooks/signing.keyring.ts:2` import from `features/webhooks/ports.ts`
+    - `platform/db/repos/oauth-pending-store.ts:7` import from `features/webhooks/index.ts`
+    - `platform/db/sqlite/oauth-pending-store.sqlite.ts:3` import from `features/webhooks/index.ts`
+    - `server/__tests__/admin-assistant-execution-credential-routes.test.ts:13` import from `features/webhooks/index.ts`
+    - `server/__tests__/admin-assistant-site-credential-routes.test.ts:14` import from `features/webhooks/index.ts`
+    - `server/__tests__/admin-external-mcp-routes.test.ts:8` import from `features/webhooks/index.ts`
+    - `server/__tests__/admin-media-provider-routes.test.ts:7` import from `features/webhooks/index.ts`
+    - `server/__tests__/routes/publish-credentials-route.test.ts:8` import from `features/webhooks/index.ts`
+    - `server/__tests__/routes/publish-trust-gate.test.ts:17` import from `features/webhooks/index.ts`
+    - `server/__tests__/routes/publish-trust-revocation-gate.test.ts:15` import from `features/webhooks/index.ts`
+    - `server/__tests__/routes/publish-zero-setup-end-to-end.test.ts:30` import from `features/webhooks/index.ts`
+    - `server/inbound/admin-http/publish-trust-auth.ts:16` import from `features/webhooks/index.ts`
+    - `server/inbound/admin-http/routes/newsletter/deps.ts:35` import from `features/webhooks/index.ts`
+    - `server/inbound/public-http/routes/publish-trust/handshake.ts:16` import from `features/webhooks/index.ts`
+    - `server/inbound/public-http/routes/site/newsletter-deps.ts:15` import from `features/webhooks/index.ts`
+    - `server/routes/route-deps/credentials-deps.ts:6` import from `features/webhooks/index.ts`
+    - `server/runtime/composition/modules/__tests__/site-search.unit.test.ts:16` import from `features/webhooks/index.ts`
+    - `server/runtime/composition/modules/site-search.ts:18` import from `features/webhooks/index.ts`
+    - `server/runtime/composition/project-store.ts:17` import from `features/webhooks/index.ts`
+    - `server/runtime/composition/storage-secret.ts:8` import from `features/webhooks/index.ts`
+- `MenuRepoPort`:
+    - `features/navigation/__tests__/import-menu.test.ts:4` import from `features/navigation/index.ts`
+    - `features/navigation/__tests__/publish-content.test.ts:9` import from `features/navigation/index.ts`
+    - `features/navigation/__tests__/reverters.test.ts:8` import from `features/navigation/index.ts`
+    - `features/navigation/import-menu.ts:5` import from `features/navigation/index.ts`
+    - `features/navigation/publish-content.ts:20` import from `features/navigation/index.ts`
+    - `features/publish-content/__tests__/apply-loop.test.ts:37` import from `features/navigation/index.ts`
+    - `features/publish-content/tovu-publish-ports.ts:3` import from `features/navigation/index.ts`
+    - `server/__tests__/admin-menus-routes.test.ts:11` import from `features/navigation/index.ts`
+    - `server/inbound/admin-http/http/menus.ts:3` import from `features/navigation/index.ts`
+    - `server/routes/types.ts:55` import from `features/navigation/index.ts`
+- `NavLocationBindingRepoPort`:
+    - `features/navigation/__tests__/publish-content.test.ts:9` import from `features/navigation/index.ts`
+    - `features/navigation/__tests__/reverters.test.ts:8` import from `features/navigation/index.ts`
+    - `features/navigation/import-menu.ts:5` import from `features/navigation/index.ts`
+    - `features/publish-content/tovu-publish-ports.ts:3` import from `features/navigation/index.ts`
+    - `server/inbound/admin-http/http/menus.ts:5` import from `features/navigation/index.ts`
+    - `server/routes/types.ts:55` import from `features/navigation/index.ts`
+- `SecretSealerPort`:
+    - `assistant/__tests__/agents.test.ts:12` import from `features/webhooks/index.ts`
+    - `assistant/__tests__/site-credential-store.test.ts:7` import from `features/webhooks/index.ts`
+    - `assistant/assistant-vault.ts:9` import from `features/webhooks/index.ts`
+    - `assistant/byok-credential.ts:30` import from `features/webhooks/index.ts`
+    - `assistant/execution-credential-store.ts:3` import from `features/webhooks/index.ts`
+    - `assistant/external-mcp-connection-source.ts:4` import from `features/webhooks/index.ts`
+    - `assistant/live-model-cache.ts:9` import from `features/webhooks/index.ts`
+    - `assistant/public-assistant-availability.ts:4` import from `features/webhooks/index.ts`
+    - `assistant/site-credential-store.ts:3` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/create-agent-tool.unit.test.ts:13` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/extract-s8-c1-old-shape.types.test.ts:7` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/extract-s8-c2p1-credential-ports.test.ts:7` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/extract-s8-g-cred.integration.test.ts:17` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts:35` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/list-agent-tool.unit.test.ts:9` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts:11` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/set-token-agent-tool.unit.test.ts:19` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/set-username-agent-tool.unit.test.ts:9` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/tool-registrations.model-facing-errors.test.ts:37` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/__tests__/write-files-confirmation.test.ts:10` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/credentialed-request.ts:601` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/store.ts:2` import from `features/webhooks/index.ts`
+    - `features/custom-credentials/tool-registrations.ts:34` import from `features/webhooks/index.ts`
+    - `features/database-transfer/destination-store.ts:2` import from `features/webhooks/index.ts`
+    - `features/deployments/deploy-ops/__tests__/extract-s9-g-deploy.support.ts:7` import from `features/webhooks/ports.ts`
+    - `features/deployments/publish-agent-tools.ts:51` import from `features/webhooks/index.ts`
+    - `features/deployments/publish-credentials/store.ts:9` import from `features/webhooks/index.ts`
+    - `features/deployments/publish-tool-deps.ts:9` import from `features/webhooks/index.ts`
+    - `features/deployments/static-publish/credentials.ts:4` import from `features/webhooks/index.ts`
+    - `features/deployments/static-publish/verify.ts:6` import from `features/webhooks/index.ts`
+    - `features/external-mcp/__tests__/external-mcp-oauth.lost-update.test.ts:6` import from `features/webhooks/ports.ts`
+    - `features/external-mcp/__tests__/external-mcp-oauth.test.ts:12` import from `features/webhooks/ports.ts`
+    - `features/external-mcp/deps.ts:7` import from `features/webhooks/index.ts`
+    - `features/external-mcp/external-mcp-store.ts:7` import from `features/webhooks/index.ts`
+    - `features/media-generation/providers-tools.ts:19` import from `features/webhooks/index.ts`
+    - `features/media-generation/tool-registrations.ts:23` import from `features/webhooks/index.ts`
+    - `features/media/__tests__/provider-credential-store.test.ts:5` import from `features/webhooks/index.ts`
+    - `features/media/provider-credential-store.ts:9` import from `features/webhooks/index.ts`
+    - `features/member-login/oidc-login.ts:9` import from `features/webhooks/index.ts`
+    - `features/project-keys/site-sealer.ts:2` import from `features/webhooks/index.ts`
+    - `features/publish-content/destination-credential.ts:3` import from `features/webhooks/index.ts`
+    - `features/publish-content/peers.ts:8` import from `features/webhooks/index.ts`
+    - `features/site-backup/__tests__/tool-registrations.unit.test.ts:16` import from `features/webhooks/index.ts`
+    - `features/site-backup/backup-service.ts:27` import from `features/webhooks/index.ts`
+    - `features/source-control/__tests__/commit-site.characterization.unit.test.ts:7` import from `features/webhooks/index.ts`
+    - `features/source-control/__tests__/commit-site.preview-parity.unit.test.ts:8` import from `features/webhooks/index.ts`
+    - `features/source-control/__tests__/gates.characterization.unit.test.ts:37` import from `features/webhooks/index.ts`
+    - `features/source-control/commit-site.ts:8` import from `features/webhooks/index.ts`
+    - `features/source-control/store.ts:7` import from `features/webhooks/index.ts`
+    - `features/source-control/tool-registrations.ts:16` import from `features/webhooks/index.ts`
+    - `features/vendor-credentials/project-scope.ts:1` import from `features/webhooks/index.ts`
+    - `features/vendor-credentials/types.ts:25` import from `features/webhooks/index.ts`
+    - `features/vendor-credentials/vault-adapter.ts:10` import from `features/webhooks/index.ts`
+    - `features/webhooks/index.ts:27` reexport from `features/webhooks/ports.ts`
+    - `features/webhooks/secret-sealer.aesgcm.ts:2` import from `features/webhooks/ports.ts`
+    - `platform/db/repos/oauth-pending-store.ts:7` import from `features/webhooks/index.ts`
+    - `platform/db/sqlite/oauth-pending-store.sqlite.ts:3` import from `features/webhooks/index.ts`
+    - `server/routes/route-deps/credentials-deps.ts:6` import from `features/webhooks/index.ts`
+    - `server/runtime/boot/__tests__/mail-provider-catalog-setup.unit.test.ts:7` import from `features/webhooks/index.ts`
+    - `server/runtime/boot/mail-plugin-account-token.ts:4` import from `features/webhooks/index.ts`
+    - `server/runtime/boot/mail-provider-catalog.ts:17` import from `features/webhooks/index.ts`
+    - `server/runtime/composition/__tests__/storage-secret.l245.unit.test.ts:7` import from `features/webhooks/ports.ts`
+    - `server/runtime/composition/pending-agent-plugin-tokens.ts:5` import from `features/webhooks/index.ts`
+    - `server/runtime/composition/project-store.ts:17` import from `features/webhooks/index.ts`
+    - `server/runtime/composition/storage-secret.ts:8` import from `features/webhooks/index.ts`
+- `taxonomy`:
+
+#### Exact importers of each changed source file (callers that construct/pass its deps, and tests)
+- `features/agent-plugins/service-ports.ts`
+    - prod: features/agent-plugins/access-token-tool.ts, features/agent-plugins/apply-connect-defaults.ts, features/agent-plugins/apply-tool-renames.ts, features/agent-plugins/automatic-agent-plugins.ts, features/agent-plugins/connect-card-ui.ts, features/agent-plugins/connect-tool.ts, features/agent-plugins/connection-status.ts, features/agent-plugins/enable-access.ts, features/agent-plugins/federate-mcp.ts, features/agent-plugins/grant-signed-in-defaults.ts, features/agent-plugins/host-signals.ts, features/agent-plugins/layout.ts, features/agent-plugins/mcp-host-bindings.ts, features/agent-plugins/new-site-agent-plugin-tokens.ts, features/agent-plugins/supersession.ts, features/agent-plugins/switch-on-saved-token.ts, features/agent-plugins/token-sign-in.ts, features/agent-plugins/uninstall-tool.ts, features/sites/site-admin.ts, server/routes/route-deps/credentials-deps.ts, server/runtime/composition/agent-plugin-service-ports.ts, server/runtime/composition/plugin-host.ts
+    - tests: features/agent-plugins/__tests__/fixtures/connection-service-ports.ts, features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts, features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts, features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+- `features/external-mcp/external-mcp-store.ts`
+    - prod: assistant/agent-daemon-port.ts, assistant/external-mcp-connection-source.ts, features/external-mcp/external-mcp-oauth.ts, features/external-mcp/external-mcp-probe.ts, features/external-mcp/external-mcp-repo.ts, features/external-mcp/tool-registrations.ts, server/inbound/admin-http/routes/external-mcp/delete.ts, server/inbound/admin-http/routes/external-mcp/list.ts, server/inbound/admin-http/routes/external-mcp/oauth.ts, server/inbound/admin-http/routes/external-mcp/put.ts, server/inbound/public-http/routes/external-mcp/oauth-callback.ts, server/runtime/boot/mail-plugin-account-token.ts, server/runtime/composition/agent-plugin-service-ports.ts, server/runtime/composition/permanent-delete-deps.ts
+    - tests: assistant/__tests__/agent-daemon-port.barrel.test.ts, assistant/__tests__/byok-tool-surface.test.ts, assistant/__tests__/desktop-mcp-runtime.integration.test.ts, assistant/__tests__/external-mcp-connection-source.operator-read-only.test.ts, assistant/__tests__/external-mcp-reauth-tool.test.ts, assistant/__tests__/mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts, assistant/__tests__/moved-tools.access-token.golden.test.ts, assistant/__tests__/moved-tools.credential-cards.golden.test.ts, assistant/__tests__/moved-tools.golden.test.ts, assistant/__tests__/tool-registrations.external-mcp.test.ts, features/agent-plugins/__tests__/fixtures/connection-service-ports.ts, features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts, features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts, features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts, features/agent-plugins/__tests__/unit/apply-tool-renames.unit.test.ts, features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts, features/agent-plugins/__tests__/unit/declined-access.unit.test.ts, features/agent-plugins/__tests__/unit/enable-access.regression.test.ts, features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts, features/agent-plugins/__tests__/unit/grant-signed-in-defaults.unit.test.ts, features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts, features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts, features/agent-plugins/__tests__/unit/oauth-sign-in-refusal.unit.test.ts, features/agent-plugins/__tests__/unit/plugin-mcp-writes.lost-update.test.ts, features/agent-plugins/__tests__/unit/switch-on-saved-token.unit.test.ts, features/credential-safety/__tests__/probes-and-cards.test.ts, features/credential-safety/__tests__/stores.test.ts, features/external-mcp/__tests__/access-choice.postgres.test.ts, features/external-mcp/__tests__/access-grants.contract.test.ts, features/external-mcp/__tests__/access-save.integration.test.ts, features/external-mcp/__tests__/external-mcp-aad-writer-sync.test.ts, features/external-mcp/__tests__/external-mcp-aad.test.ts, features/external-mcp/__tests__/external-mcp-connection-revocation.test.ts, features/external-mcp/__tests__/external-mcp-dcr.test.ts, features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts, features/external-mcp/__tests__/external-mcp-frozen-db.test.ts, features/external-mcp/__tests__/external-mcp-oauth.lost-update.test.ts, features/external-mcp/__tests__/external-mcp-oauth.test.ts, features/external-mcp/__tests__/external-mcp-operations.unit.test.ts, features/external-mcp/__tests__/external-mcp-payload-version.test.ts, features/external-mcp/__tests__/external-mcp-revocation.unit.test.ts, features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts, features/external-mcp/__tests__/external-mcp-store.lost-update.test.ts, features/external-mcp/__tests__/external-mcp-store.memory.unit.test.ts, features/external-mcp/__tests__/external-mcp-store.test.ts, features/external-mcp/__tests__/fixtures/frozen-db-harness.ts, features/external-mcp/__tests__/fixtures/mint-mcp-credentials-frozen.ts, features/external-mcp/__tests__/h1a/hosted-mcp-error-identity.test.ts, features/external-mcp/__tests__/h1b/hosted-store-seams.test.ts, features/external-mcp/__tests__/h2b/connection-gate-seam.test.ts, features/external-mcp/__tests__/h2c/sign-in-ports.test.ts, features/external-mcp/__tests__/unit/save-form.unit.test.ts, features/external-mcp/__tests__/unit/static-token-setup.unit.test.ts, features/external-mcp/__tests__/unit/tool-registrations.oauth-origin.unit.test.ts, features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts, platform/db/repos/__tests__/external-mcp-repo.lost-update.test.ts, server/__tests__/admin-external-mcp-oauth-routes.test.ts, server/__tests__/admin-external-mcp-probe-routes.test.ts, server/__tests__/admin-external-mcp-routes.test.ts, server/__tests__/admin-supabase-token-no-agent.test.ts, server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts, server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugins-http.integration.test.ts, server/inbound/admin-http/routes/external-mcp/__tests__/built-in-connection.test.ts, server/inbound/admin-http/routes/external-mcp/__tests__/oauth-error-mapping.test.ts, server/inbound/public-http/routes/external-mcp/__tests__/oauth-callback.test.ts, server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts, server/runtime/boot/__tests__/mail-plugin-account-token.unit.test.ts, server/runtime/composition/__tests__/plugin-host.integration.test.ts, server/runtime/composition/modules/__tests__/helpers/server-federation-fixture.ts
+- `features/object-storage/artifact-provider.ts`
+    - prod: features/object-storage/index.ts
+    - tests: features/object-storage/__tests__/artifact-provider.unit.test.ts, features/object-storage/__tests__/index.unit.test.ts
+- `features/object-storage/registry.ts`
+    - prod: features/object-storage/artifact-provider.ts, features/object-storage/index.ts, features/object-storage/media-store.ts
+    - tests: features/object-storage/__tests__/artifact-provider.unit.test.ts, features/object-storage/__tests__/env-declarations.contract.test.ts, features/object-storage/__tests__/index.unit.test.ts, features/object-storage/__tests__/media-store.unit.test.ts, features/object-storage/__tests__/registry.unit.test.ts
+- `features/project-keys/site-sealer.ts`
+    - prod: server/runtime/composition/deps.ts
+    - tests: features/project-keys/__tests__/site-sealer.unit.test.ts
+- `features/publish-content/tovu-publish-ports.ts`
+    - prod: features/content-types/publish-content.ts, features/entries/publish-content.ts, features/forms/publish-content.ts, features/media/publish-content.ts, features/media/verify-published-media.ts, features/navigation/publish-content.ts, features/post/publish-content.ts, features/publish-content/apply-port.ts, features/publish-content/tool-deps.ts, features/publish-content/tool-registrations.ts, features/publish-content/type-registry.ts, features/settings/publish-content.ts, features/taxonomy/publish-content.ts, features/taxonomy/publish-term-ids.ts, features/theme/active-theme-publish-content.ts, features/widgets/publish-content.ts, server/runtime/composition/content-publish-ports.ts
+    - tests: features/entries/__tests__/unit/publish-content.test.ts, features/media/__tests__/verify-published-media.test.ts, features/publish-content/__tests__/media-video-embed.round-trip.test.ts, features/publish-content/__tests__/round-trip-harness.ts, features/taxonomy/__tests__/publish-content.test.ts
+
+#### Named test files (verifier runs them; every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 235 files
+
+```text
+  apps/website/src/assistant/__tests__/agent-daemon-port.barrel.test.ts
+  apps/website/src/assistant/__tests__/agents.test.ts
+  apps/website/src/assistant/__tests__/assistant-vault.unit.test.ts
+  apps/website/src/assistant/__tests__/byok-tool-surface.test.ts
+  apps/website/src/assistant/__tests__/desktop-mcp-runtime.integration.test.ts
+  apps/website/src/assistant/__tests__/execution-credential-store.test.ts
+  apps/website/src/assistant/__tests__/external-mcp-connection-source.operator-read-only.test.ts
+  apps/website/src/assistant/__tests__/external-mcp-connection-source.test.ts
+  apps/website/src/assistant/__tests__/external-mcp-reauth-tool.test.ts
+  apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts
+  apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts
+  apps/website/src/assistant/__tests__/merged-readers-batch.test.ts
+  apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts
+  apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts
+  apps/website/src/assistant/__tests__/moved-tools.golden.test.ts
+  apps/website/src/assistant/__tests__/site-credential-store.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.authorization.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.entries.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.external-mcp.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.menus.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.taxonomy.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.widgets-authorization.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.widgets-contracts.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/apply-tool-renames.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/declined-access.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/grant-signed-in-defaults.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/oauth-sign-in-refusal.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/plugin-embed-render.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/plugin-embed-scripts.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/plugin-mcp-writes.lost-update.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/switch-on-saved-token.unit.test.ts
+  apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts
+  apps/website/src/features/api-connections/__tests__/connect.unit.test.ts
+  apps/website/src/features/api-connections/__tests__/shared-api.unit.test.ts
+  apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+  apps/website/src/features/comments/__tests__/index.test.ts
+  apps/website/src/features/content-types/__tests__/integration/repo.sqlite.integration.test.ts
+  apps/website/src/features/content-types/__tests__/publish-content.test.ts
+  apps/website/src/features/content-types/__tests__/repo.characterization.test.ts
+  apps/website/src/features/content-types/__tests__/repo.dialects.test.ts
+  apps/website/src/features/content-types/__tests__/reserved-keys.test.ts
+  apps/website/src/features/credential-safety/__tests__/probes-and-cards.test.ts
+  apps/website/src/features/credential-safety/__tests__/stores.test.ts
+  apps/website/src/features/custom-credentials/__tests__/create-agent-tool.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-c1-old-shape.types.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p1-credential-ports.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-g-cred.integration.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts
+  apps/website/src/features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts
+  apps/website/src/features/custom-credentials/__tests__/list-agent-tool.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts
+  apps/website/src/features/custom-credentials/__tests__/resolve-by-label.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/set-token-agent-tool.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/set-username-agent-tool.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/tool-registrations.model-facing-errors.test.ts
+  apps/website/src/features/custom-credentials/__tests__/write-files-confirmation.test.ts
+  apps/website/src/features/deployments/deploy-ops/__tests__/extract-s9-g-deploy.test.ts
+  apps/website/src/features/deployments/publish-credentials/__tests__/compatibility-port.unit.test.ts
+  apps/website/src/features/deployments/publish-credentials/__tests__/store.unit.test.ts
+  apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts
+  apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.test.ts
+  apps/website/src/features/entries/__tests__/integration/repo.dialects.test.ts
+  apps/website/src/features/entries/__tests__/integration/repo.sqlite.integration.test.ts
+  apps/website/src/features/entries/__tests__/repo.characterization.test.ts
+  apps/website/src/features/entries/__tests__/unit/public-list.unit.test.ts
+  apps/website/src/features/entries/__tests__/unit/publish-content.test.ts
+  apps/website/src/features/entries/__tests__/unit/trash-aware-memory-repo.characterization.unit.test.ts
+  apps/website/src/features/entries/__tests__/unit/trash-aware-memory-repo.display.unit.test.ts
+  apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts
+  apps/website/src/features/external-mcp/__tests__/access-grants.contract.test.ts
+  apps/website/src/features/external-mcp/__tests__/access-save.integration.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-aad-writer-sync.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-aad.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-connection-revocation.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-dcr.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-oauth.lost-update.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-oauth.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-operations.unit.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-payload-version.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-revocation.unit.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-store.lost-update.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-store.memory.unit.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-store.test.ts
+  apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-error-identity.test.ts
+  apps/website/src/features/external-mcp/__tests__/h1a/hosted-mcp-type-pins.test.ts
+  apps/website/src/features/external-mcp/__tests__/h1b/hosted-store-seams.test.ts
+  apps/website/src/features/external-mcp/__tests__/h2b/connection-gate-seam.test.ts
+  apps/website/src/features/external-mcp/__tests__/h2c/sign-in-ports.test.ts
+  apps/website/src/features/external-mcp/__tests__/unit/auth-mode.unit.test.ts
+  apps/website/src/features/external-mcp/__tests__/unit/save-form.unit.test.ts
+  apps/website/src/features/external-mcp/__tests__/unit/static-token-setup.unit.test.ts
+  apps/website/src/features/external-mcp/__tests__/unit/tool-registrations.oauth-origin.unit.test.ts
+  apps/website/src/features/identity/__tests__/permission-migrations.test.ts
+  apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts
+  apps/website/src/features/media/__tests__/provider-credential-store.test.ts
+  apps/website/src/features/media/__tests__/verify-published-media.test.ts
+  apps/website/src/features/navigation/__tests__/footer-page-links.test.ts
+  apps/website/src/features/navigation/__tests__/import-menu.test.ts
+  apps/website/src/features/navigation/__tests__/publish-content.characterization.test.ts
+  apps/website/src/features/navigation/__tests__/publish-content.test.ts
+  apps/website/src/features/navigation/__tests__/repoint-menu-refs.test.ts
+  apps/website/src/features/navigation/__tests__/reverters.test.ts
+  apps/website/src/features/navigation/__tests__/trash-aware-memory-menu-repo.test.ts
+  apps/website/src/features/navigation/__tests__/trash-menu.test.ts
+  apps/website/src/features/object-storage/__tests__/artifact-provider.unit.test.ts
+  apps/website/src/features/object-storage/__tests__/env-declarations.contract.test.ts
+  apps/website/src/features/object-storage/__tests__/index.unit.test.ts
+  apps/website/src/features/object-storage/__tests__/media-store.unit.test.ts
+  apps/website/src/features/object-storage/__tests__/registry.unit.test.ts
+  apps/website/src/features/plugin-runtime/__tests__/integration/declarative-runtime.integration.test.ts
+  apps/website/src/features/plugin-runtime/__tests__/integration/testimonials-faq-sample.integration.test.ts
+  apps/website/src/features/plugin-runtime/__tests__/unit/declarative-enable.unit.test.ts
+  apps/website/src/features/plugin-runtime/__tests__/unit/plugin-enable-access.regression.test.ts
+  apps/website/src/features/project-keys/__tests__/site-sealer.unit.test.ts
+  apps/website/src/features/publish-content/__tests__/apply-loop.test.ts
+  apps/website/src/features/publish-content/__tests__/disconnect-tool.test.ts
+  apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts
+  apps/website/src/features/publish-content/__tests__/new-types-sqlite-round-trip.test.ts
+  apps/website/src/features/publish-content/__tests__/peers.one-connected-destination.test.ts
+  apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts
+  apps/website/src/features/publish-trust/__tests__/handshake.test.ts
+  apps/website/src/features/publish-trust/__tests__/keys-fail-closed-guard.unit.test.ts
+  apps/website/src/features/publish-trust/__tests__/keys.test.ts
+  apps/website/src/features/publish-trust/__tests__/session.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.characterization.unit.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.preview-parity.unit.test.ts
+  apps/website/src/features/source-control/__tests__/gates.characterization.unit.test.ts
+  apps/website/src/features/source-control/__tests__/store.resolve.unit.test.ts
+  apps/website/src/features/source-control/__tests__/store.unit.test.ts
+  apps/website/src/features/taxonomy/__tests__/gated-hooks.test.ts
+  apps/website/src/features/taxonomy/__tests__/integration/repo.sqlite.integration.test.ts
+  apps/website/src/features/taxonomy/__tests__/publish-content.test.ts
+  apps/website/src/features/taxonomy/__tests__/repo.characterization.test.ts
+  apps/website/src/features/taxonomy/__tests__/repo.dialects.test.ts
+  apps/website/src/features/taxonomy/__tests__/tool-contract.characterization.test.ts
+  apps/website/src/features/theme/__tests__/menu-authored-html.test.ts
+  apps/website/src/features/trash/__tests__/menu-trash-flow.test.ts
+  apps/website/src/features/webhooks/__tests__/keyring.env.test.ts
+  apps/website/src/features/widgets/__tests__/agent-tools.trash-confirmation.test.ts
+  apps/website/src/features/widgets/__tests__/integration/embed-service.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/embed-service.post-host.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/gallery-widget.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/gallery.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/header-occurrence-collision.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/html-form-embeds.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/html-taxonomy-embeds.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/mediawidget.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/region-area-service.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.delegated-error-status.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.handler-gaps.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.input-validation-status.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.plugin-hook-failed.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.region-gaps.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts
+  apps/website/src/features/widgets/__tests__/integration/write-service.integration.test.ts
+  apps/website/src/features/widgets/__tests__/tool-contract.characterization.test.ts
+  apps/website/src/features/widgets/__tests__/unit/create-core-resolvers.unit.test.ts
+  apps/website/src/features/widgets/__tests__/unit/menu-page-links.unit.test.ts
+  apps/website/src/features/widgets/__tests__/unit/publish-content.test.ts
+  apps/website/src/features/widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts
+  apps/website/src/platform/db/repos/__tests__/external-mcp-repo.lost-update.test.ts
+  apps/website/src/platform/db/repos/__tests__/external-mcp-repo.test.ts
+  apps/website/src/server/__tests__/admin-assistant-execution-credential-routes.test.ts
+  apps/website/src/server/__tests__/admin-assistant-site-credential-routes.test.ts
+  apps/website/src/server/__tests__/admin-external-mcp-oauth-routes.test.ts
+  apps/website/src/server/__tests__/admin-external-mcp-probe-routes.test.ts
+  apps/website/src/server/__tests__/admin-external-mcp-routes.test.ts
+  apps/website/src/server/__tests__/admin-integrations-routes.test.ts
+  apps/website/src/server/__tests__/admin-media-provider-routes.test.ts
+  apps/website/src/server/__tests__/admin-menus-routes.test.ts
+  apps/website/src/server/__tests__/admin-supabase-token-no-agent.test.ts
+  apps/website/src/server/__tests__/admin-widgets-routes.test.ts
+  apps/website/src/server/__tests__/content-type-write-provenance.test.ts
+  apps/website/src/server/__tests__/routes/forms-webhook-fanout.test.ts
+  apps/website/src/server/__tests__/routes/publish-credentials-route.test.ts
+  apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts
+  apps/website/src/server/__tests__/routes/publish-trust-revocation-gate.test.ts
+  apps/website/src/server/__tests__/routes/publish-zero-setup-end-to-end.test.ts
+  apps/website/src/server/__tests__/routes/widgets-dynamic-resolver-site-serving.test.ts
+  apps/website/src/server/__tests__/unit/server-modules.unit.test.ts
+  apps/website/src/server/__tests__/widgets-error-code-parity.test.ts
+  apps/website/src/server/inbound/admin-http/http/__tests__/unit/menus-dto.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts
+  apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugins-http.integration.test.ts
+  apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/register-update-fields.conflict.test.ts
+  apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts
+  apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/write-error-status.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/entries/__tests__/write-error-status.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/built-in-connection.test.ts
+  apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/oauth-error-mapping.test.ts
+  apps/website/src/server/inbound/admin-http/routes/menus/__tests__/assign-location.pins.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/menus/__tests__/menu-html-mode.test.ts
+  apps/website/src/server/inbound/admin-http/routes/menus/__tests__/menus-route-failures.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/menus/__tests__/update-tree.not-live.test.ts
+  apps/website/src/server/inbound/admin-http/routes/posts/__tests__/template-preview-render.test.ts
+  apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/assign-terms-error-mapping.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/embed-insert.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/preview.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/region-bind.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/route-guards.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/update.unit.test.ts
+  apps/website/src/server/inbound/public-http/routes/external-mcp/__tests__/oauth-callback.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/embeds-everywhere.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/pages-branch-coverage.integration.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/media-rendition.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/unit/h4-pages.unit.test.ts
+  apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts
+  apps/website/src/server/runtime/boot/__tests__/mail-plugin-account-token.unit.test.ts
+  apps/website/src/server/runtime/boot/__tests__/mail-provider-catalog-setup.unit.test.ts
+  apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts
+  apps/website/src/server/runtime/composition/__tests__/form-delivery-subscribers.test.ts
+  apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts
+  apps/website/src/server/runtime/composition/__tests__/publish-content-manifest.test.ts
+  apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts
+  apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.test.ts
+  apps/website/src/server/runtime/composition/modules/__tests__/site-search.unit.test.ts
+```
+The verifier runs every file above plus the new characterization tests this sheet names, on the parent and on the candidate (INDEX-v4 § Gate).
