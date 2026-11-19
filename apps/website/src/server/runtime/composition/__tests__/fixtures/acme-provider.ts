@@ -133,7 +133,7 @@ let browser: StartingBrowser | undefined;
 /** Serves the public callback for this composition (only) on the local "site". */
 export function mountCallback(composition: AcmeComposition): void {
   const app = express();
-  registerApiConnectionOAuthCallbackRoute(app, { host: composition.apiConnections.host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
+  registerApiConnectionOAuthCallbackRoute({ app, deps: { host: composition.apiConnections.host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} } });
   site.removeAllListeners("request");
   site.on("request", app);
 }

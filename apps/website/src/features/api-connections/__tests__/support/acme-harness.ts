@@ -172,7 +172,7 @@ export async function startAcmeHarness(): Promise<AcmeHarness> {
     }, { ...(options.startLoopback === undefined ? {} : { startLoopback: options.startLoopback }), ...(options.shared ? { shared: options.shared } : {}) });
     const app = express();
     const logs = options.logs;
-    registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => { logs?.push(line); } });
+    registerApiConnectionOAuthCallbackRoute({ app, deps: { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => { logs?.push(line); } } });
     siteServer.removeAllListeners("request");
     siteServer.on("request", app);
     browser = trackStartingBrowser({ host });

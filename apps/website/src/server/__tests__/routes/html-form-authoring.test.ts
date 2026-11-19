@@ -37,11 +37,11 @@ test("HTML create/edit route, native urlencoded POST, confirmation redirect and 
   app.use((_req, res, next) => { res.locals.principal = { id: "owner", kind: "user" }; next(); });
   registerAdminFormsCreateRoute({ app, deps });
   registerAdminFormsAuthoringRoute({ app, deps });
-  registerFormsSubmitRoute(app, { workspaceId: "ws", submitForm: {
+  registerFormsSubmitRoute({ app, deps: { workspaceId: "ws", submitForm: {
     crypto: globalThis.crypto,
     definitionRepo: formDefinitionRepo, submissionRepo: formSubmissionRepo,
     ...deps, rateLimiter: { check: () => ({ allowed: true as const }) },
-  } });
+  } } });
   const server = createServer(app).listen(0);
   t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
   await once(server, "listening");

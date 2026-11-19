@@ -60,7 +60,7 @@ function makeRoot(t: TestContext, files: Record<string, string>): string {
   return root;
 }
 
-type RegisterOptions = Parameters<typeof registerThemeStaticAssets>[1];
+type RegisterOptions = Omit<Parameters<typeof registerThemeStaticAssets>[0], "app"> & NonNullable<Parameters<typeof registerThemeStaticAssets>[1]>;
 
 /**
  * Serves `registerThemeStaticAssets` on an ephemeral port: an optional `localsRevision` is planted on
@@ -78,7 +78,7 @@ async function startApp(
     next();
   };
   app.use(plantRevision);
-  registerThemeStaticAssets(app, required);
+  registerThemeStaticAssets({ app, themeRoots: required.themeRoots }, required);
   app.use((_req, res) => res.status(404).type("text/plain").send("not found"));
   const onError: ErrorRequestHandler = (err: Error, _req, res, _next) => res.status(500).type("text/plain").send(`error: ${err.message}`);
   app.use(onError);

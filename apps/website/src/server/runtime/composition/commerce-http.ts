@@ -35,7 +35,7 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
   storefront.get("/commerce/checkout.js", (_req, res) => {
     res.set("Cache-Control", "public, max-age=300").type("text/javascript").send(COMMERCE_CHECKOUT_SCRIPT);
   });
-  registerProductRoutes(storefront, deps);
+  registerProductRoutes({ app: storefront, deps });
   app.use(async (req, res, next) => {
     // Match the router's case-insensitive paths without changing requested IDs or slugs.
     const requestPath = req.path.toLowerCase();

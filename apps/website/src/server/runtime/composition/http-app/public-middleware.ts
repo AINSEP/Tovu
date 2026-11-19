@@ -51,13 +51,13 @@ export function applyPublicMiddleware(
   // 2026-08-28-observability-groundwork.md` §1-2 for why that distinction matters here).
   // Bearer share paths never enter request logging, page analytics, or public rendering.
   registerPublicShareRoutes({ app, registry: routeDeps.siteShareBackend?.registry });
-  applyRequestTracking(app, { tracker: routeDeps.tracker });
+  applyRequestTracking({ app, deps: { tracker: routeDeps.tracker } });
   // Only a `createSiteApp({ themeId })` loopback app has this; see `render-theme-override.ts`.
-  if (options.themeIdOverride !== undefined) applyRenderThemeOverride(app, { themeId: options.themeIdOverride });
+  if (options.themeIdOverride !== undefined) applyRenderThemeOverride({ app, themeId: options.themeIdOverride });
   // ADR-041/043/044/045 — must precede the normal traffic handlers so a
   // BLOCKED_PENDING_RECOVERY site refuses normal traffic regardless of which route would have
   // handled it. See site-serving-gate.ts's own header for the allowlist rationale.
-  applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
+  applySiteServingGate({ app, deps: { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId } });
   // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
   // public route runs. See `public-page-security-headers.ts`.
   applyPublicPageSecurityHeaders(app, { readHeaders: routeDeps.publicPageSecurityHeaders });
@@ -100,7 +100,7 @@ export function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: 
 /** Mount the public browser bundle at the configured built-output location.
  * @complexity O(1) route registration. */
 export function registerSiteChatBundle({ app }: { app: Express }, _optional = {}): void {
-  registerSiteChatStatic(app, {
+  registerSiteChatStatic({ app,
     distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir({ app: "site-chat" }),
   });
 }

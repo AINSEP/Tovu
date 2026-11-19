@@ -54,7 +54,7 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
       registerPluginExportFilesRoute({ app, deps });
       if (deps.apiConnections) {
         registerApiConnectionSignInRoute({ app, deps: { workspaceId: deps.workspaceId, host: deps.apiConnections.host } });
-        registerApiConnectionOAuthCallbackRoute(app, { host: deps.apiConnections.host, callbackLimiter });
+        registerApiConnectionOAuthCallbackRoute({ app, deps: { host: deps.apiConnections.host, callbackLimiter } });
       }
     },
   };

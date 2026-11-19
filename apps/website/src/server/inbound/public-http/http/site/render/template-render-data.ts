@@ -44,7 +44,7 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
     // 2026-10-05), else `updatedAt`.
     // `featuredImage` (2026-10-05) is `{ url, alt, width, height }` or `null` — a theme renders it
     // with `{% if post.featuredImage %}<img src="{{ post.featuredImage.url }}" …>{% endif %}`.
-    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: postDisplayDateIso(p), dateShort: shortDate({ iso: postDisplayDateIso(p), timeZone: ctx.timeZone }), featuredImage: featuredImageView(ctx, p), author: postAuthorForDisplay({ post: p }), showAuthor: p.showAuthor ?? false })),
+    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: postDisplayDateIso(p), dateShort: shortDate({ iso: postDisplayDateIso(p), timeZone: ctx.timeZone }), featuredImage: featuredImageView({ ctx, post: p }), author: postAuthorForDisplay({ post: p }), showAuthor: p.showAuthor ?? false })),
     post: ctx.post
       ? {
           title: ctx.post.title,
@@ -52,7 +52,7 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
           date: postDisplayDateIso(ctx.post),
           dateShort: shortDate({ iso: postDisplayDateIso(ctx.post), timeZone: ctx.timeZone }),
           content: renderPostBody({ ctx, post: ctx.post }),
-          featuredImage: featuredImageView(ctx, ctx.post),
+          featuredImage: featuredImageView({ ctx, post: ctx.post }),
           author: postAuthorForDisplay({ post: ctx.post }),
           showAuthor: ctx.post.showAuthor ?? false,
         }
@@ -79,8 +79,7 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
 const FEATURED_IMAGE_TRANSFORM = "public";
 
 export function featuredImageView(
-  ctx: Pick<SiteRenderContext, "mediaAssetMetadata" | "mediaTransformVersions">,
-  post: PostRecord
+  { ctx, post }: { ctx: Pick<SiteRenderContext, "mediaAssetMetadata" | "mediaTransformVersions">; post: PostRecord }, _optional: Record<string, never> = {}
 ): { url: string; alt: string; width: number | null; height: number | null } | null {
   const cover = resolveCoverImage({ post }, { mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null });
   if (!cover?.mediaId) return null;

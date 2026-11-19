@@ -23,11 +23,7 @@ import { reportSiteRenderFault } from "./virtual-page.js";
  * none.
  */
 export async function handlePostNotFoundOnSlugRoute(
-  req: Request,
-  res: Response,
-  deps: RouteDeps,
-  theme: DiscoveredTheme | null,
-  staticMenus: StaticMenuMap | undefined
+  { req, res, deps, theme, staticMenus }: { req: Request; res: Response; deps: RouteDeps; theme: DiscoveredTheme | null; staticMenus: StaticMenuMap | undefined }, _optional: Record<string, never> = {}
 ): Promise<void> {
   if (await tryRedirectPhase({ phase: "post_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res })) return;
 
@@ -75,7 +71,7 @@ async function handlePostNotFoundInSlugCatch(input: {
 }): Promise<void> {
   const { req, res, deps, theme, staticMenus, slug } = input;
   try {
-    await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
+    await handlePostNotFoundOnSlugRoute({ req, res, deps, theme, staticMenus });
   } catch (err) {
     reportSiteRenderFault({ detail: `GET /:slug failed (slug=${slug})`, err });
     res.status(500).type("html").send("<h1>Site error</h1>");

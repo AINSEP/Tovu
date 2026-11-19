@@ -12,7 +12,7 @@ function pluginExportSession({ deps, req }: { deps: RouteDeps; req: Request }, _
 }
 
 /** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
-export function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch" | "listingPage"> {
+export function withListingBatch<T extends RouteDeps>({ deps, req }: { deps: T; req: Request }, _optional: Record<string, never> = {}): T & Pick<TemplateRenderDeps, "listingBatch" | "listingPage"> {
   deps = { ...deps, seoDeps: seoForRequest({ req, deps: deps.seoDeps }) };
   const listingBatch = listingBatchRequestOf({ req });
   const listingPage = listingPageRequestOf({ req })?.page;

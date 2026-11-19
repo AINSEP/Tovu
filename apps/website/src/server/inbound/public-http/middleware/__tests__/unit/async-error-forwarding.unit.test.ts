@@ -14,10 +14,10 @@ import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-ht
 test("serving gate forwards a rejected status read exactly once without rejecting its middleware promise", async () => {
   const failure = new Error("database is locked");
   const app = express();
-  applySiteServingGate(app, {
+  applySiteServingGate({ app, deps: {
     workspaceId: "ws-error",
     siteStatusRepo: { get: async () => { throw failure; }, set: async () => undefined },
-  });
+  } });
   const middleware = app._router.stack.at(-1).handle as RequestHandler;
   const errors: unknown[] = [];
   const response = {} as Response;
@@ -32,10 +32,10 @@ test("serving gate forwards a rejected status read exactly once without rejectin
 test("serving gate completes a rejected status request with 500 through Express's error handler", async () => {
   const failure = new Error("database is locked");
   const app = express();
-  applySiteServingGate(app, {
+  applySiteServingGate({ app, deps: {
     workspaceId: "ws-error",
     siteStatusRepo: { get: async () => { throw failure; }, set: async () => undefined },
-  });
+  } });
   app.use((_req, res) => res.status(200).json({ reached: true }));
   const errors: unknown[] = [];
   app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

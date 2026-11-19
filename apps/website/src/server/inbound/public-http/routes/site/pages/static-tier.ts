@@ -160,7 +160,8 @@ export function staticThemeScripts({ theme }: { theme: DiscoveredTheme }): reado
 }
 
 /** A static-tier theme that ships its own `index.html`. */
-export function isStaticThemeWithIndex(theme: DiscoveredTheme | null): theme is DiscoveredTheme & { pages: { index: string } } {
+export function isStaticThemeWithIndex(required: { theme: DiscoveredTheme | null }, _optional: Record<string, never> = {}): required is { theme: DiscoveredTheme & { pages: { index: string } } } {
+  const { theme } = required;
   return theme !== null && theme.manifest.tier === "static" && theme.pages.index !== undefined;
 }
 
@@ -181,5 +182,5 @@ export async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus
     postPreviewsAccess: access,
   } }, {});
   const homeHtml = injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: rendered, extraHead }, { preserveThemeTitle }), enabled: siteAssistantEnabled });
-  await sendPublicPage({ req, res, deps, html: homeHtml, perVisitor: resolvePerVisitorResponse(req, res) });
+  await sendPublicPage({ req, res, deps, html: homeHtml, perVisitor: resolvePerVisitorResponse({ req, res }) });
 }

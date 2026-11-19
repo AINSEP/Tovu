@@ -14,7 +14,7 @@ test("Img by URL: public rendering preserves safe src-only images and refuses ja
     assert.equal(renderDocNode({ node: doc }), expected);
     assert.equal(renderWidgetIr({ componentId: "post-content", props: { title: "Cat", header: false, bodyJson: doc } }), `<div class="post-detail-body">${expected}</div>`);
     const post = buildPostRecord({ bodyJson: doc, featuredMediaId: null });
-    assert.equal(featuredImageView({ mediaAssetMetadata: new Map(), mediaTransformVersions: new Map([["public", 1]]) }, post), null);
+    assert.equal(featuredImageView({ ctx: { mediaAssetMetadata: new Map(), mediaTransformVersions: new Map([["public", 1]]) }, post }), null);
     assert.equal(projectPostBody({ post }, { mediaLookup, hasPublicTransform: true }), doc);
     assert.equal(resolveCoverImage({ post }, { mediaLookup, allowExternalHttps: true })?.url ?? null, src.startsWith("https://") ? src : null);
   }

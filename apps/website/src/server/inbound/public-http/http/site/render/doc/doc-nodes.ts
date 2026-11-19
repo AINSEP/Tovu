@@ -106,7 +106,7 @@ function renderDocHeading({ node, content, deps }: DocNodeHandlerRequired, _opti
   // Additive: an `id` changes nothing visually, and every heading rendered before this existed
   // simply had no anchor to link to. Emitted as the FIRST attribute, which `dedupeHeadingIds`
   // relies on. Omitted entirely when the text slugifies to nothing.
-  const anchor = headingAnchorId(node);
+  const anchor = headingAnchorId({ node });
   const idAttr = anchor === "" ? "" : ` id="${escapeHtml({ text: anchor })}"`;
   return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderChildNodes({ content, deps })}</h${h}>`;
 }

@@ -94,7 +94,7 @@ function shouldCaptureVisitorPageview({ deps, beacon }: { deps: AnalyticsIngestR
  * The binding adapter supplies Jini's required policy/salt context and converts port/hook arguments.
  * createApp wires this public route separately from admin RouteDeps.
  */
-export function registerAnalyticsIngestRoute(app: Express, deps: AnalyticsIngestRouteDeps): void {
+export function registerAnalyticsIngestRoute({ app, deps }: { app: Express; deps: AnalyticsIngestRouteDeps }, _optional: Record<string, never> = {}): void {
   // One cap per route for every request's vendor calls: a beacon flood sheds vendor calls, never local hits.
   const limiter = createAnalyticsForwardLimiter();
   app.post("/_analytics/e", async (req, res) => {

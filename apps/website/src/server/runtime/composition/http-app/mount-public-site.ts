@@ -46,7 +46,7 @@ export function mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision
 
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
   // theme-preview-static.ts's file header for exactly what this is (and isn't) wired up to.
-  registerThemePreviewStatic(app, {
+  registerThemePreviewStatic({ app,
     // `routeDeps.themesDir`, not a package-relative path: since 2026-08-27 the themes a site
     // actually serves live under `sites/<name>/themes/`, and this mount has to follow them or the
     // preview renders the STOCK css while the live site renders the owner's edited copy. Reading it
@@ -61,14 +61,15 @@ export function mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision
   // EXTENDED 2026-08-12 to also cover templated-tier theme folders so a Liquid theme's own images/
   // screenshots are reachable (see theme-static-assets.ts's own header for why declarative/handlebars
   // are not listed here yet, and why templates/*.liquid source being servable is deliberate).
-  registerThemeStaticAssets(app, {
-    // Theme refresh replaces the roster; inherited sources must follow that replacement.
-    get themes() { return routeDeps.themes; },
-    isAuthenticatedPreviewRevision,
+  registerThemeStaticAssets({ app,
     // Site-relative for the same reason as `themesStaticDir` just above — this is the mount that
     // serves the live site's own theme css/js, so a package-relative root here is precisely the bug
     // the `sites/` move fixes.
     themeRoots: [path.join(routeDeps.themesDir, "static"), path.join(routeDeps.themesDir, "templated")],
+  }, {
+    // Theme refresh replaces the roster; inherited sources must follow that replacement.
+    get themes() { return routeDeps.themes; },
+    isAuthenticatedPreviewRevision,
   });
 
   // Admin Explore screen's preview iframe: any static theme's page, fully rendered, at
@@ -78,7 +79,7 @@ export function mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision
   // see that route's own file header for why it stays registered here instead of moving into
   // `createContentModule`. Registered AFTER the asset route above so the rendered page's own
   // `/theme-assets/...` references are already being served when it loads.
-  registerThemePagePreview(app, routeDeps);
+  registerThemePagePreview({ app, deps: routeDeps });
 
   // SPEC-044: the `workspace` server module (list/create/get/update/delete) is registered near the
   // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline

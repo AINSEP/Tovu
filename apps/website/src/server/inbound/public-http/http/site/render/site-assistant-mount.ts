@@ -45,7 +45,7 @@ const siteChatAssetsReady = createSiteChatAssetReadiness({
 
 /** Both widgets share the tiny loader once deployment artifacts are ready. Default remains React.
  * Readiness fails closed so incomplete builds cannot eagerly fetch the React widget. */
-export function siteAssistantMarkup(enabled: SiteChatSelection): { head: string; body: string } {
+export function siteAssistantMarkup({ enabled }: { enabled: SiteChatSelection }, _optional: Record<string, never> = {}): { head: string; body: string } {
   if (!enabled) return { head: "", body: "" };
   const variant = enabled === "vanilla" ? "vanilla" : "react";
   const distDir = process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir({ app: "site-chat" });

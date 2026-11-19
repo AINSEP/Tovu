@@ -95,7 +95,7 @@ function buildTestApp(themesDir: string): express.Express {
   registerAdminThemeFileResetRoute({ app, deps });
   // Same-origin static mount every real deployment runs (server/runtime/composition/app.ts), wired here so the write and
   // the serve happen through the identical two code paths a real request would take.
-  registerThemeStaticAssets(app, { themeRoots: [path.join(themesDir, "static")] });
+  registerThemeStaticAssets({ app, themeRoots: [path.join(themesDir, "static")] });
   return app;
 }
 

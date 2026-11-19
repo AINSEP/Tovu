@@ -147,12 +147,12 @@ test("form_submitted on a consented public submission: committed ids under a req
     formSubmissionRepo: submissionRepo, mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: false,
       supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }), send: async () => { throw new Error("notifications disabled"); }, sendBatch: async () => { throw new Error("notifications disabled"); } },
   }).start?.();
-  registerFormsSubmitRoute(app, { workspaceId: "ws", tracker, idGen: { newId: () => "request-1" },
+  registerFormsSubmitRoute({ app, deps: { workspaceId: "ws", tracker, idGen: { newId: () => "request-1" },
     visitorAnalyticsProof: async () => consentProof, visitorAnalyticsDeliveryAllowed, submitForm: {
     crypto: globalThis.crypto,
     definitionRepo, submissionRepo, outbox: new InMemoryOutbox(), bus, clock,
     idGen: { newId: () => `id-${++counter}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
-  } });
+  } } });
   const baseUrl = await startTestServer(app, t);
   const response = await fetch(`${baseUrl}/forms/contact/submit`, { method: "POST", headers: { "content-type": "application/json", cookie: `session=${secret}` }, body: JSON.stringify({ name: secret }) });
   assert.equal(response.status, 201);

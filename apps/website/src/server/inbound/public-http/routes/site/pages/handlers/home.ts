@@ -119,8 +119,9 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
   // authored straight into `index.html` (or a partial it references) silently never resolved.
   // `renderStaticTierHomePage` stays in place for its one other caller
   // (`middleware/theme-page-preview.ts`'s admin preview route, which never reaches this handler).
-  if (isStaticThemeWithIndex(theme)) {
-    await serveStaticThemeIndex({ req, res, deps, theme, staticMenus, extraHead, siteAssistantEnabled, access: { resolver: memberAccessResolver, context: memberContext } });
+  const required = { theme };
+  if (isStaticThemeWithIndex(required)) {
+    await serveStaticThemeIndex({ req, res, deps, theme: required.theme, staticMenus, extraHead, siteAssistantEnabled, access: { resolver: memberAccessResolver, context: memberContext } });
     return;
   }
 
@@ -146,7 +147,7 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
   // is a no-op. Also reads (and clears) the validation flash cookie, if any, and decides this
   // response's `Cache-Control` — including the member-session arm, which matters here because
   // `visiblePosts` above made this body cookie-dependent. See `resolvePerVisitorResponse`'s doc.
-  await sendPublicPage({ req, res, deps, html, perVisitor: resolvePerVisitorResponse(req, res) });
+  await sendPublicPage({ req, res, deps, html, perVisitor: resolvePerVisitorResponse({ req, res }) });
 }
 
 /** `GET /` when a Page claims `/`: the template branch when eligible, else the generic post page. */
@@ -157,13 +158,13 @@ async function serveContentHomePage({ req, res, deps, theme, homePage, visiblePo
   const staticMenus = await resolveStaticMenusForRender({ deps, theme, currentPath: "/" });
   const templateHtml = await renderTemplateBranchIfEligible({ deps, theme, post: homePage, staticMenus, siteAssistantEnabled }, { postPreviewsAccess: access });
   const html = templateHtml ?? (await renderGenericPostPage({ deps, theme, post: homePage, posts: visiblePosts, siteAssistantEnabled }));
-  await sendPublicPage({ req, res, deps, html, perVisitor: resolvePerVisitorResponse(req, res) });
+  await sendPublicPage({ req, res, deps, html, perVisitor: resolvePerVisitorResponse({ req, res }) });
 }
 
 /** `GET /`. */
 export const registerHomeRoute: RouteRegistrar = ({ app, deps: appDeps }, _options = {}) => {
   app.get("/", async (req, res, next) => {
-    const deps = withListingBatch(appDeps, req);
+    const deps = withListingBatch({ deps: appDeps, req });
     try {
       await serveHomePage({ req, res, deps });
     } catch (err) {

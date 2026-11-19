@@ -42,7 +42,7 @@ async function boot({ t }: { t: TestContext }) {
     authorize: async () => ({ allowed: true, reason: "test" }),
   }, { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
   const app = express();
-  applyRequestTracking(app, { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.use(parsePublicJsonBody);
   createSiteAssistantModule(deps, {}).registerRoutes?.({ app });
   return { reports, logs, baseUrl: await startTestServer(app, t) };

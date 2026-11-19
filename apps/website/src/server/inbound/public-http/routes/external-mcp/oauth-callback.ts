@@ -128,7 +128,7 @@ function classifyCallbackFailure({ error }: { error: unknown }, _optional = {}):
  *
  * @complexity O(1) per request, plus one bounded token exchange.
  */
-export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: ExternalMcpOAuthCallbackRouteDeps): void {
+export function registerExternalMcpOAuthCallbackRoute({ app, deps }: { app: Express; deps: ExternalMcpOAuthCallbackRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get(`${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/:serverId`, asyncRoute({ handler: async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     // In front of everything: the route is anonymous and each hit

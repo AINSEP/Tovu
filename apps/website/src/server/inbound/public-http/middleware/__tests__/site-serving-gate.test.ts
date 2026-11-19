@@ -33,7 +33,7 @@ function statusPort(status: string, seen: string[] = []): SiteStatusPort {
 
 async function boot(t: import("node:test").TestContext, port: SiteStatusPort, errors: unknown[] = []): Promise<string> {
   const app = express();
-  applySiteServingGate(app, { siteStatusRepo: port, workspaceId: "ws-gate-1" });
+  applySiteServingGate({ app, deps: { siteStatusRepo: port, workspaceId: "ws-gate-1" } });
   app.use((req, res) => res.status(200).json({ reached: req.path }));
   app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
     errors.push(error);

@@ -22,11 +22,11 @@ const formsRoute = await import("../../../inbound/public-http/routes/site/forms-
 const formStorage = await import("../../../../features/forms/form-file-storage.js");
 
 mock.module("../../../inbound/public-http/routes/site/comments-submit.js", { namedExports: { ...commentsRoute,
-  registerCommentsSubmitRoute: (app: never, deps: Record<string, any>, ...rest: never[]) => { captured.comments.push(deps); return (commentsRoute.registerCommentsSubmitRoute as Function)(app, deps, ...rest); } } });
+  registerCommentsSubmitRoute: (required: Parameters<typeof commentsRoute.registerCommentsSubmitRoute>[0], ...rest: never[]) => { captured.comments.push(required.deps); return (commentsRoute.registerCommentsSubmitRoute as Function)(required, ...rest); } } });
 mock.module("../../../inbound/public-http/routes/site/analytics-ingest.js", { namedExports: { ...analyticsRoute,
-  registerAnalyticsIngestRoute: (app: never, deps: Record<string, any>, ...rest: never[]) => { captured.analytics.push(deps); return (analyticsRoute.registerAnalyticsIngestRoute as Function)(app, deps, ...rest); } } });
+  registerAnalyticsIngestRoute: (required: Parameters<typeof analyticsRoute.registerAnalyticsIngestRoute>[0], ...rest: never[]) => { captured.analytics.push(required.deps); return (analyticsRoute.registerAnalyticsIngestRoute as Function)(required, ...rest); } } });
 mock.module("../../../inbound/public-http/routes/site/forms-submit.js", { namedExports: { ...formsRoute,
-  registerFormsSubmitRoute: (app: never, deps: Record<string, any>, ...rest: never[]) => { captured.forms.push(deps); return (formsRoute.registerFormsSubmitRoute as Function)(app, deps, ...rest); } } });
+  registerFormsSubmitRoute: (required: Parameters<typeof formsRoute.registerFormsSubmitRoute>[0], ...rest: never[]) => { captured.forms.push(required.deps); return (formsRoute.registerFormsSubmitRoute as Function)(required, ...rest); } } });
 mock.module("../../../../features/forms/form-file-storage.js", { namedExports: { ...formStorage,
   createFormFileStorage: (input: Record<string, any>, ...rest: never[]) => { captured.storage.push(input); return (formStorage.createFormFileStorage as Function)(input, ...rest); } } });
 

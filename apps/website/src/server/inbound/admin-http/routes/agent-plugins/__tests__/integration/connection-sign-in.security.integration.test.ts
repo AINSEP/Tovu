@@ -31,7 +31,7 @@ test("F1: authenticated hosted start binds only its actor's browser; wrong brows
   const { baseUrl, cookie: session } = await bootAuthenticated(app, t);
   const host = harness.makeHost({ workspaceId: deps.workspaceId, publicOrigin: () => baseUrl, env: { ...harness.env, TOVU_API_CONNECTION_CALLBACK_ORIGINS: baseUrl } });
   registerApiConnectionSignInRoute({ app, deps: { workspaceId: deps.workspaceId, host } });
-  registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
+  registerApiConnectionOAuthCallbackRoute({ app, deps: { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} } });
   const principal = await (await fetch(`${baseUrl}/api/admin/test-principal`, { headers: { cookie: session } })).json() as { id: string };
   const otherSession = await loginAsBarePrincipal(deps, baseUrl);
   const [connection] = await host.listConnections({ pluginId: ACME_PLUGIN });

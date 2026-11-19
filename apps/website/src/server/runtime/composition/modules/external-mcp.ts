@@ -70,7 +70,7 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
       registerAdminExternalMcpOAuthDisconnectRoute({ app, deps: oauthDeps });
 
       // PUBLIC — deliberately outside `/api/admin`, so `requireAdminSession` never sees it.
-      registerExternalMcpOAuthCallbackRoute(app, { oauth: oauthDeps.externalMcpOAuth, callbackLimiter });
+      registerExternalMcpOAuthCallbackRoute({ app, deps: { oauth: oauthDeps.externalMcpOAuth, callbackLimiter } });
     },
   };
 }

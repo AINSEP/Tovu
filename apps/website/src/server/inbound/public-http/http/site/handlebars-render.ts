@@ -170,7 +170,7 @@ export function runHandlebarsRender(
   // serves exactly one render and then exits.
   const siteCtx: SiteRenderContext = ctx;
   env.registerHelper("render_block", function renderBlockHelper(options: { hash: Record<string, unknown> }) {
-    return new env.SafeString(renderBlockSeam(siteCtx, options.hash as JsonObject));
+    return new env.SafeString(renderBlockSeam({ ctx: siteCtx, props: options.hash as JsonObject }));
   });
 
   try {

@@ -62,7 +62,7 @@ export function createCoreModule(deps: RouteDeps, optional: { onAdminSignIn?: Ad
       // Unauthenticated by design and deliberately NOT under `/api/admin`: a source that has not
       // yet proved possession has no credential to present. See `handshake.ts`'s own header for
       // what `/identity` discloses and why that is acceptable.
-      registerPublishTrustHandshakeRoutes(app, {
+      registerPublishTrustHandshakeRoutes({ app, deps: {
         keyring: deps.siteAssistantSecretKeyring,
         workspaceId: deps.workspaceId,
         clock: deps.clock,
@@ -70,7 +70,7 @@ export function createCoreModule(deps: RouteDeps, optional: { onAdminSignIn?: Ad
         challengeStore,
         targetInstallationId,
         grants,
-      });
+      } });
 
       // Order is load-bearing: `registerAuthRoutes` registers the ungated
       // `POST /api/admin/v1/auth/login` (plus logout/me) route BEFORE the

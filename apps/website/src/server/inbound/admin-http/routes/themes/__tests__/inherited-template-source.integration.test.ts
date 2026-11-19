@@ -38,7 +38,7 @@ for (const apiVersion of [undefined, 2] as const) {
     app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
     const deps = { workspaceId: "ws", themesDir, themes, authorize: async () => ({ allowed: true }),
       postRepo: { list: async () => [] } } as unknown as ContentRouteDeps;
-    registerThemeStaticAssets(app, { themeRoots: [path.join(themesDir, "static")], themes });
+    registerThemeStaticAssets({ app, themeRoots: [path.join(themesDir, "static")] }, { themes });
     registerAdminThemeDetailRoute({ app, deps });
     registerAdminThemeFileGetRoute({ app, deps });
     registerAdminThemeFilePutRoute({ app, deps });

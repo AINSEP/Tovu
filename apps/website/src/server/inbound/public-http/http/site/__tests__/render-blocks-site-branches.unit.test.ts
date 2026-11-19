@@ -134,7 +134,7 @@ test("block tree: a region block with a non-string key renders no declared regio
 
 test("renderBlockSeam: a region prop renders that widget region", () => {
   const ctx = context({ widgetRegions: { footer: [{ componentId: "text", props: { body: "hello" } }] } });
-  assert.equal(renderBlockSeam(ctx, { region: "footer" }), '<div class="widget-region widget-region--footer"><div class="widget widget-text">hello</div></div>');
+  assert.equal(renderBlockSeam({ ctx, props: { region: "footer" } }), '<div class="widget-region widget-region--footer"><div class="widget widget-text">hello</div></div>');
 });
 
 // --- tier dispatch ------------------------------------------------------------------------------

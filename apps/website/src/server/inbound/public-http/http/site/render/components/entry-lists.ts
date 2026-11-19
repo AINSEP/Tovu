@@ -15,7 +15,7 @@ export function entryList(ctx: SiteRenderContext, props: JsonObject): string {
   const items = shown
     .map((post, i) => {
       const folio = String(after + i + 1).padStart(2, "0");
-      const cover = featuredImageView(ctx, post);
+      const cover = featuredImageView({ ctx, post });
       const image = cover ? renderCoverImageTag({ image: cover }, { loading: "lazy" }) : "";
       return `<li class="entry"><a class="entry-link" href="/${escapeHtml({ text: post.slug })}">${image}<span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml({ text: post.title })}</h2><p class="entry-meta">${escapeHtml({ text: shortDate({ iso: postDisplayDateIso(post), timeZone: ctx.timeZone }) })}</p></a></li>`;
     })

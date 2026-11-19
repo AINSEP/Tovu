@@ -124,7 +124,7 @@ let browser: StartingBrowser | undefined;
 
 async function mountCallback(host: ReturnType<typeof makeHost>, logs: string[]): Promise<void> {
   const app = express();
-  registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => logs.push(line) });
+  registerApiConnectionOAuthCallbackRoute({ app, deps: { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => logs.push(line) } });
   if (callbackServer) await new Promise((resolve) => callbackServer.close(resolve));
   callbackServer = createServer(app);
   siteOrigin = await listen(callbackServer);
