@@ -289,32 +289,31 @@ test.describe("Bug pin: media-providers-credentials", () => {
  */
 
 const ADMIN_PATH = "/admin/";
+const gotoMediaProviders = createMediaCredentialsGotoMediaProviders({ ADMIN_PATH });
+const login = createMediaCredentialsLogin({ ADMIN_PATH });
 const DUMMY_KEY = "sk-E2E-DUMMY-NOT-A-REAL-KEY-4242";
+registerCredentialStorageTests({ login, gotoMediaProviders, DUMMY_KEY });
 
-async function login(page: Page): Promise<void> {
-  await page.goto(ADMIN_PATH, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(".login-card", { timeout: 20_000 });
-  await page.fill('.login-card label:has-text("Username") input', "admin");
-  await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
-  await page.click('.login-card button:has-text("Sign in")');
-  await page.waitForSelector(".login-card", { state: "detached", timeout: 20_000 });
-}
+test("Clear removes the credential server-side, so a reload does not bring it back", async ({ page }) => {
+  await login(page);
+  await gotoMediaProviders(page);
 
-async function gotoMediaProviders(page: Page): Promise<void> {
-  await page.goto(`${ADMIN_PATH}media`, { waitUntil: "domcontentloaded" });
-  // The roster count is part of the tab's accessible name; its published handle is stable.
-  const tab = page.getByRole("tab").and(page.locator('[data-agent-element="media-tab-external-providers"]'));
-  await expect(tab).toContainText("External Providers");
-  await tab.click();
-  await expect(tab).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator(".media-providers-panel")).toBeVisible();
-  await page.waitForSelector(".jini-media-provider-card", { timeout: 20_000 });
-}
+  const card = openaiCard(page);
+  await card.locator('input[type="password"], input[type="text"]').first().fill(DUMMY_KEY);
+  await page.getByRole("button", { name: /^Save/ }).first().click();
+  await expect(card.locator(".jini-field-status-badge-success")).toBeVisible({ timeout: 15_000 });
 
-/** The OpenAI card — first in the catalogue, and the one every test here edits. */
-function openaiCard(page: Page) {
-  return page.locator(".jini-media-provider-card").filter({ hasText: "OpenAI" }).first();
-}
+  await openaiCard(page).getByRole("button", { name: "Clear" }).click();
+  await expect(openaiCard(page).locator(".jini-field-status-badge-success")).toHaveCount(0, { timeout: 15_000 });
+
+  // A local-only clear would reappear here; a server-side delete does not.
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await gotoMediaProviders(page);
+  await expect(openaiCard(page).locator(".jini-field-status-badge-success")).toHaveCount(0, { timeout: 15_000 });
+});
+});
+
+function registerCredentialStorageTests({ login, gotoMediaProviders, DUMMY_KEY }: { login: ReturnType<typeof createMediaCredentialsLogin>; gotoMediaProviders: ReturnType<typeof createMediaCredentialsGotoMediaProviders>; DUMMY_KEY: string }) {
 
 test("the tab renders the engine's vendor roster, not @jini-ai/ui's curated sample", async ({ page }) => {
   await login(page);
@@ -372,22 +371,37 @@ test("the stored key is never delivered to the browser — the field stays empty
   const value = await openaiCard(page).locator('input[type="password"], input[type="text"]').first().inputValue();
   expect(value).toBe("");
 });
+}
 
-test("Clear removes the credential server-side, so a reload does not bring it back", async ({ page }) => {
-  await login(page);
-  await gotoMediaProviders(page);
 
-  const card = openaiCard(page);
-  await card.locator('input[type="password"], input[type="text"]').first().fill(DUMMY_KEY);
-  await page.getByRole("button", { name: /^Save/ }).first().click();
-  await expect(card.locator(".jini-field-status-badge-success")).toBeVisible({ timeout: 15_000 });
 
-  await openaiCard(page).getByRole("button", { name: "Clear" }).click();
-  await expect(openaiCard(page).locator(".jini-field-status-badge-success")).toHaveCount(0, { timeout: 15_000 });
+/** The OpenAI card — first in the catalogue, and the one every test here edits. */
+function openaiCard(page: Page) {
+  return page.locator(".jini-media-provider-card").filter({ hasText: "OpenAI" }).first();
+}
 
-  // A local-only clear would reappear here; a server-side delete does not.
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await gotoMediaProviders(page);
-  await expect(openaiCard(page).locator(".jini-field-status-badge-success")).toHaveCount(0, { timeout: 15_000 });
-});
-});
+function createMediaCredentialsGotoMediaProviders({ ADMIN_PATH }: { ADMIN_PATH: string }) {
+
+return async function gotoMediaProviders(page: Page): Promise<void> {
+  await page.goto(`${ADMIN_PATH}media`, { waitUntil: "domcontentloaded" });
+  // The roster count is part of the tab's accessible name; its published handle is stable.
+  const tab = page.getByRole("tab").and(page.locator('[data-agent-element="media-tab-external-providers"]'));
+  await expect(tab).toContainText("External Providers");
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".media-providers-panel")).toBeVisible();
+  await page.waitForSelector(".jini-media-provider-card", { timeout: 20_000 });
+}
+}
+
+function createMediaCredentialsLogin({ ADMIN_PATH }: { ADMIN_PATH: string }) {
+
+return async function login(page: Page): Promise<void> {
+  await page.goto(ADMIN_PATH, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".login-card", { timeout: 20_000 });
+  await page.fill('.login-card label:has-text("Username") input', "admin");
+  await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
+  await page.click('.login-card button:has-text("Sign in")');
+  await page.waitForSelector(".login-card", { state: "detached", timeout: 20_000 });
+}
+}

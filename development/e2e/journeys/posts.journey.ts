@@ -95,42 +95,87 @@ test.describe("W2 post lifecycle", () => {
 });
 
 test.describe("posts stress", () => {
-  test("two tabs save the same post: exactly one wins, the other sees the version-conflict banner and keeps its text", { tag: ["@unrun"] }, async ({ page, context }) => {
-    const { id } = await newPost(page);
-    await titleInput(page).fill(uniq("Conflict base"));
-    await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.locator(".save-ok")).toBeVisible();
+  registerPostConflictTest();
+  registerPostConcurrentSaveTests();
+  registerPostInterruptedSaveTests();
 
-    const other = await context.newPage();
-    await other.goto(page.url());
-    await expect(titleInput(other)).toHaveValue(/Conflict base/);
-
-    const titleA = uniq("Tab A wins");
-    const titleB = uniq("Tab B loses");
-    await titleInput(page).fill(titleA);
-    await titleInput(other).fill(titleB);
-
-    const statuses: number[] = [];
-    for (const p of [page, other]) {
-      p.on("response", (r) => {
-        if (r.request().method() === "PUT" && POST_ITEM.test(new URL(r.url()).pathname)) statuses.push(r.status());
-      });
-    }
-    await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.locator(".save-ok")).toBeVisible();
-    await other.getByRole("button", { name: /^Save/ }).click();
-
-    const banner = other.locator('[data-agent-element="post-version-conflict"]');
-    await expect(banner).toContainText("Someone else saved this while you were editing");
-    await expect(titleInput(other), "the losing tab keeps its own unsaved text").toHaveValue(titleB);
-    expect(statuses.sort()).toEqual([200, 409]);
-    expect((await readPost(page, id)).title).toBe(titleA);
-
-    await other.getByRole("button", { name: "Save anyway" }).click();
-    await expect(banner).toHaveCount(0);
-    expect((await readPost(page, id)).title).toBe(titleB);
-    await other.close();
+  test("long unicode title and a very long body publish and render publicly intact", { tag: ["@unrun"] }, async ({ page, request }) => {
+    const title = `Ünïcødé 🚀 مرحبا 漢字 Ελληνικά — ${uniq("long")}`;
+    const paragraph = "Grüße, naïve café, 😀👍🏽, שלום, ✓ <not-a-tag> & ampersand. ";
+    const body = paragraph.repeat(400); // ~25k characters
+    await newPost(page);
+    await titleInput(page).fill(title);
+    await typeBody(page, body);
+    await page.getByRole("button", { name: "Publish" }).click();
+    await expect(page.locator(".save-ok")).toContainText("Published");
+    const slug = await page.getByLabel("URL slug").inputValue();
+    expect(slug.length).toBeGreaterThan(0);
+    const live = await page.context().newPage();
+    const response = await live.goto(`${PUBLIC_URL}/${encodeURI(slug)}`);
+    expect(response?.status()).toBe(200);
+    await expect(live.getByText(title).first()).toBeVisible();
+    await expect(live.getByText("<not-a-tag>").first(), "user text must be escaped, not parsed as markup").toBeVisible();
+    const fetched = await fetchPublic(request, `/${encodeURI(slug)}`);
+    expect(fetched.html).not.toContain("<not-a-tag>");
+    await live.close();
   });
+
+  test("60 posts: every one is reachable from the posts list", { tag: ["@unrun"] }, async ({ page }) => {
+    const prefix = uniqSlug("bulk");
+    for (let i = 0; i < 60; i++) {
+      const res = await page.request.post(`${WS_API}/posts`, { data: { title: `${prefix} ${String(i).padStart(2, "0")}`, slug: `${prefix}-${i}`, status: "draft" } });
+      expect(res.status()).toBe(201);
+    }
+    await page.goto("/admin/posts");
+    const loadMore = page.getByRole("button", { name: /load more|next/i });
+    for (let guard = 0; guard < 10 && (await page.getByText(`${prefix} 00`).count()) === 0; guard++) {
+      if (!(await loadMore.isVisible())) break;
+      await loadMore.click();
+    }
+    for (const n of ["00", "30", "59"]) await expect(page.getByText(`${prefix} ${n}`)).toBeVisible();
+  });
+});
+
+function registerPostInterruptedSaveTests() {
+
+  test("reload while a save is in flight never silently loses the typed title", { tag: ["@unrun"] }, async ({ page }) => {
+    const { id } = await newPost(page);
+    const title = uniq("Mid-save reload");
+    // Let the debounced standing draft land first. Without this the draft is only written by the
+    // exit flush's keepalive PUT during the reload, which came back cancelled under this test's
+    // request routing (below) about 1 run in 7, and the title was lost with it.
+    const drafted = page.waitForResponse((r) => r.request().method() === "PUT" && new URL(r.url()).pathname === `${WS_API}/posts/${id}/autosave` && r.ok());
+    await titleInput(page).fill(title);
+    await drafted;
+    await page.route(POST_ITEM, async (route) => {
+      if (route.request().method() !== "PUT") return route.continue();
+      await new Promise((resolve) => setTimeout(resolve, 3_000)); // slow network, not a test wait
+      await route.continue().catch(() => undefined);
+    });
+    await page.getByRole("button", { name: /^Save/ }).click();
+    await page.reload();
+    await page.unroute(POST_ITEM);
+    const restore = page.locator('[data-agent-element="post-autosave-restore"]');
+    await expect
+      .poll(async () => (await readPost(page, id)).title === title || (await restore.isVisible()), { timeout: 15_000 })
+      .toBe(true);
+  });
+
+  test("offline save shows an error and keeps the text in the editor", { tag: ["@unrun"] }, async ({ page, context }) => {
+    await newPost(page);
+    const title = uniq("Offline save");
+    await titleInput(page).fill(title);
+    await context.setOffline(true);
+    await page.getByRole("button", { name: /^Save/ }).click();
+    await expect(page.locator(".save-error")).toBeVisible();
+    await expect(titleInput(page)).toHaveValue(title);
+    await context.setOffline(false);
+    await page.getByRole("button", { name: /^Save/ }).click();
+    await expect(page.locator(".save-ok")).toBeVisible();
+  });
+}
+
+function registerPostConcurrentSaveTests() {
 
   test("simultaneous saves from two tabs: one 200, one 409, never two silent overwrites", { tag: ["@unrun"] }, async ({ page, context }) => {
     await newPost(page);
@@ -176,79 +221,46 @@ test.describe("posts stress", () => {
     await expect(page.locator(".save-error")).toHaveCount(0);
     expect(puts, "a double click must not send a second, version-stale save").toBe(1);
   });
+}
 
-  test("reload while a save is in flight never silently loses the typed title", { tag: ["@unrun"] }, async ({ page }) => {
+function registerPostConflictTest() {
+  test("two tabs save the same post: exactly one wins, the other sees the version-conflict banner and keeps its text", { tag: ["@unrun"] }, async ({ page, context }) => {
     const { id } = await newPost(page);
-    const title = uniq("Mid-save reload");
-    // Let the debounced standing draft land first. Without this the draft is only written by the
-    // exit flush's keepalive PUT during the reload, which came back cancelled under this test's
-    // request routing (below) about 1 run in 7, and the title was lost with it.
-    const drafted = page.waitForResponse((r) => r.request().method() === "PUT" && new URL(r.url()).pathname === `${WS_API}/posts/${id}/autosave` && r.ok());
-    await titleInput(page).fill(title);
-    await drafted;
-    await page.route(POST_ITEM, async (route) => {
-      if (route.request().method() !== "PUT") return route.continue();
-      await new Promise((resolve) => setTimeout(resolve, 3_000)); // slow network, not a test wait
-      await route.continue().catch(() => undefined);
-    });
-    await page.getByRole("button", { name: /^Save/ }).click();
-    await page.reload();
-    await page.unroute(POST_ITEM);
-    const restore = page.locator('[data-agent-element="post-autosave-restore"]');
-    await expect
-      .poll(async () => (await readPost(page, id)).title === title || (await restore.isVisible()), { timeout: 15_000 })
-      .toBe(true);
-  });
-
-  test("offline save shows an error and keeps the text in the editor", { tag: ["@unrun"] }, async ({ page, context }) => {
-    await newPost(page);
-    const title = uniq("Offline save");
-    await titleInput(page).fill(title);
-    await context.setOffline(true);
-    await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.locator(".save-error")).toBeVisible();
-    await expect(titleInput(page)).toHaveValue(title);
-    await context.setOffline(false);
+    await titleInput(page).fill(uniq("Conflict base"));
     await page.getByRole("button", { name: /^Save/ }).click();
     await expect(page.locator(".save-ok")).toBeVisible();
-  });
 
-  test("long unicode title and a very long body publish and render publicly intact", { tag: ["@unrun"] }, async ({ page, request }) => {
-    const title = `Ünïcødé 🚀 مرحبا 漢字 Ελληνικά — ${uniq("long")}`;
-    const paragraph = "Grüße, naïve café, 😀👍🏽, שלום, ✓ <not-a-tag> & ampersand. ";
-    const body = paragraph.repeat(400); // ~25k characters
-    await newPost(page);
-    await titleInput(page).fill(title);
-    await typeBody(page, body);
-    await page.getByRole("button", { name: "Publish" }).click();
-    await expect(page.locator(".save-ok")).toContainText("Published");
-    const slug = await page.getByLabel("URL slug").inputValue();
-    expect(slug.length).toBeGreaterThan(0);
-    const live = await page.context().newPage();
-    const response = await live.goto(`${PUBLIC_URL}/${encodeURI(slug)}`);
-    expect(response?.status()).toBe(200);
-    await expect(live.getByText(title).first()).toBeVisible();
-    await expect(live.getByText("<not-a-tag>").first(), "user text must be escaped, not parsed as markup").toBeVisible();
-    const fetched = await fetchPublic(request, `/${encodeURI(slug)}`);
-    expect(fetched.html).not.toContain("<not-a-tag>");
-    await live.close();
-  });
+    const other = await context.newPage();
+    await other.goto(page.url());
+    await expect(titleInput(other)).toHaveValue(/Conflict base/);
 
-  test("60 posts: every one is reachable from the posts list", { tag: ["@unrun"] }, async ({ page }) => {
-    const prefix = uniqSlug("bulk");
-    for (let i = 0; i < 60; i++) {
-      const res = await page.request.post(`${WS_API}/posts`, { data: { title: `${prefix} ${String(i).padStart(2, "0")}`, slug: `${prefix}-${i}`, status: "draft" } });
-      expect(res.status()).toBe(201);
+    const titleA = uniq("Tab A wins");
+    const titleB = uniq("Tab B loses");
+    await titleInput(page).fill(titleA);
+    await titleInput(other).fill(titleB);
+
+    const statuses: number[] = [];
+    for (const p of [page, other]) {
+      p.on("response", (r) => {
+        if (r.request().method() === "PUT" && POST_ITEM.test(new URL(r.url()).pathname)) statuses.push(r.status());
+      });
     }
-    await page.goto("/admin/posts");
-    const loadMore = page.getByRole("button", { name: /load more|next/i });
-    for (let guard = 0; guard < 10 && (await page.getByText(`${prefix} 00`).count()) === 0; guard++) {
-      if (!(await loadMore.isVisible())) break;
-      await loadMore.click();
-    }
-    for (const n of ["00", "30", "59"]) await expect(page.getByText(`${prefix} ${n}`)).toBeVisible();
+    await page.getByRole("button", { name: /^Save/ }).click();
+    await expect(page.locator(".save-ok")).toBeVisible();
+    await other.getByRole("button", { name: /^Save/ }).click();
+
+    const banner = other.locator('[data-agent-element="post-version-conflict"]');
+    await expect(banner).toContainText("Someone else saved this while you were editing");
+    await expect(titleInput(other), "the losing tab keeps its own unsaved text").toHaveValue(titleB);
+    expect(statuses.sort()).toEqual([200, 409]);
+    expect((await readPost(page, id)).title).toBe(titleA);
+
+    await other.getByRole("button", { name: "Save anyway" }).click();
+    await expect(banner).toHaveCount(0);
+    expect((await readPost(page, id)).title).toBe(titleB);
+    await other.close();
   });
-});
+}
 
 test.describe("session expiry mid-edit", () => {
   test.use({ storageState: { cookies: [], origins: [] } });

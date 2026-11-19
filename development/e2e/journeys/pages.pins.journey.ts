@@ -12,6 +12,40 @@ test.use({ viewport: { width: 1280, height: 720 } });
 // Migrated from pages-editor-scroll-flush.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: pages-editor-scroll-flush", () => {
 test.describe("Pages editor scroll restoration and active text edits", () => {
+  registerScrollRestorationTests();
+
+  test("Save flushes text still being edited in the real Interactive canvas", async ({ page }) => {
+    await page.getByRole("textbox", { name: "Page HTML" }).fill("<h1>Active text</h1>");
+    await page.getByRole("button", { name: /^Save/ }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    const editorUrl = page.url();
+    await page.getByRole("tab", { name: "Interactive" }).click();
+    const canvas = page.frameLocator(".interactive-html-editor iframe.gjs-frame");
+    const heading = canvas.locator("h1");
+    await expect(heading).toBeVisible();
+    await heading.dblclick();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" pending edit");
+    await expect(heading).toHaveAttribute("contenteditable", "true");
+    await expect(heading).toContainText("Active text pending edit");
+    // Keep the RTE active until Save calls the real imperative handle. A programmatic click
+    // avoids a pointer-induced blur synchronizing the text before flush() can be exercised.
+    const save = page.getByRole("button", { name: /^Save/ });
+    await expect(save).toBeEnabled();
+    const savedBody = page.waitForResponse((response) =>
+      response.request().method() === "PUT" && /\/pages\/[^/]+\/html$/.test(new URL(response.url()).pathname)
+    );
+    await save.evaluate((button: HTMLButtonElement) => button.click());
+    expect((await savedBody).ok()).toBe(true);
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.goto(editorUrl);
+    await page.getByRole("tab", { name: "HTML" }).click();
+    await expect(page.getByRole("textbox", { name: "Page HTML" })).toHaveValue(/Active text pending edit/);
+  });
+});
+});
+
+function registerScrollRestorationTests() {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/admin/pages");
@@ -62,37 +96,7 @@ test.describe("Pages editor scroll restoration and active text edits", () => {
     await expect(preview.getByRole("heading", { name: "Scrollable preview" })).toBeVisible();
     await expect.poll(scrollY).toBe(480);
   });
-
-  test("Save flushes text still being edited in the real Interactive canvas", async ({ page }) => {
-    await page.getByRole("textbox", { name: "Page HTML" }).fill("<h1>Active text</h1>");
-    await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-    const editorUrl = page.url();
-    await page.getByRole("tab", { name: "Interactive" }).click();
-    const canvas = page.frameLocator(".interactive-html-editor iframe.gjs-frame");
-    const heading = canvas.locator("h1");
-    await expect(heading).toBeVisible();
-    await heading.dblclick();
-    await page.keyboard.press("End");
-    await page.keyboard.type(" pending edit");
-    await expect(heading).toHaveAttribute("contenteditable", "true");
-    await expect(heading).toContainText("Active text pending edit");
-    // Keep the RTE active until Save calls the real imperative handle. A programmatic click
-    // avoids a pointer-induced blur synchronizing the text before flush() can be exercised.
-    const save = page.getByRole("button", { name: /^Save/ });
-    await expect(save).toBeEnabled();
-    const savedBody = page.waitForResponse((response) =>
-      response.request().method() === "PUT" && /\/pages\/[^/]+\/html$/.test(new URL(response.url()).pathname)
-    );
-    await save.evaluate((button: HTMLButtonElement) => button.click());
-    expect((await savedBody).ok()).toBe(true);
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-    await page.goto(editorUrl);
-    await page.getByRole("tab", { name: "HTML" }).click();
-    await expect(page.getByRole("textbox", { name: "Page HTML" })).toHaveValue(/Active text pending edit/);
-  });
-});
-});
+}
 
 // Migrated from pages-editor.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: pages-editor", () => {
@@ -112,114 +116,8 @@ test.describe("Bug pin: pages-editor", () => {
  */
 
 test.describe("Pages editor", () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-  });
-
-  test("New Page opens the Pages editor, not the Posts/Tiptap one", async ({ page }) => {
-    await page.goto("/admin/pages");
-    await page.getByRole("button", { name: "New Page" }).click();
-
-    // The destination is the Pages editor. This URL is the whole point — it used to be
-    // /admin/posts/{id}, which mounted Tiptap over a document Tiptap would silently mangle.
-    await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
-    await expect(page.getByRole("heading", { name: "Edit page" })).toBeVisible();
-
-    // No Tiptap. Asserting on its toolbar buttons rather than a class name, because those buttons
-    // are what an operator would actually see and click.
-    await expect(page.getByRole("button", { name: "Insert widget" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "H1", exact: true })).toHaveCount(0);
-
-    // And the surface that replaces it.
-    await expect(page.getByRole("tab", { name: "Preview" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "HTML" })).toBeVisible();
-  });
-
-  test("[unrun-edit] HTML written in the editor is saved and rendered in the sandboxed preview", async ({ page }) => {
-    await page.goto("/admin/pages");
-    await page.getByRole("button", { name: "New Page" }).click();
-    await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
-
-    const html =
-      '<section data-agent-element="page-hero" data-agent-role="region">' +
-      "<h1>Glassmorphic</h1><p>Frosted and translucent.</p></section>";
-
-    await page.getByRole("tab", { name: "HTML" }).click();
-    const source = page.getByRole("textbox", { name: "Page HTML" });
-    await source.fill(html);
-
-    await page.getByRole("button", { name: "Save •", exact: true }).click();
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
-
-    // Back to the preview: the iframe must actually render the markup, which is the only proof the
-    // srcdoc pipeline works end to end rather than the textarea merely holding a string.
-    await page.getByRole("tab", { name: "Preview" }).click();
-    const preview = page.frameLocator('iframe[title="Page preview"]');
-    await expect(preview.getByRole("heading", { name: "Glassmorphic" })).toBeVisible();
-
-    // The preview carries exactly `PAGE_PREVIEW_IFRAME_SANDBOX`'s flags (`features/pages/rules.ts`,
-    // 7d621d892). `allow-same-origin` is in that set on purpose: without it the preview loses its
-    // scroll memory and theme fonts. The risk this spec used to guard (with it, generated markup can
-    // reach the admin's cookies and DOM) is real and recorded as the constant's "Honest limit";
-    // dropping the flag is an open owner decision. What must stay out is top navigation, so the
-    // preview can never navigate the admin tab.
-    const sandbox = (await page.locator('iframe[title="Page preview"]').getAttribute("sandbox")) ?? "";
-    // STALE PIN UPDATED 2026-10-07: f65fb186a (2026-10-05) made that owner decision and dropped
-    // `allow-same-origin`, so preview script runs in an opaque origin.
-    expect(sandbox.split(/\s+/).sort()).toEqual(["allow-forms", "allow-popups", "allow-scripts"]);
-    expect(sandbox).not.toContain("allow-top-navigation");
-  });
-
-  test("draft preview POSTs saved and pending HTML into its iframe, with no notice above it", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto("/admin/pages");
-    await page.getByRole("button", { name: "New Page" }).click();
-    await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
-    const editorUrl = page.url();
-    await page.getByRole("tab", { name: "HTML" }).click();
-    const source = page.getByRole("textbox", { name: "Page HTML" });
-    await source.fill("<h1>Saved draft preview</h1>");
-    // The page save and the independent "Save categories & tags" action are both present.
-    await page.getByRole("button", { name: "Save •", exact: true }).click();
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-    await page.getByRole("tab", { name: "Preview" }).click();
-
-    const iframe = page.locator('iframe[title="Page preview"]');
-    const form = page.locator('form:has(input[name="bodyHtml"])');
-    await expect(form).toHaveAttribute("method", "post");
-    const target = await form.getAttribute("target");
-    expect(target).toBeTruthy();
-    await expect(iframe).toHaveAttribute("name", target!);
-    const preview = page.frameLocator('iframe[title="Page preview"]');
-    await expect(preview.getByRole("heading", { name: "Saved draft preview" })).toBeVisible();
-
-    await page.getByRole("tab", { name: "HTML" }).click();
-    await source.fill("<h1>Pending draft preview</h1>");
-    await page.getByRole("tab", { name: "Preview" }).click();
-    await expect(preview.getByRole("heading", { name: "Pending draft preview" })).toBeVisible();
-    await expect(preview.getByRole("heading", { name: "Saved draft preview" })).toHaveCount(0);
-    await expect(page).toHaveURL(editorUrl);
-
-    // STALE PIN UPDATED: `58a7c284e` (owner, 2026-10-10: "remove this") deleted the "Previewing your
-    // unsaved edits" notice that used to sit above the frame.
-    await expect(page.getByText(/previewing your unsaved edits/i)).toHaveCount(0);
-  });
-
-  test("a saved page survives a reload — the HTML is persisted, not just held in component state", async ({ page }) => {
-    await page.goto("/admin/pages");
-    await page.getByRole("button", { name: "New Page" }).click();
-    await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
-    const url = page.url();
-
-    await page.getByRole("tab", { name: "HTML" }).click();
-    await page.getByRole("textbox", { name: "Page HTML" }).fill("<h1>Persisted</h1>");
-    await page.getByRole("button", { name: "Save •", exact: true }).click();
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
-
-    await page.goto(url);
-    await page.getByRole("tab", { name: "HTML" }).click();
-    await expect(page.getByRole("textbox", { name: "Page HTML" })).toHaveValue("<h1>Persisted</h1>");
-  });
+  registerPageCreationAndPreviewTests();
+  registerDraftPreviewAndReloadTests();
 
   test("renaming a generated page keeps its HTML — the regression that used to delete it", async ({ page }) => {
     await page.goto("/admin/pages");
@@ -252,6 +150,13 @@ test.describe("Pages editor", () => {
 });
 
 test.describe("Pages editor — Interactive tab (GrapesJS)", () => {
+  registerInteractiveTextAndEmbedTests();
+  registerMixedContentEditTest();
+  registerStyledPageEditTest();
+});
+});
+
+function registerInteractiveTextAndEmbedTests() {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });
@@ -324,6 +229,9 @@ test.describe("Pages editor — Interactive tab (GrapesJS)", () => {
     expect(exported).toMatch(/<div data-embed-type="widget" data-embed-id="verify-embed-1">\s*<\/div>/);
     expect(exported).toContain("After edit target — edited nearby");
   });
+}
+
+function registerMixedContentEditTest() {
 
   test("opening the Interactive tab on realistic mixed-content HTML does not crash", async ({ page }) => {
     // Reproduces the shape of a real, non-trivial page: multiple block elements, inline text mixed
@@ -392,6 +300,9 @@ test.describe("Pages editor — Interactive tab (GrapesJS)", () => {
     expect(exported).toMatch(/<div data-embed-type="widget" data-embed-id="mixed-content-embed">\s*<\/div>/);
     expect(exported).toContain("Closing paragraph. More.");
   });
+}
+
+function registerStyledPageEditTest() {
 
   test("a page's own <style> block survives an Interactive-tab edit", async ({ page }) => {
     // Regression test for a real incident (2026-08-07): `editor.getHtml()` alone does NOT include
@@ -460,5 +371,118 @@ test.describe("Pages editor — Interactive tab (GrapesJS)", () => {
     await expect(savedCard).toHaveCSS("border-top-left-radius", "12px");
     await expect(savedCard).toHaveCSS("background-color", "rgb(238, 238, 255)");
   });
-});
-});
+}
+
+function registerPageCreationAndPreviewTests() {
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
+  });
+
+  test("New Page opens the Pages editor, not the Posts/Tiptap one", async ({ page }) => {
+    await page.goto("/admin/pages");
+    await page.getByRole("button", { name: "New Page" }).click();
+
+    // The destination is the Pages editor. This URL is the whole point — it used to be
+    // /admin/posts/{id}, which mounted Tiptap over a document Tiptap would silently mangle.
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
+    await expect(page.getByRole("heading", { name: "Edit page" })).toBeVisible();
+
+    // No Tiptap. Asserting on its toolbar buttons rather than a class name, because those buttons
+    // are what an operator would actually see and click.
+    await expect(page.getByRole("button", { name: "Insert widget" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "H1", exact: true })).toHaveCount(0);
+
+    // And the surface that replaces it.
+    await expect(page.getByRole("tab", { name: "Preview" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "HTML" })).toBeVisible();
+  });
+
+  test("[unrun-edit] HTML written in the editor is saved and rendered in the sandboxed preview", async ({ page }) => {
+    await page.goto("/admin/pages");
+    await page.getByRole("button", { name: "New Page" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
+
+    const html =
+      '<section data-agent-element="page-hero" data-agent-role="region">' +
+      "<h1>Glassmorphic</h1><p>Frosted and translucent.</p></section>";
+
+    await page.getByRole("tab", { name: "HTML" }).click();
+    const source = page.getByRole("textbox", { name: "Page HTML" });
+    await source.fill(html);
+
+    await page.getByRole("button", { name: "Save •", exact: true }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
+
+    // Back to the preview: the iframe must actually render the markup, which is the only proof the
+    // srcdoc pipeline works end to end rather than the textarea merely holding a string.
+    await page.getByRole("tab", { name: "Preview" }).click();
+    const preview = page.frameLocator('iframe[title="Page preview"]');
+    await expect(preview.getByRole("heading", { name: "Glassmorphic" })).toBeVisible();
+
+    // The preview carries exactly `PAGE_PREVIEW_IFRAME_SANDBOX`'s flags (`features/pages/rules.ts`,
+    // 7d621d892). `allow-same-origin` is in that set on purpose: without it the preview loses its
+    // scroll memory and theme fonts. The risk this spec used to guard (with it, generated markup can
+    // reach the admin's cookies and DOM) is real and recorded as the constant's "Honest limit";
+    // dropping the flag is an open owner decision. What must stay out is top navigation, so the
+    // preview can never navigate the admin tab.
+    const sandbox = (await page.locator('iframe[title="Page preview"]').getAttribute("sandbox")) ?? "";
+    // STALE PIN UPDATED 2026-10-07: f65fb186a (2026-10-05) made that owner decision and dropped
+    // `allow-same-origin`, so preview script runs in an opaque origin.
+    expect(sandbox.split(/\s+/).sort()).toEqual(["allow-forms", "allow-popups", "allow-scripts"]);
+    expect(sandbox).not.toContain("allow-top-navigation");
+  });
+}
+
+function registerDraftPreviewAndReloadTests() {
+
+  test("draft preview POSTs saved and pending HTML into its iframe, with no notice above it", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/admin/pages");
+    await page.getByRole("button", { name: "New Page" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
+    const editorUrl = page.url();
+    await page.getByRole("tab", { name: "HTML" }).click();
+    const source = page.getByRole("textbox", { name: "Page HTML" });
+    await source.fill("<h1>Saved draft preview</h1>");
+    // The page save and the independent "Save categories & tags" action are both present.
+    await page.getByRole("button", { name: "Save •", exact: true }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Preview" }).click();
+
+    const iframe = page.locator('iframe[title="Page preview"]');
+    const form = page.locator('form:has(input[name="bodyHtml"])');
+    await expect(form).toHaveAttribute("method", "post");
+    const target = await form.getAttribute("target");
+    expect(target).toBeTruthy();
+    await expect(iframe).toHaveAttribute("name", target!);
+    const preview = page.frameLocator('iframe[title="Page preview"]');
+    await expect(preview.getByRole("heading", { name: "Saved draft preview" })).toBeVisible();
+
+    await page.getByRole("tab", { name: "HTML" }).click();
+    await source.fill("<h1>Pending draft preview</h1>");
+    await page.getByRole("tab", { name: "Preview" }).click();
+    await expect(preview.getByRole("heading", { name: "Pending draft preview" })).toBeVisible();
+    await expect(preview.getByRole("heading", { name: "Saved draft preview" })).toHaveCount(0);
+    await expect(page).toHaveURL(editorUrl);
+
+    // STALE PIN UPDATED: `58a7c284e` (owner, 2026-10-10: "remove this") deleted the "Previewing your
+    // unsaved edits" notice that used to sit above the frame.
+    await expect(page.getByText(/previewing your unsaved edits/i)).toHaveCount(0);
+  });
+
+  test("a saved page survives a reload — the HTML is persisted, not just held in component state", async ({ page }) => {
+    await page.goto("/admin/pages");
+    await page.getByRole("button", { name: "New Page" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
+    const url = page.url();
+
+    await page.getByRole("tab", { name: "HTML" }).click();
+    await page.getByRole("textbox", { name: "Page HTML" }).fill("<h1>Persisted</h1>");
+    await page.getByRole("button", { name: "Save •", exact: true }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
+
+    await page.goto(url);
+    await page.getByRole("tab", { name: "HTML" }).click();
+    await expect(page.getByRole("textbox", { name: "Page HTML" })).toHaveValue("<h1>Persisted</h1>");
+  });
+}

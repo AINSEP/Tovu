@@ -72,19 +72,7 @@ async function seed(request: APIRequestContext, site: IsolatedJourneySite): Prom
       ],
     },
   }), "form create");
-  await created(await request.post(`${API}/content-types`, {
-    data: {
-      key: TYPE_KEY,
-      label: "Mobile baseline recipes",
-      fields: [
-        { name: "summary", kind: "text", required: true, queryable: false },
-        { name: "servings", kind: "integer", required: false, queryable: true },
-      ],
-    },
-  }), "content type create");
-  await created(await request.post(`${API}/entries`, {
-    data: { type: TYPE_KEY, slug: ENTRY_SLUG, title: "Mobile baseline entry", fieldsJson: { ext: { site: { summary: "A fixed summary" } } } },
-  }), "entry create");
+  await seedMobileContent({ request });
   const menu = await created<{ menu: { id: string } }>(await request.post(`${WS_API}/menus`, {
     data: {
       title: "Mobile baseline menu",
@@ -122,6 +110,22 @@ async function seed(request: APIRequestContext, site: IsolatedJourneySite): Prom
     postId: welcome.post.id,
     pageSlug,
   };
+}
+
+async function seedMobileContent({ request }: { request: APIRequestContext }) {
+  await created(await request.post(`${API}/content-types`, {
+    data: {
+      key: TYPE_KEY,
+      label: "Mobile baseline recipes",
+      fields: [
+        { name: "summary", kind: "text", required: true, queryable: false },
+        { name: "servings", kind: "integer", required: false, queryable: true },
+      ],
+    },
+  }), "content type create");
+  await created(await request.post(`${API}/entries`, {
+    data: { type: TYPE_KEY, slug: ENTRY_SLUG, title: "Mobile baseline entry", fieldsJson: { ext: { site: { summary: "A fixed summary" } } } },
+  }), "entry create");
 }
 
 async function unseed(request: APIRequestContext, s: Seeded): Promise<void> {
