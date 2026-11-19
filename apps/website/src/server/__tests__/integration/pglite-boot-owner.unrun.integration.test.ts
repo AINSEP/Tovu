@@ -162,10 +162,10 @@ test("[unrun] pglite boot: the serve boot modules all come up ready on Postgres 
       { name: "comments", owner: "comments", criticality: "optional", lifecycle: { status: "ready" } },
     ],
   };
-  assert.deepEqual(await runBootLifecycle(modules), expected);
+  assert.deepEqual(await runBootLifecycle({ modules }), expected);
   assert.equal(await site.deps.siteStatusRepo.get(site.deps.workspaceId), "SERVING", "no interrupted migration was found");
 
   assert.equal("store" in site.deps, false, "commerce is not composed into the serve dependencies");
   assert.equal(buildBootModules(site.deps, { useMemory: false, defaultContentDbPath: () => path.join(site.siteDir, "content.db") }).some(module => module.name === "store-plugin"), false);
-  assert.deepEqual(await runBootLifecycle(modules), expected, "a re-run (the next boot) is ready again");
+  assert.deepEqual(await runBootLifecycle({ modules }), expected, "a re-run (the next boot) is ready again");
 });

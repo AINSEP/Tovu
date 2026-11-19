@@ -23,7 +23,7 @@ export type MountInput = { app: Express; routeDeps: NewsletterRouteDeps & ByokTo
  * guard never varies. Hoisting it here means the branch is counted once, in this 2-line function,
  * instead of once per call site.
  */
-export function mountRoutes(app: Express, mod: ServerModuleHandle): void {
+export function mountRoutes({ app, mod }: { app: Express; mod: ServerModuleHandle }, _optional: Record<string, never> = {}): void {
   mod.registerRoutes?.({ app });
 }
 

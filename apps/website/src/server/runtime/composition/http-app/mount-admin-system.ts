@@ -60,14 +60,14 @@ export function mountAdminSystem({ app, routeDeps }: MountInput, _optional = {})
 function mountAnalyticsAndSiteAssistant({ app, routeDeps }: MountInput, _optional = {}): void {
   // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
   // read route (ADR-035/ADR-PIPE-014).
-  mountRoutes(app, createAnalyticsModule(routeDeps));
+  mountRoutes({ app, mod: createAnalyticsModule(routeDeps) });
   // ADR-054: the PUBLIC visitor assistant. Deliberately NOT behind `requireAdminSession` — it is
   // the one assistant surface anonymous traffic may reach, which is why it runs on its own
   // in-process provider relay with a read-only published-content tool surface rather than the
   // admin's process-spawning agent daemon. `start()` logs the demo-gate state at boot.
   const siteAssistantModule = createSiteAssistantModule(routeDeps);
   startModule(siteAssistantModule);
-  mountRoutes(app, siteAssistantModule);
+  mountRoutes({ app, mod: siteAssistantModule });
 }
 
 /** Module status, observability, browser telemetry, tool gaps and server logs routes. */

@@ -20,19 +20,19 @@ export function mountCoreContent({ app, routeDeps }: MountInput, options: Pick<C
   // registered together in that order so login is never caught by its own
   // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
   // inbound/admin-http/dev-auth.ts.
-  mountRoutes(app, createCoreModule(routeDeps, { onAdminSignIn: options.onAdminSignIn }));
+  mountRoutes({ app, mod: createCoreModule(routeDeps, { onAdminSignIn: options.onAdminSignIn }) });
   const isAuthenticatedPreviewRevision = registerThemePreviewRefresh({ app, deps: routeDeps });
 
   // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/
   // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
   // inline immediately below — it was never one of this module's 11 registrations.
-  mountRoutes(app, createContentModule(routeDeps));
+  mountRoutes({ app, mod: createContentModule(routeDeps) });
   registerContentPostGetRoute({ app, deps: routeDeps });
 
   // Task 4 of the publish-content (Publish Content) feature (`ADS-memory/reports/
   // 2026-09-18-publish-feature-implementation-plan.md` §1.1/§4) — the export/pull route. This is
   // also where `installFirstPartyPublishContentTypes()` first gets a real caller (see
   // `publish-content-manifest.ts`'s own header and `modules/publish-content.ts`'s).
-  mountRoutes(app, createPublishContentModule(routeDeps));
+  mountRoutes({ app, mod: createPublishContentModule(routeDeps) });
   return { isAuthenticatedPreviewRevision };
 }

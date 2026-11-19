@@ -36,7 +36,7 @@ export function mountMembersNewsletter({ app, routeDeps }: MountInput, _optional
   const memberPublicDeps = memberPublicDepsFor({ routeDeps, magicLinkPerEmailLimiter, magicLinkPerIpLimiter, magicLinkCompleteAttemptLimiter });
   // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
   // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
-  mountRoutes(app, createMembersModule({ admin: membersDeps, public: memberPublicDeps }));
+  mountRoutes({ app, mod: createMembersModule({ admin: membersDeps, public: memberPublicDeps }) });
 
   // SPEC-011 (Newsletter, ADR-PIPE-011) Stage 5 — the `newsletter` server module: 19 admin routes
   // (inside the `/api/admin` gate mounted by `createCoreModule` above) + 2 public, cookie-less,
@@ -48,7 +48,7 @@ export function mountMembersNewsletter({ app, routeDeps }: MountInput, _optional
   // `NewsletterRouteDeps`, this parameter's own `RouteDeps` annotation is just narrower.
   const newsletterAdminDeps = routeDeps as NewsletterRouteDeps;
   const newsletterPublicDeps = newsletterPublicDepsFor({ routeDeps, newsletterAdminDeps });
-  mountRoutes(app, createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }));
+  mountRoutes({ app, mod: createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }) });
 }
 
 /** The members module's public deps: the root's member repos plus the shared magic-link limiters and password-sign-in limiters of this app. */

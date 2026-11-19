@@ -756,7 +756,7 @@ function mountAttachmentAndActionRoutes(required: AssistantMountContext, _option
  * diverge from the BYOK module's own store the first time someone forgot to thread it through, and
  * every confirmation would 404/409 against an exchange this store never opened.
  */
-export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurfaceExchanges: SurfaceExchangeStore): ServerModuleHandle {
+export function createAssistantModule({ routeDeps, byokSurfaceExchanges }: { routeDeps: AssistantRouteDeps; byokSurfaceExchanges: SurfaceExchangeStore }, _optional: Record<string, never> = {}): ServerModuleHandle {
   // Every proxied daemon call is an outbound span under the admin request that caused it.
   const daemon: DaemonCallOptions = { observability: routeDeps.observability, ensureReady: routeDeps.assistantDaemonDemand?.ensureReady };
   // Each host owns its cache for its lifetime; unrelated applications cannot share a model slot.

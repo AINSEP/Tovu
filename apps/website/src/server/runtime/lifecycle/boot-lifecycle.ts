@@ -147,7 +147,7 @@ async function runStartStage(
  * currently-failing module itself. An OPTIONAL module's failure is recorded and the lifecycle
  * continues (that module is simply excluded from the `start` stage if `prepare` failed).
  */
-export async function runBootLifecycle(modules: readonly BootModule[]): Promise<BootResult> {
+export async function runBootLifecycle({ modules }: { modules: readonly BootModule[] }, _optional: Record<string, never> = {}): Promise<BootResult> {
   const results = new Map<string, BootModuleResult>();
 
   const prepareOutcome = await runPrepareStage({ modules, results });

@@ -40,7 +40,7 @@ test("T45: critical start failure releases resources of modules prepared but not
   const failing = fakeModule({ name: "failing", start: async () => { throw new Error("start failed"); } });
   const preparedOnly = resource("prepared-only");
 
-  const result = await runBootLifecycle([ready, failing, preparedOnly]);
+  const result = await runBootLifecycle({ modules: [ready, failing, preparedOnly] });
 
   assert.equal(result.ok, false);
   assert.equal(preparedOnly.calls.includes("start"), false);
@@ -69,7 +69,7 @@ test("runs prepare for every module, then start for every module, in array order
     },
   });
 
-  const result = await runBootLifecycle([a, b]);
+  const result = await runBootLifecycle({ modules: [a, b] });
 
   assert.deepEqual(order, ["a.prepare", "b.prepare", "a.start", "b.start"]);
   assert.equal(result.ok, true);
@@ -89,7 +89,7 @@ test("start() is never called for a module whose prepare() failed", async () => 
   });
   const other = fakeModule({ name: "other" });
 
-  const result = await runBootLifecycle([failing, other]);
+  const result = await runBootLifecycle({ modules: [failing, other] });
 
   assert.equal(failing.calls.includes("start"), false);
   assert.deepEqual(other.calls, ["prepare", "start"]);
@@ -121,7 +121,7 @@ test("fault-injection (a): a later critical module's start() fails after earlier
     },
   });
 
-  const result = await runBootLifecycle([one, two, three]);
+  const result = await runBootLifecycle({ modules: [one, two, three] });
 
   assert.equal(result.ok, false);
   assert.deepEqual(stopOrder, ["two", "one"]); // reverse order, three excluded
@@ -150,7 +150,7 @@ test("fault-injection (b): a critical module's own prepare() fails partway throu
   });
   const earlier = fakeModule({ name: "earlier" });
 
-  const result = await runBootLifecycle([earlier, failing]);
+  const result = await runBootLifecycle({ modules: [earlier, failing] });
 
   assert.equal(result.ok, false);
   assert.equal(selfCleanedUp, true);
@@ -168,7 +168,7 @@ test("an optional module's start() failure is recorded failed and does not block
   });
   const laterCritical = fakeModule({ name: "later-critical" });
 
-  const result = await runBootLifecycle([optionalFails, laterCritical]);
+  const result = await runBootLifecycle({ modules: [optionalFails, laterCritical] });
 
   assert.equal(result.ok, true);
   assert.equal(result.modules.find((m) => m.name === "optional-fails")?.lifecycle.status, "failed");
@@ -184,7 +184,7 @@ test("a critical module's prepare() failure rolls back an earlier module that on
     },
   });
 
-  const result = await runBootLifecycle([earlierPreparedOnly, failing]);
+  const result = await runBootLifecycle({ modules: [earlierPreparedOnly, failing] });
 
   assert.equal(result.ok, false);
   assert.deepEqual(earlierPreparedOnly.calls, ["prepare", "stop"]);
@@ -203,7 +203,7 @@ test("rollback waits for each asynchronous resource release before starting the 
   const two = fakeModule({ name: "two", stop: async () => { order.push("two.start"); twoStarted(); await twoHeld; order.push("two.released"); } });
   const failing = fakeModule({ name: "failing", start: async () => { throw new Error("critical start failed"); } });
   let settled = false;
-  const boot = runBootLifecycle([one, two, failing]).then((result) => { settled = true; return result; });
+  const boot = runBootLifecycle({ modules: [one, two, failing] }).then((result) => { settled = true; return result; });
   try {
     await twoStarting;
     await new Promise<void>((resolve) => setImmediate(resolve));
@@ -230,7 +230,7 @@ test("rollback continues after a stop rejects and preserves the original critica
   const earlier = fakeModule({ name: "earlier", stop: async () => { order.push("earlier.released"); } });
   const later = fakeModule({ name: "later", stop: async () => { order.push("later.stop"); throw new Error("cleanup failed"); } });
   const failing = fakeModule({ name: "failing", prepare: async () => { throw new Error("original critical failure"); } });
-  const result = await runBootLifecycle([earlier, later, failing]);
+  const result = await runBootLifecycle({ modules: [earlier, later, failing] });
   assert.deepEqual(order, ["later.stop", "earlier.released"]);
   assert.equal(result.ok, false);
   assert.deepEqual(result.modules.map(({ name, lifecycle }) => ({ name, lifecycle })), [{
@@ -240,9 +240,9 @@ test("rollback continues after a stop rejects and preserves the original critica
 });
 
 test("a non-Error rejection from prepare() is recorded failed with its string form as the reason code", async () => {
-  const result = await runBootLifecycle([
+  const result = await runBootLifecycle({ modules: [
     fakeModule({ name: "plain", criticality: "optional", prepare: async () => { throw "disk not mounted"; } }),
-  ]);
+  ] });
   assert.equal(result.ok, true);
   assert.deepEqual(result.modules.map((m) => [m.name, m.lifecycle]), [[
     "plain",

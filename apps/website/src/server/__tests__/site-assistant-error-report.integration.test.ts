@@ -44,7 +44,7 @@ async function boot({ t }: { t: TestContext }) {
   const app = express();
   applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.use(parsePublicJsonBody);
-  createSiteAssistantModule(deps, {}).registerRoutes?.({ app });
+  createSiteAssistantModule(deps, { env: {} }).registerRoutes?.({ app });
   return { reports, logs, baseUrl: await startTestServer(app, t) };
 }
 

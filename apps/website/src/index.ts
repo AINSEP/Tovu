@@ -256,7 +256,7 @@ async function openSiteDeps(_optional = {}) {
 
 /** Runs the boot modules and publishes the readiness snapshot; a failed critical module ends the process. */
 async function runBootModulesOrExit(deps: Awaited<ReturnType<typeof openSiteDeps>>["deps"], _optional = {}): Promise<void> {
-  const bootResult = await runBootLifecycle(buildBootModules(deps, { useMemory, defaultContentDbPath }));
+  const bootResult = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory, defaultContentDbPath }) });
   setReadinessSnapshot(bootResult);
   if (!bootResult.ok) {
     logCriticalBootFailures(bootResult);
