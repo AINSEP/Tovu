@@ -230,6 +230,13 @@ export async function fetchAgentDaemon(
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
   const send = daemonFetch(options);
 
+  return fetchDaemonWithRetries({ req, res, options }, { method, deadline, send });
+}
+
+async function fetchDaemonWithRetries(
+  { req, res, options }: { req: Request; res: Response; options: NonNullable<Parameters<typeof fetchAgentDaemon>[2]> },
+  { method, deadline, send }: { method: string; deadline: number; send: typeof fetch },
+): Promise<globalThis.Response | null> {
   for (;;) {
     try {
       // Each attempt is its own span: a boot-window refusal shows up as the failed attempts it was.
@@ -238,13 +245,20 @@ export async function fetchAgentDaemon(
       return upstream;
     } catch (error) {
       const attempt = { code: connectionErrorCode({ error }), method, deadline };
-      if (isUnsafeReset(attempt)) return respondOutcomeUnknown({ res, error });
-      if (!shouldRetryConnection(attempt)) return respondDaemonUnreachable({ res, error });
+      if (respondToDaemonConnectionFailure({ res, error }, attempt)) return null;
       noteDaemonUnreachableWaiting();
       await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
       if (!options.passive && !(await awaitDaemonForResponse({ res }, options))) return null;
     }
   }
+}
+
+function respondToDaemonConnectionFailure(
+  failure: { res: Response; error: unknown }, attempt: { code: unknown; method: string; deadline: number },
+): boolean {
+  if (isUnsafeReset(attempt)) { respondOutcomeUnknown(failure); return true; }
+  if (!shouldRetryConnection(attempt)) { respondDaemonUnreachable(failure); return true; }
+  return false;
 }
 
 /** Thin wrapper matching `assistant.ts`'s original call shape exactly: forward the SAME path/method
@@ -357,17 +371,21 @@ export async function awaitDaemonForResponse(
 ): Promise<boolean> {
   try { await ensureReady({}, {}); return true; }
   catch (error) {
-    // One line per refused request names why (cold-start timeout, disabled site, shutdown).
-    const explicit = ipcRefusalReason({ value: error });
-    const reason = explicit !== undefined
-      ? redactSecrets({ input: explicit }) : "The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site.";
-    const detail = explicit !== undefined ? undefined : maskLocalPaths({ text: redactSecrets({ input: error instanceof Error ? error.message : String(error) },
-      { exactSecrets: [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value)) }) }).slice(0, 2048);
-    console.error(`[assistant] the agent daemon is not ready: ${reason}${detail ? ` Details: ${detail}` : ''}`);
-    if (respondIfDaemonKnownFailed(res, { reason, detail })) return false;
-    res.status(503).json({ error: reason, code: "AGENT_DAEMON_UNAVAILABLE", ...(detail ? { detail } : {}) });
-    return false;
+    return respondDaemonNotReady(res, error);
   }
+}
+
+function respondDaemonNotReady(res: Response, error: unknown): false {
+  // One line per refused request names why (cold-start timeout, disabled site, shutdown).
+  const explicit = ipcRefusalReason({ value: error });
+  const reason = explicit !== undefined
+    ? redactSecrets({ input: explicit }) : "The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site.";
+  const detail = explicit !== undefined ? undefined : maskLocalPaths({ text: redactSecrets({ input: error instanceof Error ? error.message : String(error) },
+    { exactSecrets: [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value)) }) }).slice(0, 2048);
+  console.error(`[assistant] the agent daemon is not ready: ${reason}${detail ? ` Details: ${detail}` : ''}`);
+  if (respondIfDaemonKnownFailed(res, { reason, detail })) return false;
+  res.status(503).json({ error: reason, code: "AGENT_DAEMON_UNAVAILABLE", ...(detail ? { detail } : {}) });
+  return false;
 }
 
 /** A cold page-load bridge is passive. Explicit activation rebinds it through W4-E2.

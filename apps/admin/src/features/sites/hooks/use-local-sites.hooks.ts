@@ -83,27 +83,10 @@ export function useLocalSites(
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [switchTarget, setSwitchTarget] = useState<{ name: string; deadline: number } | null>(null);
   const busy = useRef(false);
-  const enabled = snapshot?.localManagementEnabled === true;
-  const canSwitchNow = snapshot?.canSwitchNow === true;
-  const stopServing = snapshot?.stopServing;
-  const stopServingTarget = stopServing?.available === true ? stopServing.target : null;
-  const activeSiteName = snapshot?.currentSite.name;
+  const { enabled, canSwitchNow, stopServing, stopServingTarget, activeSiteName } = localSiteCapabilities(snapshot);
   const refresh = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
   const starting = localSiteIsStarting({ enabled, snapshot });
-  // Idle hosts need no timer. Refresh only an unfinished start or accepted restart; broad
-  // idle invalidation used to refetch shares and publish permissions every three seconds.
-  useEffect(() => {
-    if (switchTarget && activeSiteName === switchTarget.name) {
-      setSwitchTarget(null);
-      return undefined;
-    }
-    if (!starting && !switchTarget) return undefined;
-    // Replace the slow poll while a restart is pending; a saved default alone is not completion.
-    return startVisibleInterval({ tick: () => {
-      if (switchTarget && Date.now() >= switchTarget.deadline) setSwitchTarget(null);
-      refresh();
-    }, periodMs: switchTarget ? 300 : 3000 }, { doc: visibility, timers });
-  }, [starting, switchTarget, activeSiteName, refresh, visibility, timers]);
+  useLocalSitePolling({ starting, switchTarget, activeSiteName, refresh, visibility, timers, setSwitchTarget });
   function handleSwitchResult({ name, result }: { name: string; result: unknown }, _optional = {}) {
     const url = (result as { url?: unknown } | undefined)?.url;
     if (typeof url === "string") port.openSite?.({ url });
@@ -118,9 +101,7 @@ export function useLocalSites(
     try {
       if (isConfirmable(action) && !(await confirm({ message: localActionConfirmMessage({ action, name, stopServing, t }), action }))) return;
       const result = await port.manageLocalSite({ name, action, confirmed: true, checked: checked[name] === true });
-      if (action === "switch") handleSwitchResult({ name: name, result: result });
-      // The server restarts onto the hand-over target, so the page waits for that site, not this one.
-      if (action === "stop-serving" && stopServingTarget !== null) handleSwitchResult({ name: stopServingTarget, result: result });
+      applyLocalSiteActionResult({ action, name, stopServingTarget }, result, handleSwitchResult);
       refresh();
     } catch (failure) {
       setError(localActionErrorMessage({ failure: failure, t: t }));
@@ -130,4 +111,44 @@ export function useLocalSites(
   const toggleChecked = useCallback((id: string, value: boolean) => setChecked((current) => ({ ...current, [id]: value })), []);
   return { busyName, error, checked, toggleChecked, run };
 }
+
+function localSiteCapabilities(snapshot: AdminSitesSnapshot | undefined) {
+  const enabled = snapshot?.localManagementEnabled === true;
+  const canSwitchNow = snapshot?.canSwitchNow === true;
+  const stopServing = snapshot?.stopServing;
+  const stopServingTarget = stopServing?.available === true ? stopServing.target : null;
+  const activeSiteName = snapshot?.currentSite.name;
+  return { enabled, canSwitchNow, stopServing, stopServingTarget, activeSiteName };
+}
+
+function useLocalSitePolling({ starting, switchTarget, activeSiteName, refresh, visibility, timers, setSwitchTarget }: {
+  starting: boolean; switchTarget: { name: string; deadline: number } | null; activeSiteName: string | undefined;
+  refresh: () => void; visibility: VisibilitySource; timers: IntervalTimers | undefined;
+  setSwitchTarget: (target: { name: string; deadline: number } | null) => void;
+}) {
+  // Idle hosts need no timer. Refresh only an unfinished start or accepted restart; broad
+  // idle invalidation used to refetch shares and publish permissions every three seconds.
+  useEffect(() => {
+    if (switchTarget && activeSiteName === switchTarget.name) {
+      setSwitchTarget(null);
+      return undefined;
+    }
+    if (!starting && !switchTarget) return undefined;
+    // Replace the slow poll while a restart is pending; a saved default alone is not completion.
+    return startVisibleInterval({ tick: () => {
+      if (switchTarget && Date.now() >= switchTarget.deadline) setSwitchTarget(null);
+      refresh();
+    }, periodMs: switchTarget ? 300 : 3000 }, { doc: visibility, timers });
+  }, [starting, switchTarget, activeSiteName, refresh, visibility, timers]);
+}
+
+function applyLocalSiteActionResult(
+  { action, name, stopServingTarget }: { action: AdminLocalSiteAction; name: string; stopServingTarget: string | null },
+  result: unknown, handleSwitchResult: (required: { name: string; result: unknown }) => void,
+): void {
+  if (action === "switch") handleSwitchResult({ name: name, result: result });
+  // The server restarts onto the hand-over target, so the page waits for that site, not this one.
+  if (action === "stop-serving" && stopServingTarget !== null) handleSwitchResult({ name: stopServingTarget, result: result });
+}
+
 export type LocalSitesController = ReturnType<typeof useLocalSites>;

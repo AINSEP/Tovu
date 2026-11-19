@@ -55,6 +55,10 @@ function removeNestedSitesContainer({ root }: { root: string }, { report, remove
   }
 }
 
+function isNestedSiteCandidate(entry: fs.Dirent): boolean {
+  return entry.isDirectory() && !entry.name.startsWith(".");
+}
+
 /** Move eligible siblings independently; refused sites stay at their recorded paths and are retried.
  * The CLI repeats admission under its locks, verifies SQLite/files, and commits both catalogs.
  * @param required.workspace The shared settings and running-lease owner.
@@ -72,7 +76,7 @@ export async function migrateNestedSitesHome(
     if (!root) return;
     const home = workspace.home({});
     for (const entry of fs.readdirSync(root, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
-      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      if (!isNestedSiteCandidate(entry)) continue;
       const dir = path.join(root, entry.name), to = path.join(home, entry.name);
       await migrateNestedSite({ workspace, home, dir, to, repoRoot, cliMode, projectsPath }, { move, report });
     }

@@ -3,11 +3,6 @@
   "violations": [
     {
       "rule": "complexity",
-      "file": "apps/desktop/src/nested-sites-migration.ts",
-      "reason": "Async function 'migrateNestedSitesHome' has a complexity of 10. Maximum allowed is 9."
-    },
-    {
-      "rule": "complexity",
       "file": "apps/desktop/src/renderer/App.tsx",
       "reason": "Function 'App' has a complexity of 10. Maximum allowed is 9."
     },

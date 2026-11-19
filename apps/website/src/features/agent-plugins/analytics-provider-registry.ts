@@ -47,10 +47,14 @@ function parseDescriptor({ entry, at }: { entry: unknown; at: string }, _optiona
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, module, label } = entry;
   if (typeof id !== "string") return `${at}.id must be a string`;
-  if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
+  if (!isRelativeModulePath(module)) return `${at}.module must be a relative path ending in .mjs`;
   if (label === undefined) return { id, module };
   if (typeof label !== "string" || label.trim() === "" || label.length > MAX_LABEL_LENGTH) return `${at}.label must be a non-empty string`;
   return { id, module, label };
+}
+
+function isRelativeModulePath(module: unknown): module is string {
+  return typeof module === "string" && module.endsWith(".mjs") && !path.posix.isAbsolute(module);
 }
 
 /**

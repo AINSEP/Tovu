@@ -489,13 +489,18 @@ function treeFileContentReason({ file, spec }: { file: FileTreeFileInput; spec: 
   }
 
   if (TEXT_LIKE_SCAN_EXTENSIONS.has(ext) && file.size <= MAX_SECRET_SCAN_BYTES) {
-    if (file.textSample === undefined) return `"${file.path}" is missing the text required for its secret scan`;
-    const hits = scanTextForSecrets({ text: file.textSample });
-    if (hits.length > 0) {
-      const hit = hits[0];
-      if (hit === undefined) throw new Error("Secret scan reported a hit without details");
-      return `"${file.path}" looks like it holds a key (${hit.patternName})`;
-    }
+    return treeFileSecretReason(file);
+  }
+  return null;
+}
+
+function treeFileSecretReason(file: FileTreeFileInput): string | null {
+  if (file.textSample === undefined) return `"${file.path}" is missing the text required for its secret scan`;
+  const hits = scanTextForSecrets({ text: file.textSample });
+  if (hits.length > 0) {
+    const hit = hits[0];
+    if (hit === undefined) throw new Error("Secret scan reported a hit without details");
+    return `"${file.path}" looks like it holds a key (${hit.patternName})`;
   }
   return null;
 }

@@ -122,18 +122,23 @@ export async function runLocalSiteChild(
   watchdog.unref();
   if (parentGone({ proc, ownerPid })) { timers.clearInterval({ handle: watchdog }); await reap(); return; }
   if (!proc.env.TOVU_ADMIN_DIST) {
-    const runtimeDir = proc.env.TOVU_LOCAL_ADMIN_BUILD_ROOT;
-    const repoRoot = proc.env.TOVU_REPO_ROOT;
-    if (runtimeDir === undefined || repoRoot === undefined) {
-      timers.clearInterval({ handle: watchdog });
-      throw new Error(runtimeDir === undefined ? "local site child has no admin build root" : "local site child has no repository root");
-    }
+    const { runtimeDir, repoRoot } = requireLocalAdminBuildPaths(proc, timers, watchdog);
     proc.env.TOVU_ADMIN_DIST = await buildAdminBundle({
       runtimeDir, repoRoot,
     }, { env: proc.env });
   }
   if (ownerLost) return;
   await importEntry({ specifier: siteEntry });
+}
+
+function requireLocalAdminBuildPaths(proc: LocalSiteChildProcess, timers: WatchdogTimers, watchdog: WatchdogHandle) {
+  const runtimeDir = proc.env.TOVU_LOCAL_ADMIN_BUILD_ROOT;
+  const repoRoot = proc.env.TOVU_REPO_ROOT;
+  if (runtimeDir === undefined || repoRoot === undefined) {
+    timers.clearInterval({ handle: watchdog });
+    throw new Error(runtimeDir === undefined ? "local site child has no admin build root" : "local site child has no repository root");
+  }
+  return { runtimeDir, repoRoot };
 }
 
 function localSiteReaper(

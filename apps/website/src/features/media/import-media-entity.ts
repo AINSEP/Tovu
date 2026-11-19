@@ -407,10 +407,14 @@ async function replaceImportedMedia({ deps, input, existing, bytes }: {
     return saved ? { status: "imported", id: existing.id, blobWritten }
       : { status: "conflict", reason: "The live file changed during replacement. Plan publishing again." };
   } catch (error) {
-    if (error instanceof MediaValidationError) return { status: "blocked", code: "precondition", reason: error.message };
-    if (error instanceof MediaConflictError) return { status: "blocked", code: "slug-taken", reason: error.message };
-    throw error;
+    return importedMediaReplacementError(error);
   }
+}
+
+function importedMediaReplacementError(error: unknown): ImportMediaEntityResult {
+  if (error instanceof MediaValidationError) return { status: "blocked", code: "precondition", reason: error.message };
+  if (error instanceof MediaConflictError) return { status: "blocked", code: "slug-taken", reason: error.message };
+  throw error;
 }
 
 /** A replacement rollback restores bytes through the same CAS/rendition transaction, never save().

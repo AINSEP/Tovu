@@ -45,13 +45,17 @@ function unmanagedWarnings({ html, available }: { html: string; available: numbe
     if (node === undefined) throw new Error('Consent readiness has no node to inspect');
     if (!('tagName' in node)) continue;
     const warning = unmanaged(node);
-    if (warning) {
-      if (warnings.length === available) return { warnings, truncated: true };
-      warnings.push(warning);
-    }
+    if (appendUnmanagedWarning(warning, warnings, available)) return { warnings, truncated: true };
     if (node.tagName !== 'template') nodes.push(...node.childNodes);
   }
   return { warnings, truncated: false };
+}
+
+function appendUnmanagedWarning(warning: ConsentWarning | null, warnings: ConsentWarning[], available: number): boolean {
+  if (!warning) return false;
+  if (warnings.length === available) return true;
+  warnings.push(warning);
+  return false;
 }
 
 const declarationOverflow = ({ scripts, limit }: { scripts: unknown; limit: number }, _optional = {}) => Array.isArray(scripts) && scripts.length > limit;
