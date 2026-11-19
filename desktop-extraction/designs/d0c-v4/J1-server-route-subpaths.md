@@ -1,0 +1,27 @@
+# J1 (Jini): `@jini-ai/server` exports `./mount-routes` and `./route-host` (one repo: Jini; Codex-ready)
+
+Why: Tovu's desktop mounts two daemon route lists (`apps/desktop/src/desktop-agent.ts:381-383`) through the website's `jini-routes.ts`. Jini already has the generic pair, `packages/server/src/mount-routes.ts` (`mountRoutes`, `:32`) and `packages/server/src/route-host.ts` (`PRESET_JSON_PARSER_LIMIT_BYTES` `:14`, `nodeSessionTimer` `:23`, `presetRouteHost` `:34`), but the root entry loads the whole preset and does not export `presetRouteHost`. Design: `../D0c-REVISION-4.md`.
+Jini for verification: this sheet's commit. Named packages: `server`.
+
+## Files to change (one commit: `feat(server): ./mount-routes and ./route-host subpath exports`)
+- `packages/server/package.json` `exports`: add, in the same shape as `"./owner-store"` (`:55-58`):
+  `"./mount-routes": { "types": "./dist/mount-routes.d.ts", "import": "./dist/mount-routes.js", "default": "./dist/mount-routes.js" }` and the same for `"./route-host"` (`./dist/route-host.*`). No `jini` metadata edit (the package-level `"runtime": "node"` covers every entry; `isolation.entries` lists only storage entries).
+- `api-baseline/jini-ai__server.json`: regenerate with `pnpm api:update` (executor may run it; it is a file generator, not a gate).
+- NEW `.changeset/server-route-subpaths.md`: `"@jini-ai/server": minor` / "Add `@jini-ai/server/mount-routes` and `@jini-ai/server/route-host` subpaths so a host can mount daemon route lists without loading the preset."
+- No source file changes; no new source module.
+
+## Characterization tests to add
+NEW `packages/server/src/__tests__/route-subpaths.test.ts` (vitest; self-reference through the package name, as `builtin-features.terminal-service.test.ts` already does):
+```ts
+import { describe, expect, it } from 'vitest';
+import { createTestRouteHost } from '@jini-ai/core/contracts/server/testing';
+import { mountRoutes } from '@jini-ai/server/mount-routes';
+import { PRESET_JSON_PARSER_LIMIT_BYTES, presetRouteHost } from '@jini-ai/server/route-host';
+```
+Cases: (1) `presetRouteHost({ context: createTestRouteHost(), parserLimitBytes: 4 * 1024 * 1024 }).jsonBodyMaxBytes` equals `presetRouteHost(...)` of the root-relative import `../route-host.js` for the same input (the subpath is the same module) and equals `22_020_096` (4 MiB x 5.25: the value the Tovu desktop computes today through `daemonRouteHost`); (2) `PRESET_JSON_PARSER_LIMIT_BYTES === 102_400`; (3) `mountRoutes({ app: {}, routes: [] })` throws `TypeError` with the existing message (`mount-routes.ts:22`).
+Red check: point `"./route-host"` at `./dist/mount-routes.js` -> case (1) fails.
+
+## STOP conditions
+- `rg -n "^export" packages/server/src/mount-routes.ts packages/server/src/route-host.ts` does not print exactly `mount-routes.ts:32`, `route-host.ts:14`, `:23`, `:34`.
+- `rg -n '"\./(mount-routes|route-host)"' packages/server/package.json` already prints a hit.
+- `pnpm api:update` changes any baseline file other than `api-baseline/jini-ai__server.json`.
