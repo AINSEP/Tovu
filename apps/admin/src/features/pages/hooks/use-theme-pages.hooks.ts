@@ -117,7 +117,7 @@ function pageIdFromPath({ path }: { path: string }, _options = {}): string {
  *
  * @complexity O(1).
  */
-export function themePageCollisionAdminPath(collision: ThemePageSlugCollision): string {
+export function themePageCollisionAdminPath(collision: ThemePageSlugCollision, _optional: Record<string, never> = {}): string {
   return collision.kind === "post" ? `/posts/${collision.slug}` : pageAdminPath(collision);
 }
 
@@ -127,8 +127,8 @@ export function themePageCollisionAdminPath(collision: ThemePageSlugCollision): 
  *
  * @complexity O(1).
  */
-export function themePagePublishSummary(row: ThemePageRow, t: Translate): string {
-  const state = themePagePublishState(row, t);
+export function themePagePublishSummary({ row, t }: { row: ThemePageRow; t: Translate }, _optional: Record<string, never> = {}): string {
+  const state = themePagePublishState({ row, t });
   if (state.kind === "locked") return themePagePublishTooltip(state);
   return state.published ? t("Live") : t("Not live");
 }

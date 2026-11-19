@@ -353,7 +353,7 @@ function ThemesBanners({
   return (
     <>
       {error ? <div className="notice error">{error}</div> : null}
-      {isStrandedActiveTheme(settings, themes) ? (
+      {isStrandedActiveTheme({ settings, themes }) ? (
         <div className="notice warning">
           {t(
             "The site's active theme (\"{id}\") is no longer available, so the public site cannot render until you activate a different one. No content was lost.",
@@ -603,7 +603,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     return error ? <div className="notice error">{error}</div> : <div className="notice">{t("Loading themes…")}</div>;
   }
 
-  const grouped = groupThemesByTabGroup(themes, themeTiers);
+  const grouped = groupThemesByTabGroup({ themes, themeTiers });
   // Derived straight from the `?tab=` prop (ADR-063) — no local `useState` override anymore.
   // `resolveThemesActiveTabId` folds in the same "fall back to the active theme's own tab group"
   // default `manualTab ?? defaultThemeTabGroup(...)` used before this prop existed, and

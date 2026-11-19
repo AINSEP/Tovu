@@ -145,7 +145,7 @@ describe("describeApiError — characterization of every remaining branch", () =
 describe("pluginRowFacts (PL-2, 2026-10-06): the detail panel's always-present facts", () => {
   const identity = (key: string) => key;
   it("spells out a site tier-2 plugin that is off and incompatible", () => {
-    const facts = pluginRowFacts(makePlugin({ id: "x", source: "site", tier: "tier-2", status: "incompatible", enabled: false }), identity);
+    const facts = pluginRowFacts({ plugin: makePlugin({ id: "x", source: "site", tier: "tier-2", status: "incompatible", enabled: false }), translate: identity });
     expect(facts).toEqual([
       { label: "ID", value: "x" },
       { label: "Source", value: "Installed on this site" },
@@ -156,7 +156,7 @@ describe("pluginRowFacts (PL-2, 2026-10-06): the detail panel's always-present f
   });
 
   it("uses the no-code sentence for tier-1 and points an invalid plugin at its errors", () => {
-    const facts = pluginRowFacts(makePlugin({ tier: "tier-1", status: "invalid" }), identity);
+    const facts = pluginRowFacts({ plugin: makePlugin({ tier: "tier-1", status: "invalid" }), translate: identity });
     expect(facts[2]?.value).toBe("This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.");
     expect(facts[3]?.value).toBe("Invalid — see the errors below");
   });

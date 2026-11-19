@@ -103,6 +103,6 @@ export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
 }
 
 /** Distinct files (or database columns): one file may carry several kinds. O(n). */
-export function credentialFileCount(warnings: readonly CredentialWarning[]): number {
+export function credentialFileCount({ warnings }: { warnings: readonly CredentialWarning[] }, _optional: Record<string, never> = {}): number {
   return new Set(warnings.map(warning => warning.path)).size;
 }

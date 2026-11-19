@@ -35,7 +35,7 @@ describe("pluginConflictLines", () => {
     const plugin = makePlugin({
       conflicts: [{ kind: "tool", key: "seo_audit", heldBy: "seo-pro", heldByName: "SEO Pro", heldKey: "seo_audit" }],
     });
-    expect(pluginConflictLines(plugin, identity)).toEqual(['Tool "seo_audit" is already used by SEO Pro.']);
+    expect(pluginConflictLines({ plugin, translate: identity })).toEqual(['Tool "seo_audit" is already used by SEO Pro.']);
   });
 
   it("says Tovu reserves a core name, and shows the reserved pattern only when it differs from the key", () => {
@@ -45,7 +45,7 @@ describe("pluginConflictLines", () => {
         { kind: "permission", key: "admin.plugins.read", heldBy: "core", heldByName: "Tovu core", heldKey: "admin.plugins.read" },
       ],
     });
-    expect(pluginConflictLines(plugin, identity)).toEqual([
+    expect(pluginConflictLines({ plugin, translate: identity })).toEqual([
       'Route "GET /api/seo" is reserved by Tovu ("/api/*").',
       'Permission "admin.plugins.read" is reserved by Tovu.',
     ]);
@@ -56,7 +56,7 @@ describe("pluginConflictLines", () => {
     const plugin = makePlugin({
       conflicts: kinds.map((kind) => ({ kind, key: "x", heldBy: "other", heldByName: "Other", heldKey: "x" })),
     });
-    expect(pluginConflictLines(plugin, identity)).toEqual([
+    expect(pluginConflictLines({ plugin, translate: identity })).toEqual([
       'Table "x" is already used by Other.',
       'Setting "x" is already used by Other.',
       'Widget "x" is already used by Other.',
@@ -68,22 +68,22 @@ describe("pluginConflictLines", () => {
 
   it("does not resolve a kind named after an Object.prototype member", () => {
     const plugin = makePlugin({ conflicts: [{ kind: "toString", key: "x", heldBy: "o", heldByName: "O", heldKey: "x" }] });
-    expect(pluginConflictLines(plugin, identity)).toEqual(['toString "x" is already used by O.']);
+    expect(pluginConflictLines({ plugin, translate: identity })).toEqual(['toString "x" is already used by O.']);
   });
 
   it("drops duplicate lines (a manifest that lists the same name twice reports it twice)", () => {
     const one = { kind: "tool", key: "dup", heldBy: "o", heldByName: "O", heldKey: "dup" };
-    expect(pluginConflictLines(makePlugin({ conflicts: [one, { ...one }] }), identity)).toHaveLength(1);
+    expect(pluginConflictLines({ plugin: makePlugin({ conflicts: [one, { ...one }] }), translate: identity })).toHaveLength(1);
   });
 
   it("inserts values literally — a `$&` in a name is not a replacement pattern", () => {
     const plugin = makePlugin({ conflicts: [{ kind: "tool", key: "a$&b", heldBy: "o", heldByName: "$'Odd", heldKey: "a$&b" }] });
-    expect(pluginConflictLines(plugin, identity)).toEqual(['Tool "a$&b" is already used by $\'Odd.']);
+    expect(pluginConflictLines({ plugin, translate: identity })).toEqual(['Tool "a$&b" is already used by $\'Odd.']);
   });
 
   it("is empty for a row with no conflicts, or from a server that predates the field", () => {
-    expect(pluginConflictLines(makePlugin({ conflicts: [] }), identity)).toEqual([]);
-    expect(pluginConflictLines(makePlugin(), identity)).toEqual([]);
+    expect(pluginConflictLines({ plugin: makePlugin({ conflicts: [] }), translate: identity })).toEqual([]);
+    expect(pluginConflictLines({ plugin: makePlugin(), translate: identity })).toEqual([]);
   });
 
   it("translates the sentence and the kind label", () => {
@@ -93,7 +93,7 @@ describe("pluginConflictLines", () => {
         { kind: "route", key: "/api/x", heldBy: "core", heldByName: "Tovu core", heldKey: "/api/*" },
       ],
     });
-    expect(pluginConflictLines(plugin, (key) => translatePlugins({ locale: "es", key: key }))).toEqual([
+    expect(pluginConflictLines({ plugin, translate: (key) => translatePlugins({ locale: "es", key: key }) })).toEqual([
       'Herramienta "seo_audit": ya en uso por SEO Pro.',
       'Ruta "/api/x": Tovu lo reserva ("/api/*").',
     ]);
@@ -102,22 +102,22 @@ describe("pluginConflictLines", () => {
 
 describe("pluginQuarantineHeadline", () => {
   it("counts hook failures", () => {
-    expect(pluginQuarantineHeadline({ at: "t", reason: "r", consecutiveFailures: 3 }, identity)).toBe("Quarantined after 3 consecutive failures");
+    expect(pluginQuarantineHeadline({ quarantine: { at: "t", reason: "r", consecutiveFailures: 3 }, translate: identity })).toBe("Quarantined after 3 consecutive failures");
   });
 
   it("reads 'Turned off automatically' for a boot conflict quarantine (zero failures), not 'after 0 failures'", () => {
-    expect(pluginQuarantineHeadline({ at: "t", reason: "r", consecutiveFailures: 0 }, identity)).toBe("Turned off automatically");
+    expect(pluginQuarantineHeadline({ quarantine: { at: "t", reason: "r", consecutiveFailures: 0 }, translate: identity })).toBe("Turned off automatically");
   });
 });
 
 describe("pluginRowDetailView", () => {
   it("is null when the row has nothing to say — no empty detail panel", () => {
-    expect(pluginRowDetailView(makePlugin(), identity)).toBeNull();
-    expect(pluginRowDetailView(makePlugin({ conflicts: [] }), identity)).toBeNull();
+    expect(pluginRowDetailView({ plugin: makePlugin(), translate: identity })).toBeNull();
+    expect(pluginRowDetailView({ plugin: makePlugin({ conflicts: [] }), translate: identity })).toBeNull();
   });
 
   it("carries the quarantine headline and the server's reason verbatim", () => {
-    const view = pluginRowDetailView(makePlugin({ quarantine: { at: "t", reason: "Turned off at startup because …", consecutiveFailures: 0 } }), identity);
+    const view = pluginRowDetailView({ plugin: makePlugin({ quarantine: { at: "t", reason: "Turned off at startup because …", consecutiveFailures: 0 } }), translate: identity });
     expect(view).toEqual({
       quarantine: { headline: "Turned off automatically", reason: "Turned off at startup because …" },
       conflicts: null,
@@ -126,10 +126,10 @@ describe("pluginRowDetailView", () => {
   });
 
   it("carries the conflict heading and lines on their own", () => {
-    const view = pluginRowDetailView(
-      makePlugin({ conflicts: [{ kind: "widget", key: "w", heldBy: "o", heldByName: "O", heldKey: "w" }] }),
-      identity,
-    );
+    const view = pluginRowDetailView({
+      plugin: makePlugin({ conflicts: [{ kind: "widget", key: "w", heldBy: "o", heldByName: "O", heldKey: "w" }] }),
+      translate: identity,
+    });
     expect(view).toEqual({
       quarantine: null,
       conflicts: { heading: "Names already in use — turn the other plugin off first:", lines: ['Widget "w" is already used by O.'] },
@@ -139,7 +139,7 @@ describe("pluginRowDetailView", () => {
 
   it("carries validation errors on their own", () => {
     const errors = [{ code: "HOOK_UNKNOWN", file: null, message: "m" }];
-    expect(pluginRowDetailView(makePlugin({ errors }), identity)).toEqual({ quarantine: null, conflicts: null, errors });
+    expect(pluginRowDetailView({ plugin: makePlugin({ errors }), translate: identity })).toEqual({ quarantine: null, conflicts: null, errors });
   });
 });
 

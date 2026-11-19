@@ -54,7 +54,7 @@ export interface PackageFileTreeKeyEffects {
  * @returns Whether the key was the tree's (so the caller suppresses the browser's default).
  * @complexity O(1).
  */
-export function applyPackageFileTreeKeyAction(action: ReturnType<typeof packageFileTreeKeyAction>, effects: PackageFileTreeKeyEffects): boolean {
+export function applyPackageFileTreeKeyAction({ action, effects }: { action: ReturnType<typeof packageFileTreeKeyAction>; effects: PackageFileTreeKeyEffects }, _optional: Record<string, never> = {}): boolean {
   if (!action.focus && !action.setExpanded && !action.open) return false;
   if (action.setExpanded) effects.setExpanded({ path: action.setExpanded.path, expanded: action.setExpanded.expanded });
   if (action.open) effects.openFile(action.open);
@@ -68,7 +68,7 @@ export function applyPackageFileTreeKeyAction(action: ReturnType<typeof packageF
  */
 export function usePackageFileTree({ paths, selectedPath, onOpenFile }: PackageFileTreeDependencies): PackageFileTreeController {
   const pathsKey = paths.join("\n");
-  const tree = useMemo(() => buildPackageFileTree(paths), [pathsKey]);
+  const tree = useMemo(() => buildPackageFileTree({ paths }), [pathsKey]);
   const [toggled, setToggled] = useState<ReadonlyMap<string, boolean>>(() => new Map());
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
   const treeRef = useRef<HTMLDivElement | null>(null);
@@ -98,14 +98,14 @@ export function usePackageFileTree({ paths, selectedPath, onOpenFile }: PackageF
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (activePath === null) return;
     const action = packageFileTreeKeyAction({ rows, currentPath: activePath, key: event.key, isExpanded: ({ path }) => isExpanded({ folderPath: path }) });
-    const handled = applyPackageFileTreeKeyAction(action, {
+    const handled = applyPackageFileTreeKeyAction({ action, effects: {
       setExpanded,
       openFile: onOpenFile,
       focus: ({ path }, _optional = {}) => {
         setFocusedPath(path);
         moveDomFocus.current = true;
       },
-    });
+    } });
     if (handled) event.preventDefault();
   };
 

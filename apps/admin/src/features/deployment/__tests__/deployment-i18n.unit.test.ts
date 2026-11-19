@@ -151,7 +151,7 @@ describe("index-aligned translation rows", () => {
     ["audit", auditTranslationEntries, /^Deployment audit translation has 1 entries; expected \d+\.$/],
     ["candidate-gap", candidateGapTranslationEntries, /^Deployment candidate translation has 1 entries; expected \d+\.$/],
   ] as const)("rejects a %s row whose length does not match the keys", (_name, build, message) => {
-    expect(() => build(["only one"])).toThrow(message);
+    expect(() => build({ entries: ["only one"] })).toThrow(message);
   });
 
   it.each([
@@ -161,7 +161,7 @@ describe("index-aligned translation rows", () => {
     // The key count is private to the module; the refusal message states it.
     const refusal = (() => {
       try {
-        build([]);
+        build({ entries: [] });
         return "";
       } catch (error) {
         return (error as Error).message;
@@ -169,7 +169,7 @@ describe("index-aligned translation rows", () => {
     })();
     const size = Number(/expected (\d+)\./.exec(refusal)?.[1]);
     expect(size).toBeGreaterThan(0);
-    const table = build(Array.from({ length: size }, (_, index) => `t${index}`));
+    const table = build({ entries: Array.from({ length: size }, (_, index) => `t${index}`) });
     expect(Object.values(table)).toEqual(Array.from({ length: size }, (_, index) => `t${index}`));
   });
 });

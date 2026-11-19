@@ -214,7 +214,7 @@ function ThemePagePublishCell({
   handle: string;
   t: Translate;
 }): ReactNode {
-  const state = themePagePublishState(row, t);
+  const state = themePagePublishState({ row, t });
 
   return (
     <div className="theme-page-publish-cell">
@@ -249,7 +249,7 @@ function ThemePagePublishCell({
  * @complexity O(1) — one derived state, three mutually exclusive branches, no iteration.
  */
 function ThemePagePublicUrlCell({ row, handle, t }: { row: ThemePageRow; handle: string; t: Translate }): ReactNode {
-  const link = themePagePublicLinkState(row, t);
+  const link = themePagePublicLinkState({ row, t });
   if (link.kind === "none") {
     return <span className="theme-page-no-url">{t("No direct URL")}</span>;
   }

@@ -40,7 +40,7 @@ export function useThemeDeleteRequest(
   async function requestDelete({ themeId, name, block }: ThemeDeleteRequest) {
     setBlockedNotice(null);
     if (block !== null) {
-      setBlockedNotice(t(themeDeleteBlockReasonKey(block)));
+      setBlockedNotice(t(themeDeleteBlockReasonKey({ block })));
       return;
     }
     const accepted = await approval.confirm({

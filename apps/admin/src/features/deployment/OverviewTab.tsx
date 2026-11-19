@@ -215,7 +215,7 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
         </div>
         <div className="deployment-facts">
           <OverviewFact label={t("Runtime mode")}>
-            <span className="status status-neutral">{t(runtimeModeLabelKey(snapshot.mode))}</span>
+            <span className="status status-neutral">{t(runtimeModeLabelKey({ mode: snapshot.mode }))}</span>
           </OverviewFact>
           <OverviewFact label={t("Production readiness gate")}>
             <span className={`status status-${snapshot.productionReadinessGate.applicable ? "ok" : "neutral"}`}>

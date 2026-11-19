@@ -93,7 +93,7 @@ const CORE_CONFLICT_HOLDER = "core";
  *
  * @complexity O(c) in the row's conflict count.
  */
-export function pluginConflictLines(plugin: { readonly conflicts?: readonly AdminPluginConflict[] }, translate: Translate): string[] {
+export function pluginConflictLines({ plugin, translate }: { plugin: { readonly conflicts?: readonly AdminPluginConflict[] }; translate: Translate }, _optional: Record<string, never> = {}): string[] {
   const lines = (plugin.conflicts ?? []).map((conflict) => {
     const kindLabel = CONFLICT_KIND_LABELS.get(conflict.kind);
     const values = { kind: kindLabel === undefined ? conflict.kind : translate(kindLabel), key: conflict.key };
@@ -114,7 +114,7 @@ export function pluginConflictLines(plugin: { readonly conflicts?: readonly Admi
  *
  * @complexity O(1).
  */
-export function pluginQuarantineHeadline(quarantine: NonNullable<AdminPlugin["quarantine"]>, translate: Translate): string {
+export function pluginQuarantineHeadline({ quarantine, translate }: { quarantine: NonNullable<AdminPlugin["quarantine"]>; translate: Translate }, _optional: Record<string, never> = {}): string {
   if (quarantine.consecutiveFailures === 0) return translate("Turned off automatically");
   return fillTemplate({ template: translate("Quarantined after {count} consecutive failures"), values: { count: String(quarantine.consecutiveFailures) } });
 }
@@ -133,12 +133,12 @@ export interface PluginRowDetailView {
  *
  * @complexity O(c) in the row's conflict count.
  */
-export function pluginRowDetailView(plugin: AdminPlugin, translate: Translate): PluginRowDetailView | null {
-  const lines = pluginConflictLines(plugin, translate);
+export function pluginRowDetailView({ plugin, translate }: { plugin: AdminPlugin; translate: Translate }, _optional: Record<string, never> = {}): PluginRowDetailView | null {
+  const lines = pluginConflictLines({ plugin, translate });
   if (!plugin.quarantine && lines.length === 0 && plugin.errors.length === 0) return null;
   return {
     quarantine: plugin.quarantine
-      ? { headline: pluginQuarantineHeadline(plugin.quarantine, translate), reason: plugin.quarantine.reason }
+      ? { headline: pluginQuarantineHeadline({ quarantine: plugin.quarantine, translate }), reason: plugin.quarantine.reason }
       : null,
     conflicts: lines.length > 0 ? { heading: translate("Names already in use — turn the other plugin off first:"), lines } : null,
     errors: plugin.errors,
@@ -181,7 +181,7 @@ const PLUGIN_STATUS_COPY: Record<AdminPlugin["status"], string> = {
  *
  * @complexity O(1).
  */
-export function pluginRowFacts(plugin: AdminPlugin, translate: Translate): PluginRowFact[] {
+export function pluginRowFacts({ plugin, translate }: { plugin: AdminPlugin; translate: Translate }, _optional: Record<string, never> = {}): PluginRowFact[] {
   return [
     { label: translate("ID"), value: plugin.id },
     { label: translate("Source"), value: translate(PLUGIN_SOURCE_COPY[plugin.source]) },
@@ -212,8 +212,8 @@ export interface PluginInstallPreviewDisplay {
  *
  * @complexity O(c + n) in the conflict count and the listed names.
  */
-export function pluginInstallPreviewDisplay(preview: PluginInstallPreview, translate: Translate): PluginInstallPreviewDisplay {
-  const lines = pluginConflictLines(preview, translate);
+export function pluginInstallPreviewDisplay({ preview, translate }: { preview: PluginInstallPreview; translate: Translate }, _optional: Record<string, never> = {}): PluginInstallPreviewDisplay {
+  const lines = pluginConflictLines({ plugin: preview, translate });
   return {
     title: `${preview.name} (${preview.id})`,
     version: preview.upgradeFrom ? `${preview.upgradeFrom} → ${preview.version}` : preview.version,
@@ -285,7 +285,7 @@ export function pluginToggleAriaLabel({ plugin, locale }: { plugin: AdminPlugin;
  *
  * @complexity O(1).
  */
-export function pluginSubline(plugin: AdminPlugin): string {
+export function pluginSubline(plugin: AdminPlugin, _optional: Record<string, never> = {}): string {
   return `${plugin.source} · ${plugin.tier} · ${plugin.status}`;
 }
 
@@ -301,7 +301,7 @@ export function pluginSubline(plugin: AdminPlugin): string {
  *
  * @complexity O(1).
  */
-export function pluginRemoveBlocker(plugin: AdminPlugin): "built-in" | "enabled" | null {
+export function pluginRemoveBlocker(plugin: AdminPlugin, _optional: Record<string, never> = {}): "built-in" | "enabled" | null {
   if (plugin.source === "built-in") return "built-in";
   return plugin.enabled ? "enabled" : null;
 }
@@ -332,7 +332,7 @@ export interface PluginRemoveConfirmCopy {
 /** Names the plugin, the site-wide effect, and the 60-day restore window. @complexity O(1). */
 export function buildPluginRemoveConfirmCopy(
   params: { name: string },
-  translate: Translate = (key) => key,
+  { translate = (key) => key }: { translate?: Translate } = {},
 ): PluginRemoveConfirmCopy {
   return {
     title: `Move "${params.name}" to trash?`,
@@ -508,7 +508,7 @@ export interface AgentPluginDisableConfirmCopy {
  */
 export function buildAgentPluginDisableConfirmCopy(
   params: { name: string; variant: "disable" | "remove"; origin?: "bundled" | "operator-installed"; requiredBy?: readonly string[] },
-  translate: Translate = (key) => key,
+  { translate = (key) => key }: { translate?: Translate } = {},
 ): AgentPluginDisableConfirmCopy {
   const copy = disableConfirmCopy(params, translate);
   // Advisory, like the server's own warning: turning it off still goes ahead if confirmed.
@@ -655,7 +655,7 @@ const PACKAGE_FILE_OMISSION_NOTICES: Record<NonNullable<AdminPluginPackageFile["
  * `null` content) reads as unreadable instead of rendering blank.
  * @complexity O(1).
  */
-export function toPackageFileView(file: AdminPluginPackageFile, translate: Translate): PackageFileView {
+export function toPackageFileView({ file, translate }: { file: AdminPluginPackageFile; translate: Translate }, _optional: Record<string, never> = {}): PackageFileView {
   if (file.omitted === null && file.content !== null) return { relativePath: file.relativePath, content: file.content };
   const notice = (file.omitted && PACKAGE_FILE_OMISSION_NOTICES[file.omitted]) || PACKAGE_FILE_OMISSION_NOTICES.unreadable;
   return { relativePath: file.relativePath, content: null, unavailableReason: translate(notice) };
@@ -667,8 +667,7 @@ export function toPackageFileView(file: AdminPluginPackageFile, translate: Trans
  * @complexity O(1).
  */
 export function packageFilesStatus(
-  input: { loading: boolean; error: string | null; fileCount: number },
-  translate: Translate,
+  { input, translate }: { input: { loading: boolean; error: string | null; fileCount: number }; translate: Translate }, _optional: Record<string, never> = {},
 ): PackageFilesStatus | null {
   if (input.error !== null) return { text: input.error, role: "alert" };
   if (input.loading) return { text: translate("Loading package files…"), role: "status" };
@@ -716,7 +715,7 @@ export interface PackageFilesViewState {
 export function selectPackageFile({ files, selectedPath }: { files: readonly PackageFileView[]; selectedPath: string }, _optional = {}): PackageFileView | null {
   const selected = files.find((file) => file.relativePath === selectedPath);
   if (selected) return selected;
-  const topPath = firstPackageFilePath(buildPackageFileTree(files.map((file) => file.relativePath)));
+  const topPath = firstPackageFilePath({ nodes: buildPackageFileTree({ paths: files.map((file) => file.relativePath) }) });
   return files.find((file) => file.relativePath === topPath) ?? files[0] ?? null;
 }
 
@@ -727,11 +726,11 @@ export function selectPackageFile({ files, selectedPath }: { files: readonly Pac
  */
 export function packageFilesViewState({ read, selectedPath, translate }: { read: PackageFilesRead | null; selectedPath: string; translate: Translate }, _optional = {}): PackageFilesViewState {
   const listing = read?.listing ?? null;
-  const files = (listing?.files ?? []).map((file) => toPackageFileView(file, translate));
+  const files = (listing?.files ?? []).map((file) => toPackageFileView({ file, translate }));
   return {
     files,
     selectedFile: selectPackageFile({ files, selectedPath }),
-    status: packageFilesStatus({ loading: read === null, error: read?.error ?? null, fileCount: files.length }, translate),
+    status: packageFilesStatus({ input: { loading: read === null, error: read?.error ?? null, fileCount: files.length }, translate }),
     listNotice: packageFilesListNotice({ listing, translate }),
   };
 }

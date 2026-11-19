@@ -1857,7 +1857,7 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
 
 describe("useComposerDiscoverySelect", () => {
   async function projectionWith(capabilities: readonly TovuComposerCapability[]) {
-    return projectComposerCapabilities([{ id: "test", list: async () => capabilities }]);
+    return projectComposerCapabilities({ sources: [{ id: "test", list: async () => capabilities }] });
   }
 
   it("navigates for the existing client-local /mcp route via the injected navigate", async () => {

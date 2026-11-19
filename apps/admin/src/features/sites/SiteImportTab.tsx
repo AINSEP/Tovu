@@ -53,7 +53,7 @@ export function SiteImportTab({ t, useImport = useWiredSiteImport, useLiveSite =
       <div className="site-transfer-head">
         <p className="onboarding-section-lead site-transfer-lead">
           {t("Bring in a site from a Tovu export or a live website.")}
-          <InfoTip label={importOptionsTip(t)} triggerLabel={t("About importing")} placement="inline" agentHandle="sites-import-info" />
+          <InfoTip label={importOptionsTip({ t })} triggerLabel={t("About importing")} placement="inline" agentHandle="sites-import-info" />
         </p>
       </div>
       <ImportProgress controller={controller} t={t} />
@@ -334,13 +334,13 @@ function ImportList({ controller, t }: { controller: SiteImportController; t: Tr
       rowDetail={(item) => item.credentialWarnings?.length ? <div className="site-transfer-detail"><CredentialWarningList warnings={item.credentialWarnings} t={t} /></div> : null}
       columns={[
         { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) },
-        { key: "source", header: t("Source"), cell: (item) => "url" in item.source ? <span className="site-transfer-link" title={item.source.url}>{importSourceLabel(item.source, t)}</span> : importSourceLabel(item.source, t) },
+        { key: "source", header: t("Source"), cell: (item) => "url" in item.source ? <span className="site-transfer-link" title={item.source.url}>{importSourceLabel({ source: item.source, t })}</span> : importSourceLabel({ source: item.source, t }) },
         { key: "site", header: t("New site"), cell: (item) => item.newSiteName ?? <span className="muted-cell">—</span> },
         {
           key: "status",
           header: t("Status"),
           cell: (item) => {
-            const view = importStateView(item.state, t);
+            const view = importStateView({ state: item.state, t });
             return <span className="site-transfer-status"><span className={view.className}>{view.label}</span><TransferNoticeTip notices={importRowNotices({ item, t })} t={t} /></span>;
           },
         },

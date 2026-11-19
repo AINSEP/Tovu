@@ -81,24 +81,24 @@ describe("site transfer display rules", () => {
   });
 
   it("gives each export and import state its label and tone", () => {
-    expect(shareStatusView("active", t)).toEqual({ label: "Active", className: "status status-ok" });
-    expect(shareStatusView("revoked", t)).toEqual({ label: "Revoked", className: "status status-neutral" });
-    expect(shareStatusView("failed", t)).toEqual({ label: "Failed", className: "status status-error" });
-    expect(importStateView("ready", t)).toEqual({ label: "Ready", className: "status status-ok" });
-    expect(importStateView("failed", t)).toEqual({ label: "Failed", className: "status status-error" });
-    expect(importStateView("needs-owner", t)).toEqual({ label: "Needs a password", className: "status status-warning" });
-    expect(importStateView("verifying", t)).toEqual({ label: "Checking…", className: "status status-neutral" });
-    expect(importStateView("creating", t)).toEqual({ label: "Creating…", className: "status status-neutral" });
+    expect(shareStatusView({ status: "active", t })).toEqual({ label: "Active", className: "status status-ok" });
+    expect(shareStatusView({ status: "revoked", t })).toEqual({ label: "Revoked", className: "status status-neutral" });
+    expect(shareStatusView({ status: "failed", t })).toEqual({ label: "Failed", className: "status status-error" });
+    expect(importStateView({ state: "ready", t })).toEqual({ label: "Ready", className: "status status-ok" });
+    expect(importStateView({ state: "failed", t })).toEqual({ label: "Failed", className: "status status-error" });
+    expect(importStateView({ state: "needs-owner", t })).toEqual({ label: "Needs a password", className: "status status-warning" });
+    expect(importStateView({ state: "verifying", t })).toEqual({ label: "Checking…", className: "status status-neutral" });
+    expect(importStateView({ state: "creating", t })).toEqual({ label: "Creating…", className: "status status-neutral" });
     // A state a newer server added reads as Failed, never as a blank pill.
-    expect(importStateView("archived" as Parameters<typeof importStateView>[0], t)).toEqual({ label: "Failed", className: "status status-error" });
+    expect(importStateView({ state: "archived" as Parameters<typeof importStateView>[0]["state"], t })).toEqual({ label: "Failed", className: "status status-error" });
   });
 
   it("shortens links to host and path, and names an uploaded zip without a path", () => {
     expect(shortLink({ link: "https://example.com/_share/abc/x.zip?y=1" })).toBe("example.com/_share/abc/x.zip");
     expect(shortLink({ link: "https://example.com/" })).toBe("example.com");
     expect(shortLink({ link: "not a url" })).toBe("not a url");
-    expect(importSourceLabel({ url: "https://example.com/s/abc" }, t)).toBe("example.com/s/abc");
-    expect(importSourceLabel({ uploadId: "u-1" }, t)).toBe("Uploaded zip");
+    expect(importSourceLabel({ source: { url: "https://example.com/s/abc" }, t })).toBe("example.com/s/abc");
+    expect(importSourceLabel({ source: { uploadId: "u-1" }, t })).toBe("Uploaded zip");
   });
 
   it("a live website imports into this site only on the site made for it; elsewhere it makes a new site, or is not offered", () => {
@@ -113,7 +113,7 @@ describe("site transfer display rules", () => {
   });
 
   it("puts both ways in under one tip, a bullet each", () => {
-    const lines = importOptionsTip(t).split("\n");
+    const lines = importOptionsTip({ t }).split("\n");
     expect(lines).toHaveLength(2);
     expect(lines[0]).toMatch(/^• Share link or zip: /);
     expect(lines[1]).toBe("• Live website: Makes a new site, and the assistant copies a public website's pages into it. You read its request first, then press Send.");

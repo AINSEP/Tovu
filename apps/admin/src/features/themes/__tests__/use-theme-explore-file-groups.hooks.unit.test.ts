@@ -36,7 +36,7 @@ function assets(count: number): ThemeExploreFile[] {
 describe("themeExploreFileGroupTabs", () => {
   it("lists only non-empty groups, in the fixed group order, with counts", () => {
     const shuffled = [FILES[4]!, FILES[3]!, FILES[0]!, FILES[2]!, FILES[1]!];
-    expect(themeExploreFileGroupTabs(shuffled).map(({ key, count }) => [key, count])).toEqual([
+    expect(themeExploreFileGroupTabs({ files: shuffled }).map(({ key, count }) => [key, count])).toEqual([
       ["page", 2],
       ["partial", 1],
       ["style", 1],
@@ -45,22 +45,22 @@ describe("themeExploreFileGroupTabs", () => {
   });
 
   it("flags a group when any one of its files is modified, and only that group", () => {
-    const tabs = themeExploreFileGroupTabs(FILES);
+    const tabs = themeExploreFileGroupTabs({ files: FILES });
     expect(tabs.filter((tab) => tab.modified).map((tab) => tab.key)).toEqual(["page"]);
   });
 
   it("carries the untranslated label and an id equal to the key for the tab keyboard helpers", () => {
-    const [pages] = themeExploreFileGroupTabs(FILES);
+    const [pages] = themeExploreFileGroupTabs({ files: FILES });
     expect(pages).toMatchObject({ id: "page", key: "page", label: "Pages" });
   });
 
   it("returns no tabs for a theme with no files", () => {
-    expect(themeExploreFileGroupTabs([])).toEqual([]);
+    expect(themeExploreFileGroupTabs({ files: [] })).toEqual([]);
   });
 });
 
 describe("themeExploreActiveGroup", () => {
-  const tabs = themeExploreFileGroupTabs(FILES);
+  const tabs = themeExploreFileGroupTabs({ files: FILES });
 
   it("follows the highlighted file's own group when nothing was chosen", () => {
     expect(themeExploreActiveGroup({ tabs, files: FILES, highlightedPath: "css/styles.css", choice: null })).toBe("style");

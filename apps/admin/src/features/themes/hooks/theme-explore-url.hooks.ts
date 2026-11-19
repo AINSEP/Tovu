@@ -107,8 +107,8 @@ export function resolveThemeExploreSelectionValue(
  * @complexity O(n) in `files.length`.
  */
 export function resolveRequestedThemeExploreSelection(
-  files: readonly ThemeExploreSelectableFile[],
-  { fileId, pageId }: ThemeExploreSelectionRequest
+  { files }: { files: readonly ThemeExploreSelectableFile[] },
+  { fileId, pageId }: ThemeExploreSelectionRequest = {}
 ): ThemeExploreSelectionResolution {
   for (const value of [fileId, pageId]) {
     if (!value) continue;
@@ -140,7 +140,7 @@ export function resolveRequestedThemeExploreSelection(
  *
  * @complexity O(1).
  */
-export function writeThemeExploreSelectionToUrl(file: ThemeExploreSelectableFile): void {
+export function writeThemeExploreSelectionToUrl(file: ThemeExploreSelectableFile, _optional: Record<string, never> = {}): void {
   const url = new URL(window.location.href);
   if (file.kind === "page") {
     url.searchParams.set("page", file.label);

@@ -438,10 +438,10 @@ describe("buildPageSavePlan", () => {
 
 describe("buildPageAutosaveDraft", () => {
   it("an html-format page sends bodyHtml, never the inert bodyJson placeholder", () => {
-    const draft = buildPageAutosaveDraft(
-      { bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 3 },
-      { title: "About", slug: "about", html: "<main>hi</main>" }
-    );
+    const draft = buildPageAutosaveDraft({
+      page: { bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 3 },
+      form: { title: "About", slug: "about", html: "<main>hi</main>" }
+    });
     expect(draft).toEqual({
       bodyFormat: "html",
       bodyHtml: "<main>hi</main>",
@@ -453,10 +453,10 @@ describe("buildPageAutosaveDraft", () => {
 
   it("a doc-format page round-trips bodyJson unchanged — this editor has no way to edit it", () => {
     const bodyJson = { type: "doc", content: [{ type: "paragraph" }] };
-    const draft = buildPageAutosaveDraft(
-      { bodyFormat: "doc", bodyJson, version: 1 },
-      { title: "About", slug: "about", html: "ignored for a doc-format page" }
-    );
+    const draft = buildPageAutosaveDraft({
+      page: { bodyFormat: "doc", bodyJson, version: 1 },
+      form: { title: "About", slug: "about", html: "ignored for a doc-format page" }
+    });
     expect(draft).toEqual({
       bodyFormat: "doc",
       bodyJson,
@@ -467,10 +467,10 @@ describe("buildPageAutosaveDraft", () => {
   });
 
   it("baseVersion always comes from the page's own version, not a caller-supplied guess", () => {
-    const draft = buildPageAutosaveDraft(
-      { bodyFormat: "html", bodyJson: {}, version: 42 },
-      { title: "About", slug: "about", html: "<p/>" }
-    );
+    const draft = buildPageAutosaveDraft({
+      page: { bodyFormat: "html", bodyJson: {}, version: 42 },
+      form: { title: "About", slug: "about", html: "<p/>" }
+    });
     expect(draft.baseVersion).toBe(42);
   });
 });
@@ -486,23 +486,23 @@ describe("pageEditorSurface", () => {
   const PENDING = { status: "pending" } as const;
 
   it("shows the preview surface on the preview tab, whatever the canvas is doing", () => {
-    expect(pageEditorSurface("preview", PENDING)).toEqual({ kind: "preview" });
-    expect(pageEditorSurface("preview", READY)).toEqual({ kind: "preview" });
+    expect(pageEditorSurface({ view: "preview", canvasStyling: PENDING })).toEqual({ kind: "preview" });
+    expect(pageEditorSurface({ view: "preview", canvasStyling: READY })).toEqual({ kind: "preview" });
   });
 
   it("shows the raw HTML surface on the html tab, whatever the canvas is doing", () => {
-    expect(pageEditorSurface("html", PENDING)).toEqual({ kind: "html" });
-    expect(pageEditorSurface("html", READY)).toEqual({ kind: "html" });
+    expect(pageEditorSurface({ view: "html", canvasStyling: PENDING })).toEqual({ kind: "html" });
+    expect(pageEditorSurface({ view: "html", canvasStyling: READY })).toEqual({ kind: "html" });
   });
 
   it("holds the Interactive tab at the pending surface until the theme's styling settles", () => {
     // Not cosmetic: `InteractiveHtmlEditor` reads its canvas styling ONCE at mount, so mounting it
     // early produces a canvas that can never pick the theme up afterwards.
-    expect(pageEditorSurface("interactive", PENDING)).toEqual({ kind: "interactive-pending" });
+    expect(pageEditorSurface({ view: "interactive", canvasStyling: PENDING })).toEqual({ kind: "interactive-pending" });
   });
 
   it("carries the resolved styling through on the interactive surface, so the view needs no cast", () => {
-    expect(pageEditorSurface("interactive", READY)).toEqual({ kind: "interactive", styling: READY.styling });
+    expect(pageEditorSurface({ view: "interactive", canvasStyling: READY })).toEqual({ kind: "interactive", styling: READY.styling });
   });
 });
 
@@ -521,7 +521,7 @@ describe("pageAutosaveStaleBasisMessage", () => {
     "want to keep first.";
 
   it("names the basis the operator was working from, and states all four facts they cannot infer", () => {
-    const message = pageAutosaveStaleBasisMessage(identityT, { baseVersion: 4, draft: {
+    const message = pageAutosaveStaleBasisMessage({ t: identityT, baseVersion: 4, draft: {
       bodyFormat: "html",
       bodyHtml: "<p>still being typed</p>",
       title: "Landing",
@@ -538,7 +538,7 @@ describe("pageAutosaveStaleBasisMessage", () => {
   });
 
   it("promises no recovery it cannot deliver — the browser-storage mirror is best-effort and unnamed", () => {
-    const message = pageAutosaveStaleBasisMessage(identityT, { baseVersion: 4, draft: {
+    const message = pageAutosaveStaleBasisMessage({ t: identityT, baseVersion: 4, draft: {
       bodyFormat: "html",
       bodyHtml: "<p>still being typed</p>",
       title: "Landing",
@@ -580,7 +580,7 @@ describe("pagePartialSaveMessage", () => {
 
 describe("pageVersionConflictMessage with unknown versions", () => {
   it("explains a newer save without inventing either missing version", () => {
-    expect(pageVersionConflictMessage(identityT, { expectedVersion: null, currentVersion: null, attemptedStatus: "draft" }))
+    expect(pageVersionConflictMessage({ t: identityT, expectedVersion: null, currentVersion: null, attemptedStatus: "draft" }))
       .toBe("Someone else saved this while you were editing — you were working from the version you loaded, and a newer version is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version.");
   });
 });
@@ -691,7 +691,7 @@ describe("sort labels and conflict copy are translated, not English passthrough"
     const deT = (key: string): string => pagesT({ locale: "de", key });
     expect(columnSortLabel({ t: deT, columnName: deT("Title"), direction: null })).toBe("Nicht nach Titel sortiert. Aktivieren, um aufsteigend zu sortieren.");
     expect(updatedColumnSortLabel({ t: deT, direction: "desc" })).toMatch(/^Nach Aktualisierungsdatum sortiert/);
-    const message = pageVersionConflictMessage((key) => editorT({ locale: "de", key }), { expectedVersion: null, currentVersion: 7, attemptedStatus: undefined });
+    const message = pageVersionConflictMessage({ t: (key) => editorT({ locale: "de", key }), expectedVersion: null, currentVersion: 7, attemptedStatus: undefined });
     expect(message).toContain("die von dir geladene Version");
     expect(message).toContain("Version 7");
     expect(message).not.toMatch(/Someone else|version you loaded/);

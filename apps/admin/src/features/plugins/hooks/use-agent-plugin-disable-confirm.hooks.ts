@@ -49,5 +49,5 @@ export function useAgentPluginDisableConfirm(props: {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onCancel]);
 
-  return { copy: buildAgentPluginDisableConfirmCopy({ name: props.name, variant: props.variant, origin: props.origin, requiredBy: props.requiredBy }, props.t), dialogRef };
+  return { copy: buildAgentPluginDisableConfirmCopy({ name: props.name, variant: props.variant, origin: props.origin, requiredBy: props.requiredBy }, { translate: props.t }), dialogRef };
 }

@@ -831,7 +831,7 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
         if (updated.slug !== basis.slug) navigate(pageAdminPath(updated), { replace: true });
       } catch (e) {
         if (!settlement.isCurrent({ generation })) return;
-        autosave.preserveFailedSave({ error: e, draft: buildPageAutosaveDraft(basis, { title, slug, html: bodyHtml }) });
+        autosave.preserveFailedSave({ error: e, draft: buildPageAutosaveDraft({ page: basis, form: { title, slug, html: bodyHtml } }) });
         applySaveFailure({
           e,
           attemptedStatus: nextStatus,
@@ -1005,7 +1005,7 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
   // quiet moment is not one of those two things.
   useEffect(() => {
     if (!page || !contentDirty) return;
-    autosave.scheduleAutosave(buildPageAutosaveDraft(page, { title, slug, html }));
+    autosave.scheduleAutosave(buildPageAutosaveDraft({ page, form: { title, slug, html } }));
   }, [page, contentDirty, title, slug, html, autosave.scheduleAutosave]);
 
   const previewMatchesLive = isPublishedUnchanged({ status, contentDirty, templateChoice, savedTemplateChoice });

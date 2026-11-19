@@ -15,7 +15,7 @@ export function formatTransferBytes({ bytes }: { bytes: number | null | undefine
 }
 
 /** The pill for one export: its label and the shared `.status-*` tone class. */
-export function shareStatusView(status: SiteShare["status"], t: Translate): { label: string; className: string } {
+export function shareStatusView({ status, t }: { status: SiteShare["status"]; t: Translate }, _optional: Record<string, never> = {}): { label: string; className: string } {
   if (status === "active") return { label: t("Active"), className: "status status-ok" };
   if (status === "revoked") return { label: t("Revoked"), className: "status status-neutral" };
   return { label: t("Failed"), className: "status status-error" };
@@ -32,7 +32,7 @@ const IMPORT_STATE_VIEWS: Record<SiteImportState, { label: string; tone: string 
 };
 
 /** The pill for one import. An unknown state from a newer server reads as Failed, never blank. */
-export function importStateView(state: SiteImportState, t: Translate): { label: string; className: string } {
+export function importStateView({ state, t }: { state: SiteImportState; t: Translate }, _optional: Record<string, never> = {}): { label: string; className: string } {
   const view = IMPORT_STATE_VIEWS[state] ?? IMPORT_STATE_VIEWS.failed;
   return { label: t(view.label), className: `status ${view.tone}` };
 }
@@ -49,12 +49,12 @@ export function shortLink({ link }: { link: string }, _optional = {}): string {
 }
 
 /** Where an import came from: the share link's host, or "Uploaded zip". Never a server path. */
-export function importSourceLabel(source: SiteImport["source"], t: Translate): string {
+export function importSourceLabel({ source, t }: { source: SiteImport["source"]; t: Translate }, _optional: Record<string, never> = {}): string {
   return "url" in source ? shortLink({ link: source.url }) : t("Uploaded zip");
 }
 
 /** The one ⓘ beside "Import Site"'s heading: a line per way in (the `groupOptionTooltips` idiom). */
-export function importOptionsTip(t: Translate): string {
+export function importOptionsTip({ t }: { t: Translate }, _optional: Record<string, never> = {}): string {
   return [
     `• ${t("Share link or zip")}: ${t("Makes a new site from another Tovu site's export. This site stays as it is.")}`,
     `• ${t("Live website")}: ${t("Makes a new site, and the assistant copies a public website's pages into it. You read its request first, then press Send.")}`,

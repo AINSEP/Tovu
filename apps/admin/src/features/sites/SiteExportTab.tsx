@@ -102,7 +102,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
           key: "status",
           header: t("Status"),
           cell: (share) => {
-            const view = shareStatusView(share.status, t);
+            const view = shareStatusView({ status: share.status, t });
             return <span className="site-transfer-status"><span className={view.className}>{view.label}</span></span>;
           },
         },

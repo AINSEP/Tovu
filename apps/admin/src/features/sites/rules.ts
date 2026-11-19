@@ -73,7 +73,7 @@ export type SiteRowState = "serving" | "pending-restart" | "idle";
  *
  * @complexity Time/space: O(1).
  */
-export function siteRowState(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): SiteRowState {
+export function siteRowState({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {}): SiteRowState {
   if (site.dir === snapshot.currentSite.dir) return "serving";
   const outlook = activationOutlook(snapshot);
   if (outlook.kind === "pending" && outlook.name === site.name) return "pending-restart";
@@ -84,7 +84,7 @@ export function siteRowState(site: AdminSiteListEntry, snapshot: AdminSitesSnaps
  *  bound `t`. Kept next to the state it describes so a new state cannot be added without one.
  *
  *  @complexity Time/space: O(1). */
-export function siteRowStateLabelKey(state: SiteRowState): string {
+export function siteRowStateLabelKey({ state }: { state: SiteRowState }, _optional: Record<string, never> = {}): string {
   if (state === "serving") return "Serving now";
   if (state === "pending-restart") return "Default for next launch";
   return "Not in use";
@@ -94,7 +94,7 @@ export function siteRowStateLabelKey(state: SiteRowState): string {
  *  nothing has happened yet, and a green badge would read as "switched".
  *
  *  @complexity Time/space: O(1). */
-export function siteRowStateToneClass(state: SiteRowState): string {
+export function siteRowStateToneClass({ state }: { state: SiteRowState }, _optional: Record<string, never> = {}): string {
   if (state === "serving") return "status-ok";
   if (state === "pending-restart") return "status-warning";
   return "status-neutral";
@@ -125,7 +125,7 @@ export type SiteRegistration = "registered" | "unregistered";
  *
  * @complexity Time/space: O(1).
  */
-export function siteRegistration(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): SiteRegistration {
+export function siteRegistration({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {}): SiteRegistration {
   if (site.dir !== snapshot.currentSite.dir) return "registered";
   return snapshot.currentSite.listed ? "registered" : "unregistered";
 }
@@ -151,7 +151,7 @@ export type ActivationOutlook =
  *
  * @complexity Time/space: O(1).
  */
-export function activationOutlook(snapshot: AdminSitesSnapshot): ActivationOutlook {
+export function activationOutlook(snapshot: AdminSitesSnapshot, _optional: Record<string, never> = {}): ActivationOutlook {
   const name = snapshot.persistedSiteName;
   if (name === null || name === snapshot.currentSite.name) return { kind: "none" };
   return snapshot.currentSite.dirOverridden ? { kind: "pending-ignored", name } : { kind: "pending", name };
@@ -222,7 +222,7 @@ export function siteWriteErrorKey({ e }: { e: unknown }, _optional = {}): string
  * @complexity Time: O(n log n) in the number of sites — bounded by how many an operator created.
  *   Space: O(n) for the copy.
  */
-export function sitesInDisplayOrder(snapshot: AdminSitesSnapshot): AdminSiteListEntry[] {
+export function sitesInDisplayOrder(snapshot: AdminSitesSnapshot, _optional: Record<string, never> = {}): AdminSiteListEntry[] {
   return [...snapshot.sites].sort((a, b) => {
     const aServing = a.dir === snapshot.currentSite.dir;
     const bServing = b.dir === snapshot.currentSite.dir;

@@ -66,7 +66,7 @@ export function resolveCreateInputDisabled(args: { creating: boolean; switchingE
 /** `Sites`'s own per-row agent handles. Folder names are unique under `sites/` (they ARE the
  *  directory entries), so they disambiguate one row's controls from another's — see `Sites.tsx`'s
  *  own history for this reasoning. */
-export function resolveSitesRowHandles(sites: readonly AdminSiteListEntry[]): string[] {
+export function resolveSitesRowHandles({ sites }: { sites: readonly AdminSiteListEntry[] }, _optional: Record<string, never> = {}): string[] {
   return buildAgentListHandles({ prefix: "sites-row", ids: sites.map((site) => site.name) }
   );
 }
@@ -75,17 +75,16 @@ export function resolveSitesRowHandles(sites: readonly AdminSiteListEntry[]): st
  *  `SiteCard` consumes one function's result rather than composing
  *  `siteRowStateToneClass`/`siteRowStateLabelKey` on top of its own `siteRowState` call. */
 export function resolveSiteStateDisplay(
-  site: AdminSiteListEntry,
-  snapshot: AdminSitesSnapshot,
+  { site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {},
 ): { toneClass: string; labelKey: string } {
-  const state = siteRowState(site, snapshot);
+  const state = siteRowState({ site, snapshot });
   const local = snapshot.localSites?.find((entry) => entry.name === site.name);
   if (state !== "serving" && local && local.status !== "stopped") {
     const states = { starting: { toneClass: "status-warning", labelKey: "Starting…" },
       running: { toneClass: "status-ok", labelKey: "Running" }, crashed: { toneClass: "status-error", labelKey: "Crashed" } };
     return states[local.status];
   }
-  return { toneClass: siteRowStateToneClass(state), labelKey: siteRowStateLabelKey(state) };
+  return { toneClass: siteRowStateToneClass({ state }), labelKey: siteRowStateLabelKey({ state }) };
 }
 
 /**
@@ -99,7 +98,7 @@ export function resolveSiteStateDisplay(
  *
  * @complexity Time/space: O(1).
  */
-export function resolveSiteCardTitle(site: AdminSiteListEntry): string {
+export function resolveSiteCardTitle(site: AdminSiteListEntry, _optional: Record<string, never> = {}): string {
   return site.dir;
 }
 
@@ -132,10 +131,9 @@ export function resolveSiteSubtitle(site: Pick<AdminSiteListEntry, "name" | "dis
  * @complexity Time/space: O(1).
  */
 export function resolveSiteRegistrationBadge(
-  site: AdminSiteListEntry,
-  snapshot: AdminSitesSnapshot,
+  { site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {},
 ): { labelKey: string; titleKey: string } | null {
-  if (siteRegistration(site, snapshot) === "registered") return null;
+  if (siteRegistration({ site, snapshot }) === "registered") return null;
   return {
     labelKey: "Not initialized",
     titleKey: "No config.json or .site-meta.json in this folder — tovu serve would refuse it.",
@@ -204,7 +202,7 @@ export function resolveSitesTabs(
 
 /** Whether the site list renders its empty state instead of the grid. Its own function rather than
  *  a `sites.length === 0` written in the JSX, per this file's header. */
-export function resolveSitesEmpty(sites: readonly AdminSiteListEntry[]): boolean {
+export function resolveSitesEmpty({ sites }: { sites: readonly AdminSiteListEntry[] }, _optional: Record<string, never> = {}): boolean {
   return sites.length === 0;
 }
 
@@ -233,7 +231,7 @@ export interface SiteDatabaseOption {
  *
  * @complexity Time/space: O(1) — a fixed three-element array.
  */
-export function resolveSiteDatabaseOptions(t: Translate): SiteDatabaseOption[] {
+export function resolveSiteDatabaseOptions({ t }: { t: Translate }, _optional: Record<string, never> = {}): SiteDatabaseOption[] {
   return [
     { id: "sqlite", title: t("SQLite"), hint: t("Default · created inside this site's own folder"), available: true },
     { id: "supabase", title: t("Supabase"), hint: t("Hosted · not for site content yet."), available: false },
@@ -283,7 +281,7 @@ export interface SiteDatabaseDisclosure extends SiteDatabaseOption {
  */
 export function useCreateSiteDatabase(
   { t, pluginTokens }: { t: Translate; pluginTokens: CreateSitePluginTokensController },
-  { options = resolveSiteDatabaseOptions(t) }: { options?: readonly SiteDatabaseOption[] } = {},
+  { options = resolveSiteDatabaseOptions({ t }) }: { options?: readonly SiteDatabaseOption[] } = {},
 ): { options: SiteDatabaseDisclosure[] } {
   const [database, setDatabase] = useState<SiteDatabaseOption["id"]>("sqlite");
   const { setToken, clear } = pluginTokens;
@@ -462,7 +460,7 @@ function canMakeDefault(
   { site, snapshot, serving, switchingEnabled, activatingName }:
     { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; serving: boolean; switchingEnabled: boolean; activatingName: string | null },
 ): boolean {
-  return switchingEnabled && activatingName === null && !serving && !resolveSiteIsDefault(site, snapshot);
+  return switchingEnabled && activatingName === null && !serving && !resolveSiteIsDefault({ site, snapshot });
 }
 
 /** The overflow menu, in menu order — the destructive one always last; a live process is never
@@ -489,8 +487,8 @@ export function resolveSiteStatusPill(
   { site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate },
   _optional = {},
 ): { toneClass: string; label: string } {
-  if (snapshot.localManagementEnabled !== true || siteRowState(site, snapshot) === "serving") {
-    const { toneClass, labelKey } = resolveSiteStateDisplay(site, snapshot);
+  if (snapshot.localManagementEnabled !== true || siteRowState({ site, snapshot }) === "serving") {
+    const { toneClass, labelKey } = resolveSiteStateDisplay({ site, snapshot });
     return { toneClass, label: t(labelKey) };
   }
   const local = siteLocalState({ site, snapshot });
@@ -508,7 +506,7 @@ export function resolveSiteStatusPill(
 /** Whether this card is the site that opens by default — shown as a star beside the name
  *  (2026-10-09, owner: lose the "Default" line, keep the fact). The site the next launch boots: the
  *  saved choice, or the serving site when nothing is saved. @complexity O(1). */
-export function resolveSiteIsDefault(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): boolean {
+export function resolveSiteIsDefault({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {}): boolean {
   return site.name === (snapshot.persistedSiteName ?? snapshot.currentSite.name);
 }
 
@@ -563,6 +561,6 @@ export function buildSiteCardMenuItems(
 
 /** The Sites page's cards in the shape the shared list view sorts: the folder name is the id, and
  *  `site` carries the rest through. @complexity O(n). */
-export function resolveSiteListItems(sites: readonly AdminSiteListEntry[]): { id: string; name: string; createdAt: string; site: AdminSiteListEntry }[] {
+export function resolveSiteListItems({ sites }: { sites: readonly AdminSiteListEntry[] }, _optional: Record<string, never> = {}): { id: string; name: string; createdAt: string; site: AdminSiteListEntry }[] {
   return sites.map((site) => ({ id: site.name, name: site.name, createdAt: site.createdAt, site }));
 }

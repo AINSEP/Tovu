@@ -66,7 +66,7 @@ describe("applyPackageFileTreeKeyAction", () => {
 
   it("a key that is not the tree's does nothing and leaves the browser default alone", () => {
     const port = effects();
-    expect(applyPackageFileTreeKeyAction({}, port)).toBe(false);
+    expect(applyPackageFileTreeKeyAction({ action: {}, effects: port })).toBe(false);
     expect(port.setExpanded).not.toHaveBeenCalled();
     expect(port.openFile).not.toHaveBeenCalled();
     expect(port.focus).not.toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe("applyPackageFileTreeKeyAction", () => {
 
   it("an action that only opens a file opens it without moving focus", () => {
     const port = effects();
-    expect(applyPackageFileTreeKeyAction({ open: "skills/a.md" }, port)).toBe(true);
+    expect(applyPackageFileTreeKeyAction({ action: { open: "skills/a.md" }, effects: port })).toBe(true);
     expect(port.openFile).toHaveBeenCalledWith("skills/a.md");
     expect(port.focus).not.toHaveBeenCalled();
     expect(port.setExpanded).not.toHaveBeenCalled();
@@ -82,7 +82,7 @@ describe("applyPackageFileTreeKeyAction", () => {
 
   it("an action that only toggles a folder toggles it without moving focus", () => {
     const port = effects();
-    expect(applyPackageFileTreeKeyAction({ setExpanded: { path: "skills", expanded: false } }, port)).toBe(true);
+    expect(applyPackageFileTreeKeyAction({ action: { setExpanded: { path: "skills", expanded: false } }, effects: port })).toBe(true);
     expect(port.setExpanded).toHaveBeenCalledWith({ path: "skills", expanded: false });
     expect(port.focus).not.toHaveBeenCalled();
     expect(port.openFile).not.toHaveBeenCalled();

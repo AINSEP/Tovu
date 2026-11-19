@@ -1753,7 +1753,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
     expect(openFile(result).modified).toBe(true);
     expect(openFile(result).resettable).toBe(true);
     expect(isThemeFileModified(openFile(result))).toBe(true);
-    expect(canResetThemeFile(openFile(result))).toBe(true);
+    expect(canResetThemeFile({ file: openFile(result) })).toBe(true);
   });
 
   it("resetting a modified file marks it unmodified and hides Reset", async () => {
@@ -1769,7 +1769,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
     expect(openFile(result).modified).toBe(false);
     expect(openFile(result).resettable).toBe(true);
     expect(isThemeFileModified(openFile(result))).toBe(false);
-    expect(canResetThemeFile(openFile(result))).toBe(false);
+    expect(canResetThemeFile({ file: openFile(result) })).toBe(false);
   });
 
   it("saving a modified file's original content back marks it unmodified and hides Reset", async () => {
@@ -1786,7 +1786,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
     expect(openFile(result).modified).toBe(false);
     expect(openFile(result).resettable).toBe(true);
     expect(isThemeFileModified(openFile(result))).toBe(false);
-    expect(canResetThemeFile(openFile(result))).toBe(false);
+    expect(canResetThemeFile({ file: openFile(result) })).toBe(false);
   });
 
   it("keeps edits typed while the post-save refresh is in flight, and never re-reads the open file", async () => {
@@ -1924,7 +1924,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
     });
 
     expect(openFile(result).modified).toBe(false);
-    expect(canResetThemeFile(openFile(result))).toBe(false);
+    expect(canResetThemeFile({ file: openFile(result) })).toBe(false);
   });
 
   it("a stale post-save refresh failing after a newer one succeeded surfaces no error", async () => {
@@ -2017,7 +2017,7 @@ describe("useThemeExplore — modified state after Copy and Rename", () => {
     const copy = result.current.files.find((f) => f.path === "css/a-1.css");
     expect(copy?.resettable).toBe(false);
     expect(copy?.modified).toBeNull();
-    expect(canResetThemeFile(copy)).toBe(false);
+    expect(canResetThemeFile({ file: copy })).toBe(false);
     expect(result.current.files.find((f) => f.path === "css/a.css")?.modified).toBe(true);
   });
 
@@ -2037,7 +2037,7 @@ describe("useThemeExplore — modified state after Copy and Rename", () => {
     const renamed = result.current.files.find((f) => f.path === "css/b.css");
     expect(renamed?.resettable).toBe(false);
     expect(renamed?.modified).toBeNull();
-    expect(canResetThemeFile(renamed)).toBe(false);
+    expect(canResetThemeFile({ file: renamed })).toBe(false);
   });
 });
 
@@ -2793,19 +2793,19 @@ function file(overrides: Partial<ThemeExploreFile> = {}): ThemeExploreFile {
 
 describe("canResetThemeFile", () => {
   it("is false when nothing is selected", () => {
-    expect(canResetThemeFile(undefined)).toBe(false);
+    expect(canResetThemeFile({ file: undefined })).toBe(false);
   });
 
   it("is true only for a resettable file that is modified", () => {
-    expect(canResetThemeFile(file({ resettable: true, modified: true }))).toBe(true);
+    expect(canResetThemeFile({ file: file({ resettable: true, modified: true }) })).toBe(true);
   });
 
   it("is false for a resettable file whose bytes still match its original", () => {
-    expect(canResetThemeFile(file({ resettable: true, modified: false }))).toBe(false);
+    expect(canResetThemeFile({ file: file({ resettable: true, modified: false }) })).toBe(false);
   });
 
   it("is false for a file with no original, where modified is null", () => {
-    expect(canResetThemeFile(file({ resettable: false, modified: null }))).toBe(false);
+    expect(canResetThemeFile({ file: file({ resettable: false, modified: null }) })).toBe(false);
   });
 });
 
@@ -2905,7 +2905,7 @@ describe("selectedFilePublishState", () => {
 
 describe("publishToggleTipLabel", () => {
   it("gives a locked switch's ⓘ its own reason — the reason is no longer visible text (owner, 2026-10-11)", () => {
-    expect(publishToggleTipLabel({ kind: "locked", on: false, reason: "Not shown — Home is your home page" }, t)).toBe(
+    expect(publishToggleTipLabel({ state: { kind: "locked", on: false, reason: "Not shown — Home is your home page" }, t })).toBe(
       "Not shown — Home is your home page"
     );
   });
@@ -2913,8 +2913,8 @@ describe("publishToggleTipLabel", () => {
   it("gives a live switch's ⓘ the general what-publishing-does explanation, whatever its position", () => {
     const general =
       "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.";
-    expect(publishToggleTipLabel({ kind: "toggle", published: true }, t)).toBe(general);
-    expect(publishToggleTipLabel({ kind: "toggle", published: false }, t)).toBe(general);
+    expect(publishToggleTipLabel({ state: { kind: "toggle", published: true }, t })).toBe(general);
+    expect(publishToggleTipLabel({ state: { kind: "toggle", published: false }, t })).toBe(general);
   });
 });
 
@@ -3683,12 +3683,12 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
     const { port, state } = agentWritablePort();
     const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
-    expect(canResetThemeFile(result.current.files[0])).toBe(false);
+    expect(canResetThemeFile({ file: result.current.files[0] })).toBe(false);
 
     state.live = "body{color:red}";
     act(() => publishContentRefresh());
 
-    await waitFor(() => expect(canResetThemeFile(result.current.files[0])).toBe(true));
+    await waitFor(() => expect(canResetThemeFile({ file: result.current.files[0] })).toBe(true));
     expect(isThemeFileModified(result.current.files[0]!)).toBe(true);
   });
 

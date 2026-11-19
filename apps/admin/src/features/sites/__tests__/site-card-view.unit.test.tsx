@@ -165,9 +165,9 @@ describe("resolveSiteStatusPill and resolveSiteCardMeta", () => {
 
   it("marks the default site for the star and puts the running app in the pill's tooltip", () => {
     // 2026-10-09: "Default" and "Running in …" left the card's text; the facts stay.
-    expect(resolveSiteIsDefault({ ...alpha, name: "owner" }, snapshot())).toBe(true);
-    expect(resolveSiteIsDefault(alpha, snapshot({ persistedSiteName: "alpha" }))).toBe(true);
-    expect(resolveSiteIsDefault(alpha, snapshot())).toBe(false);
+    expect(resolveSiteIsDefault({ site: { ...alpha, name: "owner" }, snapshot: snapshot() })).toBe(true);
+    expect(resolveSiteIsDefault({ site: alpha, snapshot: snapshot({ persistedSiteName: "alpha" }) })).toBe(true);
+    expect(resolveSiteIsDefault({ site: alpha, snapshot: snapshot() })).toBe(false);
     const running = (port: number) => ({ ...alpha, running: { pid: 1, port, app: "Web", started: "2026-10-09T00:00:00.000Z", scheme: "https" as const } });
     expect(resolveSiteRunningTitle({ site: running(3000), t })).toBe("Running in Web (port 3000)");
     expect(resolveSiteRunningTitle({ site: running(0), t })).toBe("Running in Web (starting)");

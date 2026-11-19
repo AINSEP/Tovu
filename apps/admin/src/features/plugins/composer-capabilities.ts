@@ -214,7 +214,7 @@ function getOrCreateGroup({ itemsByGroup, groupOrder, capability }: {
  * @overallScore 100
  */
 export async function projectComposerCapabilities(
-  sources: readonly ComposerCapabilitySource[],
+  { sources }: { sources: readonly ComposerCapabilitySource[] }, _optional: Record<string, never> = {},
 ): Promise<ComposerCapabilityProjection> {
   const bySource = await Promise.all(sources.map((source) => source.list()));
   const capabilities = labelComposerCapabilities(bySource.flat());

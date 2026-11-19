@@ -113,7 +113,7 @@ export function homeFallbackPublishReason({ homePage, t }: { homePage: ThemePage
  *
  * @complexity O(1).
  */
-export function themePageCollisionMessage(collision: ThemePageSlugCollision, t: Translate): string {
+export function themePageCollisionMessage({ collision, t }: { collision: ThemePageSlugCollision; t: Translate }, _optional: Record<string, never> = {}): string {
   const message =
     collision.slug === "/"
       ? t(
@@ -133,7 +133,7 @@ export function themePageCollisionMessage(collision: ThemePageSlugCollision, t: 
  *
  * @complexity O(1).
  */
-export function themePagePublishState(row: ThemePageRow, t: Translate): ThemePagePublishState {
+export function themePagePublishState({ row, t }: { row: ThemePageRow; t: Translate }, _optional: Record<string, never> = {}): ThemePagePublishState {
   if (row.published !== null) return { kind: "toggle", published: row.published };
   if (row.pageId === "index") return { kind: "locked", ...homeFallbackPublishReason({ homePage: row.collidingContent, t }) };
   return { kind: "locked", ...lockedPublishReason({ pageId: row.pageId, t }) };
@@ -170,13 +170,13 @@ export type ThemePagePublicLinkState =
  *
  * @complexity O(1).
  */
-export function themePagePublicLinkState(row: ThemePageRow, t: Translate): ThemePagePublicLinkState {
+export function themePagePublicLinkState({ row, t }: { row: ThemePageRow; t: Translate }, _optional: Record<string, never> = {}): ThemePagePublicLinkState {
   if (row.pageId === "index") {
     return row.collidingContent
       ? { kind: "replaced", reason: homeFallbackPublishReason({ homePage: row.collidingContent, t }).reason }
       : { kind: "live", path: "/" };
   }
-  const state = themePagePublishState(row, t);
+  const state = themePagePublishState({ row, t });
   if (state.kind === "locked") return { kind: "none" };
   return { kind: state.published ? "live" : "not-live", path: themePagePath({ pageId: row.pageId }) };
 }
@@ -190,6 +190,6 @@ export function themePagePublicLinkState(row: ThemePageRow, t: Translate): Theme
  *
  * @complexity O(1).
  */
-export function themePagePublishTooltip(state: Extract<ThemePagePublishState, { kind: "locked" }>): string {
+export function themePagePublishTooltip(state: Extract<ThemePagePublishState, { kind: "locked" }>, _optional: Record<string, never> = {}): string {
   return state.reason;
 }

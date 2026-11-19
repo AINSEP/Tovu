@@ -18,7 +18,7 @@ function selection(itemId: string, argument?: string | null): ComposerDiscoveryS
 }
 
 async function projectionWith(capabilities: readonly TovuComposerCapability[]) {
-  return projectComposerCapabilities([{ id: "test", list: async () => capabilities }]);
+  return projectComposerCapabilities({ sources: [{ id: "test", list: async () => capabilities }] });
 }
 
 describe("resolveComposerDiscoveryOutcome", () => {

@@ -88,7 +88,7 @@ export const HOME_PAGE_HANDLE = "home";
  *
  * @complexity O(1).
  */
-export function pageAdminPath(page: PageAdminHandle): string {
+export function pageAdminPath(page: PageAdminHandle, _optional: Record<string, never> = {}): string {
   if (page.slug === "/") return `/pages/${HOME_PAGE_HANDLE}`;
   return `/pages/${page.slug === HOME_PAGE_HANDLE ? page.id : page.slug}`;
 }
@@ -376,8 +376,7 @@ export function buildPageSavePlan(
  * @complexity Time/space: O(1).
  */
 export function buildPageAutosaveDraft(
-  page: VersionedSavablePage,
-  form: { title: string; slug: string; html: string }
+  { page, form }: { page: VersionedSavablePage; form: { title: string; slug: string; html: string } }, _optional: Record<string, never> = {},
 ): StandingDraftAutosaveInput {
   if (pageAcceptsHtmlBody({ page, html: form.html })) {
     return { bodyFormat: "html", bodyHtml: form.html, title: form.title, slug: form.slug, baseVersion: page.version };
@@ -405,7 +404,7 @@ export function buildPageAutosaveDraft(
  *
  * @complexity Time/space: O(1).
  */
-export function pageAutosaveStaleBasisMessage(t: Translate, staleBasis: StandingDraftStaleBasis): string {
+export function pageAutosaveStaleBasisMessage({ t, ...staleBasis }: { t: Translate } & StandingDraftStaleBasis, _optional: Record<string, never> = {}): string {
   return t(
     "Someone else saved this while you were editing — you were working from version {baseVersion}, so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want to keep first."
   ).replace("{baseVersion}", String(staleBasis.baseVersion));
@@ -442,7 +441,7 @@ export type PageSaveConflict = SaveConflict;
  *
  * @complexity Time/space: O(1).
  */
-export function pageVersionConflictMessage(t: Translate, conflict: PageSaveConflict): string {
+export function pageVersionConflictMessage({ t, ...conflict }: { t: Translate } & PageSaveConflict, _optional: Record<string, never> = {}): string {
   const basis =
     conflict.expectedVersion === null ? t("the version you loaded") : t("version {version}").replace("{version}", String(conflict.expectedVersion));
   const current =
@@ -517,7 +516,7 @@ export type PageEditorSurface =
   | { kind: "interactive-pending" }
   | { kind: "interactive"; styling: CanvasStyling };
 
-export function pageEditorSurface(view: PageEditorView, canvasStyling: ThemeCanvasStylingState): PageEditorSurface {
+export function pageEditorSurface({ view, canvasStyling }: { view: PageEditorView; canvasStyling: ThemeCanvasStylingState }, _optional: Record<string, never> = {}): PageEditorSurface {
   if (view === "preview") return { kind: "preview" };
   if (view === "html") return { kind: "html" };
   if (canvasStyling.status === "pending") return { kind: "interactive-pending" };
@@ -574,7 +573,7 @@ export const PAGE_PREVIEW_IFRAME_SANDBOX = "allow-scripts allow-forms allow-popu
  *
  * @complexity O(1).
  */
-export function pageEditableHtml(post: AdminPost): string {
+export function pageEditableHtml(post: AdminPost, _optional: Record<string, never> = {}): string {
   return post.bodyFormat === "html" ? (post.bodyHtml ?? "") : "";
 }
 

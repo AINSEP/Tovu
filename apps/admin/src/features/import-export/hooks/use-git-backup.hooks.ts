@@ -66,7 +66,7 @@ async function pushUntilDone(required: { port: GitBackupPort; planId: string; al
  */
 export function useGitBackup({ port, t }: { port: GitBackupPort; t: Translate }, { maxPushPolls = MAX_PUSH_POLLS }: { maxPushPolls?: number } = {}): GitBackupController {
   const list = useFetchQuery({ key: [...GIT_BACKUP_CONNECTIONS_KEY], fetch: () => port.listConnections() });
-  const connections = list.data ? backupConnectionLabels(list.data) : undefined;
+  const connections = list.data ? backupConnectionLabels({ credentials: list.data }) : undefined;
   const [form, setForm] = useState<GitBackupForm>(EMPTY_GIT_BACKUP_FORM);
   const [phase, setPhase] = useState<GitBackupPhase>("idle");
   const [plan, setPlan] = useState<GitBackupPlan | null>(null);
@@ -94,7 +94,7 @@ export function useGitBackup({ port, t }: { port: GitBackupPort; t: Translate },
     try {
       const result = await port.plan(gitBackupPlanInput(effectiveForm));
       if (!alive.current) return;
-      if (!isGitBackupPlan(result)) { refuse({ line: gitBackupRefusalMessage(result, t) }); return; }
+      if (!isGitBackupPlan(result)) { refuse({ line: gitBackupRefusalMessage({ result, t }) }); return; }
       setPlan(result);
       setPhase("planned");
     } catch (failure) {
@@ -110,7 +110,7 @@ export function useGitBackup({ port, t }: { port: GitBackupPort; t: Translate },
       const result = await pushUntilDone({ port, planId: plan.planId, alive: () => alive.current, onProgress: setProgress, maxPolls: maxPushPolls });
       if (!alive.current) return;
       if (isGitBackupPushed(result)) { setDone({ repository: result.repository, commitUrl: result.commitUrl }); setPhase("done"); return; }
-      refuse({ line: isGitBackupInProgress(result) ? t("The backup is taking too long. Check the repository later.") : gitBackupRefusalMessage(result, t) });
+      refuse({ line: isGitBackupInProgress(result) ? t("The backup is taking too long. Check the repository later.") : gitBackupRefusalMessage({ result, t }) });
     } catch (failure) {
       if (alive.current) refuse({ line: describeApiError({ e: failure, fallback: t("Git backup failed.") }) });
     }

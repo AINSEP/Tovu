@@ -151,7 +151,7 @@ function tokensController(overrides: Partial<CreateSitePluginTokensController> =
 // Production cannot provision hosted content databases. Exercise future selectable states through
 // the real selection hook with an injected capability list, rather than changing that boundary.
 const useSelectableDatabase: typeof useCreateSiteDatabase = (input) => useCreateSiteDatabase(input, {
-  options: resolveSiteDatabaseOptions(input.t).map((option) => ({ ...option, available: true })),
+  options: resolveSiteDatabaseOptions({ t: input.t }).map((option) => ({ ...option, available: true })),
 });
 
 function WiredOnboarding({ port }: { port: SitesPort }) {

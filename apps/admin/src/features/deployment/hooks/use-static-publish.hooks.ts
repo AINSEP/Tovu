@@ -211,7 +211,7 @@ export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort;
     setPreviewError(null);
     setPreviewLoading(true);
     try {
-      const result = await port.getPublishPreview(buildStaticPublishConfig(selectedTarget, configValues));
+      const result = await port.getPublishPreview(buildStaticPublishConfig({ target: selectedTarget, values: configValues }));
       // A field edited after this request started already invalidated the preview and moved the
       // generation forward — applying this now-stale result would repopulate the OLD fields over a
       // form the operator has since changed. Discard it silently; the edit's own `invalidatePreview()`
@@ -386,7 +386,7 @@ function publishRequestFor(input: {
   if (input.options.destination) return input.options.destination;
   if (input.selectedTarget === undefined) return undefined;
   return {
-    config: buildStaticPublishConfig(input.selectedTarget, input.configValues),
+    config: buildStaticPublishConfig({ target: input.selectedTarget, values: input.configValues }),
     projectName: staticPublishProjectNameToSend({ target: input.selectedTarget, projectName: input.projectName }),
   };
 }

@@ -95,7 +95,7 @@ import { interpolate, type Translate } from '@jini-ai/core/text';
 
 /** The card's "this folder is not really a site" badge, or nothing. */
 function SiteCardFlag({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
-  const registration = resolveSiteRegistrationBadge(site, snapshot);
+  const registration = resolveSiteRegistrationBadge({ site, snapshot });
   if (registration === null) return null;
   return (
     // A glyph beside the words (2026-09-06 status-strip pass, `styles.css`'s "Sites — the
@@ -121,7 +121,7 @@ const STATUS_TONES: Record<string, SiteCardTone> = { "status-ok": "running", "st
 
 /** The default star, or nothing. */
 function SiteCardDefaultStar({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
-  if (!resolveSiteIsDefault(site, snapshot)) return null;
+  if (!resolveSiteIsDefault({ site, snapshot })) return null;
   return <span className="site-card-default" role="img" aria-label={t("Opens by default")} title={t("Opens by default")}><Icon name="star-filled" size={14} strokeWidth={1.5} /></span>;
 }
 
@@ -281,7 +281,7 @@ export interface AllSitesTabProps {
  *  branch on top of the `.map()`, the same split `Deployment.tsx`'s `deploymentTabPanel` makes for
  *  the identical gate. */
 function sitesGridOrEmpty(props: AllSitesTabProps) {
-  if (resolveSitesEmpty(props.sites)) return <SitesEmptyState t={props.t} />;
+  if (resolveSitesEmpty({ sites: props.sites })) return <SitesEmptyState t={props.t} />;
   if (!props.listPrefs.ready) return null;
   return <SitesGrid {...props} />;
 }
@@ -298,10 +298,10 @@ function SiteListPrefsNotice({ listPrefs, t }: { listPrefs: SiteListPrefsControl
 }
 
 function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActivate, localSites, listPrefs, t, useSiteListViewHook = useSiteListView }: AllSitesTabProps) {
-  const list = useSiteListViewHook({ items: resolveSiteListItems(sites), prefs: listPrefs.prefs, onPrefsChange: listPrefs.onPrefsChange });
+  const list = useSiteListViewHook({ items: resolveSiteListItems({ sites }), prefs: listPrefs.prefs, onPrefsChange: listPrefs.onPrefsChange });
   // Folder names are unique under `sites/` (they ARE the directory entries), so they disambiguate
   // one card's controls from another's — same reasoning as every other list on this workstream.
-  const rowHandles = resolveSitesRowHandles(sites);
+  const rowHandles = resolveSitesRowHandles({ sites });
   const handleOf = new Map(sites.map((site, index) => [site.name, rowHandles[index]]));
   return (
     // One wrapper so the page's section gap stays above the toolbar, not between it and its cards.

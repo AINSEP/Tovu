@@ -126,9 +126,9 @@ describe("usePluginPackageFiles", () => {
 
 describe("toPackageFileView", () => {
   it("reads an unknown omission reason, or null content with no reason, as unreadable", () => {
-    const unknown = { relativePath: "x", sizeBytes: 0, content: null, omitted: "quarantined" } as unknown as Parameters<typeof toPackageFileView>[0];
-    expect(toPackageFileView(unknown, identity).unavailableReason).toBe("This file could not be read.");
-    expect(toPackageFileView({ relativePath: "y", sizeBytes: 0, content: null, omitted: null }, identity).unavailableReason).toBe(
+    const unknown = { relativePath: "x", sizeBytes: 0, content: null, omitted: "quarantined" } as unknown as Parameters<typeof toPackageFileView>[0]["file"];
+    expect(toPackageFileView({ file: unknown, translate: identity }).unavailableReason).toBe("This file could not be read.");
+    expect(toPackageFileView({ file: { relativePath: "y", sizeBytes: 0, content: null, omitted: null }, translate: identity }).unavailableReason).toBe(
       "This file could not be read.",
     );
   });

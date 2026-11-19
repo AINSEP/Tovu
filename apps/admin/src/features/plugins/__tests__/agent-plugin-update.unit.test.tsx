@@ -233,9 +233,9 @@ describe("rules — lifecycle fields", () => {
   });
 
   it("buildAgentPluginDisableConfirmCopy names dependents through the same warning translation, and none when nothing relies on it", () => {
-    const copy = buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", origin: "operator-installed", requiredBy: ["consumer needs mail:send"] }, translate);
+    const copy = buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", origin: "operator-installed", requiredBy: ["consumer needs mail:send"] }, { translate: translate });
     expect(copy.dependents).toBe("[Other enabled plugins rely on it:] " + "[{plugin} needs {capability}]".replace("{plugin}", "consumer").replace("{capability}", "mail:send"));
-    expect(buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", requiredBy: [] }, translate).dependents).toBeUndefined();
+    expect(buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", requiredBy: [] }, { translate: translate }).dependents).toBeUndefined();
     // Without a translator the dictionary keys pass through untranslated.
     expect(buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", requiredBy: ["Needs x:y"] }).dependents).toBe("Other enabled plugins rely on it: Needs x:y");
   });
