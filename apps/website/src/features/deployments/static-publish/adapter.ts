@@ -19,7 +19,7 @@ import type { PluginDeployHostKit as DeployHostKit, DeployTargetCredential } fro
 import { rewriteFormActions } from "#src/features/form-destinations/rewrite-actions";
 import type { FormDestinationPublishInput, FormReceiverPlan, FormReceiverPort } from "#src/features/form-destinations/types";
 
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 /**
  * Imported from the LEAF `export-failure-summary.ts`, not from `#src/features/site-export/index`.
  *

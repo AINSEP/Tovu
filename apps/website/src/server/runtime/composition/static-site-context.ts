@@ -1,5 +1,6 @@
 import type { StaticSiteContextFn } from "#src/features/source-control/commit-site";
-import { NO_THEME_ID, resolveActiveTheme, type ActiveThemeResolutionDeps } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme, type ActiveThemeResolutionDeps } from "#src/features/theme/index";
 
 import type { RouteDeps } from "../../routes/types.js";
 

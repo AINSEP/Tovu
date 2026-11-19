@@ -9,7 +9,6 @@ export {
   firstExportFailure,
   ExportOutputNotEmptyError,
   type ExportSiteOptions,
-  type ExportReport,
   type ExportedRoute,
   type FailedRoute,
   type ExportedAsset,

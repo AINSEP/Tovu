@@ -9,7 +9,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { type DiscoveredTheme } from "#src/features/theme/index";
 import {
   createCapturingResponse,
   extractRouteHandler,

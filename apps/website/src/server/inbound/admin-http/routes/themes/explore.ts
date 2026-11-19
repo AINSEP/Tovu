@@ -53,7 +53,8 @@ import {
 // re-exported for the identical reason: `integration/explore.integration.test.ts` still imports it
 // directly from this module.
 export { fileExtension, nextAvailableFileName };
-import { isTrashed, ROOT_SLUG, type PostKind, type PostRecord } from "#src/features/post/index";
+import type { PostKind } from "#src/contracts/core/post-kind";
+import { isTrashed, ROOT_SLUG, type PostRecord } from "#src/features/post/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type { ContentRouteDeps } from "../content/deps.js";

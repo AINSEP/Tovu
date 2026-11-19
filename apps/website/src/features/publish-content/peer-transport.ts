@@ -8,7 +8,6 @@ import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/inde
 import type { ResolvedPeerCredential } from "./peers.js";
 import type { PackedEntity } from "./type-registry.js";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
-import type { PublishHistoryStore, PublishTrigger } from "#src/features/deployments/static-publish/index";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -217,11 +216,24 @@ export interface PeerBlobSource {
   get(input: { sha256: string; storageKey: string }, optional?: {}): Promise<Uint8Array>;
 }
 
+/** Who started a peer publish; the same two literals the deployments history ledger stores. */
+export type PeerPublishTrigger = "admin_ui" | "agent_tool";
+
+/** The one history call a peer publish makes (executePeerImport). Composition passes the deployments
+ *  history store, and `tsc` checks it against this shape where it is assigned. */
+export interface PublishHistoryRecorder {
+  recordSuccess(input: { workspaceId: string; entry: {
+    readonly kind: "tovu-peer"; readonly target: string; readonly projectName: string; readonly url: string;
+    readonly configFields: Readonly<Record<string, string>>; readonly reachable: boolean; readonly status: string;
+    readonly publishedAt: string; readonly triggeredBy: PeerPublishTrigger;
+  } }): Promise<void>;
+}
+
 export interface PeerCallDeps {
   readonly httpClient: HttpClientPort;
   readonly credential: ResolvedPeerCredential;
   /** Local source scope, never the peer's remote workspace. Optional for transport-only consumers. */
-  readonly publishHistory?: { store: PublishHistoryStore; workspaceId: string; clock: Clock; triggeredBy?: PublishTrigger };
+  readonly publishHistory?: { store: PublishHistoryRecorder; workspaceId: string; clock: Clock; triggeredBy?: PeerPublishTrigger };
 }
 
 /**

@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import {
   commitExportDir,
   commitSiteToSourceControl,

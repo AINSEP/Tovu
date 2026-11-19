@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { PostStatus, PublicPostKind } from "@jini-ai/cms/core";
-import type { PostKind } from "../post-vocabulary.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
 
 /** True only when A and B are assignable to each other (both directions). */
 type SameType<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;

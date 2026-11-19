@@ -1,19 +1,25 @@
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError,
   type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
-import { ValueValidationFailedError, type SettingsToolDeps } from "@jini-ai/core/settings";
+import { ValueValidationFailedError, type SettingsToolDeps, type SetValueRequired, type SettingsValueWriteOptions } from "@jini-ai/core/settings";
+import type { JsonValue } from "@jini-ai/core/primitives";
 import { fromSettingsRevisionConflict, requireExpectedVersion, versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
 import { withModelFacingRegistrationErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolContributor } from "@jini-ai/core";
-import type { set } from "#src/features/settings/index";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import { toolMetadata } from "../../contracts/core/tool-metadata/theme.js";
 import { readPreviewSwitcherWithRevision, parsePreviewSwitcher, PREVIEW_SWITCHER_NAMESPACE, PREVIEW_SWITCHER_KEY } from "./preview-switcher.js";
 import type { SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
 import { syncThemeRoster } from "./theme-roster-sync.js";
 
+/** The host settings write this tool calls (`:57`), with the revision guard as its second argument. */
+export type PreviewSwitcherSetSetting = (
+  required: SetValueRequired,
+  optional: Pick<SettingsValueWriteOptions, "expectedRevisionSeq">,
+) => Promise<{ value: JsonValue; revisionSeq: number }>;
+
 export type PreviewSwitcherToolDeps = SetActiveThemeToolDeps & Pick<SettingsToolDeps, "settingsRepo" | "idGen" | "principalRepo"> & {
-  set: typeof set; siteTitleReady?: Promise<void>;
+  set: PreviewSwitcherSetSetting; siteTitleReady?: Promise<void>;
 };
 
 export const previewSwitcherAgentToolCatalog: AgentToolDefinition[] = [

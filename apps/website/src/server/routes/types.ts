@@ -8,7 +8,7 @@ import type { SeoHostBindings } from "#src/features/seo/index";
 import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
 
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PeerSiteReads } from "#src/assistant/host-ports";

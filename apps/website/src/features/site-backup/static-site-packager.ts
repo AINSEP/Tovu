@@ -1,5 +1,5 @@
 import type { StaticSitePackagerPort, StaticSitePackage, StaticSiteIdentity } from "../source-control/index.js";
-import type { ExportReport } from "../site-export/index.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import { SiteShareRefusal } from "./share-policy.js";
 import { claimArchivePaths } from "./share-zip.js";
 import { prepareStaticReport } from "./static-copy.js";

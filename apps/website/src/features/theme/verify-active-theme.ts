@@ -3,7 +3,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 
 import { setActiveTheme, type PresentationSettingsRepoPort } from "#src/features/presentation/index";
 
-import { NO_THEME_ID } from "./active-theme.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { requestThemePreviewRefresh } from "./preview-refresh.js";
 import { findStoredTheme, type DiscoveredTheme } from "./theme.js";
 import { syncThemeRoster } from "./theme-roster-sync.js";

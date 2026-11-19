@@ -13,6 +13,7 @@ import {
   pullBundleFromPeer,
   pushBundleToPeer,
   PublishContentPeerTransportError,
+  type PublishHistoryRecorder,
 } from "../peer-transport.js";
 import type { ResolvedPeerCredential } from "../peers.js";
 import type { PackedEntity } from "../type-registry.js";
@@ -713,6 +714,31 @@ test("outbound successful and partial peer applies append saved-peer history and
   assert.deepEqual(await list("source-ws", []), [], "removed peers or unauthorized peer metadata are omitted");
   assert.deepEqual(await list("foreign-ws"), []);
   assert.equal(JSON.stringify(rows).includes(API_KEY), false);
+});
+
+test("a completed peer apply records one tovu-peer history row with the caller's trigger, defaulting to admin_ui", async () => {
+  const at = "2026-10-18T10:00:00.000Z";
+  const result = { runId: "remote-run", report: { refused: false, rows: [] } };
+  for (const [triggeredBy, expected] of [[undefined, "admin_ui"], ["agent_tool", "agent_tool"]] as const) {
+    const store = new InMemoryPublishHistoryStore();
+    const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
+    await executePeerImport({
+      deps: { httpClient: http, credential: CREDENTIAL,
+        publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => Date.parse(at) }, ...(triggeredBy ? { triggeredBy } : {}) } },
+      required: { bundleId: "b1", confirmationToken: "token" },
+    });
+    assert.deepEqual(await store.list({ workspaceId: "source-ws" }), [{
+      kind: "tovu-peer", target: CREDENTIAL.id, projectName: "", url: CREDENTIAL.baseUrl,
+      configFields: { label: CREDENTIAL.label }, reachable: true, status: "applied", publishedAt: at, triggeredBy: expected,
+    }]);
+  }
+});
+
+test("type pin: a history store without recordSuccess cannot be a PeerCallDeps recorder", () => {
+  const recorder: PublishHistoryRecorder = new InMemoryPublishHistoryStore();
+  // @ts-expect-error a store that cannot record is not a recorder
+  const missing: PublishHistoryRecorder = {};
+  assert.ok(recorder && missing);
 });
 
 test("a throwing history store preserves the successful remote apply and logs no error payload", async (t) => {

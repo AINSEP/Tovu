@@ -5,7 +5,8 @@ import test from "node:test";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { type DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import { buildRouteManifest, type RouteManifestDeps } from "../route-manifest.js";

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { discoverAllBuiltInThemes, NO_THEME_ID } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { builtInThemesDir } from "../site-paths.js";
 import { bindStaticSiteContext, type StaticSiteContextDeps } from "../static-site-context.js";
 

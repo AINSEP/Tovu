@@ -18,7 +18,8 @@ import type { TovuPublishPorts, TaxonomyPublishPorts } from "#src/features/publi
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "#src/features/taxonomy/term-sync";
 
 import { importPostEntity, isTrashed, presentScheduleFields, restorePostForward, retirePostForReplacement, PostConflictError, PostNotFoundError, ROOT_SLUG } from "./post.js";
-import type { PostKind, PostRecord } from "./post.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
+import type { PostRecord } from "./post.js";
 
 /**
  * @file `post`'s and `page`'s publish-content contributions, built on `createRepoPublishHandler`

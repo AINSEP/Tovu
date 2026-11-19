@@ -2,7 +2,8 @@ import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases
 import path from "node:path";
 
 import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
-import { exportSite, type ExportReport } from "../../features/site-export/index.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
+import { exportSite } from "../../features/site-export/index.js";
 import { closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";

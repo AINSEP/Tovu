@@ -1,3 +1,4 @@
+/** @file Storage kinds of the shared posts table; every reader of post rows uses this one union. */
 import type { PublicPostKind } from "@jini-ai/cms/core";
 
 /**

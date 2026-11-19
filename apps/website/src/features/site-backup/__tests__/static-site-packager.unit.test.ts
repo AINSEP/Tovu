@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import type { ExportReport } from "../../site-export/index.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import { createStaticSitePackager } from "../static-site-packager.js";
 
 /**

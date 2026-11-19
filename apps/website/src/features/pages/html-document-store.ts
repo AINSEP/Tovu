@@ -16,7 +16,8 @@ import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 // through the barrel (`index.ts`'s own header explains the one-way rule; nothing forbids importing
 // FROM `post.ts` here, only re-exporting Pages things there).
 import { SYSTEM_ACTOR_ID, announcePendingGoLive } from "../post/index.js";
-import type { PostKind, PostRepoPort } from "../post/contracts.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
+import type { PostRepoPort } from "../post/contracts.js";
 import type { PostStatus } from "@jini-ai/cms/core";
 
 /**

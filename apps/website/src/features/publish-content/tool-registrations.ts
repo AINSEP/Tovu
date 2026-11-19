@@ -1,6 +1,5 @@
 export type { PublishContentToolDeps } from "./tool-deps.js";
 import type { PublishContentToolDeps } from "./tool-deps.js";
-import type { PublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { toolMetadata } from '../../contracts/core/tool-metadata/publish-content.js';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";

@@ -4,7 +4,7 @@ import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 import { SiteShareExportFailure, type SiteShareExportStep } from "./share-export-failure.js";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
-import { NO_THEME_ID } from "../theme/index.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import type { prepareShareContent } from "./share-preparation.js";
 import type { SiteBackupPushProgress } from "./push-engine.js";
 import { SiteBackupPushJobs, type PushJobKey, type PushJobWait } from "./push-jobs.js";

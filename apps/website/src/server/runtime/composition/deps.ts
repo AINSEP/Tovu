@@ -2195,7 +2195,7 @@ async function composeSiteRouteDeps(
     // not a second writer of that either.
     // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
     docBodyAsPageHtml: renderDocBodyAsPageHtml,
-    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/contracts/core/post-kind").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.

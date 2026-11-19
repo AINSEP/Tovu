@@ -46,7 +46,7 @@ import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
 // Type-only ExportReport avoids a runtime export/server cycle. ExportSiteBoundFn names the narrow
 // operation contract locally instead of importing the composition root's RouteDeps type.
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";

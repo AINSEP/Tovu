@@ -6,7 +6,7 @@ import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-error
 import { CREDENTIAL_MESSAGES } from "@jini-ai/platform/secrets/credential-token";
 
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import { validateCommitTarget } from "./commit-target.js";
 import type { RepositoryTargetValidator, SourceControlProvider } from "./provider-module.js";
 import { resolveDefaultForSourceControl } from "./store.js";

@@ -7,7 +7,7 @@ import test, { type TestContext } from "node:test";
 import * as yauzl from "yauzl";
 import { JSDOM } from "jsdom";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
-import type { ExportReport } from "../../site-export/site-exporter.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import { captureStaticSite, isStaticSitePath, prepareStaticReport } from "../static-copy.js";
 import { staticDownloadLayout } from "../static-download-layout.js";
 import { buildShareZip, buildStaticSiteZip } from "../share-zip.js";

@@ -19,7 +19,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { isLiveAt } from "#src/contracts/core/scheduled-publish";
 import { postPublicPath } from "#src/platform/routing/index";
-import type { PostKind } from "../post/contracts.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
 import { toRecord, toPostSearchDocument } from "../post/read-model.js";
 import { resolvePostMemberAccess } from "../members/index.js";
 

@@ -17,7 +17,8 @@ import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "#src/features
 import { InMemoryPostRepo, ROOT_SLUG, type PostRecord } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { AssignedTermView, EntryTermReadPort } from "@jini-ai/cms/taxonomy";
-import { NO_THEME_ID, renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";

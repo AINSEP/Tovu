@@ -2,7 +2,7 @@ import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { UUID } from "@jini-ai/core/primitives";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
-import type { PostKind } from "./post-vocabulary.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
 import type { PostStatus } from "@jini-ai/cms/core";
 
 /**

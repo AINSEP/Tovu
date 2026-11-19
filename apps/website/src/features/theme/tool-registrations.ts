@@ -41,7 +41,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { dirname, resolve } from "node:path";
 import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refresh.js";
 import { syncThemeRoster } from "./theme-roster-sync.js";
-import { NO_THEME_ID } from "./active-theme.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { describeHardcodedLinkList } from "./hardcoded-link-lists.js";
 import { rmdirSync, statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";

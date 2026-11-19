@@ -1,4 +1,4 @@
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 
 import type { CommitFile } from "./provider-module.js";
 

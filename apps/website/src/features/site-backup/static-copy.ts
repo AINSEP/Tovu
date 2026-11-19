@@ -1,7 +1,7 @@
 import { mkdtemp, readdir, readFile, lstat, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { ExportReport } from "../site-export/site-exporter.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import { shareFileStem } from "./share-service.js";
 import { downloadForms } from "../site-export/export-html-policy.js";
 

@@ -11,6 +11,7 @@ import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecy
 import { loadSearchProviderContributions, type LoadedSearchProviders } from "#src/features/agent-plugins/search-provider-registry";
 import type { MemberContext } from "#src/features/members/index";
 import { deriveInstallationId } from "#src/features/publish-trust/keys";
+import { set } from "#src/features/settings/index";
 import { createCmsSearchAccessPort, memberSearchAudiences } from "#src/features/site-search/access";
 import { createCmsSearchDocumentSources } from "#src/features/site-search/cms-document-source";
 import { createSqlSearchIndexStore } from "#src/features/site-search/index-state-store";
@@ -436,7 +437,7 @@ export interface SiteSearchBindings {
 export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Record<string, never> = {}): SiteSearchPorts {
   const { workspaceId, kernel, now } = required;
   const readSetting = readSearchProviderSetting({ settingsRepo: required.settingsRepo });
-  const writeSetting = writeSearchProviderSetting({ deps: required.settingsWriteDeps });
+  const writeSetting = writeSearchProviderSetting({ deps: required.settingsWriteDeps, writeSetting: set });
   return {
     workspaceId,
     // v1 topology: one workspace per content database, and the workspace id doubles as the site id.

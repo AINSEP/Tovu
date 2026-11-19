@@ -65,6 +65,7 @@ import { processOutbox } from "../../contracts/core/events/index.js";
 import { entryPublicPath } from "#src/platform/routing/index";
 import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
 import { POST_LIST_FIELDS, postAgentToolCatalog } from "./agent-tools.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
 import {
   createPost,
   deletePost,
@@ -84,7 +85,6 @@ import {
   PostValidationError,
   PostVersionConflictError,
   restorePostForward,
-  type PostKind,
   type PublicPostRecord,
   isPublicPost,
   type PostRecord,

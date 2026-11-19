@@ -4,7 +4,7 @@ import type { SiteConsentService } from '#src/features/consent/service';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import type { OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock } from "@jini-ai/core/primitives";
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";

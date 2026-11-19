@@ -15,8 +15,6 @@ import {
 } from "@jini-ai/core/settings";
 import { BUILTIN_SEARCH_PROVIDER_ID } from "@jini-ai/search";
 
-import { set } from "../settings/index.js";
-
 export const SEARCH_SETTINGS_NAMESPACE = "core.search";
 export const SEARCH_PROVIDER_KEY = "provider";
 
@@ -65,6 +63,9 @@ export function readSearchProviderSetting(
   };
 }
 
+/** The host settings write (`features/settings` `set`), injected by composition so search never imports settings. */
+export type SearchSettingWriter = (required: SetValueRequired) => Promise<{ value: JsonValue; revisionSeq: number }>;
+
 /**
  * A writer of a site's provider id through the host settings chokepoint. It checks the grammar
  * only: whether a provider with that id is installed is the caller's question (the registry).
@@ -73,12 +74,12 @@ export function readSearchProviderSetting(
  * @complexity O(1) to build; each write is one settings write.
  */
 export function writeSearchProviderSetting(
-  required: { deps: SetValueRequired["deps"] },
+  required: { deps: SetValueRequired["deps"]; writeSetting: SearchSettingWriter },
   _optional: Record<string, never> = {},
 ): (input: { workspaceId: string; callerPrincipalId: string; providerId: string }) => Promise<{ value: JsonValue; revisionSeq: number }> {
   return async ({ workspaceId, callerPrincipalId, providerId }) => {
     if (!isSearchProviderId(providerId)) throw rejection({ value: providerId });
-    return set({ deps: required.deps, input: {
+    return required.writeSetting({ deps: required.deps, input: {
       namespace: SEARCH_SETTINGS_NAMESPACE, key: SEARCH_PROVIDER_KEY, scope: "workspace", workspaceId, callerPrincipalId, value: providerId,
     } });
   };

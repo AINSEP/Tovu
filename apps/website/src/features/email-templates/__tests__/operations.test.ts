@@ -2,7 +2,8 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, createPost, updatePost, type PostKind, type PostRecord } from "../../post/index.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
+import { InMemoryPostRepo, createPost, updatePost, type PostRecord } from "../../post/index.js";
 import { EMAIL_TEMPLATE_KIND } from "../../post/post.js";
 import { InMemoryPagesHtmlDocumentStore, PageConcurrentEditError, PageNotFoundError, PageKindMismatchError, type PagesHtmlDocumentStoreFactory } from "../../pages/index.js";
 import {

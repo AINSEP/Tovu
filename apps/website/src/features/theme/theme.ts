@@ -13,7 +13,7 @@ import { lintHandlebarsTemplate } from "./handlebars-allowlist.js";
 import { lintLiquidTemplate } from "./liquid-allowlist.js";
 // Layout constants live in theme-layout so discovery and file I/O do not import each other.
 import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "./theme-files.js";
-import { themeIdCandidates } from "./theme-id-aliases.js";
+import { themeIdCandidates } from "#src/contracts/core/theme-ids";
 import { resolveThemeLayout, ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 export { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";

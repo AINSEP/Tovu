@@ -3,8 +3,7 @@
 // header on the structural-declaration discipline) but was never a rule about VALUES: a second
 // literal spelling of "no theme" here is exactly the drift that discipline exists to prevent.
 // Profile reads need theme identity, not theme maintenance and media write services.
-import { NO_THEME_ID } from "../theme/active-theme.js";
-import { themeIdCandidates } from "../theme/theme-id-aliases.js";
+import { NO_THEME_ID, themeIdCandidates } from "#src/contracts/core/theme-ids";
 
 import {
   authorizeAndCollectSection,

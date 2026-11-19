@@ -11,8 +11,7 @@ import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js"
 import { announcePendingGoLive } from "./go-live.js";
 import { type SlugChangeCapture } from '@jini-ai/cms/routing';
 import type { PostStatus, PublicPostKind } from "@jini-ai/cms/core";
-import type { PostKind } from "./post-vocabulary.js";
-export type { PostKind } from "./post-vocabulary.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
 
 /**
  * The `posts.kind` of an email template (`features/email-templates`). Deliberately NOT a
