@@ -1870,7 +1870,7 @@ async function composeSiteRouteDeps(
         return projectStore.inventory({});
       } : undefined, references: projectKeyReferences,
       // The site registry exists only on a desktop or self-hosted multi-site install.
-      ...(projectSiteId && isLocalTovuHost({}, {}) ? { siteKeys: createOtherSiteKeys({ target: { siteId: projectSiteId, name: resolvedSiteBinding.name, dir: resolvedSiteBinding.dir, file: sqliteConnectionOf(kernel)?.name }, project: projectStore.vault }) } : {}),
+      ...(projectSiteId && isLocalTovuHost({}, {}) ? { siteKeys: createOtherSiteKeys({ target: { siteId: projectSiteId, name: resolvedSiteBinding.name, dir: resolvedSiteBinding.dir, file: sqliteConnectionOf({ kernel })?.name }, project: projectStore.vault }) } : {}),
       bindOAuth: input => {
         if (!bindSharedApiOAuth) throw new Error("Shared connections are not available yet. Reopen this saved connection and try again.");
         return bindSharedApiOAuth(input);

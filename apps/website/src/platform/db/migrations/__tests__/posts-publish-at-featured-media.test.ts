@@ -22,14 +22,14 @@ for (const adapter of eachDialect({ tables: ["posts"], make: kernel => kernel })
     const step = postsPublishAtFeaturedMedia({ checksum: MIGRATION_CHECKSUMS[ID]! });
     const options = { ledgerTable: "posts_publish_at_test_migrations" };
     try {
-      const first = await runMigrations(kernel as KyselyKernel<unknown>, [step], options);
+      const first = await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options);
       assert.deepEqual(first.applied, [ID]);
       assert.deepEqual(
         await kernel.query<{ publish_at: string | null; featured_media_id: string | null }>(sql`SELECT publish_at, featured_media_id FROM posts WHERE id = 'legacy'`),
         [{ publish_at: null, featured_media_id: null }],
       );
       assert.deepEqual((await present()).map(column => [column.name, column.notNull]).sort(), [["featured_media_id", false], ["publish_at", false]]);
-      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, [step], options)).applied, []);
+      assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, []);
     } finally {
       await kernel.execute(sql`DELETE FROM posts WHERE id = 'legacy'`);
       if (adapter.name === "sqlite") await kernel.close();

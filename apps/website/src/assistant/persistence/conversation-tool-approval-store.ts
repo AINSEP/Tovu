@@ -23,7 +23,7 @@ import type { ConversationToolApprovalStore } from "../external-mcp-tool-approva
 export function createSqliteConversationToolApprovalStore(
   { store }: { store: ChatKernel | SqliteConnectionSource }, _optional = {}
 ): ConversationToolApprovalStore {
-  const kernel = chatKernel(store);
+  const kernel = chatKernel({ store });
   return {
     async has(key) {
       const row = await kernel.run((db) =>

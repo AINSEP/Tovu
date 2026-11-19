@@ -98,7 +98,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     try {
       const snapshot = async () => {
         const tables: Record<string, unknown[]> = {};
-        for (const ref of await discoverSealedColumns(fx.kernel)) tables[ref.table] = await fx.kernel.query(sql`SELECT * FROM ${sql.id(ref.table)} ORDER BY 1, 2`);
+        for (const ref of await discoverSealedColumns({ kernel: fx.kernel })) tables[ref.table] = await fx.kernel.query(sql`SELECT * FROM ${sql.id(ref.table)} ORDER BY 1, 2`);
         return tables;
       };
       // SQLite counts every change on the connection; the table snapshot is the dialect-neutral half.

@@ -46,7 +46,7 @@ export type ChatKernel = KyselyKernel<ChatDatabase>;
  * The kernel itself, or the one kernel of an open SQLite `chat.db` handle (the call sites that
  * still pass the raw handle). Told apart by `lockKey`, which only a kernel has.
  */
-export function chatKernel(store: ChatKernel | SqliteConnectionSource): ChatKernel {
+export function chatKernel({ store }: { store: ChatKernel | SqliteConnectionSource }, _optional: Record<string, never> = {}): ChatKernel {
   return typeof (store as Partial<ChatKernel>).lockKey === "function"
     ? (store as ChatKernel)
     : sqliteKernel<ChatDatabase>(store as SqliteConnectionSource);
@@ -60,6 +60,6 @@ export const AI_CHAT_SCHEMA = "ai_chat";
  * statement addressed to {@link AI_CHAT_SCHEMA} (`@jini-ai/db/kernel`). The tables come from
  * `migrateChatDatabase`.
  */
-export function pgChatKernel(kernel: KyselyKernel<unknown>): ChatKernel {
+export function pgChatKernel({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): ChatKernel {
   return scopeToSchema(kernel as ChatKernel, AI_CHAT_SCHEMA);
 }

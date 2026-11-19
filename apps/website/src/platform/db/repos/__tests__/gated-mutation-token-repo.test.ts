@@ -32,7 +32,7 @@ test("tryRedeem() refuses redemption when the database skips the status update",
     const redeemed = { ...record, status: "redeemed" as const };
     assert.deepEqual(await store.tryRedeem(input), { redeemed: true, record: redeemed });
     assert.deepEqual(await store.findByToken({ token: record.confirmationToken }), redeemed);
-  } finally { sqliteConnectionOf(kernel)?.close(); }
+  } finally { sqliteConnectionOf({ kernel })?.close(); }
 });
 
 describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make: (kernel) => new SqliteTokenStore({ store: kernel }) }, (makeStore) => {

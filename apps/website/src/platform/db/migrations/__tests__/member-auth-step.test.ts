@@ -20,12 +20,12 @@ for (const adapter of eachDialect({ tables: ["members", "member_magic_tokens"], 
     const tokensBefore = await db.query<Record<string, unknown>>(sql`SELECT * FROM member_magic_tokens`);
     const step = CONTENT_MIGRATIONS.find(entry => entry.id === "0034_member_auth")!;
     const options = { ledgerTable: "member_auth_test_migrations" };
-    assert.deepEqual((await runMigrations(db as KyselyKernel<unknown>, [step], options)).applied, [step.id]);
+    assert.deepEqual((await runMigrations({ kernel: db as KyselyKernel<unknown>, steps: [step] }, options)).applied, [step.id]);
     assert.deepEqual(await db.query<Record<string, unknown>>(sql`SELECT * FROM members`), [{ ...membersBefore[0], password_hash: null }]);
     assert.deepEqual(await db.query<Record<string, unknown>>(sql`SELECT * FROM member_magic_tokens`), [{ ...tokensBefore[0], code_hash: null, failed_attempts: 0 }]);
     await db.execute(sql`UPDATE members SET password_hash = 'password-hash' WHERE id = 'member'`);
     await db.execute(sql`UPDATE member_magic_tokens SET code_hash = 'code-hash', failed_attempts = 2, purpose = 'password_reset' WHERE id = 'legacy'`);
-    assert.deepEqual((await runMigrations(db as KyselyKernel<unknown>, [step], options)).applied, []);
+    assert.deepEqual((await runMigrations({ kernel: db as KyselyKernel<unknown>, steps: [step] }, options)).applied, []);
     assert.deepEqual(await db.query(sql`SELECT password_hash FROM members`), [{ password_hash: "password-hash" }]);
     assert.deepEqual(await db.query(sql`SELECT code_hash,failed_attempts,purpose FROM member_magic_tokens`), [{ code_hash: "code-hash", failed_attempts: 2, purpose: "password_reset" }]);
   });

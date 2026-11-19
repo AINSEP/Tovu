@@ -143,7 +143,7 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     const [validationConnection] = openedHandles;
     assert.ok(validationConnection);
     assert.ok(deps.contentKernel);
-    assert.equal(sqliteConnectionOf(deps.contentKernel), validationConnection.$client, "the composed kernel must use the validation connection itself");
+    assert.equal(sqliteConnectionOf({ kernel: deps.contentKernel }), validationConnection.$client, "the composed kernel must use the validation connection itself");
     const found = await deps.workspaceRepo.findById({ id: "ws-shared-handle" });
     assert.ok(found, "the returned deps must read from the same on-disk db the override was validated against");
     assert.equal(found?.name, "Shared Handle");

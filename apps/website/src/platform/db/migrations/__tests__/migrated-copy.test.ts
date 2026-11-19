@@ -15,21 +15,21 @@ test("a copied current DB rejects an old history without losing data and reopens
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "migrated-site-copy-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const sourcePath = path.join(root, "source.db");
-  const source = openSqliteFileKernel<unknown>(sourcePath);
+  const source = openSqliteFileKernel<unknown>({ filePath: sourcePath });
   try {
-    await migrateContentDatabase(source);
+    await migrateContentDatabase({ kernel: source });
     await source.execute(sql`CREATE TABLE fixture_content (id text PRIMARY KEY, body text NOT NULL)`);
     await source.execute(sql`INSERT INTO fixture_content VALUES ('draft', 'keep this disposable content')`);
   } finally { await source.close(); }
   const copyPath = path.join(root, "backup-copy.db");
   fs.copyFileSync(sourcePath, copyPath);
-  const copy = openSqliteFileKernel<unknown>(copyPath);
+  const copy = openSqliteFileKernel<unknown>({ filePath: copyPath });
   try {
     const ledger = await copy.query<{ id: string; checksum: string; applied_at: string }>(sql`SELECT id, checksum, applied_at FROM tovu_migrations ORDER BY id`);
     assert.equal(ledger.length, 44);
     assert.equal(ledger.at(-1)!.id, "0042_optimistic_concurrency_versions");
-    assert.deepEqual((await migrateContentDatabase(copy)).applied, []);
-    await assert.rejects(runMigrations(copy, CONTENT_MIGRATIONS.slice(0, -1)),
+    assert.deepEqual((await migrateContentDatabase({ kernel: copy })).applied, []);
+    await assert.rejects(runMigrations({ kernel: copy, steps: CONTENT_MIGRATIONS.slice(0, -1) }),
       error => error instanceof UnknownAppliedMigrationError && error.ids.includes("0042_optimistic_concurrency_versions"));
     assert.deepEqual(await copy.query(sql`SELECT id, checksum, applied_at FROM tovu_migrations ORDER BY id`), ledger);
     assert.deepEqual(await copy.query(sql`SELECT * FROM fixture_content`),

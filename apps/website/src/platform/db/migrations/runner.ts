@@ -15,14 +15,13 @@ export type MigrationOptions = Omit<JiniMigrationOptions, "ledgerTable" | "appNa
 
 /** Apply a history with the old default ledger; the Jini runner carries the Tovu product name in its errors. */
 export async function runMigrations(
-  kernel: KyselyKernel<unknown>,
-  steps: readonly MigrationStep<KyselyKernel<unknown>>[],
+  { kernel, steps }: { kernel: KyselyKernel<unknown>; steps: readonly MigrationStep<KyselyKernel<unknown>>[] },
   optional: MigrationOptions = {}
 ): Promise<MigrationReport> {
   return jiniRunMigrations(kernel, steps, { ...optional, ledgerTable: optional.ledgerTable ?? LEDGER_TABLE, appName: "Tovu" });
 }
 
 /** The old hasLedger API always checks the content ledger. */
-export function hasLedger(kernel: KyselyKernel<unknown>): Promise<boolean> {
+export function hasLedger({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<boolean> {
   return jiniHasLedger(kernel, LEDGER_TABLE);
 }

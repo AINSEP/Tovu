@@ -27,7 +27,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     const { kernel } = fixture;
     try {
       await seedParityRows(fixture, dialect);
-      await runMigrations(kernel, CONTENT_MIGRATIONS.filter(step => step.id < WORKSPACE_MCP_CASCADE_ID));
+      await runMigrations({ kernel, steps: CONTENT_MIGRATIONS.filter(step => step.id < WORKSPACE_MCP_CASCADE_ID) });
       const before = await snapshot({ kernel });
       const server = before.servers.find(row => row.workspace_id === "ws" && row.server_id === "server")!;
       assert.equal(typeof server.env_secret_id, "string");
@@ -39,7 +39,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         assert.deepEqual(await snapshot({ kernel }), before, "the failed 0021 delete is atomic");
       }
 
-      assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID))).applied, [WORKSPACE_MCP_CASCADE_ID]);
+      assert.deepEqual((await runMigrations({ kernel, steps: CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID) })).applied, [WORKSPACE_MCP_CASCADE_ID]);
       assert.deepEqual(await snapshot({ kernel }), before, "0022 must preserve every stored column");
       for (const pointer of [server.env_secret_id, server.oauth_secret_id]) {
         await assert.rejects(kernel.execute(sql`DELETE FROM secrets_vault WHERE workspace_id = 'ws' AND id = ${String(pointer)}`),
@@ -56,7 +56,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       for (const key of ["vault", "servers", "approvals"] as const) {
         assert.deepEqual(after[key], before[key].filter(row => row.workspace_id !== "ws"), key);
       }
-      assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID))).applied, [], "rerun is a no-op");
+      assert.deepEqual((await runMigrations({ kernel, steps: CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID) })).applied, [], "rerun is a no-op");
     } finally {
       await kernel.close();
     }
@@ -76,7 +76,7 @@ test("sqlite: fresh databases install the same ordering trigger and can delete l
       enabled: 1, env_secret_id: "secret", created_at: stamp, updated_at: stamp });
     await kernel.execute(sql`DELETE FROM workspaces WHERE id = 'ws'`);
     assert.deepEqual(await snapshot({ kernel }), { vault: [], servers: [], approvals: [] });
-    assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS)).applied, [], "fresh ledger is at head");
+    assert.deepEqual((await runMigrations({ kernel, steps: CONTENT_MIGRATIONS })).applied, [], "fresh ledger is at head");
   } finally {
     db.$client.close();
   }

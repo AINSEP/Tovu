@@ -44,7 +44,7 @@ function crashHarness(crash: { op: string; when: "before" | "after" } | undefine
 }
 
 async function acceptedRun(optional: { chats?: string[] } = {}) {
-  const db = openChatDb(":memory:");
+  const db = openChatDb({ filePath: ":memory:" });
   const ledger = createChatRunLedger({ store: db });
   const history = createChatStoreFactory({ store: db })(principal);
   const runs = [];

@@ -33,7 +33,7 @@ export function seedDevCapabilityOrigin(
   },
   _optional: Record<string, never> = {}
 ): Promise<void> {
-  return seedDevCapabilityOriginOn(contentKernel({ store: required.db }), required.seed);
+  return seedDevCapabilityOriginOn({ kernel: contentKernel({ store: required.db }), workspaceId: required.seed.workspaceId, origin: required.seed.origin }, { redirectAllowlist: required.seed.redirectAllowlist, egressAllowlist: required.seed.egressAllowlist });
 }
 
 /** {@link registerConfiguredOriginOn} on `db`: the operator-declared origin, insert-or-correct. The writer is Jini's `registerConfiguredOrigin`. */

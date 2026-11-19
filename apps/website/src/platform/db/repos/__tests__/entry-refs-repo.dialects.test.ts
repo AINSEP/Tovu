@@ -28,7 +28,7 @@ function ref(sourceEntryId: string, targetId: string, overrides: Partial<EntryRe
 }
 
 function repos(kernel: ContentKernel) {
-  return { kernel, repo: entryRefsRepoFor(kernel) };
+  return { kernel, repo: entryRefsRepoFor({ kernel }) };
 }
 
 describeEachDialect("entry refs repo", { tables: ["entry_refs"], make: repos }, (makeRepos) => {

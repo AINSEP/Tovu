@@ -13,7 +13,7 @@ const DATABASE = "tovu_member_external_identities_contract";
 let kernel: ContentKernel;
 before(async () => {
   kernel = openPostgresKernel({ connectionString: freshPostgresDatabase(DATABASE) });
-  await migrateContentDatabase(kernel as KyselyKernel<unknown>);
+  await migrateContentDatabase({ kernel: kernel as KyselyKernel<unknown> });
 });
 after(async () => {
   await kernel?.close();

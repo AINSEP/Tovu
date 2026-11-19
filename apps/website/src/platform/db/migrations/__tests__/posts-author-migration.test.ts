@@ -24,7 +24,7 @@ for (const adapter of eachDialect({ tables: ["posts"], make: kernel => kernel })
       await kernel.execute(sql`INSERT INTO posts (id, workspace_id, title, slug, body_json, status, updated_at, version)
         VALUES ('author-legacy', 'ws', 'Legacy title', 'author-legacy', '{"type":"doc"}', 'published', '2026-01-01', 7)`);
       const options = { ledgerTable: "author_contract_migrations" };
-      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, [step], options)).applied, [step.id]);
+      assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, [step.id]);
       const rows = await kernel.query<{ title: string; body_json: string; status: string; version: number; author: string | null; show_author: boolean | number }>(
         sql`SELECT title, body_json, status, version, author, show_author FROM posts WHERE id = 'author-legacy'`);
       assert.equal(rows.length, 1);
@@ -46,7 +46,7 @@ for (const adapter of eachDialect({ tables: ["posts"], make: kernel => kernel })
       await assert.rejects(kernel.execute(sql`UPDATE posts SET show_author = NULL WHERE id = 'author-new'`),
         /NOT NULL|not-null/);
       await kernel.execute(sql`UPDATE posts SET author = 'Ada & Co.', show_author = true WHERE id = 'author-legacy'`);
-      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, [step], options)).applied, []);
+      assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, []);
       const saved = await kernel.query<{ author: string; show_author: boolean | number }>(
         sql`SELECT author, show_author FROM posts WHERE id = 'author-legacy'`);
       assert.equal(saved[0]?.author, "Ada & Co.");

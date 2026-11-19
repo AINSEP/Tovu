@@ -40,8 +40,8 @@ for (const adapter of eachDialect({ tables: ["domain_binding", "workspaces"], ma
     assert.equal(step.checksum, MIGRATION_CHECKSUMS[DOMAIN_BINDINGS_ID]);
     await kernel.execute(sql.raw("DROP TABLE domain_binding"));
     const options = { ledgerTable: "domain_bindings_step_contract_migrations" };
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, [DOMAIN_BINDINGS_ID]);
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, [], "a second run applies nothing");
+    assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, [DOMAIN_BINDINGS_ID]);
+    assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, [], "a second run applies nothing");
     assert.deepEqual(await kernel.query(sql`SELECT * FROM domain_binding`), []);
   }));
 

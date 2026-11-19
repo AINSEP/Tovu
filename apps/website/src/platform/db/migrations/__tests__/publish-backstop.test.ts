@@ -32,7 +32,7 @@ for (const adapter of adapters) {
     const options = { ledgerTable: "publish_backstop_test_migrations" };
     try {
       assert.equal(await tableExists(kernel, "publish_backstop_log"), false);
-      assert.deepEqual((await runMigrations(kernel, [step], options)).applied, ["0007_publish_backstop"]);
+      assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, ["0007_publish_backstop"]);
       const columns = await listColumns(kernel, "publish_backstop_log");
       assert.deepEqual(columns.map(column => column.name), [
         "id", "workspace_id", "direction", "actor_id", "destination", "reason", "at",
@@ -54,7 +54,7 @@ for (const adapter of adapters) {
       await insert("source-1", "source");
       await insert("destination-1", "destination");
       await assert.rejects(insert("invalid", "sideways"), /check constraint|CHECK constraint/i);
-      assert.deepEqual((await runMigrations(kernel, [step], options)).applied, []);
+      assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, []);
       const rows = await kernel.query<{ direction: string; run_id: string | null; inverses: string }>(
         sql`SELECT direction, run_id, CAST(inverses_json AS text) AS inverses FROM publish_backstop_log ORDER BY direction`);
       assert.deepEqual(rows.map(row => ({ ...row, inverses: JSON.parse(row.inverses) })), [

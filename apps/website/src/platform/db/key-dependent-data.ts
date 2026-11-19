@@ -33,7 +33,7 @@ const WEBHOOK_SUBSCRIPTIONS_TABLE = "webhook_subscriptions";
  * @throws whatever the driver throws for a failed catalog read or probe.
  * @complexity O(t) catalog reads for t tables, plus one `LIMIT 1` probe per sealed column.
  */
-export async function hasKeyDependentData<DB>(kernel: KyselyKernel<DB>): Promise<boolean> {
+export async function hasKeyDependentData<DB>({ kernel }: { kernel: KyselyKernel<DB> }, _optional: Record<string, never> = {}): Promise<boolean> {
   for (const table of await listTables(kernel)) {
     if (isVaultRestoreArtifact({ table })) continue;
     if (await tableHasSealedValue({ kernel, table })) return true;
@@ -75,10 +75,10 @@ async function hasWebhookSubscription<DB>({ kernel }: { kernel: KyselyKernel<DB>
  *
  * @complexity O(n) databases, each {@link hasKeyDependentData}'s cost; stops at the first hit.
  */
-export async function findKeyDependentData(dbPaths: readonly string[]): Promise<boolean> {
+export async function findKeyDependentData({ dbPaths }: { dbPaths: readonly string[] }, _optional: Record<string, never> = {}): Promise<boolean> {
   for (const dbPath of dbPaths) {
     // One file's answer, with open/query failures turned into "has data" without aborting the others.
-    if (await scanOpenedKernel({ open: () => openSqliteFileKernel<unknown>(dbPath, { readOnly: true }) })) return true;
+    if (await scanOpenedKernel({ open: () => openSqliteFileKernel<unknown>({ filePath: dbPath }, { readOnly: true }) })) return true;
   }
   return false;
 }
@@ -97,7 +97,7 @@ export async function scanOpenedKernel({ open }: { open: () => KyselyKernel<unkn
     return true;
   }
   try {
-    return await hasKeyDependentData(kernel);
+    return await hasKeyDependentData({ kernel });
   } catch {
     return true;
   } finally {

@@ -21,7 +21,7 @@ import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-sco
  *   tables) whose kernel to use. The store and its run ledger share that one kernel.
  */
 export function createChatStoreFactory({ store }: { store: ChatKernel | SqliteConnectionSource }, _optional = {}): ChatStoreFactory {
-  const kernel = chatKernel(store);
+  const kernel = chatKernel({ store });
   const ledger = createChatRunLedger({ store: kernel });
   return (principal) => createTenantScopedChatStore({ db: kernel, principal: principal }, { ledger: ledger });
 }
@@ -44,7 +44,7 @@ export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; ch
   // `openChatDb` turns `foreign_keys` on: without it the schema's `ON DELETE CASCADE` is inert, and
   // a test asserting that deleting a conversation removes its messages would pass against
   // production and fail here — or, worse, the reverse.
-  const open = (): ChatKernel => (db ??= chatKernel(openChatDb(":memory:")));
+  const open = (): ChatKernel => (db ??= chatKernel({ store: openChatDb({ filePath: ":memory:" }) }));
   // One kernel per connection (memoized), so building a ledger per use costs nothing and keeps the
   // database lazy.
   const chatRunLedger: ChatRunLedger = {

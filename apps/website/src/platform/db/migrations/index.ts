@@ -148,21 +148,21 @@ export const COMMERCE_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[
  * @complexity One bounded schema step on first activation, one ledger read thereafter.
  */
 export function migrateCommerceDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
-  return runMigrations(kernel, COMMERCE_MIGRATIONS, { ledgerTable: COMMERCE_LEDGER_TABLE });
+  return runMigrations({ kernel, steps: COMMERCE_MIGRATIONS }, { ledgerTable: COMMERCE_LEDGER_TABLE });
 }
 
 /** Brings a project database (`project.db`, SQLite; see `project-store.ts`) to head. */
-export function migrateProjectDatabase(kernel: KyselyKernel<unknown>): Promise<MigrationReport> {
-  return runMigrations(kernel, PROJECT_MIGRATIONS, { ledgerTable: PROJECT_LEDGER_TABLE });
+export function migrateProjectDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
+  return runMigrations({ kernel, steps: PROJECT_MIGRATIONS }, { ledgerTable: PROJECT_LEDGER_TABLE });
 }
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */
-export function migrateContentDatabase(kernel: KyselyKernel<unknown>, optional: {
+export function migrateContentDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, optional: {
   backupPath?: string;
   onBackupError?: (input: { error: unknown; backupPath: string }) => void;
   onBackupComplete?: (input: { backupPath: string }) => Promise<void>;
 } = {}): Promise<MigrationReport> {
-  return runMigrations(kernel, CONTENT_MIGRATIONS, { ...optional, ledgerTable: LEDGER_TABLE });
+  return runMigrations({ kernel, steps: CONTENT_MIGRATIONS }, { ...optional, ledgerTable: LEDGER_TABLE });
 }
 
 /**
@@ -170,9 +170,9 @@ export function migrateContentDatabase(kernel: KyselyKernel<unknown>, optional: 
  * kernel; tables and ledger `tovu_chat_migrations` in the `ai_chat` schema. SQLite: `kernel` is the
  * site's `chat.db`; same ledger, no schema.
  */
-export function migrateChatDatabase(kernel: KyselyKernel<unknown>): Promise<MigrationReport> {
+export function migrateChatDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
   const schema = kernel.dialect === "postgres" ? AI_CHAT_SCHEMA : undefined;
-  return runMigrations(kernel, CHAT_MIGRATIONS, { ledgerTable: CHAT_LEDGER_TABLE, schema });
+  return runMigrations({ kernel, steps: CHAT_MIGRATIONS }, { ledgerTable: CHAT_LEDGER_TABLE, schema });
 }
 
 export { type MigrationOptions, type MigrationReport, runMigrations } from "./runner.js";

@@ -391,7 +391,7 @@ test("G3 remembered: Allow for this chat survives a restart — it is kept in ch
   const dir = mkdtempSync(join(tmpdir(), "g3-chat-approvals-"));
   try {
     const path = join(dir, "chat.db");
-    const first = openChatDb(path);
+  const first = openChatDb({ filePath: path });
     first
       .prepare(`INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES (?, ?, 'user', ?, 0, 0)`)
       .run("chat-a", WORKSPACE_ID, PRINCIPAL_ID);
@@ -401,7 +401,7 @@ test("G3 remembered: Allow for this chat survives a restart — it is kept in ch
     first.close();
 
     // A fresh process: a new handle on the same file, new stores, a new registry.
-    const second = openChatDb(path);
+  const second = openChatDb({ filePath: path });
     const after = harness({ always, chat: createSqliteConversationToolApprovalStore({ store: second }) });
     assert.equal(await runsWithoutCard(after, "assistant_set_instructions", { conversation: "chat-a" }), true);
     assert.equal(await runsWithoutCard(after, "assistant_set_instructions", { conversation: "chat-b" }), false);
@@ -419,7 +419,7 @@ test("G3 remembered: Allow for this chat survives a restart — it is kept in ch
 test("G3 remembered: a chat the store cannot record in (not in ai_chats) still runs the approved call once, then asks again", async () => {
   const dir = mkdtempSync(join(tmpdir(), "g3-chat-approvals-"));
   try {
-    const db = openChatDb(join(dir, "chat.db"));
+  const db = openChatDb({ filePath: join(dir, "chat.db") });
     const h = harness({ always: new InMemoryExternalMcpToolApprovalRepo(), chat: createSqliteConversationToolApprovalStore({ store: db }) });
     await callAndAnswer(h, "assistant_set_instructions", { decision: "confirm", choice: "chat" }, { conversation: "chat-missing" });
     assert.equal(h.sent.length, 1);

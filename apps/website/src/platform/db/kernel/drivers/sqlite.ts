@@ -25,7 +25,7 @@ export const sqliteKernel: <DB>(source: SqliteConnectionSource) => SqliteKernel<
 export const closeSqliteConnection: (source: SqliteConnectionSource) => void = jiniCloseSqliteConnection;
 
 /** Open with Tovu's driver; Jini owns the kernel, cache and file turn locks. */
-export function openSqliteFileKernel<DB>(filePath: string, optional: { readOnly?: boolean } = {}): SqliteKernel<DB> {
+export function openSqliteFileKernel<DB>({ filePath }: { filePath: string }, optional: { readOnly?: boolean } = {}): SqliteKernel<DB> {
   return jiniOpenSqliteFileKernel<DB>({ filePath, open: (p, o) => new Database(p, o) }, optional);
 }
 
@@ -35,12 +35,12 @@ export function openMemorySqliteKernel<DB>(): SqliteKernel<DB> {
 }
 
 /** Jini returns the original handle; this boundary retains its native Tovu type. */
-export function sqliteClientOf(source: SqliteConnectionSource): Database.Database {
+export function sqliteClientOf({ source }: { source: SqliteConnectionSource }, _optional: Record<string, never> = {}): Database.Database {
   return jiniSqliteClientOf(source) as Database.Database;
 }
 
 /** Kernels opened here carry Tovu's native handle in Jini's shared reverse cache. */
-export function sqliteConnectionOf<DB>(kernel: KyselyKernel<DB>): Database.Database | undefined {
+export function sqliteConnectionOf<DB>({ kernel }: { kernel: KyselyKernel<DB> }, _optional: Record<string, never> = {}): Database.Database | undefined {
   return jiniSqliteConnectionOf(kernel) as Database.Database | undefined;
 }
 

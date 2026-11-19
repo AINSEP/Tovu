@@ -126,7 +126,7 @@ test("independent SQLite connections race for one OAuth lease and persist exactl
     first = openContentDb(file);
     first.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WORKSPACE, WORKSPACE, WORKSPACE, NOW);
     await prepareVault(contentKernel({ store: first }));
-    second = openSqliteContentConnection(file);
+    second = openSqliteContentConnection({ filePath: file });
     const repos = [new SqlExternalMcpServerRepo(contentKernel({ store: first })), new SqlExternalMcpServerRepo(contentKernel({ store: second }))];
     await repos[0].upsert(makeOAuthRecord());
     const claims = [

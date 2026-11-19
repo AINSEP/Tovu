@@ -18,7 +18,7 @@ function call(deps: AssistantHistoryHostDeps, id: string, userId: string, input:
 }
 
 test('binds the current user and site to real persistence, including owner; refuses cross-user IDs', async t => {
-  const db = openChatDb(':memory:');
+  const db = openChatDb({ filePath: ':memory:' });
   t.after(() => db.close());
   const chatHistory = createChatStoreFactory({ store: db });
   const grants: unknown[] = [];

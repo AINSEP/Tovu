@@ -709,7 +709,7 @@ export type PluginSemanticColumnClass =
  * before it can claim the coverage this manifest gives the core schema — silently defaulting either
  * way here would misrepresent that review as having happened.
  */
-export function classifyPluginColumn(decl: ColumnDecl): PluginSemanticColumnClass {
+export function classifyPluginColumn(decl: ColumnDecl, _optional: Record<string, never> = {}): PluginSemanticColumnClass {
   const type: PluginColumnType = decl.type;
   switch (type) {
     case "INTEGER":

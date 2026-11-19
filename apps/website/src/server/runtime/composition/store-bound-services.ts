@@ -28,7 +28,7 @@ export type { StoreBoundServices } from "./store-bound-contracts.js";
 export function pgOnlyServices(kernel: ContentKernel): StoreBoundServices {
   return {
     dbOps: new PostgresDbOpsAdapter(),
-    stampWatermark: kernelStampWatermark(kernel),
+    stampWatermark: kernelStampWatermark({ kernel }),
   };
 }
 

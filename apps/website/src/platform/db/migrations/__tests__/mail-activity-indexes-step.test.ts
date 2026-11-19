@@ -38,17 +38,17 @@ for (const adapter of eachDialect({ tables: ["mail_send_ledger", "workspaces"], 
       // The dialect matrix built the head schema; rebuild 0023 alone, then apply 0029 to it.
       for (const table of ["mail_activity_attempts", "mail_suppression_removals", "mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture"]) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
       const options = { ledgerTable: "mail_activity_indexes_step_migrations" };
-      await runMigrations(kernel, [ledgers], options);
+      await runMigrations({ kernel, steps: [ledgers] }, options);
       await kernel.execute(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, created_at, updated_at)
         VALUES ('w', 'members:signin:h', 'a@x.test', 'p', 'transactional', 'smtp', 'sent', ${AT}, ${AT})`);
       assert.deepEqual(await indexNames(kernel, name), ["idx_mail_capture_workspace_created"]);
-      assert.deepEqual((await runMigrations(kernel, [ledgers, step], options)).applied, [MAIL_ACTIVITY_INDEXES_ID]);
+      assert.deepEqual((await runMigrations({ kernel, steps: [ledgers, step] }, options)).applied, [MAIL_ACTIVITY_INDEXES_ID]);
       assert.deepEqual(await indexNames(kernel, name), ["idx_mail_attempts_workspace_created", "idx_mail_capture_workspace_created", "idx_mail_feedback_inbox_workspace_message", "idx_mail_send_ledger_workspace_created"]);
       assert.deepEqual(await kernel.query(sql`SELECT idempotency_key, outcome FROM mail_send_ledger`), [{ idempotency_key: "members:signin:h", outcome: "sent" }]);
       const [historical] = await kernel.query<{ activity_id: string; activity_retained: number }>(sql`SELECT activity_id, activity_retained FROM mail_send_ledger`);
       assert.match(historical!.activity_id, /^[a-f0-9]{32}$/);
       assert.equal(historical!.activity_retained, 1);
-      assert.deepEqual((await runMigrations(kernel, [ledgers, step], options)).applied, [], "a second run applies nothing");
+      assert.deepEqual((await runMigrations({ kernel, steps: [ledgers, step] }, options)).applied, [], "a second run applies nothing");
       assert.deepEqual(await kernel.query(sql`SELECT activity_id, activity_retained FROM mail_send_ledger`), [historical], "a rerun preserves the backfilled identity");
       assert.deepEqual(await kernel.query(sql`SELECT * FROM mail_activity_attempts`), [], "historical sends remain in the ledger projection");
     } finally {

@@ -39,7 +39,7 @@ async function freshKernels(suffix: string, connections = 1): Promise<ContentKer
   databases.push(name);
   const kernels = Array.from({ length: connections }, () => openPostgresKernel<ContentDatabase>({ connectionString: url }));
   opened.push(...kernels);
-  await migrateContentDatabase(kernels[0] as unknown as KyselyKernel<unknown>);
+  await migrateContentDatabase({ kernel: kernels[0] as unknown as KyselyKernel<unknown> });
   return kernels;
 }
 
@@ -55,8 +55,8 @@ async function snapshot(kernel: ContentKernel) {
 
 test("runner-to-head, then prepare twice: one watermark row, one seeded workspace with its posts and presentation", async () => {
   const [kernel] = await freshKernels("twice");
-  await prepareContentStore(kernel!, { seed });
-  await prepareContentStore(kernel!, { seed });
+  await prepareContentStore({ kernel: kernel! }, { seed });
+  await prepareContentStore({ kernel: kernel! }, { seed });
 
   const watermark = await kernel!.run((db) => db.selectFrom("database_write_watermark").select(["id", "value"]).execute());
   assert.deepEqual(watermark.map((row) => ({ id: Number(row.id), value: Number(row.value) })), [{ id: 1, value: 0 }]);
@@ -70,7 +70,7 @@ test("runner-to-head, then prepare twice: one watermark row, one seeded workspac
 
 test("a restart never overwrites operator edits: edited, deleted and re-themed rows survive a second prepare byte for byte", async () => {
   const [kernel] = await freshKernels("edits");
-  await prepareContentStore(kernel!, { seed });
+  await prepareContentStore({ kernel: kernel! }, { seed });
   await kernel!.run(async (db) => {
     await db.updateTable("posts").set({ title: "Operator's edited title" }).where("id", "=", seededPosts[0]!.id).execute();
     await db.deleteFrom("posts").where("id", "=", seededPosts[1]!.id).execute();
@@ -79,7 +79,7 @@ test("a restart never overwrites operator edits: edited, deleted and re-themed r
   const before = await snapshot(kernel!);
   assert.equal(before.posts.length, seededPosts.length - 1);
 
-  await prepareContentStore(kernel!, { seed });
+  await prepareContentStore({ kernel: kernel! }, { seed });
   assert.deepEqual(await snapshot(kernel!), before);
 });
 
@@ -88,7 +88,7 @@ test("an existing workspace with the seed's SLUG but a different id is never see
   await kernel!.run((db) =>
     db.insertInto("workspaces").values({ id: "operator-workspace", name: "Operator's site", slug: seededWorkspace.slug, created_at: "2026-01-01T00:00:00.000Z" }).execute()
   );
-  await prepareContentStore(kernel!, { seed });
+  await prepareContentStore({ kernel: kernel! }, { seed });
   const after = await snapshot(kernel!);
   assert.deepEqual(after.workspaces, [{ id: "operator-workspace", name: "Operator's site", slug: seededWorkspace.slug, created_at: "2026-01-01T00:00:00.000Z" }]);
   assert.deepEqual(after.posts, []);
@@ -112,7 +112,7 @@ test("two processes booting at once: the second prepare WAITS on the seed lock t
 
   // "Process B" boots. Without the lock it would read no workspace and insert the seed at once.
   let secondDone = false;
-  const booting = prepareContentStore(second!, { seed }).then(() => { secondDone = true; });
+  const booting = prepareContentStore({ kernel: second! }, { seed }).then(() => { secondDone = true; });
   try {
     await new Promise((resolve) => setTimeout(resolve, 400));
     assert.equal(secondDone, false, "the second boot must block on the seed lock while the first holds it");
@@ -123,7 +123,7 @@ test("two processes booting at once: the second prepare WAITS on the seed lock t
     await booting;
   }
   // And a real race of three more boots on the same database still leaves exactly one seed.
-  await Promise.all([prepareContentStore(first!, { seed }), prepareContentStore(second!, { seed }), prepareContentStore(first!, { seed })]);
+  await Promise.all([prepareContentStore({ kernel: first! }, { seed }), prepareContentStore({ kernel: second! }, { seed }), prepareContentStore({ kernel: first! }, { seed })]);
 
   const after = await snapshot(first!);
   assert.deepEqual(after.workspaces.map((row) => row.id), [seededWorkspace.id]);

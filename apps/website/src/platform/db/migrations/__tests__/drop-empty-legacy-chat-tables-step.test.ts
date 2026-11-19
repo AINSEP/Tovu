@@ -37,7 +37,7 @@ describe(DROP_EMPTY_LEGACY_CHAT_TABLES_ID, () => {
   test("SQLite: the three empty legacy chat tables are dropped", async () => {
     const kernel = legacyContentKernel();
     assert.deepEqual((await legacyChatTablesIn(kernel)).sort(), [...LEGACY_CHAT_TABLES].sort(), "the legacy chain creates them");
-    const report = await migrateContentDatabase(kernel);
+    const report = await migrateContentDatabase({ kernel });
     assert.ok(report.applied.includes(DROP_EMPTY_LEGACY_CHAT_TABLES_ID));
     assert.deepEqual(await legacyChatTablesIn(kernel), []);
   });
@@ -45,7 +45,7 @@ describe(DROP_EMPTY_LEGACY_CHAT_TABLES_ID, () => {
   test("SQLite: a table with rows is kept untouched and reported; its empty siblings still go", async () => {
     const kernel = legacyContentKernel();
     await kernel.execute(sql`INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('c1', 'ws-1', 'user', 'user-1', 1, 1)`);
-    const report = await migrateContentDatabase(kernel);
+    const report = await migrateContentDatabase({ kernel });
     assert.deepEqual(await legacyChatTablesIn(kernel), ["ai_chats"]);
     const [{ n }] = await kernel.query<{ n: number }>(sql`SELECT count(*) AS n FROM ai_chats`);
     assert.equal(n, 1, "the surviving row is not touched");
@@ -55,14 +55,14 @@ describe(DROP_EMPTY_LEGACY_CHAT_TABLES_ID, () => {
   test("SQLite: a brand-new database (the runner's own chain) ends without them", async () => {
     const kernel = openMemorySqliteKernel<unknown>();
     opened.push(kernel);
-    await migrateContentDatabase(kernel);
+    await migrateContentDatabase({ kernel });
     assert.deepEqual(await legacyChatTablesIn(kernel), []);
   });
 
   test("PGlite: recorded, nothing in public changes", async () => {
     const kernel = openPgliteKernel<unknown>();
     opened.push(kernel);
-    const report = await migrateContentDatabase(kernel);
+    const report = await migrateContentDatabase({ kernel });
     assert.ok(report.applied.includes(DROP_EMPTY_LEGACY_CHAT_TABLES_ID));
     assert.deepEqual(await legacyChatTablesIn(kernel), []);
   });

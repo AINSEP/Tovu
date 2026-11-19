@@ -31,10 +31,10 @@ for (const adapter of eachDialect({ tables: ["mail_suppression", "workspaces"], 
       // The dialect matrix built the head schema; rebuild 0023 alone, then apply 0030 to it.
       for (const table of ["mail_suppression_removals", "mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture"]) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
       const options = { ledgerTable: "mail_suppression_admin_step_migrations" };
-      await runMigrations(kernel, [ledgers], options);
+      await runMigrations({ kernel, steps: [ledgers] }, options);
       await kernel.execute(sql`INSERT INTO mail_suppression (workspace_id, normalized_address, scope, reason, created_at) VALUES ('w', 'a@x.test', 'all', 'bounced', ${AT})`);
-      assert.deepEqual((await runMigrations(kernel, [ledgers, step], options)).applied, [MAIL_SUPPRESSION_ADMIN_ID]);
-      assert.deepEqual((await runMigrations(kernel, [ledgers, step], options)).applied, [], "a second run applies nothing");
+      assert.deepEqual((await runMigrations({ kernel, steps: [ledgers, step] }, options)).applied, [MAIL_SUPPRESSION_ADMIN_ID]);
+      assert.deepEqual((await runMigrations({ kernel, steps: [ledgers, step] }, options)).applied, [], "a second run applies nothing");
       assert.deepEqual(await kernel.query(sql`SELECT normalized_address FROM mail_suppression`), [{ normalized_address: "a@x.test" }]);
       const row = (id: string, scope: string) => sql`INSERT INTO mail_suppression_removals (id, workspace_id, normalized_address, scope, suppression_reason, suppressed_at, removal_reason, removed_by, removed_at)
         VALUES (${id}, 'w', 'a@x.test', ${scope}, 'bounced', ${AT}, 'mailbox fixed', 'owner', ${AT})`;

@@ -35,7 +35,7 @@ async function store(t: TestContext, dialect: "sqlite" | "postgres", suffix: str
   let open: () => ContentKernel;
   if (dialect === "sqlite") {
     closeSqliteConnection(openContentDb(filePath));
-    open = () => openSqliteFileKernel(filePath);
+    open = () => openSqliteFileKernel({ filePath });
   } else {
     const connectionString = freshPostgresDatabase(database);
     open = () => openPostgresKernel({ connectionString });
@@ -46,7 +46,7 @@ async function store(t: TestContext, dialect: "sqlite" | "postgres", suffix: str
     if (dialect === "postgres") dropDatabase({ database });
     rmSync(dir, { recursive: true, force: true });
   });
-  if (dialect === "postgres") await migrateContentDatabase(db as KyselyKernel<unknown>);
+  if (dialect === "postgres") await migrateContentDatabase({ kernel: db as KyselyKernel<unknown> });
   return { db, restart: async () => { await db.close(); db = open(); return db; } };
 }
 

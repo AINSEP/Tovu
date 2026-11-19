@@ -30,18 +30,18 @@ for (const adapter of eachDialect({ tables: ["mail_activity_attempts", "mail_sen
       for (const table of ["mail_activity_attempts", "mail_suppression_removals", "mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture"]) await db.execute(sql`DROP TABLE ${sql.table(table)}`);
       const previous = CONTENT_MIGRATIONS.filter(entry => ["0023_mail_ledgers", "0029_mail_activity_indexes", "0030_mail_suppression_admin"].includes(entry.id));
       const options = { ledgerTable: "mail_retention_step_migrations" };
-      await runMigrations(db, previous, options);
+      await runMigrations({ kernel: db, steps: previous }, options);
       const keys = ["members:signin:one", "newsletter:confirm-email:one", "forms:notify:one", "mail:test:one", "newsletter:one", "opaque"];
       for (const [index, key] of keys.entries()) {
         await db.execute(sql`INSERT INTO mail_activity_attempts (id,workspace_id,idempotency_key,recipient,effective_recipient,delivery_mode,lane,provider_id,outcome,created_at,updated_at)
           VALUES (${String(index)},'w',${key},'a@x.test','a@x.test','off','transactional','smtp','sent',${AT},${AT})`);
       }
       const upgraded = [...previous, step];
-      assert.deepEqual((await runMigrations(db, upgraded, options)).applied, [MAIL_ACTIVITY_RETENTION_ID]);
+      assert.deepEqual((await runMigrations({ kernel: db, steps: upgraded }, options)).applied, [MAIL_ACTIVITY_RETENTION_ID]);
       assert.deepEqual(await indexes(), INDEXES, "upgrade matches fresh bootstrap");
       const rows = await db.query(sql`SELECT use_id, outcome FROM mail_activity_attempts ORDER BY id`);
       assert.deepEqual(rows, ["sign_in", "newsletter_confirmation", "form_notification", "test", "newsletter", "unknown"].map(use_id => ({ use_id, outcome: "sent" })));
-      assert.deepEqual((await runMigrations(db, upgraded, options)).applied, []);
+      assert.deepEqual((await runMigrations({ kernel: db, steps: upgraded }, options)).applied, []);
       assert.deepEqual(await db.query(sql`SELECT use_id, outcome FROM mail_activity_attempts ORDER BY id`), rows);
     } finally {
       if (adapter.dialect === "sqlite") await db.close();

@@ -50,7 +50,7 @@ function mkSiteDir(): string {
 
 /** One expired and one unexpired guest chat, written straight into a fresh chat.db. */
 function seedGuestChats(chatDbPath: string): void {
-  const chat = openChatDb(chatDbPath);
+  const chat = openChatDb({ filePath: chatDbPath });
   try {
     const now = Date.now();
     const insert = chat.prepare(
@@ -65,7 +65,7 @@ function seedGuestChats(chatDbPath: string): void {
 }
 
 function chatIds(chatDbPath: string): string[] {
-  const chat = openChatDb(chatDbPath);
+  const chat = openChatDb({ filePath: chatDbPath });
   try {
     return (chat.prepare("SELECT id FROM ai_chats ORDER BY id").all() as { id: string }[]).map((row) => row.id);
   } finally {
@@ -126,7 +126,7 @@ test("sqlite: a chat.db that cannot open leaves a caller-supplied content.db ope
       openSiteStore({ storage: { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath, role: "owner" }, { db }),
       /unable to open database file/
     );
-    assert.equal(sqliteClientOf(db).open, true, "the caller's handle is the caller's to close");
+    assert.equal(sqliteClientOf({ source: db }).open, true, "the caller's handle is the caller's to close");
   } finally {
     closeSqliteConnection(db);
     fs.rmSync(dir, { recursive: true, force: true });
@@ -143,8 +143,8 @@ test("sqlite: closing a store over a caller-supplied content.db closes chat.db a
     );
     assert.equal(store.sqliteDb, db, "the supplied handle backs the content kernel");
     await store.close();
-    assert.equal(sqliteConnectionOf(store.chat)?.open, false, "chat.db, opened by the call, is closed");
-    assert.equal(sqliteClientOf(db).open, true, "content.db, supplied by the caller, stays open");
+    assert.equal(sqliteConnectionOf({ kernel: store.chat })?.open, false, "chat.db, opened by the call, is closed");
+    assert.equal(sqliteClientOf({ source: db }).open, true, "content.db, supplied by the caller, stays open");
   } finally {
     closeSqliteConnection(db);
     fs.rmSync(dir, { recursive: true, force: true });
@@ -291,7 +291,7 @@ test("closing the API process's store waits for the sweep pass in flight before 
     armed = true;
     await waitFor(() => closing !== undefined, "a pass to start, and the store to start closing during it");
     await closing;
-    assert.equal(sqliteConnectionOf(store!.chat)?.open, false, "chat.db is closed");
+    assert.equal(sqliteConnectionOf({ kernel: store!.chat })?.open, false, "chat.db is closed");
     assert.deepEqual(chatIds(chatDbPath), [], "the pass in flight finished its delete before chat.db closed");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

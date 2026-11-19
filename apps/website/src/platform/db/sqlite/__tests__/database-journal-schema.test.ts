@@ -11,7 +11,7 @@ import { SqliteMigrationRunsRepo } from "../database-journal-repo.js";
 test("failed journal DDL rolls back the legacy rename and can be retried without losing rows", async () => {
   const kernel = openMemorySqliteKernel<JournalDatabase>();
   try {
-    await applyDatabaseJournalSchema(kernel);
+    await applyDatabaseJournalSchema({ kernel });
     await kernel.execute(sql`ALTER TABLE database_ledger RENAME TO storage_ledger`);
     await kernel.execute(sql`INSERT INTO storage_ledger (id, site_id, kind, outcome, created_at)
       VALUES ('incident-1', 'site-a', 'restore.executed', 'ok', '2026-10-04T00:00:00.000Z')`);
@@ -19,14 +19,14 @@ test("failed journal DDL rolls back the legacy rename and can be retried without
     await kernel.execute(sql`DROP TABLE restore_points`);
     // All CREATE IF NOT EXISTS statements before the index can run; only this missing column fails.
     await kernel.execute(sql`CREATE TABLE migration_runs (id text PRIMARY KEY)`);
-    await assert.rejects(applyDatabaseJournalSchema(kernel), /no such column: site_id/);
+    await assert.rejects(applyDatabaseJournalSchema({ kernel }), /no such column: site_id/);
     assert.deepEqual(await kernel.query(sql`SELECT id, kind FROM storage_ledger`), [{ id: "incident-1", kind: "restore.executed" }]);
     assert.deepEqual(await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`),
       [{ name: "migration_runs" }, { name: "storage_ledger" }]);
     await kernel.execute(sql`DROP TABLE migration_runs`);
-    await applyDatabaseJournalSchema(kernel);
+    await applyDatabaseJournalSchema({ kernel });
     assert.deepEqual(await kernel.query(sql`SELECT id, kind FROM database_ledger`), [{ id: "incident-1", kind: "restore.executed" }]);
-    await applyDatabaseJournalSchema(kernel);
+    await applyDatabaseJournalSchema({ kernel });
     assert.deepEqual(await kernel.query(sql`SELECT id, kind FROM database_ledger`), [{ id: "incident-1", kind: "restore.executed" }]);
   } finally {
     await kernel.close();
@@ -37,12 +37,12 @@ test("failed journal DDL rolls back the legacy rename and can be retried without
 test("a journal containing both ledger names preserves both sets of incidents", async () => {
   const kernel = openMemorySqliteKernel<JournalDatabase>();
   try {
-    await applyDatabaseJournalSchema(kernel);
+    await applyDatabaseJournalSchema({ kernel });
     await kernel.execute(sql`INSERT INTO database_ledger (id, site_id, kind, outcome, created_at)
       VALUES ('current', 'site-a', 'restore.executed', 'ok', '2026-10-04T00:00:00.000Z')`);
     await kernel.execute(sql`CREATE TABLE storage_ledger (id text PRIMARY KEY, payload text)`);
     await kernel.execute(sql`INSERT INTO storage_ledger VALUES ('legacy', 'legacy incident')`);
-    await applyDatabaseJournalSchema(kernel);
+    await applyDatabaseJournalSchema({ kernel });
     assert.deepEqual(await kernel.query(sql`SELECT id, kind FROM database_ledger`), [{ id: "current", kind: "restore.executed" }]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM storage_ledger`), [{ id: "legacy", payload: "legacy incident" }]);
   } finally {
@@ -54,7 +54,7 @@ test("a journal containing both ledger names preserves both sets of incidents", 
 test("all five terminal statuses are excluded from boot recovery while an active run remains", async () => {
   const kernel = openMemorySqliteKernel<JournalDatabase>();
   try {
-    await applyDatabaseJournalSchema(kernel);
+    await applyDatabaseJournalSchema({ kernel });
     const repo = new SqliteMigrationRunsRepo({ db: kernel, siteId: "site-a" });
     for (const status of ["DONE", "ABORTED_SAFE", "RESTORED", "RESTORE_FAILED", "ROLLBACK_TO_BLUE"]) {
       await repo.insert({ id: status, dialect: "sqlite", status, createdAt: "t0", updatedAt: "t0" });

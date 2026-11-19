@@ -103,7 +103,7 @@ const DATABASE_JOURNAL_DDL = [
  * pre-0001 `storage_ledger` to `database_ledger`, then creates whatever is missing. Idempotent.
  * Called on the kernel's own (ungated) connection before any repo query runs.
  */
-export async function applyDatabaseJournalSchema(kernel: JournalKernel): Promise<void> {
+export async function applyDatabaseJournalSchema({ kernel }: { kernel: JournalKernel }, _optional: Record<string, never> = {}): Promise<void> {
   await kernel.transaction(async () => {
     const tables = new Set(
       (await kernel.run((db) => db.introspection.getTables())).map((table) => table.name)

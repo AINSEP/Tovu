@@ -33,7 +33,7 @@ test("openContentDb closes the host's handle and rethrows when an existing file 
 });
 
 test("migrating an in-memory content database applies the chain without taking a file copy", async () => {
-  const db = openSqliteContentConnection(":memory:");
+  const db = openSqliteContentConnection({ filePath: ":memory:" });
   try {
     const report = await migrateSqliteContentFile({ db, filePath: ":memory:" });
     assert.ok(report.applied.length > 0);

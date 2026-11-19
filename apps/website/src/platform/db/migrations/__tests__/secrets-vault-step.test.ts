@@ -181,7 +181,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         if (!omitted && /^INSERT INTO secrets_vault/.test(compiled)) { omitted = true; return; }
         return execute(statement);
       };
-      await assert.rejects(runMigrations(kernel, [...previous, vaultStep]), /coverage mismatch/);
+      await assert.rejects(runMigrations({ kernel, steps: [...previous, vaultStep] }), /coverage mismatch/);
       assert.equal(omitted, true);
       assert.equal(dropCalled, false);
       assert.deepEqual(await readSchemaShape(kernel), before);
@@ -252,7 +252,7 @@ test("SQLite ordinary transfer excludes the vault and all restore artifacts whil
     await kernel.execute(sql`INSERT INTO _vault_backup_tovu_migrations VALUES ('restore-only')`);
     await kernel.execute(sql`CREATE TABLE p_demo__articles (id text PRIMARY KEY, title text)`);
     await kernel.execute(sql`INSERT INTO p_demo__articles VALUES ('live','Visible content')`);
-    const source = openSqliteSnapshotSource({ bytes: sqliteConnectionOf(kernel)!.serialize() }, { open: data => openSqliteSnapshot({ data }) });
+    const source = openSqliteSnapshotSource({ bytes: sqliteConnectionOf({ kernel })!.serialize() }, { open: data => openSqliteSnapshot({ data }) });
     try {
       const plan = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
       assert.equal(plan.tables.some(table => table.name === "secrets_vault"), false);

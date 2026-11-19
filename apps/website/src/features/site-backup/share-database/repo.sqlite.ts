@@ -326,7 +326,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     const space = await (optional.statfs ?? statfs)(staging);
     if (space.bavail * space.bsize < required.snapshot.length + 16 * 1024 * 1024) throw new SiteShareRefusal({ code: "INSUFFICIENT_STORAGE", message: "Insufficient private staging space for this database share." });
     await writeFile(filePath, required.snapshot, { flag: "wx", mode: 0o600 });
-    source = openSqliteFileKernel<Tables>(filePath, { readOnly: true });
+    source = openSqliteFileKernel<Tables>({ filePath }, { readOnly: true });
     fresh = openContentDb({ filePath: ":memory:" });
     const target = sqliteKernel<Tables>(fresh);
     const from = source;
@@ -342,7 +342,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     ];
     // Older shares included Trash/orphan sidecars. v2 emits only retained owners, so
     // arbitrary unreferenced archive media must refuse rather than be pruned on import.
-    const bytes = sqliteClientOf(fresh).serialize();
+    const bytes = sqliteClientOf({ source: fresh }).serialize();
     return { bytes, media, documents, credentialWarnings, archiveMedia: await archiveMediaSources({ target }) };
   } finally {
     await source?.close();
@@ -397,9 +397,9 @@ export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: rea
   try {
     const file = path.join(staging, "content.db");
     await writeFile(file, required.bytes, { mode: 0o600, flag: "wx" });
-    target = openSqliteFileKernel<Tables>(file);
+    target = openSqliteFileKernel<Tables>({ filePath: file });
     await rewriteMediaRows({ target, copies: required.copies }, optional);
-    const connection = sqliteConnectionOf(target);
+    const connection = sqliteConnectionOf({ kernel: target });
     if (!connection) throw new Error("Share database has no SQLite connection");
     const bytes = connection.serialize();
     return bytes;

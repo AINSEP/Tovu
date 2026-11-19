@@ -76,7 +76,7 @@ function seedChatRows(db: Database.Database, count: number, prefix: string): voi
 
 test("checkForOrphanedChatRows reports the exact per-table counts still sitting in content.db", async () => {
   const { tmpDir, contentDbPath } = makeFixture();
-  const contentDb = openChatDb(contentDbPath);
+  const contentDb = openChatDb({ filePath: contentDbPath });
   try {
     seedChatRows(contentDb, 3, "orphan");
 
@@ -93,7 +93,7 @@ test("checkForOrphanedChatRows reports the exact per-table counts still sitting 
 
 test("checkForOrphanedChatRows never writes: it succeeds against a strictly read-only connection", async () => {
   const { tmpDir, contentDbPath } = makeFixture();
-  const writable = openChatDb(contentDbPath);
+  const writable = openChatDb({ filePath: contentDbPath });
   seedChatRows(writable, 2, "ro");
   writable.close();
 
@@ -111,8 +111,8 @@ test("checkForOrphanedChatRows never writes: it succeeds against a strictly read
 
 test("warnOnOrphanedChatRows is a silent no-op when content.db holds no chat rows", async () => {
   const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
-  const contentDb = openChatDb(contentDbPath);
-  const chatDb = openChatDb(chatDbPath);
+  const contentDb = openChatDb({ filePath: contentDbPath });
+  const chatDb = openChatDb({ filePath: chatDbPath });
   try {
     seedChatRows(chatDb, 5, "already-migrated");
     const logged: string[] = [];
@@ -159,7 +159,7 @@ test("warnOnOrphanedChatRows tolerates a content.db that has no chat tables at a
 
 test("warnOnOrphanedChatRows names the counts, both database paths, and the exact recovery command", async () => {
   const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
-  const contentDb = openChatDb(contentDbPath);
+  const contentDb = openChatDb({ filePath: contentDbPath });
   try {
     seedChatRows(contentDb, 4, "loud");
     const logged: string[] = [];
@@ -194,8 +194,8 @@ test("warnOnOrphanedChatRows names the counts, both database paths, and the exac
 
 test("warnOnOrphanedChatRows still reports when SOME rows were already copied into chat.db (interrupted migration)", async () => {
   const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
-  const contentDb = openChatDb(contentDbPath);
-  const chatDb = openChatDb(chatDbPath);
+  const contentDb = openChatDb({ filePath: contentDbPath });
+  const chatDb = openChatDb({ filePath: chatDbPath });
   try {
     seedChatRows(contentDb, 2, "both");
     seedChatRows(chatDb, 2, "both"); // same ids — a crashed run that copied but never deleted
@@ -215,8 +215,8 @@ test("warnOnOrphanedChatRows still reports when SOME rows were already copied in
 
 test("warnOnOrphanedChatRows is safe to run twice: same result, and neither database changes", async () => {
   const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
-  const contentDb = openChatDb(contentDbPath);
-  const chatDb = openChatDb(chatDbPath);
+  const contentDb = openChatDb({ filePath: contentDbPath });
+  const chatDb = openChatDb({ filePath: chatDbPath });
   try {
     seedChatRows(contentDb, 3, "twice");
     seedChatRows(chatDb, 1, "existing");
@@ -247,10 +247,10 @@ test("warnOnOrphanedChatRows is safe to run twice: same result, and neither data
 });
 
 test("formatOrphanedChatRowsWarning renders nothing-to-say state as an empty string", () => {
-  const empty = formatOrphanedChatRowsWarning(
-    { orphaned: false, total: 0, counts: { aiChats: 0, aiChatMessages: 0, assistantAgentSessions: 0 } },
-    { contentDbPath: "/x/content.db", chatDbPath: "/x/chat.db" }
-  );
+  const empty = formatOrphanedChatRowsWarning({
+    check: { orphaned: false, total: 0, counts: { aiChats: 0, aiChatMessages: 0, assistantAgentSessions: 0 } },
+    contentDbPath: "/x/content.db", chatDbPath: "/x/chat.db"
+  });
   assert.equal(empty, "", "a clean site has no message; the emitter relies on this to stay silent");
 });
 
@@ -297,9 +297,9 @@ test("createSiteRouteDeps emits the orphan warning with this isolated site's cou
   let store: import("#src/server/runtime/composition/open-site-store").SiteStore | undefined;
   try {
     db.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES ('ws-1', 'Orphan Test', 'orphan-test', '2026-09-10T00:00:00.000Z')").run();
-    const legacy = openChatDb(contentDbPath);
+    const legacy = openChatDb({ filePath: contentDbPath });
     try { seedChatRows(legacy, 2, "boot-orphan"); } finally { legacy.close(); }
-    const chat = openChatDb(chatDbPath);
+    const chat = openChatDb({ filePath: chatDbPath });
     try { seedChatRows(chat, 5, "already-in-chat"); } finally { chat.close(); }
     const deps = await createSiteRouteDeps({}, { dbPath: contentDbPath, overrides: {
       db, workspaceId: "ws-1", themesDir: path.join(tmpDir, "themes"), uploadsDir: path.join(tmpDir, "uploads"),
@@ -311,9 +311,9 @@ test("createSiteRouteDeps emits the orphan warning with this isolated site's cou
     await new Promise<void>((resolve) => setImmediate(resolve));
     const warnings = logged.filter((message) => message.includes("UNMIGRATED CONVERSATIONS"));
     assert.equal(warnings.length, 1);
-    assert.equal(warnings[0], formatOrphanedChatRowsWarning({
+    assert.equal(warnings[0], formatOrphanedChatRowsWarning({ check: {
       orphaned: true, total: 6, counts: { aiChats: 2, aiChatMessages: 2, assistantAgentSessions: 2 },
-    }, { contentDbPath, chatDbPath }));
+    }, contentDbPath, chatDbPath }));
   } finally {
     await store?.close();
     db.$client.close();

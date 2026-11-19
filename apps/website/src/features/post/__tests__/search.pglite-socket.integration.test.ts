@@ -41,7 +41,7 @@ before(async () => {
   owner = await startPgliteOwner({ dataDir: path.join(dataParent, "pglite") }, { socketDir });
   const base = openPgliteSocketKernel<unknown>({ socketPath: owner.socketPath });
   kernel = base as ContentKernel;
-  await migrateContentDatabase(base);
+  await migrateContentDatabase({ kernel: base });
   const repo = postRepoFor(kernel);
   for (const post of EVAL_POSTS) {
     await createPost({

@@ -36,8 +36,8 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => kernel })) {
       assert.equal(CONTENT_MIGRATIONS.findIndex(entry => entry.id === ID), CONTENT_MIGRATIONS.findIndex(entry => entry.id === "0026_domain_binding_version") + 1, "0027 follows 0026");
       for (const table of TABLES) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
       const options = { ledgerTable: "search_index_step_contract_migrations" };
-      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, [step], options)).applied, [ID]);
-      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, [step], options)).applied, [], "a second run applies nothing");
+      assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, [ID]);
+      assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, [], "a second run applies nothing");
       for (const table of TABLES) assert.deepEqual(await kernel.query(sql.raw(`SELECT * FROM ${table}`)), [], `${table} exists and starts empty`);
     } finally {
       if (name === "sqlite") await kernel.close();

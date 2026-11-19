@@ -79,7 +79,7 @@ function assertIdleIndex(db: Database.Database): void {
 }
 
 async function readBoth(db: Database.Database) {
-  const kernel = chatKernel(db);
+  const kernel = chatKernel({ store: db });
   assert.equal(kernel, sqliteKernel<ChatDatabase>(db), "host and package must resolve the exact same memoized kernel");
   for (const [scope, id] of [[USER, "user-chat"], [GUEST, "guest-chat"]] as const) {
     const original = beforeAdoption(kernel, scope);
@@ -110,7 +110,7 @@ test("normal bootstrap, adopted and rollback readers preserve existing schema, a
     let upgraded: ReturnType<typeof snapshot> | undefined;
     db.close(); db = undefined;
     for (let i = 0; i < 2; i++) {
-      db = await openSiteChatDb(chatFile);
+      db = await openSiteChatDb({ filePath: chatFile });
       assert.equal(db.name, chatFile, "the host opens the original physical database");
       assert.equal(db.pragma("foreign_keys", { simple: true }), 1);
       assert.equal(db.pragma("journal_mode", { simple: true }), "wal");
@@ -154,7 +154,7 @@ test("a pre-ledger fixture retains every chat value while adopting only its firs
   try {
     const file = join(dir, "chat.db"); db = seed(file, false);
     const initial = snapshot(db); db.close(); db = undefined;
-    db = await openSiteChatDb(file);
+    db = await openSiteChatDb({ filePath: file });
     assertIdleIndex(db);
     const adopted = snapshot(db);
     for (const name of Object.keys(initial.values)) assert.deepEqual(adopted.values[name], initial.values[name]);
@@ -164,7 +164,7 @@ test("a pre-ledger fixture retains every chat value while adopting only its firs
     assert.deepEqual(ledger.map(({ id, checksum }) => ({ id, checksum })), CHAT_MIGRATIONS.map(({ id, checksum }) => ({ id, checksum })));
     for (const row of ledger) assert.match(row.applied_at, /^\d{4}-\d{2}-\d{2}T/);
     await readBoth(db);
-    db.close(); db = await openSiteChatDb(file);
+    db.close(); db = await openSiteChatDb({ filePath: file });
     assert.deepEqual(db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all(), ledger);
   } finally { db?.close(); rmSync(dir, { recursive: true, force: true }); }
 });

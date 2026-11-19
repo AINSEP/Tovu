@@ -15,7 +15,7 @@ import { closeSiteDirBoot, type SqliteSiteDirBoot } from "../../boot-site-dir.js
 
 function sqliteBoot(): { boot: SqliteSiteDirBoot; open: () => boolean; cleanup: () => void } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "close-site-dir-boot-"));
-  const db = openSqliteContentConnection(path.join(dir, "content.db"));
+  const db = openSqliteContentConnection({ filePath: path.join(dir, "content.db") });
   const boot = { storage: { kind: "sqlite" }, db, workspaceId: "ws", config: {} } as unknown as SqliteSiteDirBoot;
   return { boot, open: () => db.$client.open, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
 }

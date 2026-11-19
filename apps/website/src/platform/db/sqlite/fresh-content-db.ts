@@ -59,7 +59,7 @@ export function bootstrapFreshContentDb(
   // Injectable for the drift guard's own test; production always uses the real step list.
   { migrations = CONTENT_MIGRATIONS }: { migrations?: readonly MigrationStep<KyselyKernel<unknown>>[] } = {},
 ): boolean {
-  const client = sqliteClientOf(db);
+  const client = sqliteClientOf({ source: db });
   const hasTables = () => client.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND substr(name, 1, 7) <> 'sqlite_' LIMIT 1").get() !== undefined;
   if (hasTables()) return false;
 

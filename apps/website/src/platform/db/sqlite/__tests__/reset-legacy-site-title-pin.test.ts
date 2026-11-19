@@ -201,7 +201,7 @@ describeEachDialect("resetLegacySiteTitlePin", { tables: TABLES, make: (kernel) 
 
 // SQLite only: a bare legacy file. (An empty Postgres schema has no path to this function.)
 test("a database with none of the three tables is left untouched rather than failing", async () => {
-  const kernel = openSqliteFileKernel<unknown>(":memory:");
+  const kernel = openSqliteFileKernel<unknown>({ filePath: ":memory:" });
   try {
     await kernel.execute(sql`CREATE TABLE unrelated (id TEXT PRIMARY KEY)`);
     await kernel.execute(sql`INSERT INTO unrelated (id) VALUES ('kept')`);

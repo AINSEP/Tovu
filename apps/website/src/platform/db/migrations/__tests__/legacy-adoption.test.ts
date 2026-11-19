@@ -46,14 +46,14 @@ async function drizzleRows(kernel: KyselyKernel<unknown>): Promise<number> {
 }
 
 async function ledgerIds(kernel: KyselyKernel<unknown>): Promise<string[]> {
-  if (!(await hasLedger(kernel))) return [];
+  if (!(await hasLedger({ kernel }))) return [];
   return (await kernel.query<{ id: string }>(sql`SELECT id FROM tovu_migrations ORDER BY id`)).map((row) => row.id);
 }
 
 /** A kernel whose database has the first `count` chain entries, recorded the way drizzle does. */
 async function partial(count: number): Promise<KyselyKernel<unknown>> {
   const kernel = memory();
-  await kernel.transaction(() => applyLegacyEntries(kernel, chain.slice(0, count)));
+  await kernel.transaction(() => applyLegacyEntries({ kernel, entries: chain.slice(0, count) }));
   return kernel;
 }
 
@@ -65,16 +65,16 @@ describe("0000_legacy_baseline on SQLite", () => {
 
   test("a brand-new database and an adopted Drizzle database reach the same current schema", async () => {
     const kernel = memory();
-    const report = await migrateContentDatabase(kernel);
+    const report = await migrateContentDatabase({ kernel });
     assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map(step => step.id));
     assert.equal(await drizzleRows(kernel), 78);
     const viaDrizzle = sqliteKernel<unknown>(openLegacyContentDb({ filePath: ":memory:" }));
     opened.push(viaDrizzle);
-    assert.equal(await hasLedger(viaDrizzle), false, "the comparison starts at the frozen chain, before adoption");
+    assert.equal(await hasLedger({ kernel: viaDrizzle }), false, "the comparison starts at the frozen chain, before adoption");
     // Steps 0002 and 0004 drop the empty legacy chat and unused deployment tables
     // drizzle's chain creates; steps 0005/0006 also evolve columns. Bring both paths to head
     // before comparing every remaining schema object, including future steps.
-    assert.deepEqual((await migrateContentDatabase(viaDrizzle)).applied, CONTENT_MIGRATIONS.map(step => step.id));
+    assert.deepEqual((await migrateContentDatabase({ kernel: viaDrizzle })).applied, CONTENT_MIGRATIONS.map(step => step.id));
     const mine = await readSchemaShape(kernel, { exclude: BOOKKEEPING });
     assert.deepEqual(mine, await readSchemaShape(viaDrizzle, { exclude: BOOKKEEPING }));
   });
@@ -83,23 +83,23 @@ describe("0000_legacy_baseline on SQLite", () => {
     const db = openLegacyContentDb({ filePath: ":memory:" });
     const kernel = sqliteKernel<unknown>(db);
     opened.push(kernel);
-    assert.equal(await hasLedger(kernel), false, "a frozen-chain fixture has no Tovu ledger");
+    assert.equal(await hasLedger({ kernel }), false, "a frozen-chain fixture has no Tovu ledger");
     const before = await readSchemaShape(kernel, { exclude: BOOKKEEPING });
     // Baseline adoption is schema-neutral. Later content steps deliberately alter the schema.
     const baseline = CONTENT_MIGRATIONS.slice(0, 1);
-    const report = await runMigrations(kernel, baseline);
+    const report = await runMigrations({ kernel, steps: baseline });
     assert.deepEqual(report.applied, baseline.map(step => step.id));
     assert.deepEqual(await readSchemaShape(kernel, { exclude: BOOKKEEPING }), before, "adoption itself preserves every legacy schema object");
     assert.equal(await drizzleRows(kernel), 78);
-    assert.deepEqual((await migrateContentDatabase(kernel)).applied, CONTENT_MIGRATIONS.slice(1).map(step => step.id));
+    assert.deepEqual((await migrateContentDatabase({ kernel })).applied, CONTENT_MIGRATIONS.slice(1).map(step => step.id));
     assert.equal(await drizzleRows(kernel), 78, "later steps add no Drizzle rows either");
     assert.deepEqual(await ledgerIds(kernel), CONTENT_MIGRATIONS.map(step => step.id));
-    assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "a rerun applies nothing");
+    assert.deepEqual((await migrateContentDatabase({ kernel })).applied, [], "a rerun applies nothing");
   });
 
   test("a partial history gets exactly its missing tail, fake-2027 entries included", async () => {
     const kernel = await partial(58);
-    const report = await migrateContentDatabase(kernel);
+    const report = await migrateContentDatabase({ kernel });
     assert.equal(await drizzleRows(kernel), 78);
     assert.ok(report.notes.some((note) => note.includes("0058_keen_mauler") && note.includes("0077_external_mcp_tool_approvals") && note.includes("(20)")));
     assert.deepEqual(await ledgerIds(kernel), CONTENT_MIGRATIONS.map(step => step.id));
@@ -108,7 +108,7 @@ describe("0000_legacy_baseline on SQLite", () => {
   test("a recorded hash that is not in the chain stops adoption, nothing recorded", async () => {
     const kernel = await partial(10);
     await kernel.execute(sql`INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('deadbeef', 1)`);
-    await assert.rejects(migrateContentDatabase(kernel), (error: unknown) => error instanceof LegacyHistoryError && /not in the frozen chain/.test(error.message));
+    await assert.rejects(migrateContentDatabase({ kernel }), (error: unknown) => error instanceof LegacyHistoryError && /not in the frozen chain/.test(error.message));
     assert.deepEqual(await ledgerIds(kernel), []);
     assert.equal(await drizzleRows(kernel), 11, "the tail was not applied");
   });
@@ -116,20 +116,20 @@ describe("0000_legacy_baseline on SQLite", () => {
   test("an entry missing before the last applied one stops adoption", async () => {
     const kernel = await partial(12);
     await kernel.execute(sql`DELETE FROM __drizzle_migrations WHERE hash = ${chain[5].hash}`);
-    await assert.rejects(migrateContentDatabase(kernel), (error: unknown) => error instanceof LegacyHistoryError && error.message.includes(chain[5].tag));
+    await assert.rejects(migrateContentDatabase({ kernel }), (error: unknown) => error instanceof LegacyHistoryError && error.message.includes(chain[5].tag));
   });
 
   test("tables without any drizzle history are not adopted", async () => {
     const kernel = memory();
     await kernel.execute(sql`CREATE TABLE posts (id text)`);
-    await assert.rejects(migrateContentDatabase(kernel), (error: unknown) => error instanceof LegacyHistoryError && /no drizzle migration history/.test(error.message));
+    await assert.rejects(migrateContentDatabase({ kernel }), (error: unknown) => error instanceof LegacyHistoryError && /no drizzle migration history/.test(error.message));
   });
 
   test("a schema that differs from the chain's head stops adoption and names the difference", async () => {
     const kernel = await partial(78);
     await kernel.execute(sql`DROP INDEX member_tiers_workspace_slug_unique`);
     await assert.rejects(
-      migrateContentDatabase(kernel),
+      migrateContentDatabase({ kernel }),
       (error: unknown) => error instanceof LegacyHistoryError && error.message.includes("member_tiers_workspace_slug_unique")
     );
     assert.deepEqual(await ledgerIds(kernel), []);
@@ -144,7 +144,7 @@ describe("0000_legacy_baseline on SQLite", () => {
       );
       const rowsBefore = await kernel.query<{ id: string }>(sql`SELECT * FROM p_demo__things ORDER BY id`);
       assert.deepEqual(rowsBefore, [{ id: "plugin-row-a" }, { id: "plugin-row-b" }]);
-      const report = await migrateContentDatabase(kernel);
+      const report = await migrateContentDatabase({ kernel });
       assert.ok(report.notes.some((note) => note.includes("p_demo__things")));
       assert.deepEqual(await kernel.query(
         sql`SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE tbl_name = 'p_demo__things' ORDER BY type, name`
@@ -156,7 +156,7 @@ describe("0000_legacy_baseline on SQLite", () => {
     const file = path.join(tmp, "content.db");
     const db = openLegacyContentDb({ filePath: file });
     const backupPath = path.join(tmp, "backup.db");
-    const report = await migrateContentDatabase(sqliteKernel<unknown>(db), { backupPath });
+    const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>(db) }, { backupPath });
     assert.ok(report.notes.some((note) => note.includes(backupPath)));
     const copy = new Database(backupPath, { readonly: true });
     try {

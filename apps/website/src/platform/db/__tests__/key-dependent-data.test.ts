@@ -63,7 +63,7 @@ test("findKeyDependentData: a non-null sealed_ciphertext row counts as key-depen
   try {
     const dbPath = join(dir, "content.db");
     buildSealedCiphertextDb(dbPath);
-    assert.equal(await findKeyDependentData([dbPath]), true);
+    assert.equal(await findKeyDependentData({ dbPaths: [dbPath] }), true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -74,7 +74,7 @@ test("findKeyDependentData: a webhook_subscriptions row counts as key-dependent 
   try {
     const dbPath = join(dir, "content.db");
     buildWebhookSubscriptionsDb(dbPath);
-    assert.equal(await findKeyDependentData([dbPath]), true);
+    assert.equal(await findKeyDependentData({ dbPaths: [dbPath] }), true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -85,7 +85,7 @@ test("findKeyDependentData: a DB with neither table counts as clean", async () =
   try {
     const dbPath = join(dir, "content.db");
     buildEmptyDb(dbPath);
-    assert.equal(await findKeyDependentData([dbPath]), false);
+    assert.equal(await findKeyDependentData({ dbPaths: [dbPath] }), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -95,7 +95,7 @@ test("findKeyDependentData: an unreadable DB path fails closed (counts as data p
   const dir = mkdtempSync(join(tmpdir(), "tovu-key-dependent-data-"));
   try {
     const dbPath = join(dir, "does-not-exist.db");
-    assert.equal(await findKeyDependentData([dbPath]), true);
+    assert.equal(await findKeyDependentData({ dbPaths: [dbPath] }), true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -112,7 +112,7 @@ test("findKeyDependentData: a non-null column ending in sealed_ciphertext (oauth
     } finally {
       db.close();
     }
-    assert.equal(await findKeyDependentData([dbPath]), true);
+    assert.equal(await findKeyDependentData({ dbPaths: [dbPath] }), true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -136,10 +136,10 @@ test("findKeyDependentData: empty webhook and all-NULL sealed tables count as cl
   try {
     const clean = join(dir, "clean.db");
     buildKeylessTablesDb(clean);
-    assert.equal(await findKeyDependentData([clean]), false);
+    assert.equal(await findKeyDependentData({ dbPaths: [clean] }), false);
     const populated = join(dir, "populated.db");
     buildSealedCiphertextDb(populated);
-    assert.equal(await findKeyDependentData([clean, populated]), true, "a clean first file must not hide a populated second file");
+    assert.equal(await findKeyDependentData({ dbPaths: [clean, populated] }), true, "a clean first file must not hide a populated second file");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -151,7 +151,7 @@ test("scanOpenedKernel: a catalog failure fails closed and closes the opened ker
     const dbPath = join(dir, "clean.db");
     buildEmptyDb(dbPath);
     for (const closeRejects of [false, true]) {
-      const kernel = openSqliteFileKernel<unknown>(dbPath, { readOnly: true });
+      const kernel = openSqliteFileKernel<unknown>({ filePath: dbPath }, { readOnly: true });
       let queries = 0;
       let closes = 0;
       const opened = { ...kernel,
@@ -172,7 +172,7 @@ test("scanOpenedKernel: a close rejection does not turn a successfully scanned c
   try {
     const dbPath = join(dir, "clean.db");
     buildEmptyDb(dbPath);
-    const kernel = openSqliteFileKernel<unknown>(dbPath, { readOnly: true });
+    const kernel = openSqliteFileKernel<unknown>({ filePath: dbPath }, { readOnly: true });
     let closes = 0;
     assert.equal(await scanOpenedKernel({ open: () => ({ ...kernel,
       close: async () => { closes += 1; await kernel.close(); throw new Error("close failed"); },
@@ -194,9 +194,9 @@ test("restore artifacts and metadata-only vault rows do not block minting; a liv
       db.exec("INSERT INTO _vault_backup_credentials VALUES ('backup-envelope')");
       db.exec("CREATE TABLE secrets_vault (id TEXT, sealed_ciphertext TEXT)");
       db.exec("INSERT INTO secrets_vault VALUES ('settings', NULL)");
-      assert.equal(await findKeyDependentData([dbPath]), false);
+      assert.equal(await findKeyDependentData({ dbPaths: [dbPath] }), false);
       db.exec("INSERT INTO secrets_vault VALUES ('credential', 'live-envelope')");
-      assert.equal(await findKeyDependentData([dbPath]), true);
+      assert.equal(await findKeyDependentData({ dbPaths: [dbPath] }), true);
     } finally { db.close(); }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -210,12 +210,12 @@ test("findKeyDependentData: a populated column that only contains sealed_ciphert
       db.exec("CREATE TABLE plugin_notes (id INTEGER PRIMARY KEY, sealed_ciphertext_hint TEXT, note TEXT)");
       db.exec("INSERT INTO plugin_notes (sealed_ciphertext_hint, note) VALUES ('hint', 'note')");
     } finally { db.close(); }
-    assert.equal(await findKeyDependentData([dbPath]), false);
+    assert.equal(await findKeyDependentData({ dbPaths: [dbPath] }), false);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("findKeyDependentData: no paths means nothing to scan", async () => {
-  assert.equal(await findKeyDependentData([]), false);
+  assert.equal(await findKeyDependentData({ dbPaths: [] }), false);
 });
 
 test("scanOpenedKernel: an open that throws fails closed without a kernel to close", async () => {

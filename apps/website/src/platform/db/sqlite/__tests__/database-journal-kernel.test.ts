@@ -28,7 +28,7 @@ function tempJournalPath(t: { after(fn: () => void): void }): string {
 
 /** Builds a journal file exactly as the old Drizzle migrator did, up to and including `upTo`. */
 async function applyLegacyMigrations(filePath: string, upTo: number): Promise<void> {
-  const kernel = openSqliteFileKernel(filePath);
+  const kernel = openSqliteFileKernel({ filePath });
   try {
     const files = fs.readdirSync(MIGRATIONS_DIR).filter((name) => name.endsWith(".sql")).sort().slice(0, upTo + 1);
     for (const file of files) {
@@ -65,7 +65,7 @@ test("a new file gets all three tables and reopening it is a no-op", async (t) =
 test("a file built by BOTH old Drizzle migrations opens with its rows intact", async (t) => {
   const filePath = tempJournalPath(t);
   await applyLegacyMigrations(filePath, 1);
-  const legacy = openSqliteFileKernel(filePath);
+  const legacy = openSqliteFileKernel({ filePath });
   await legacy.execute(
     sql`INSERT INTO database_ledger (id, site_id, kind, outcome, created_at) VALUES ('old-1', 's', 'restore.executed', 'ok', '2026-07-02T00:00:00.000Z')`
   );
@@ -83,7 +83,7 @@ test("a file built by BOTH old Drizzle migrations opens with its rows intact", a
 test("a file only the first old migration built gets storage_ledger renamed, rows kept", async (t) => {
   const filePath = tempJournalPath(t);
   await applyLegacyMigrations(filePath, 0);
-  const legacy = openSqliteFileKernel(filePath);
+  const legacy = openSqliteFileKernel({ filePath });
   await legacy.execute(
     sql`INSERT INTO storage_ledger (id, site_id, kind, outcome, created_at) VALUES ('old-1', 's', 'restore.executed', 'ok', '2026-07-02T00:00:00.000Z')`
   );

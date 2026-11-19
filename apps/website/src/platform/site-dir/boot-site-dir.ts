@@ -144,7 +144,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
   // pending). A locked/corrupt db surfaces here (EC-05, RT-002).
   let db: ContentDb;
   try {
-    db = openSqliteContentConnection(dbPath);
+    db = openSqliteContentConnection({ filePath: dbPath });
   } catch (err) {
     throw new SiteCorruptError({ message: `bootSiteDir: content.db at ${dbPath} could not be opened: ${(err as Error).message}` });
   }
@@ -153,7 +153,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
     await migrateSqliteContentFile({ db, filePath: dbPath });
 
     // The watermark singleton row every content store carries.
-    await prepareContentStore(contentKernel({ store: db }));
+    await prepareContentStore({ kernel: contentKernel({ store: db }) });
     // The stored-data repairs every other store opener runs. The CLI hands this handle to the
     // composition as `overrides.db`, which skips `openSiteContentDb` (where SQLite runs them), so
     // without this `tovu serve <dir>`/`tovu export <dir>` never repaired a SQLite install.

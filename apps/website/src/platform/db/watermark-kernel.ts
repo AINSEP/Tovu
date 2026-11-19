@@ -19,7 +19,7 @@ import type { ContentKernel } from "./content-kernel.js";
  *
  * @complexity O(1) — one single-row UPDATE by primary key.
  */
-export function kernelStampWatermark(kernel: ContentKernel): () => Promise<void> {
+export function kernelStampWatermark({ kernel }: { kernel: ContentKernel }, _optional: Record<string, never> = {}): () => Promise<void> {
   return async () => {
     await kernel.run((db) =>
       db
@@ -36,7 +36,7 @@ export function kernelStampWatermark(kernel: ContentKernel): () => Promise<void>
  *
  * @complexity O(1) — single-row lookup by primary key.
  */
-export async function readKernelWatermark(kernel: ContentKernel): Promise<number> {
+export async function readKernelWatermark({ kernel }: { kernel: ContentKernel }, _optional: Record<string, never> = {}): Promise<number> {
   const row = await kernel.run((db) => db.selectFrom("database_write_watermark").select("value").where("id", "=", 1).executeTakeFirst());
   return Number(row?.value ?? 0);
 }
@@ -55,5 +55,5 @@ export async function reconcileMirror(required: { kernel: ContentKernel | null; 
     await mirror.markUnrefreshable();
     return;
   }
-  await mirror.set(await readKernelWatermark(kernel));
+  await mirror.set(await readKernelWatermark({ kernel }));
 }

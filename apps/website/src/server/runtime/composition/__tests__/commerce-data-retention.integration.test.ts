@@ -98,9 +98,9 @@ for (const populated of [false, true]) {
       const { contentDbPath: filePath } = resolveSiteDatabasePaths({ dir }, { workspace });
       // initSite closes its handles. Replace only this temporary fixture's database to model an upgrade.
       for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${filePath}${suffix}`, { force: true });
-      const db = openSqliteContentConnection(filePath);
+      const db = openSqliteContentConnection({ filePath });
       try {
-        await runMigrations(sqliteKernel<unknown>(db), CONTENT_MIGRATIONS.filter(step => step.id < ARCHIVE_ID));
+        await runMigrations({ kernel: sqliteKernel<unknown>(db), steps: CONTENT_MIGRATIONS.filter(step => step.id < ARCHIVE_ID) });
         // Only fixture setup declares the historical modules. Production boot must never invoke
         // them or reconcile them against an empty/off inventory.
         for (const decl of [LIPAY_MANIFEST, STORE_MANIFEST]) {

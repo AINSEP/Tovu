@@ -11,7 +11,7 @@ export { StorageOpError, StorageOpNotSupportedError, type StorageOps } from "@ji
 export type { PgliteExclusive } from "@jini-ai/db/kernel/pglite";
 
 /** Keep Tovu's single ops entry point; database mechanics belong to the shared adapters. */
-export function storageOps<DB>(kernel: KyselyKernel<DB>, optional: { pgliteOwner?: PgliteExclusive } = {}): StorageOps {
+export function storageOps<DB>({ kernel }: { kernel: KyselyKernel<DB> }, optional: { pgliteOwner?: PgliteExclusive } = {}): StorageOps {
   if (kernel.dialect === "sqlite") return sqliteOps(kernel);
   if (kernel.transport === "pglite" || (kernel.transport === "pglite-socket" && optional.pgliteOwner !== undefined)) {
     return pgliteOps(kernel, { PGlite, ownerLockFileName: OWNER_LOCK_FILE, ledgerTable: "tovu_migrations" }, optional);

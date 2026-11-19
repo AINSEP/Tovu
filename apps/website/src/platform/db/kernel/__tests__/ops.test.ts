@@ -36,9 +36,9 @@ function walSource(name: string): { file: string; writer: Database.Database } {
 test("SQLite copyTo from a read-only open includes rows still in the WAL, and never writes the source", async () => {
   const { file, writer } = walSource("wal-source.db");
   const mainBytesBefore = fs.readFileSync(file);
-  const source = openSqliteFileKernel<unknown>(file, { readOnly: true });
+  const source = openSqliteFileKernel<unknown>({ filePath: file }, { readOnly: true });
   try {
-    await storageOps(source).copyTo(path.join(tmp, "wal-copy.db"));
+    await storageOps({ kernel: source }).copyTo(path.join(tmp, "wal-copy.db"));
     await assert.rejects(source.execute(sql`INSERT INTO t VALUES ('c')`), /readonly/);
   } finally {
     await source.close();
@@ -56,9 +56,9 @@ test("SQLite copyTo refuses an existing target with the driver's own error", asy
   const taken = new Database(path.join(tmp, "taken.db"));
   taken.exec("CREATE TABLE keep (id text)");
   taken.close();
-  const source = openSqliteFileKernel<unknown>(file, { readOnly: true });
+  const source = openSqliteFileKernel<unknown>({ filePath: file }, { readOnly: true });
   try {
-    await assert.rejects(storageOps(source).copyTo(path.join(tmp, "taken.db")), /output file already exists/);
+    await assert.rejects(storageOps({ kernel: source }).copyTo(path.join(tmp, "taken.db")), /output file already exists/);
   } finally {
     await source.close();
   }
@@ -66,17 +66,17 @@ test("SQLite copyTo refuses an existing target with the driver's own error", asy
 
 test("SQLite compactAndVerify leaves a WAL-mode file with no sidecar content, and refuses inside a transaction", async () => {
   const file = path.join(tmp, "compact.db");
-  const kernel = openSqliteFileKernel<unknown>(file);
+  const kernel = openSqliteFileKernel<unknown>({ filePath: file });
   try {
     await kernel.execute(sql`CREATE TABLE t (id text)`);
     await kernel.execute(sql`INSERT INTO t VALUES ('a')`);
     await kernel.execute(sql`DELETE FROM t`);
-    await storageOps(kernel).compactAndVerify();
+    await storageOps({ kernel }).compactAndVerify();
     const [mode] = await kernel.query<{ journal_mode: string }>(sql`PRAGMA journal_mode`);
     assert.equal(mode.journal_mode, "wal");
     assert.equal(fs.existsSync(`${file}-wal`) ? fs.statSync(`${file}-wal`).size : 0, 0);
     await assert.rejects(
-      kernel.transaction(async () => storageOps(kernel).compactAndVerify()),
+      kernel.transaction(async () => storageOps({ kernel }).compactAndVerify()),
       /must be called outside a transaction/
     );
   } finally {
@@ -87,14 +87,14 @@ test("SQLite compactAndVerify leaves a WAL-mode file with no sidecar content, an
 test("storageOps works on the kernel of a Drizzle-style handle, and closeSqliteConnection closes it", async () => {
   const client = new Database(path.join(tmp, "handle.db"));
   const handle = { $client: client };
-  await storageOps(sqliteKernel<unknown>(handle)).copyTo(path.join(tmp, "handle-copy.db"));
+  await storageOps({ kernel: sqliteKernel<unknown>(handle) }).copyTo(path.join(tmp, "handle-copy.db"));
   assert.ok(fs.existsSync(path.join(tmp, "handle-copy.db")));
   closeSqliteConnection(handle);
   assert.equal(client.open, false);
 });
 
 test("openSqliteFileKernel readOnly requires the file to exist", () => {
-  assert.throws(() => openSqliteFileKernel<unknown>(path.join(tmp, "missing.db"), { readOnly: true }), /unable to open/i);
+  assert.throws(() => openSqliteFileKernel<unknown>({ filePath: path.join(tmp, "missing.db") }, { readOnly: true }), /unable to open/i);
 });
 
 async function seedPg(kernel: KyselyKernel<unknown>, rows: number): Promise<void> {
@@ -119,11 +119,11 @@ test("PGlite in process: copyTo restores the whole data dir into a new one; comp
   const target = path.join(tmp, "pglite-copy");
   try {
     await seedPg(kernel, 250);
-    await storageOps(kernel).copyTo(target);
-    await assert.rejects(storageOps(kernel).copyTo(target), /already exists/);
-    await storageOps(kernel).compactAndVerify();
+    await storageOps({ kernel }).copyTo(target);
+    await assert.rejects(storageOps({ kernel }).copyTo(target), /already exists/);
+    await storageOps({ kernel }).compactAndVerify();
     await assert.rejects(
-      kernel.transaction(async () => storageOps(kernel).compactAndVerify()),
+      kernel.transaction(async () => storageOps({ kernel }).compactAndVerify()),
       /must be called outside a transaction/
     );
   } finally {
@@ -137,7 +137,7 @@ test("PGlite compactAndVerify refuses an empty migration ledger", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
     await kernel.execute(sql`CREATE TABLE tovu_migrations (id text PRIMARY KEY)`);
-    await assert.rejects(storageOps(kernel).compactAndVerify(), (err: unknown) => {
+    await assert.rejects(storageOps({ kernel }).compactAndVerify(), (err: unknown) => {
       assert.ok(err instanceof StorageOpError);
       assert.equal(err.message, "the migration ledger tovu_migrations is empty after compacting");
       return true;
@@ -154,7 +154,7 @@ test("PGlite socket client: copyTo goes through the owner's exclusive window, an
   const target = path.join(tmp, "owned-copy");
   try {
     await seedPg(client, 30);
-    await assert.rejects(storageOps(client).copyTo(path.join(tmp, "never")), (err: unknown) => {
+    await assert.rejects(storageOps({ kernel: client }).copyTo(path.join(tmp, "never")), (err: unknown) => {
       assert.ok(err instanceof StorageOpNotSupportedError);
       assert.equal(
         err.message,
@@ -162,8 +162,8 @@ test("PGlite socket client: copyTo goes through the owner's exclusive window, an
       );
       return true;
     });
-    await storageOps(client).compactAndVerify(); // as a plain client: VACUUM + CHECKPOINT over the socket
-    const ops = storageOps(client, { pgliteOwner: owner });
+    await storageOps({ kernel: client }).compactAndVerify(); // as a plain client: VACUUM + CHECKPOINT over the socket
+    const ops = storageOps({ kernel: client }, { pgliteOwner: owner });
     await ops.copyTo(target);
     await ops.compactAndVerify();
     // The owner still serves after its exclusive window.
@@ -182,7 +182,7 @@ test("PGlite socket client: copyTo inside a transaction surfaces the outside-tra
   const owner = await startPgliteOwner({ dataDir: path.join(tmp, "owned-tx") }, { socketDir: fs.mkdtempSync(path.join(os.tmpdir(), "tovu-ops-")) });
   const client = openPgliteSocketKernel<unknown>({ socketPath: owner.socketPath });
   try {
-    await assert.rejects(client.transaction(async () => storageOps(client).copyTo(path.join(tmp, "never-tx"))), (err: unknown) => {
+    await assert.rejects(client.transaction(async () => storageOps({ kernel: client }).copyTo(path.join(tmp, "never-tx"))), (err: unknown) => {
       assert.ok(!(err instanceof StorageOpNotSupportedError));
       assert.equal((err as Error).message, "storage op copyTo must be called outside a transaction");
       return true;
@@ -213,7 +213,7 @@ test("Postgres copyTo is refused with the provider-backup guidance before any co
   // Port 1 on loopback is never a Postgres server: the refusal must not need one.
   const kernel = openPostgresKernel<unknown>({ connectionString: ["postgres://nobody", "127.0.0.1:1/none"].join("@") });
   try {
-    await assert.rejects(storageOps(kernel).copyTo(path.join(tmp, "never-pg")), (err: unknown) => {
+    await assert.rejects(storageOps({ kernel }).copyTo(path.join(tmp, "never-pg")), (err: unknown) => {
       assert.ok(err instanceof StorageOpNotSupportedError);
       assert.equal(
         err.message,

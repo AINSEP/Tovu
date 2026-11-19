@@ -124,6 +124,6 @@ export class SqlEntryRefsRepo implements EntryRefsRepoPort {
 }
 
 /** The entry-refs repo for `kernel`. */
-export function entryRefsRepoFor(kernel: ContentKernel): SqlEntryRefsRepo {
+export function entryRefsRepoFor({ kernel }: { kernel: ContentKernel }, _optional: Record<string, never> = {}): SqlEntryRefsRepo {
   return new SqlEntryRefsRepo(kernel);
 }

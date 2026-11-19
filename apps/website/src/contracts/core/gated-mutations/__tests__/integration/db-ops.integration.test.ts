@@ -15,7 +15,7 @@ import { openPreparedContentDb } from "../../../../../platform/db/sqlite/__tests
 
 /** `n` watermark stamps, each its own statement (how the taxonomy write-service stamps). */
 async function stampWatermark(db: ContentDb, n: number): Promise<void> {
-  const stamp = kernelStampWatermark(contentKernel({ store: db }));
+  const stamp = kernelStampWatermark({ kernel: contentKernel({ store: db }) });
   for (let i = 0; i < n; i += 1) await stamp();
 }
 

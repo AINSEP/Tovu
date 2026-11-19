@@ -48,7 +48,7 @@ export async function openSiteContentDb({ dbPath }: { dbPath: string }, options:
       }
     }
     await migrateSqliteContentFile({ db, filePath: dbPath });
-    await prepareContentStore(contentKernel({ store: db }), {
+    await prepareContentStore({ kernel: contentKernel({ store: db }) }, {
       seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
     });
     await runBootDataRepairs({ kernel: contentKernel({ store: db }) });

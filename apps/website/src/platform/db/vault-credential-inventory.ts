@@ -81,7 +81,7 @@ export function isVaultRestoreArtifact({ table }: { table: string }): boolean {
   return table.startsWith("_vault_backup_");
 }
 /** Catalog truth, in code-unit order. O(t) catalog reads for t live tables. */
-export async function discoverSealedColumns(kernel: ContentKernel): Promise<DiscoveredSealedColumn[]> {
+export async function discoverSealedColumns({ kernel }: { kernel: ContentKernel }, _optional: Record<string, never> = {}): Promise<DiscoveredSealedColumn[]> {
   const refs: DiscoveredSealedColumn[] = [];
   for (const table of (await listTables(kernel)).sort()) {
     if (isVaultRestoreArtifact({ table })) continue;
@@ -198,7 +198,7 @@ export async function snapshotVaultCredentials(deps: VaultCredentialKeyDeps,
 ): Promise<VaultCredentialSnapshot> {
   if (!Number.isSafeInteger(maxEntries) || maxEntries < 1) throw new RangeError("maxEntries must be a positive integer");
   return deps.kernel.transaction(async () => {
-    const refs = await discoverSealedColumns(deps.kernel);
+    const refs = await discoverSealedColumns({ kernel: deps.kernel });
     const count = await countSealedRows({ deps, refs });
     if (count > maxEntries) throw new SealedCredentialInventoryLimitError({ sealedRows: count, maxEntries });
     const snapshot: VaultCredentialSnapshot = { values: [], metadataOnly: [], columns: [] };

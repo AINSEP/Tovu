@@ -12,6 +12,6 @@ const scope: copy.StoreCopyScope = {
   // Migration restore copies stay in place; their ledger rows are not live site data.
   excludeTable: ({ name }, _options = {}) => isVaultRestoreArtifact({ table: name }),
 };
-export const readCatalog = (kernel: KyselyKernel<unknown>) => copy.readCatalog({ kernel, scope });
-export const nonEmptyTables = (kernel: KyselyKernel<unknown>) => copy.nonEmptyTables({ kernel, scope });
+export const readCatalog = ({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}) => copy.readCatalog({ kernel, scope });
+export const nonEmptyTables = ({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}) => copy.nonEmptyTables({ kernel, scope });
 export const copyPgStore = ({ source, target }: { source: KyselyKernel<unknown>; target: KyselyKernel<unknown> }, optional: { onCopied?: () => Promise<void> } = {}) => copy.copyPgStore({ source, target, scope }, optional);

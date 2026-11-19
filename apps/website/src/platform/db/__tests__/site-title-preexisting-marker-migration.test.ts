@@ -80,7 +80,7 @@ test("NC-3 (REQ-05): a fresh database, migrated then seeded the way tovu init do
 
   const db = openContentDb(dbPath);
   try {
-    await prepareContentStore(contentKernel({ store: db }), { seed });
+    await prepareContentStore({ kernel: contentKernel({ store: db }) }, { seed });
     const { n } = db.$client.prepare("SELECT count(*) AS n FROM workspaces").get() as { n: number };
     assert.equal(n, 1, "the starter seed inserts its workspace");
     assert.deepEqual(markerRows(db), [], "the seed runs after migrate(), so a new site is never pre-existing");

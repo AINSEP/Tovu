@@ -25,7 +25,7 @@ import { kernelStampWatermark, readKernelWatermark, reconcileMirror } from "../w
 /** A prepared content store (the watermark singleton row at 0). */
 async function preparedKernel(dialect: "sqlite" | "pglite"): Promise<ContentKernel> {
   const kernel = dialect === "sqlite" ? freshSqliteContentKernel() : sharedPgContentKernel();
-  await prepareContentStore(kernel);
+  await prepareContentStore({ kernel });
   await kernel.execute(sql`UPDATE database_write_watermark SET value = 0 WHERE id = 1`);
   return kernel;
 }
@@ -47,12 +47,12 @@ for (const dialect of ["sqlite", "pglite"] as const) {
   describe(`watermark on the content kernel [${dialect}]`, () => {
     test("AC-01 / U-002-B1: a stamp inside a transaction commits with its sibling write, +1 exactly", async () => {
       const kernel = await preparedKernel(dialect);
-      const stamp = kernelStampWatermark(kernel);
+      const stamp = kernelStampWatermark({ kernel });
       await kernel.transaction(async () => {
         await stamp();
         await kernel.execute(sql`UPDATE database_write_watermark SET last_stamped_at = 'sibling' WHERE id = 1`);
       });
-      assert.equal(await readKernelWatermark(kernel), 1);
+      assert.equal(await readKernelWatermark({ kernel }), 1);
       const row = await kernel.run((db) => db.selectFrom("database_write_watermark").select("last_stamped_at").where("id", "=", 1).executeTakeFirstOrThrow());
       assert.equal(row.last_stamped_at, "sibling");
     });
@@ -60,14 +60,14 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     test("an ordinary stamp records the current timestamp", async (t) => {
       const kernel = await preparedKernel(dialect);
       t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-04T12:34:56.789Z") });
-      await kernelStampWatermark(kernel)();
+      await kernelStampWatermark({ kernel })();
       const row = await kernel.run((db) => db.selectFrom("database_write_watermark").select("last_stamped_at").where("id", "=", 1).executeTakeFirstOrThrow());
       assert.equal(row.last_stamped_at, "2026-10-04T12:34:56.789Z");
     });
 
     test("INV-01: a transaction that fails rolls its stamp back", async () => {
       const kernel = await preparedKernel(dialect);
-      const stamp = kernelStampWatermark(kernel);
+      const stamp = kernelStampWatermark({ kernel });
       await assert.rejects(
         kernel.transaction(async () => {
           await stamp();
@@ -75,23 +75,23 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         }),
         /the gated write failed/
       );
-      assert.equal(await readKernelWatermark(kernel), 0);
+      assert.equal(await readKernelWatermark({ kernel }), 0);
     });
 
     test("INV-01: N stamps leave initial + N, never decreasing", async () => {
       const kernel = await preparedKernel(dialect);
-      const stamp = kernelStampWatermark(kernel);
-      const observed = [await readKernelWatermark(kernel)];
+      const stamp = kernelStampWatermark({ kernel });
+      const observed = [await readKernelWatermark({ kernel })];
       for (let i = 0; i < 10; i += 1) {
         await stamp();
-        observed.push(await readKernelWatermark(kernel));
+        observed.push(await readKernelWatermark({ kernel }));
       }
       assert.deepEqual(observed, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     });
 
     test("U-004-B1 / REQ-04: reconcileMirror overwrites the mirror from the authoritative value", async () => {
       const kernel = await preparedKernel(dialect);
-      const stamp = kernelStampWatermark(kernel);
+      const stamp = kernelStampWatermark({ kernel });
       await stamp();
       await stamp();
       const mirror = fakeMirror({ value: 999, staleness: "fresh" });
@@ -111,7 +111,7 @@ describe("watermark: dialect-free cases", () => {
   });
 
   test("a store without the singleton row reads 0", async () => {
-    assert.equal(await readKernelWatermark(freshSqliteContentKernel()), 0);
+    assert.equal(await readKernelWatermark({ kernel: freshSqliteContentKernel() }), 0);
   });
 
   test("EC-01 (SQLite): a second connection cannot open a write transaction while a stamping one is open", async () => {
@@ -119,13 +119,13 @@ describe("watermark: dialect-free cases", () => {
     const file = path.join(dir, "content.db");
     const db = openContentDb(file);
     const kernel = contentKernel({ store: db });
-    await prepareContentStore(kernel);
+    await prepareContentStore({ kernel });
     const other = new Database(file);
     other.pragma("busy_timeout = 0");
     let code: string | undefined;
     try {
       await kernel.transaction(async () => {
-        await kernelStampWatermark(kernel)();
+        await kernelStampWatermark({ kernel })();
         try {
           other.exec("BEGIN IMMEDIATE; COMMIT;");
         } catch (err) {
@@ -133,7 +133,7 @@ describe("watermark: dialect-free cases", () => {
         }
       });
       assert.equal(code, "SQLITE_BUSY", "the single writer serializes; never an interleaved write");
-      assert.equal(await readKernelWatermark(kernel), 1);
+      assert.equal(await readKernelWatermark({ kernel }), 1);
     } finally {
       other.close();
       closeSqliteConnection(db);

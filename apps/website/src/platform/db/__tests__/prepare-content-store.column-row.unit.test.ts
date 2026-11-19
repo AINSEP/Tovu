@@ -21,16 +21,16 @@ const things = sqliteTable("things", {
 });
 
 test("an omitted key takes its $defaultFn, else its $onUpdateFn, and $defaultFn wins when both exist", () => {
-  assert.deepEqual(columnRow(things, { id: "t-1" }), {
+  assert.deepEqual(columnRow({ table: things, value: { id: "t-1" } }), {
     id: "t-1", token: "generated-token", touched_at: "on-update-stamp", both: "default-wins",
   });
 });
 
 test("supplied values map to driver values under real column names; null passes through; unknown keys drop", () => {
-  const row = columnRow(things, {
+  const row = columnRow({ table: things, value: {
     id: "t-2", token: "given", touchedAt: "given-stamp", both: "given-both",
     enabled: true, meta: { a: 1 }, note: null, notAColumn: "dropped",
-  });
+  } });
 
   assert.deepEqual(row, {
     id: "t-2", token: "given", touched_at: "given-stamp", both: "given-both", enabled: 1, meta: '{"a":1}', note: null,

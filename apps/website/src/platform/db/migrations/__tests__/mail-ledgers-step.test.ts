@@ -40,8 +40,8 @@ for (const adapter of eachDialect({ tables: [...TABLES, "workspaces"], make: ker
     assert.equal(step.checksum, MIGRATION_CHECKSUMS[MAIL_LEDGERS_ID]);
     for (const table of TABLES) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
     const options = { ledgerTable: "mail_ledgers_step_contract_migrations" };
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, [MAIL_LEDGERS_ID]);
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, [], "a second run applies nothing");
+    assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, [MAIL_LEDGERS_ID]);
+    assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, [], "a second run applies nothing");
     for (const table of TABLES) assert.deepEqual(await kernel.query(sql.raw(`SELECT * FROM ${table}`)), [], `${table} exists and starts empty`);
   }));
 

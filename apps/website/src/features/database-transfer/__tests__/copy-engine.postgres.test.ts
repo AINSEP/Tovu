@@ -42,7 +42,7 @@ async function buildMigratedBase(): Promise<Buffer> {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-transfer-"));
   try {
     const filePath = path.join(dir, "content.db");
-    const db = openSqliteContentConnection(filePath);
+    const db = openSqliteContentConnection({ filePath });
     try {
       await migrateSqliteContentFile({ db, filePath });
       // Out of WAL, so the bytes open again as an in-memory database.

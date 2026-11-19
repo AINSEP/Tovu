@@ -58,7 +58,7 @@ async function copySource({ sourceDataDir, targetDataDir }: { sourceDataDir: str
   try {
     const source = openPgliteKernel<unknown>({ dataDir: sourceDataDir });
     try {
-      await storageOps(source).copyTo(targetDataDir);
+      await storageOps({ kernel: source }).copyTo(targetDataDir);
     } finally {
       await source.close();
     }
@@ -87,7 +87,7 @@ export async function duplicatePgliteStore(required: { sourceDataDir: string; ta
   try {
     await purgeAiChat(target);
     await resetLegacySiteTitlePin({ db: target as ContentKernel });
-    await storageOps(target).compactAndVerify();
+    await storageOps({ kernel: target }).compactAndVerify();
   } catch (err) {
     if (err instanceof StorageOpError) throw new InternalError({ message: `duplicatePgliteStore: ${err.message}` });
     throw err;

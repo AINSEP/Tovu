@@ -22,7 +22,7 @@ test("SQLite at head reports the last tovu_migrations step, like Postgres", asyn
 test("PGlite at head reports the last tovu_migrations step (the reference B1 must match)", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
-    await migrateContentDatabase(kernel as KyselyKernel<unknown>);
+    await migrateContentDatabase({ kernel: kernel as KyselyKernel<unknown> });
     assert.deepEqual(await readAppliedSchemaIdentity(kernel), expectedHead);
   } finally { await kernel.close(); }
 });

@@ -31,7 +31,7 @@ before(async () => {
   const url = freshPostgresDatabase(DATABASE);
   first = openPostgresKernel<ContentDatabase>({ connectionString: url });
   second = openPostgresKernel<ContentDatabase>({ connectionString: url });
-  await migrateContentDatabase(first as unknown as KyselyKernel<unknown>);
+  await migrateContentDatabase({ kernel: first as unknown as KyselyKernel<unknown> });
 });
 
 after(async () => {

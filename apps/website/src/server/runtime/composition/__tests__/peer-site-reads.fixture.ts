@@ -87,7 +87,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
       width: null, height: null, cssClass: null, htmlAttributes: null, createdBy: ownerId });
     await formDefinitionRepo.create({ id: 'form', workspaceId, name: `${name} form`, slug: 'form', fields: [],
       notify: { enabled: false, recipients: [] }, status: 'active', createdAt: at, updatedAt: at, version: 1 });
-    const chat = openChatDb(paths.chatDbPath), chatHistory = createChatStoreFactory({ store: chat });
+    const chat = openChatDb({ filePath: paths.chatDbPath }), chatHistory = createChatStoreFactory({ store: chat });
     const staffId = `${name}-staff`;
     for (const [id, userId, scope] of [['owner-chat', ownerId, workspaceId], ['staff-chat', staffId, workspaceId], ['foreign-chat', ownerId, 'foreign']]) {
       const store = chatHistory({ kind: 'user', workspaceId: scope!, userId: userId! });
@@ -110,9 +110,9 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
   installFirstPartyToolContributors({ contributions });
   const contentHandles: ReturnType<typeof openSqliteFileKernel<any>>[] = [], chatHandles: ReturnType<typeof openNativeSqlite>[] = [];
   const options = { workspace, localHost: true,
-    openContent: (<DB>(file: string, optional: { readOnly?: boolean } = {}) => {
+    openContent: (<DB>({ filePath }: { filePath: string }, optional: { readOnly?: boolean } = {}) => {
       assert.equal(optional.readOnly, true);
-      const handle = openSqliteFileKernel<DB>(file, optional);
+      const handle = openSqliteFileKernel<DB>({ filePath }, optional);
       contentHandles.push(handle); return handle;
     }) as typeof openSqliteFileKernel,
     openChat: ((file, optional) => {

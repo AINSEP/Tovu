@@ -21,11 +21,11 @@ for (const adapter of eachDialect({ tables: ["media"], make: kernel => kernel })
     const step = mediaCreatedBy({ checksum: MIGRATION_CHECKSUMS["0005_media_createdby"]! });
     const options = { ledgerTable: "media_createdby_test_migrations" };
     try {
-      const first = await runMigrations(kernel as KyselyKernel<unknown>, [step], options);
+      const first = await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options);
       assert.deepEqual(first.applied, ["0005_media_createdby"]);
       assert.deepEqual((await kernel.query<{ created_by: string | null }>(sql`SELECT created_by FROM media WHERE id = 'legacy'`)), [{ created_by: null }]);
       assert.equal((await listColumns(kernel, "media")).find(column => column.name === "created_by")?.notNull, false);
-      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, [step], options)).applied, []);
+      assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, []);
     } finally {
       await kernel.execute(sql`ALTER TABLE media DROP COLUMN created_by`);
       if (adapter.name === "sqlite") await kernel.close();

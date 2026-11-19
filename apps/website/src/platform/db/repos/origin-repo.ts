@@ -54,24 +54,24 @@ const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"];
  * @complexity O(1), one primary-key upsert.
  */
 export async function seedDevCapabilityOriginOn(
-  kernel: ContentKernel,
-  seed: { workspaceId: UUID; origin: VerifiedOrigin; redirectAllowlist?: string[]; egressAllowlist?: string[] }
+  { kernel, workspaceId, origin }: { kernel: ContentKernel; workspaceId: UUID; origin: VerifiedOrigin },
+  optional: { redirectAllowlist?: string[]; egressAllowlist?: string[] } = {}
 ): Promise<void> {
-  const verified = createVerifiedOrigin(seed.origin);
+  const verified = createVerifiedOrigin(origin);
   const refreshesLoopback = verified.source === "dev-capability" && LOOPBACK_HOSTS.includes(verified.host);
   await kernel.run((db) =>
     db
       .insertInto("origin_settings")
       .values({
-        workspace_id: seed.workspaceId,
+        workspace_id: workspaceId,
         scheme: verified.scheme,
         host: verified.host,
         port: verified.port ?? null,
         base_path: verified.basePath ?? null,
         verified_at: verified.verifiedAt,
         source: verified.source,
-        redirect_allowlist_json: JSON.stringify(normalizeHostList({ hosts: seed.redirectAllowlist })),
-        egress_allowlist_json: JSON.stringify(normalizeHostList({ hosts: seed.egressAllowlist })),
+        redirect_allowlist_json: JSON.stringify(normalizeHostList({ hosts: optional.redirectAllowlist })),
+        egress_allowlist_json: JSON.stringify(normalizeHostList({ hosts: optional.egressAllowlist })),
       })
       .onConflict((oc) => !refreshesLoopback ? oc.column("workspace_id").doNothing() : oc.column("workspace_id").doUpdateSet({
         scheme: verified.scheme, port: verified.port ?? null, verified_at: verified.verifiedAt,

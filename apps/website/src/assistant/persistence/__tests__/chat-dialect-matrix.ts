@@ -36,33 +36,33 @@ function emptiedPostgresChatKernel(): ChatKernel {
   }
   if (sharedRealPg === undefined) {
     sharedRealPg = openPostgresKernel<unknown>({ pg, connectionString });
-    realPgMigrated = migrateChatDatabase(sharedRealPg);
+    realPgMigrated = migrateChatDatabase({ kernel: sharedRealPg });
   }
   const base = sharedRealPg;
   const pending = (realPgMigrated as Promise<unknown>).then(() =>
     base.execute(sql`TRUNCATE ai_chat.ai_chats, ai_chat.ai_chat_messages, ai_chat.assistant_agent_sessions, ai_chat.assistant_conversation_tool_approvals CASCADE`)
   );
   pending.catch(() => {});
-  return heldUntil(pgChatKernel(base), pending);
+  return heldUntil(pgChatKernel({ kernel: base }), pending);
 }
 
 /** A fresh in-memory SQLite `chat.db` behind its kernel. */
 export function freshSqliteChatKernel(): ChatKernel {
-  return sqliteKernel<ChatDatabase>(openChatDb(":memory:"));
+  return sqliteKernel<ChatDatabase>(openChatDb({ filePath: ":memory:" }));
 }
 
 /** The file's shared PGlite chat kernel, with every chat table emptied before its first call. */
 export function emptiedPgChatKernel(): ChatKernel {
   if (sharedPg === undefined) {
     sharedPg = openPgliteKernel<unknown>({ PGlite });
-    migrated = migrateChatDatabase(sharedPg);
+    migrated = migrateChatDatabase({ kernel: sharedPg });
   }
   const base = sharedPg;
   const pending = (migrated as Promise<unknown>).then(() =>
     base.execute(sql`TRUNCATE ai_chat.ai_chats, ai_chat.ai_chat_messages, ai_chat.assistant_agent_sessions, ai_chat.assistant_conversation_tool_approvals CASCADE`)
   );
   pending.catch(() => {});
-  return heldUntil(pgChatKernel(base), pending);
+  return heldUntil(pgChatKernel({ kernel: base }), pending);
 }
 
 export function describeEachChatDialect<R>(

@@ -36,9 +36,9 @@ test("the watermark row and the demo seed are the same rows on SQLite and PGlite
   const sqlite = freshSqliteContentKernel();
   const pg = sharedPgContentKernel();
   for (const kernel of [sqlite, pg]) {
-    await prepareContentStore(kernel, { seed });
+    await prepareContentStore({ kernel }, { seed });
     const before = await snapshot(kernel);
-    await prepareContentStore(kernel, { seed });
+    await prepareContentStore({ kernel }, { seed });
     assert.deepEqual(await snapshot(kernel), before);
   }
   const onSqlite = await snapshot(sqlite);
@@ -79,8 +79,8 @@ for (const [dialect, makeKernel] of [
 ] as const) {
   test(`prepare preserves a stamped watermark and operator edits after a workspace slug rename [${dialect}]`, async () => {
     const kernel = makeKernel();
-    await prepareContentStore(kernel, { seed });
-    await kernelStampWatermark(kernel)();
+    await prepareContentStore({ kernel }, { seed });
+    await kernelStampWatermark({ kernel })();
     await kernel.run(async (db) => {
       await db.updateTable("posts").set({ title: "Operator's edited title", body_json: JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Edited by the operator" }] }] }) })
         .where("id", "=", seededPosts[0]!.id).execute();
@@ -92,7 +92,7 @@ for (const [dialect, makeKernel] of [
     assert.equal(before.watermark[0]?.value, 1);
     assert.ok(before.watermark[0]?.last_stamped_at);
     assert.equal(before.posts.length, seededPosts.length - 1);
-    await prepareContentStore(kernel, { seed });
+    await prepareContentStore({ kernel }, { seed });
     assert.deepEqual(await snapshot(kernel), before);
   });
 }

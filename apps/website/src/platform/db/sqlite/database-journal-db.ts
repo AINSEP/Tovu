@@ -34,10 +34,10 @@ export type DatabaseJournalDb = JournalKernel;
  * with their error if they failed. The parent directory must exist.
  */
 export function journalKernel({ filePath }: { filePath: string }, _optional: Record<string, never> = {}): JournalKernel {
-  const kernel = openSqliteFileKernel<JournalDatabase>(filePath);
+  const kernel = openSqliteFileKernel<JournalDatabase>({ filePath });
   const ready = (async () => {
     await kernel.query(sql`PRAGMA journal_mode = WAL`);
-    await applyDatabaseJournalSchema(kernel);
+    await applyDatabaseJournalSchema({ kernel });
   })();
   return gateJournalKernel({ kernel, ready });
 }
