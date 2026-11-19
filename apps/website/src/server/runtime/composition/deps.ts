@@ -16,11 +16,8 @@ import { applyOwnerPasswordReset } from "#src/features/identity/owner-reset-env"
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
 import { outboxEventValues } from "@jini-ai/db/events";
 import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
-import { createSiteKeyReferences, type SiteKeyReferences } from "#src/features/project-keys/site-references";
-import { ownerKeyHandleOnly, siteGrantedSealer } from "#src/features/project-keys/site-sealer";
-import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
+import { createSiteKeyReferences } from "#src/features/project-keys/site-references";
 import { sourceControlKeyBinding } from "./source-control-key-binding.js";
-import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { createProjectKeys, providerPluginOf } from "#src/features/project-keys/service";
 import { siteProviderRevisions } from "./provider-revision-watch.js";
 
@@ -97,12 +94,10 @@ import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "@jini-ai/diagnostics/observability";
-import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
-import { telemetryEnvironment } from './build-release.js';
+import { legacyProviderCredentialCheck } from "./provider-plugins.js";
 import { setServerLogTraceReader } from '../../../platform/server-logs/index.js';
 import { withToolUseEvents } from "./tool-use-events.js";
-import { createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, withProviderSettingsMigrations, type ProviderConfigSource } from "./provider-config-source.js";
-import { localOwnerStoreEnabled, openProjectStore, type ProjectStore, type ProjectVaultScope } from "./project-store.js";
+import { createVaultProviderConfigSource, withProviderSettingsMigrations } from "./provider-config-source.js";
 import { createOtherSiteKeys } from "./other-site-keys.js";
 import { isLocalTovuHost } from "./registered-sites.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
@@ -134,7 +129,7 @@ import { SqlitePublishContentPeerRepo } from "#src/features/publish-content/publ
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
 import { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
-import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel } from "#src/platform/db/content-kernel";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-port";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
@@ -188,26 +183,20 @@ import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/fe
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
-import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/content-db";
 import { sqliteConnectionOf, closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openSiteContentDb } from "./open-site-content-db.js";
-import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
+import { type SiteStore, type SiteStoreRole } from "./open-site-store.js";
 import { createSite } from "./site-dir.js";
 import { storeBoundServicesFor } from "./store-bound-services.js";
 import { isInMemoryDbPath } from "@jini-ai/db/data-modules";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
-import type { SiteStorage } from "#src/platform/site-dir/types";
-import { startChatExpirySweep } from "#src/assistant/persistence/chat-expiry-sweep";
 import { createMailAttemptObserver } from "#src/features/mail/attempts.repo";
-import { startMailRetention } from "#src/features/mail/retention";
-import { startSubmissionIpExpirySweep } from "#src/features/forms/submission-ip-expiry-sweep";
-import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { createLiveSiteDisplayName, createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
 import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition, resolveSiteTimeZone } from "#src/features/settings/site-timezone";
 import { seedSiteThemes } from "#src/platform/site-dir/seed-site-themes";
-import { resolveCheckoutRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
+import { resolveCheckoutRoot } from "#src/platform/site-dir/index";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
@@ -251,7 +240,7 @@ import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navi
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import { isSiteIdToken, readSiteMetaId, resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
+import { resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/assistant/site-credential-repo.sqlite";
@@ -387,14 +376,14 @@ import { toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import { createTermPurgeFollowUp, createTaxonomyPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
-import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { resolveSitesHome } from "#src/platform/site-dir/sites-home";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
 import { createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
 import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
 import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
-import { builtInContentSeedDbPath, builtInSeedUploadsDir, defaultChatDbPath, defaultDatabaseJournalDbPath, pluginsInstallDir, resolveShareDirectory, siteThemesDir } from "./site-paths.js";
+import { builtInContentSeedDbPath, builtInSeedUploadsDir, defaultDatabaseJournalDbPath, pluginsInstallDir, resolveShareDirectory } from "./site-paths.js";
 import { bundledAgentPluginsDir, assertContentDbFileName, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
 export { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
 
@@ -413,162 +402,11 @@ import { exportSite } from "#src/features/site-export/index";
 import { createApp } from "./app.js";
 import { siteAppBootWorkByDeps } from "./site-app-boot-work.js";
 import { startSettingsRegistration } from "./settings-registration.js";
+import { type CreateSiteRouteDepsOverrides, assertOverridesPairedOrAbsent, pluginFailureThresholdOverride, resolveThemesDirOverride, resolveSiteBindingOverride, resolveWorkspaceIdOverride } from "./site-deps/overrides.js";
+import { hydrateContentDbIfNeeded, type StoreCloseRegistration, openCompositionStore, resolveChatDbPath } from "./site-deps/open-store.js";
+import { providerPluginBoot, composeProviderConfig, credentialProject, siteIdentityFor } from "./site-deps/provider-identity.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
-
-/**
- * SPEC-003 (ADR-PIPE-003 C-010) — an already-opened db + a resolved workspace id, supplied by
- * the install-dir boot path (`site-dir/boot-site-dir.ts`) instead of this function opening its
- * own db. `db`/`workspaceId` are required together or omitted together (validated below) — there
- * is no legal state where only one is supplied. `uploadsDir` is independent of that pair.
- */
-export interface CreateSiteRouteDepsOverrides {
-  /** Test seam: replaces provider-plugin selection/initialization (fakes; never a vendor call). */
-  bootProviderPlugins: typeof bootProviderPlugins;
-  /** Test seam: the project store (`project-store.ts`); resolving to undefined means "none". */
-  openProjectStore: () => Promise<ProjectStore | undefined>;
-  sqliteOpen: ContentDbOpenOptions["open"];
-  /** DB placement may differ from the site root or from content.db. */
-  chatDbPath: string;
-  publishContentPeerHttpClient: RouteDeps["publishContentPeerHttpClient"];
-  nativeApprovalMemory: RouteDeps["nativeApprovalMemory"];
-  approvalIdentityForRun: RouteDeps["approvalIdentityForRun"];
-  db: ContentDb;
-  workspaceId: string;
-  /** Consecutive plugin hook failures before automatic quarantine. */
-  pluginFailureThreshold: number;
-  /**
-   * Install-dir-relative uploads path — `cli/commands/serve.ts` supplies `<dir>/uploads` (CR-R01
-   * fix: uploads used to always default to `mediaUploadsDir()`, which is `process.cwd()`-relative
-   * and therefore wrong whenever `tovu serve <dir>` is invoked from outside that dir). Omitted, it
-   * falls back to `mediaUploadsDir()` — the legacy same-directory dev boot's existing behavior.
-   */
-  uploadsDir: string;
-  /**
-   * Install-dir-relative themes path — `cli/commands/{serve,export}.ts` supply `<dir>/themes`, for
-   * exactly the reason `uploadsDir` above exists (CR-R01): the default {@link siteThemesDir} is
-   * `process.cwd()`-relative, so `tovu serve <dir>` invoked from outside `<dir>` would otherwise
-   * seed and serve a `sites/tovu-dev/themes` next to wherever the operator happened to be standing
-   * rather than the site it was told to run. Omitted, it falls back to {@link siteThemesDir}.
-   */
-  themesDir: string;
-  /**
-   * The `RouteDeps.siteBinding` value this boot should carry — supplied by `cli/commands/serve.ts`
-   * for the install-dir path (`{dir: target, ..., switcherCompatible: false}`, since `target` bears
-   * no `{cwd, env}`-relative relationship to any `sites/` folder). Omitted, it falls back to
-   * `describeSiteBinding()` — the legacy same-process default boot's existing behavior, unchanged.
-   * See `RouteDeps.siteBinding`'s own doc for the full defect this fixes.
-   */
-  siteBinding: SiteBinding;
-  /**
-   * Which process opens the site's store (`open-site-store.ts`): the agent daemon passes
-   * `"client"`; omitted means `"owner"` (the API process, which also runs the guest-chat sweep).
-   */
-  storeRole: SiteStoreRole;
-  /**
-   * The owner's guest-chat expiry sweep timing (`startChatExpirySweep`): its re-run interval and
-   * clock. Omitted, the sweep runs hourly on `Date.now`; tests pass a short interval and a
-   * controlled clock to observe later passes and closing during one.
-   */
-  chatExpirySweep: { intervalMs?: number; now?: () => number };
-  /**
-   * A workspace id to serve, validated against the store this call opens (`resolveWorkspace`
-   * rejects an id with no row). The Postgres/PGlite form of `db` + `workspaceId`, which need the
-   * SQLite handle the id was validated against; see {@link createSiteRouteDepsForWorkspace}.
-   */
-  requestedWorkspaceId: string;
-  /**
-   * An already opened Postgres/PGlite store, supplied with `workspaceId` by the install-dir boot
-   * path (`bootSiteDir` opened, migrated and resolved it) — the non-SQLite form of `db`, so one
-   * boot never opens a second pool. Its opener closes it, through the store `onStoreOpened` hands
-   * back (`closeSiteDirBoot`), so the composition's chat sweep stops first.
-   */
-  store: SiteStore;
-  /**
-   * Called once, before the rest of the composition is built, with the composition's store: the one
-   * this call opened, or the supplied `store` (a supplied SQLite `db` is still wrapped with the
-   * `chat.db` this call opens). Its `close()` stops the guest-chat sweep, waiting for a pass in
-   * flight, then closes the underlying store, so the caller closes this one rather than its own
-   * reference. The default boot (`index.ts`) closes it on shutdown and hands a PGlite owner's socket
-   * to the agent daemon. When the composition fails after this, it has already closed what it opened
-   * (and stopped the sweep on a supplied store).
-   */
-  onStoreOpened: (required: { store: SiteStore }, optional?: Record<string, never>) => void;
-  /**
-   * HARNESS ONLY: exact loopback origins (`http://127.0.0.1:<port>`) the assistant's URL tools may
-   * reach — a site-import journey's offline fixture site. Supplied only by
-   * `development/e2e/support/site-import-api.ts`; `index.ts` and `tovu serve` never pass it, and
-   * omitted it builds exactly the production clients (`platform/http/test-origin-allowlist.ts`).
-   */
-  outboundTestOrigins: readonly string[];
-}
-
-/**
- * 2026-08-20 (complexity pass) — CIC U-001 / Contract Map C-010's paired-override guard, hoisted
- * out of `createSiteRouteDeps`. Each `overrides?.field` read is its own branch under ESLint's
- * `complexity` rule; splitting the two reads plus the comparison `if` into their own 4-line
- * function moves those 3 points of complexity here instead of onto the composition root, without
- * changing what gets checked or when.
- */
-function assertOverridesPairedOrAbsent(overrides?: Partial<CreateSiteRouteDepsOverrides>): void {
-  const hasOverrideDb = overrides?.db !== undefined || overrides?.store !== undefined;
-  const hasOverrideWorkspaceId = overrides?.workspaceId !== undefined;
-  if (hasOverrideDb !== hasOverrideWorkspaceId) {
-    throw new Error(
-      "createSiteRouteDeps: overrides.db (or overrides.store) and overrides.workspaceId must be supplied together or not at all"
-    );
-  }
-}
-
-/**
- * Builds `composePluginRuntime`'s optional `failureThreshold` field from `overrides` — the exact
- * undefined-check-and-conditional-spread shape `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps` repeats for its
- * own optional `composePluginRuntime` fields, hoisted here for the same reason
- * {@link assertOverridesPairedOrAbsent} is: one ternary counted once, not inline in the composition
- * root.
- */
-function pluginFailureThresholdOverride(
-  overrides?: Partial<CreateSiteRouteDepsOverrides>
-): { failureThreshold?: number } {
-  return overrides?.pluginFailureThreshold === undefined ? {} : { failureThreshold: overrides.pluginFailureThreshold };
-}
-
-/**
- * First-boot-only: turns a deployed container's stock `content.seed.db` into this site's live
- * `content.db`, exactly once — same presence-not-contents gate `seedSiteThemes()` above uses for
- * `themes/`, so a live db from any later boot is never touched (see `hydrateContentDbFromSeed()`'s
- * own header for the full rationale). Hoisted out of `createSiteRouteDeps` for the same reason
- * {@link assertOverridesPairedOrAbsent} is: one branch counted once here, not inline in the
- * composition root. A no-op whenever `overrides.db` is supplied — that caller (`boot-site-dir.ts`'s
- * install-dir path) has already opened its own db before reaching here, so `dbPath` is never even
- * read in that branch.
- */
-function hydrateContentDbIfNeeded({ dbPath, storage }: { dbPath: string; storage: SiteStorage }, { overrides }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}): void {
-  if (overrides?.db !== undefined || storage.kind !== "sqlite") return;
-  // The served site's stock seed, by its binding's name, not `basename(siteDir())`: see
-  // {@link resolveExportOutputRootDir}'s doc for why the env/cwd site can be a different one.
-  hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath({ siteName: resolveSiteBindingOverride(overrides).name }), dbPath });
-}
-
-/**
- * 2026-09-03 (complexity pass) — `overrides.themesDir ?? siteThemesDir(...)`, hoisted out of
- * `createSiteRouteDeps` for the same reason {@link assertOverridesPairedOrAbsent} is: one `??`
- * counted once here, not inline in the composition root. The default is under the served
- * `siteBinding`'s directory, not {@link siteDir}'s.
- */
-function resolveThemesDirOverride(siteBinding: SiteBinding, overrides?: Partial<CreateSiteRouteDepsOverrides>): string {
-  return overrides?.themesDir ?? siteThemesDir({ siteDir: siteBinding.dir });
-}
-
-/**
- * `overrides.siteBinding ?? describeSiteBinding()`, hoisted for the same reason
- * {@link resolveThemesDirOverride} is: one `??` counted once here, not inline in the composition
- * root. See `CreateSiteRouteDepsOverrides.siteBinding`'s own doc for why the install-dir boot
- * path (`cli/commands/serve.ts`) must supply an explicit value rather than let this default apply.
- */
-function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverrides>): SiteBinding {
-  return overrides?.siteBinding ?? describeSiteBinding();
-}
 
 /**
  * `RouteDeps.siteBackupSources`: the directories `site_backup_plan` reads, taken from the SAME
@@ -650,127 +488,6 @@ function compositionApprovalOverrides({ overrides }: { overrides: Partial<Create
   };
 }
 
-function prepareCompositionStorage({ dbPath, overrides }: {
-  dbPath: string; overrides: Partial<CreateSiteRouteDepsOverrides>;
-}, _options = {}) {
-  const anchor = isInMemoryDbPath({ dbPath }) ? ":memory:" : resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir });
-  const storage = resolveSiteStorage({ siteDir: anchor });
-  if (!isInMemoryDbPath({ dbPath }) && storage.kind === "sqlite" && !overrides.db) mkdirSync(dirname(dbPath), { recursive: true });
-  return storage;
-}
-
-/**
- * What a composition hands its store's `onClose`: the disposer a `register*`/`subscribe` call
- * returned, or the promise of one (`EventBusPort.subscribe` is async), so every registration goes
- * through the one collector whatever its return shape.
- */
-type StoreCloseRegistration = (() => unknown) | Promise<() => unknown>;
-
-/**
- * The prelude's store step (R1 plan R1d): the site's storage choice from its `.site-meta.json`
- * (absent = SQLite), then the content + chat store it names. When `overrides.db` is supplied (the
- * install-dir `serve` path), that SAME handle is reused rather than opening/migrating a second db —
- * `bootSiteDir` has already validated, migrated, and stamped it (BR-05/BR-06).
- *
- * The API process (`owner`) also starts the hourly guest-chat expiry sweep here, on the chat kernel
- * of that store, plus daily form-submitter IP cleanup when the package/schema gates are ready;
- * the agent daemon (`client`) leaves retention to it. The returned store's `close()`
- * drains boot work before disposing registrations, then stops the sweeps (waiting for a pass in
- * flight) before closing the underlying store, so no pass ever queries a closed store.
- * `release` is what {@link createSiteRouteDeps} runs when the rest of
- * the composition fails: close what this call opened, or only stop the sweep on a supplied store.
- *
- * `onClose` collects the composition's registrations (a resolve-phase handler or slot bound to this
- * store's repos, a bus subscription) so both `close()` and `release` remove them first. Without it, a
- * closed site's handler stays on every request's path, querying a database that is no longer open.
- */
-async function openCompositionStore(
-  { dbPath }: { dbPath: string },
-  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
-): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void; beforeClose: (required: { drain: () => Promise<void> }, optional?: Record<string, never>) => void }> {
-  const storage = prepareCompositionStorage({ dbPath, overrides });
-  hydrateContentDbIfNeeded({ dbPath, storage }, { overrides });
-  const role = overrides.storeRole ?? "owner";
-  const supplied = overrides.store;
-  // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
-  // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
-  // directory is `dirname(dbPath)`, which the content open already required to exist.
-  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: resolveChatDbPath({ dbPath }, { overrides }), role }, { db: overrides.db, ...(overrides.sqliteOpen ? { sqliteOpen: overrides.sqliteOpen } : {}) }));
-  const { stopChatSweep, stopSubmissionIpSweep, stopMailRetention } = startOwnerSweeps({ role, opened }, { overrides });
-  const registrations: StoreCloseRegistration[] = [];
-  const bootDrains: Array<() => Promise<void>> = [];
-  const stopStoreUsers = async (): Promise<void> => {
-    // Boot still uses the inventory, journal and repos that the disposers below release.
-    await Promise.all(bootDrains.map((drain) => drain()));
-    await Promise.all(registrations.splice(0).map(async (registration) => (await registration)()));
-    await Promise.all([stopChatSweep(), stopSubmissionIpSweep(), stopMailRetention()]);
-  };
-  const store: SiteStore = {
-    ...opened,
-    close: async () => {
-      await stopStoreUsers();
-      await opened.close();
-    },
-  };
-  overrides.onStoreOpened?.({ store: store });
-  return {
-    store,
-    release: supplied === undefined ? store.close : stopStoreUsers,
-    onClose: ({ registration }, _optional = {}) => { registrations.push(registration); },
-    beforeClose: ({ drain }, _optional = {}) => { bootDrains.push(drain); },
-  };
-}
-
-/**
- * Extracted from {@link composeSiteRouteDeps} and {@link openCompositionStore} to keep their
- * complexity down: the chat database path, `overrides.chatDbPath` or `chat.db` beside the content db.
- */
-function resolveChatDbPath(
-  { dbPath }: { dbPath: string },
-  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
-): string {
-  return overrides.chatDbPath ?? defaultChatDbPath({}, { contentDbPath: dbPath });
-}
-
-/**
- * Extracted from {@link openCompositionStore} to keep its complexity down: the owner-only background
- * sweeps (guest-chat expiry, submission-IP expiry, mail retention) and their stop functions, each a
- * no-op on a client.
- */
-function startOwnerSweeps(
-  { role, opened }: { role: SiteStoreRole; opened: SiteStore },
-  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
-): { stopChatSweep: () => Promise<void>; stopSubmissionIpSweep: () => Promise<void>; stopMailRetention: () => Promise<void> } {
-  const stopChatSweep = startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep });
-  // Owner only, just like chat retention. Stop both passes before closing the supplied/opened
-  // store, including composition-failure cleanup. Jini's export and migration 0006 gate the IP sweep.
-  const stopSubmissionIpSweep = role === "owner"
-    ? startSubmissionIpExpirySweep({ kernel: opened.content })
-    : async () => {};
-  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }) : async () => {};
-  return { stopChatSweep, stopSubmissionIpSweep, stopMailRetention };
-}
-
-/** The guest-chat expiry sweep, on the owner only; its stop function (a no-op on a client). */
-function startOwnerChatExpirySweep(
-  { role, chat }: { role: SiteStoreRole; chat: SiteStore["chat"] },
-  { timing = {} }: { timing?: CreateSiteRouteDepsOverrides["chatExpirySweep"] } = {}
-): () => Promise<void> {
-  return role === "owner" ? startChatExpirySweep({ store: chat }, timing) : async () => {};
-}
-
-/**
- * 2026-09-03 (complexity pass) — `overrides.workspaceId ?? resolveWorkspace({ kernel }).id`, hoisted
- * for the same reason {@link assertOverridesPairedOrAbsent} is. CIC U-001 (Workspace-id
- * single-source-of-truth) still holds: this remains the sole `resolveWorkspace` call site: moving
- * it into its own function does not add a second one.
- */
-async function resolveWorkspaceIdOverride(kernel: ContentKernel, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<string> {
-  if (overrides?.workspaceId !== undefined) return overrides.workspaceId;
-  const requested = overrides?.requestedWorkspaceId;
-  return (await resolveWorkspace({ kernel }, requested === undefined ? {} : { workspaceId: requested })).id;
-}
-
 /**
  * 2026-09-03 production incident recovery hook — opt-in ONLY: a no-op on every ordinary boot,
  * because it does nothing at all unless the operator has explicitly set `TOVU_ADMIN_RESET_PASSWORD`
@@ -841,91 +558,6 @@ export async function createSiteRouteDeps(
     await opened.release();
     throw err;
   }
-}
-
-/** The provider-plugin boot to run: the test seam when supplied, else the real selection. */
-function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteDepsOverrides> }): typeof bootProviderPlugins {
-  return overrides.bootProviderPlugins ?? bootProviderPlugins;
-}
-
-/**
- * Provider settings: the project store (closed with the site store) when one opens; the site vault
- * when there is none (remote production). An unavailable owner store means no shared keys;
- * independently owned local keys remain usable. No key rows are moved during boot.
- */
-async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site, binding, references }: {
-  overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (required: { registration: () => void }, optional?: Record<string, never>) => void; site: ProviderConfigSource; binding: { dir: string; name: string }; references: SiteKeyReferences;
-}): Promise<{ siteId: string; projectStore?: ProjectStore; providerConfigSource: ProviderConfigSource; projectId: string | undefined; projectVault?: ProjectVaultScope }> {
-  const siteId = acceptedSiteId({ value: readSiteMetaId({ siteDir: binding.dir }), source: "site meta" }) ?? "";
-  if (!siteId) return { siteId, providerConfigSource: site, projectId: undefined };
-  const projectStore = await projectStoreFor({ overrides, runtimeMode });
-  if (!projectStore) return { siteId, providerConfigSource: site, projectId: undefined };
-  if ("unavailable" in projectStore) return { siteId, providerConfigSource: withUnavailableProject({ site, reason: projectStore.unavailable }), projectId: undefined };
-  onStoreClose({ registration: () => projectStore.close({}) });
-  if (siteId) await projectStore.attachments.renameSite({ siteId, siteName: binding.name }).catch(error => {
-    console.warn(`[project-store] Site name could not be refreshed; local keys remain available. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
-  });
-  const owner = projectStore.vault.repo;
-  const repo = attachedOnlyVault({ vault: owner, siteId, attachments: projectStore.attachments });
-  return { siteId, projectStore, providerConfigSource: withAttachedProject({ site }, { project: projectStore.config, attachments: projectStore.attachments, siteId, siteName: binding.name, references, transaction: input => projectStore.transaction(input) }),
-    projectId: projectStore.projectId, projectVault: { ...projectStore.vault, repo, createRepo: projectKeyCreateVault({ owner, view: repo }), replaceRepo: projectKeyCreateVault({ owner, view: repo }, { allowReplacement: true, transaction: input => projectStore.transaction(input) }), keyring: ownerKeyHandleOnly({ keyring: projectStore.vault.keyring }), sealer: siteGrantedSealer({ allowed: async ({ credentialId }) => projectStore.attachments.isAttached({ siteId, keyId: credentialId }), sealer: projectStore.vault.sealer }) } };
-}
-
-/**
- * The project half of a credential store (owner 2026-10-25: keys save to the project by default;
- * `features/custom-credentials/store.ts`'s and `features/deployments/publish-credentials/store.ts`'s
- * scope rule): `repo` builds that store's own repo over the project's vault. Absent where no project
- * store is configured — remote production keeps its site store. Unavailable Shared Keys contributes
- * no shared half; local rows retain their independent ownership.
- */
-function credentialProject<R>({ projectVault, repo }: { projectVault: ProjectVaultScope | undefined; repo: (vault: ProjectVaultScope["repo"]) => R }, _optional = {}): { project?: { workspaceId: string; repo: R; createRepo?: R; replaceRepo?: R; sealer: ProjectVaultScope["sealer"]; keyring: ProjectVaultScope["keyring"] } } {
-  if (!projectVault) return {};
-  const { workspaceId, sealer, keyring } = projectVault;
-  return { project: { workspaceId, repo: repo(projectVault.repo), ...(projectVault.createRepo ? { createRepo: repo(projectVault.createRepo) } : {}), ...(projectVault.replaceRepo ? { replaceRepo: repo(projectVault.replaceRepo) } : {}), sealer, keyring } };
-}
-
-/** A site id from `source`, or undefined (warned) when it is not a short token. */
-function acceptedSiteId({ value, source }: { value: string | undefined; source: string }, _optional = {}): string | undefined {
-  if (value === undefined || isSiteIdToken({ value })) return value;
-  console.warn(`[site-identity] ${source} holds ${JSON.stringify(value.slice(0, 80))}, which is not a valid site id; it is ignored`);
-  return undefined;
-}
-
-/**
- * Which site sends every provider signal. NOT the workspace id: every starter-template site seeds the
- * same one (`workspace-local`), so two sites would report as one. The site's own `.site-meta.json` id
- * (`readSiteMetaId`) names it. A deployed server usually has no meta (production never mints one), so
- * next comes `TOVU_SITE_ID`, which `tovu deploy config` sets from the local site's meta: the deployed
- * copy reports as the same site. The meta wins over the env so one env shared by several local sites
- * can never merge them. The workspace id is only the last resort. The slug is the site folder's name;
- * Fly (production) has no project store, so its project is the site itself. Either source is taken
- * only as a short token (`isSiteIdToken`); anything else is warned about and skipped.
- */
-export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }: { workspaceId: string; binding: { name: string; dir: string }; runtimeMode: RuntimeMode; projectId: string | undefined }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): SiteIdentity {
-  const environment = telemetryEnvironment({ env, runtimeMode });
-  const siteId = acceptedSiteId({ value: readSiteMetaId({ siteDir: binding.dir }), source: `${binding.dir}/.site-meta.json` })
-    ?? acceptedSiteId({ value: env.TOVU_SITE_ID || undefined, source: "TOVU_SITE_ID" }) ?? workspaceId;
-  return { siteId, siteSlug: binding.name, environment, projectId: projectId ?? siteId };
-}
-
-/**
- * The project store both local apps share (`project-store.ts`); production (Fly, single site) has
- * none — the project is the site there. A store that cannot open (its folder can't be created, an
- * unreadable key, a damaged file) is reported and returned as `unavailable`, so a project-level fault
- * never stops a site booting, and its saves are refused rather than sent to the site vault.
- */
-async function projectStoreFor({ overrides, runtimeMode }: { overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode }): Promise<ProjectStore | { unavailable: string } | undefined> {
-  const open = overrides.openProjectStore ?? (async () => {
-    if (!localOwnerStoreEnabled({ runtimeMode, env: process.env })) return undefined;
-    const workspace = createSitesWorkspace({});
-    return openProjectStore({ sitesHome: workspace.home({}), home: homedir(), appDataDir: workspace.config({}).appData });
-  });
-  return open().catch(error => {
-    const detail = formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS);
-    const reason = `Shared Keys could not open. Existing site keys remain available. Retry Shared Keys after reopening the app. Details: P25_OWNER_STORE_UNAVAILABLE; ${detail}`;
-    console.warn(`[project-store] ${reason}`);
-    return { unavailable: reason };
-  });
 }
 
 /**
