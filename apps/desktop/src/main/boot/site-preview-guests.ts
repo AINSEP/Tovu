@@ -1,6 +1,6 @@
 /** Main-only guest registrations, installed by the owning shell's did-attach-webview callback. */
 import { isPublicPreviewUrl, type LivePreviewGuest } from './site-preview.ts';
-import type { PreviewTarget } from '../../site-preview-scheduler.ts';
+import type { PreviewTarget } from './site-preview.ts';
 
 type GuestEvent = 'did-start-navigation' | 'did-finish-load' | 'did-navigate-in-page' | 'destroyed';
 interface PreviewGuestContents {

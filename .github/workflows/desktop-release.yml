@@ -441,7 +441,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 24, cache: npm, cache-dependency-path: apps/desktop/package-lock.json }
-      # Only for js-yaml (the parser electron-updater reads the manifest with), lockfile-pinned.
+      # For js-yaml (electron-updater's manifest parser) and the Jini manifest merger, lockfile-pinned.
       # --ignore-scripts: nothing here needs Electron's binary download or any other install script.
       - run: npm ci --ignore-scripts --prefix apps/desktop
       # Only the three release rows: the Store job's package goes to Partner Center, never here.

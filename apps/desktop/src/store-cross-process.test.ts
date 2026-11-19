@@ -22,7 +22,7 @@ import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 
 import { sitesFilePath, readTrackedSites, readDismissedSites, trackSite } from "./tracked-sites.ts";
-import { stateFilePath, readDesktopState, rememberSiteDir } from "./site-dir-store.ts";
+import { stateFilePath, rememberSiteDir } from "./site-dir-store.ts";
 
 const SRC_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -138,5 +138,5 @@ test("desktop-state.json: a recent site another process remembers while this one
     rememberSiteDir({ statePath, dir: "/sites/parent" });
   });
 
-  assert.deepEqual(readDesktopState({ statePath }), { recentSiteDirs: ["/sites/parent", "/sites/child"] });
+  assert.deepEqual(JSON.parse(fs.readFileSync(statePath, "utf8")), { recentSiteDirs: ["/sites/parent", "/sites/child"] });
 });

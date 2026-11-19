@@ -29,13 +29,15 @@ import { finished } from "node:stream";
 import type { Readable, Writable } from "node:stream";
 
 import { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } from "./tovu-server.ts";
-import { readJsonFile, quarantineUnreadableFile, withFileLock, writeJsonFileAtomic } from "./durable-json-file.ts";
+import { readRecentDirectories, rememberRecentDirectory } from "@jini-ai/platform/fs";
+import { desktopJsonFile } from "./durable-json-file.ts";
 import type { QuarantineNotice } from "./durable-json-file.ts";
 
 /** Matches Runner's own quick-pick list length — an affordance, not a full history. */
 const MAX_RECENT_SITE_DIRS = 10;
 
 const STATE_FILE_NAME = "desktop-state.json";
+export const RECENT_SITE_DIRS_FIELD = "recentSiteDirs";
 
 /** How a damaged MRU file is announced on stderr — see {@link rememberSiteDir} for why starting the
  *  list over is the right answer for this file and the wrong one for `tracked-sites.ts`'. */
@@ -88,59 +90,6 @@ function stateFilePath({ userDataDir }: { userDataDir: string }, _options: Recor
   return path.join(userDataDir, STATE_FILE_NAME);
 }
 
-/** The persisted MRU shape — the only thing {@link readDesktopState} ever returns. */
-interface DesktopState {
-  recentSiteDirs: string[];
-}
-
-/** {@link readRecentSiteDirs}' answer: the list, plus whether the file it came from is damaged. */
-interface RecentSiteDirsRead extends DesktopState {
-  damaged: boolean;
-}
-
-/**
- * Read the persisted state, treating any unreadable or malformed file as "no state yet".
- *
- * Deliberately forgiving: this file holds a convenience list, and refusing to launch because a
- * cache got truncated would trade a real failure for a cosmetic one. Unlike
- * `tracked-sites.ts`, nothing here is salvaged out of a damaged file: every dir this list holds is
- * either already a tracked project or one folder-pick away, so recovering the cache would buy back
- * the ordering of a menu, not anything the operator made.
- *
- * @complexity O(n) in file size.
- */
-function readDesktopState({ statePath }: { statePath: string }, _options: Record<string, never> = {}): DesktopState {
-  const { recentSiteDirs } = readRecentSiteDirs({ statePath });
-  return { recentSiteDirs };
-}
-
-/**
- * {@link readDesktopState} plus the one fact a WRITER also needs: whether the file it is about to
- * replace is damaged, and therefore must be moved aside rather than written over.
- *
- * @complexity O(n) in file size.
- */
-function readRecentSiteDirs({ statePath }: { statePath: string }, _options: Record<string, never> = {}): RecentSiteDirsRead {
-  const read = readJsonFile({ filePath: statePath });
-  if (read.state === "missing") return { recentSiteDirs: [], damaged: false };
-  const recent = (read.state === "ok" ? read.value : null) as { recentSiteDirs?: unknown } | null;
-  if (!Array.isArray(recent?.recentSiteDirs)) return { recentSiteDirs: [], damaged: true };
-  return { recentSiteDirs: recent.recentSiteDirs.filter((entry): entry is string => typeof entry === "string"), damaged: false };
-}
-
-/**
- * Replace the persisted state, atomically — a crash partway through leaves the previous file whole
- * rather than a torn one that the next launch would read as an empty list and then persist as that
- * (`durable-json-file.ts`, and `tracked-sites.ts`'s header for the full shape of that bug).
- *
- * A whole-value replace, so it takes no lock of its own; a caller that first READS this file holds
- * the lock across both halves — see {@link rememberSiteDir}, the only one there is.
- * @complexity O(n) in the MRU length.
- */
-function writeDesktopState({ statePath, state }: { statePath: string; state: DesktopState }, _options: Record<string, never> = {}): void {
-  writeJsonFileAtomic({ filePath: statePath, value: state });
-}
-
 /**
  * Move `dir` to the front of the MRU list, de-duplicated and capped.
  *
@@ -166,13 +115,13 @@ function rememberSiteDir({ statePath, dir }: { statePath: string; dir: string },
     rememberSharedSiteOpen({ workspace, dir });
     return existingRecentSiteDirs({ statePath }, { workspace });
   }
-  return withFileLock({ filePath: statePath, critical: () => {
-    const previous = readRecentSiteDirs({ statePath });
-    const recentSiteDirs = [dir, ...previous.recentSiteDirs.filter((entry) => entry !== dir)].slice(0, MAX_RECENT_SITE_DIRS);
-    if (previous.damaged && !quarantineUnreadableFile({ filePath: statePath, notice: RECENT_SITES_QUARANTINE_NOTICE })) return recentSiteDirs;
-    writeDesktopState({ statePath, state: { recentSiteDirs } });
-    return recentSiteDirs;
-  } });
+  return rememberRecentDirectory({
+    file: desktopJsonFile({ filePath: statePath }),
+    field: RECENT_SITE_DIRS_FIELD,
+    directory: dir,
+    maxEntries: MAX_RECENT_SITE_DIRS,
+    notice: RECENT_SITES_QUARANTINE_NOTICE,
+  });
 }
 
 /**
@@ -185,11 +134,11 @@ function rememberSiteDir({ statePath, dir }: { statePath: string; dir: string },
  */
 function existingRecentSiteDirs({ statePath }: { statePath: string }, { workspace }: { workspace?: SitesWorkspace } = {}): string[] {
   if (workspace) {
-    const entries = shareSiteDirectories({ workspace, dirs: readDesktopState({ statePath }).recentSiteDirs, createdBy: "desktop-legacy", migration: `mru:${statePath}` });
+    const entries = shareSiteDirectories({ workspace, dirs: readRecentDirectories({ file: desktopJsonFile({ filePath: statePath }), field: RECENT_SITE_DIRS_FIELD }), createdBy: "desktop-legacy", migration: `mru:${statePath}` });
     return entries.sort((a, b) => (b.lastOpened ? Date.parse(b.lastOpened) : 0) - (a.lastOpened ? Date.parse(a.lastOpened) : 0))
       .map((entry) => entry.path).filter((dir) => classifySiteDirSafely({ dir }) === "site").slice(0, MAX_RECENT_SITE_DIRS);
   }
-  return readDesktopState({ statePath }).recentSiteDirs.filter((dir) => classifySiteDirSafely({ dir }) === "site");
+  return readRecentDirectories({ file: desktopJsonFile({ filePath: statePath }), field: RECENT_SITE_DIRS_FIELD }, { isEligible: ({ directory }) => classifySiteDirSafely({ dir: directory }) === "site" });
 }
 
 /**
@@ -637,8 +586,6 @@ export {
   STATE_FILE_NAME,
   SiteDirSelectionCancelled,
   stateFilePath,
-  readDesktopState,
-  writeDesktopState,
   rememberSiteDir,
   existingRecentSiteDirs,
   classifySiteDir,

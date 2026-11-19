@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { siteNameError, namePasteHandler } from '../contracts/site-name.js';
 import { humanSiteError, siteOperationError, tabAfterClose, readyNoticeStillTrue, dismissOnEscape } from './site-shell-policy.js';
-import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from './find-query-scheduler.js';
+import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from '@jini-ai/ui/core';
 import { revealActiveTab, tabOverflow } from './use-tab-strip.hooks.js';
 import { canSubmitRename } from './use-site-rename.hooks.js';
 import { deleteActionCopy } from './SiteGrid.hooks.js';

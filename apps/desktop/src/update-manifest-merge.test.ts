@@ -12,8 +12,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseUpdateInfo } from "electron-updater/out/providers/Provider.js";
 
-import { mergeMacManifests } from "./update-manifest-merge.ts";
-
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /** A manifest shaped like electron-builder 26's `latest-mac.yml` for one arch. */
@@ -30,66 +28,6 @@ function manifest(arch: "arm64" | "x64", overrides: Record<string, unknown> = {}
     ...overrides,
   };
 }
-
-test("both arches' zips are listed (the re-stapled dmgs are not), and the legacy top-level path names the Intel zip", () => {
-  const merged = mergeMacManifests({ inputs: [
-    { label: "arm", manifest: manifest("arm64") },
-    { label: "x64", manifest: manifest("x64") },
-  ] });
-  assert.equal(merged.version, "0.2.0");
-  assert.deepEqual(merged.files.map((entry) => entry.url), ["Tovu-mac-arm64.zip", "Tovu-mac-x64.zip"]);
-  assert.equal(merged.path, "Tovu-mac-x64.zip");
-  assert.equal(merged.sha512, "zip-x64");
-  assert.equal(merged.releaseDate, "2026-09-23T11:00:00.000Z");
-  assert.equal(merged.files[0]!.blockMapSize, 10, "blockmap sizes must survive for differential downloads");
-});
-
-test("when no input carries a releaseDate the merged manifest omits the key rather than inventing one", () => {
-  const undated = (arch: "arm64" | "x64") => {
-    const { releaseDate: _dropped, ...rest } = manifest(arch);
-    return rest;
-  };
-  const merged = mergeMacManifests({ inputs: [{ label: "arm", manifest: undated("arm64") }, { label: "x64", manifest: undated("x64") }] });
-  assert.equal("releaseDate" in merged, false);
-  assert.equal(merged.path, "Tovu-mac-x64.zip");
-});
-
-test("a merge of one arch alone is refused: the other arch would find no zip or the wrong one", () => {
-  assert.throws(
-    () => mergeMacManifests({ inputs: [{ label: "arm", manifest: manifest("arm64") }] }),
-    { message: "expected one arm64 zip and one x64 zip, got [Tovu-mac-arm64.zip]" },
-  );
-  assert.throws(
-    () => mergeMacManifests({ inputs: [{ label: "a", manifest: manifest("x64") }, { label: "b", manifest: manifest("x64", { files: [{ url: "Other-x64.zip", sha512: "o" }] }) }] }),
-    { message: "expected one arm64 zip and one x64 zip, got [Tovu-mac-x64.zip, Other-x64.zip]" },
-  );
-});
-
-test("inputs from two different versions are refused", () => {
-  assert.throws(
-    () => mergeMacManifests({ inputs: [{ label: "arm", manifest: manifest("arm64") }, { label: "x64", manifest: manifest("x64", { version: "0.1.9" }) }] }),
-    { message: "version mismatch: 0.2.0 vs 0.1.9" },
-  );
-});
-
-test("one file name with two checksums is refused; an identical duplicate is kept once", () => {
-  const clash = manifest("x64", { files: [...manifest("x64").files, { url: "Tovu-mac-arm64.zip", sha512: "different" }] });
-  assert.throws(
-    () => mergeMacManifests({ inputs: [{ label: "arm", manifest: manifest("arm64") }, { label: "x64", manifest: clash }] }),
-    { message: "Tovu-mac-arm64.zip listed with two different checksums" },
-  );
-  const merged = mergeMacManifests({ inputs: [{ label: "a", manifest: manifest("arm64") }, { label: "b", manifest: manifest("arm64") }, { label: "c", manifest: manifest("x64") }] });
-  assert.equal(merged.files.length, 2);
-});
-
-test("malformed input and no input are refused with the input's label", () => {
-  assert.throws(() => mergeMacManifests({ inputs: [] }), { message: "no manifests to merge" });
-  assert.throws(() => mergeMacManifests({ inputs: [{ label: "a.yml", manifest: null }] }), { message: "a.yml: not an update manifest (needs version and files)" });
-  assert.throws(
-    () => mergeMacManifests({ inputs: [{ label: "a.yml", manifest: { version: "1", files: [{ url: "x.zip" }] } }] }),
-    { message: "a.yml: every files entry needs url and sha512" },
-  );
-});
 
 test("the CLI writes a YAML manifest electron-updater's parser reads back, and fails loudly", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-latest-mac-"));

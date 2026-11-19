@@ -1,4 +1,4 @@
-import { createFindQueryScheduler, type FindQueryClock } from './find-query-scheduler.js';
+import { createFindQueryScheduler, type FindQueryClock } from '@jini-ai/ui/core';
 /**
  * @file The sites home window's Cmd+F find bar: opening it, routing a query to whichever surface is
  * actually on screen, and the match counter ("3 of 17") that surface reports back.

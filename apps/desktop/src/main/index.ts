@@ -153,7 +153,7 @@ import { writeSiteName } from "../site-config.ts";
 import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "../site-preview-store.ts";
 import { createSiteThemePreviewSubscriptions, openSiteThemePreviewStream } from "../site-theme-preview.ts";
 import { registerSiteThemePreviewIpc } from "../site-theme-preview-ipc.ts";
-import { createSitePreviewScheduler } from "../site-preview-scheduler.ts";
+import { createPreviewScheduler } from "@jini-ai/desktop-host";
 import { registerSiteIpcHandlers, rescanSites, type ProjectSiteLifecycle } from "../project-ipc.ts";
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
@@ -190,7 +190,7 @@ import { armFirstProductConsent, createDesktopProductState, initializeDesktopPro
 import { createSiteBackend } from "./boot/site-backend.ts";
 import { createDesktopAgentService } from "../desktop-agent-service.ts";
 import { agentServiceRegistryPath } from "../site-child-registry.ts";
-import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS } from "./boot/site-preview.ts";
+import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS, type PreviewTarget } from "./boot/site-preview.ts";
 import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
 import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
 import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
@@ -384,7 +384,7 @@ const recoveringSiteWindows = new Map<string, BrowserWindow>();
  */
 const openSites = createChildEntries<OpenSite>({
   onUnexpectedExit: ({ key: siteDir, exit, entry }) => {
-    sitePreviewScheduler.cancel({ siteDir }, {});
+    sitePreviewScheduler.cancel({ key: siteDir }, {});
     siteThemePreviews.stop({ siteDir }, {});
     // The row exists to let the NEXT launch reap a child this process left running. This one is
     // already gone, so the row is now a lie that `reconcileOrphans` would spend a `ps` call on.
@@ -596,16 +596,16 @@ const livePreviewGuests = createLivePreviewGuests<BrowserWindow, WebContents>({
   },
   allowed: ({ owner, guest, target }) => isLivePreviewGuestAllowed({ owner, guest,
     shellUrl: pathToFileURL(SITES_RENDERER_PATH).href, partitionSession: session.fromPartition(target.partition) }),
-  schedule: input => sitePreviewScheduler.schedule(input),
-  cancel: input => sitePreviewScheduler.cancel(input),
+  schedule: ({ siteDir }) => sitePreviewScheduler.schedule({ key: siteDir }, {}),
+  cancel: ({ siteDir }) => sitePreviewScheduler.cancel({ key: siteDir }, {}),
 });
 const captureSitePreview = createSitePreviewCapture({ ports: {
   liveGuest: input => livePreviewGuests.liveGuest(input),
   writePreview: ({ siteDir, png }) => writePreview({ userDataDir: app.getPath("userData"), siteDir, bytes: png }),
   warn: ({ message }) => console.warn(message),
 } });
-const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTimeout>>({ ports: {
-  current: currentPreviewTarget, capture: captureSitePreview,
+const sitePreviewScheduler = createPreviewScheduler<ReturnType<typeof setTimeout>, PreviewTarget & { siteDir: string }>({ ports: {
+  current: ({ key }) => { const target = currentPreviewTarget({ siteDir: key }); return target ? { siteDir: key, ...target } : undefined; }, capture: captureSitePreview,
   schedule: ({ work, delayMs }) => setTimeout(work, delayMs), cancel: ({ timer }) => clearTimeout(timer),
 } }, { debounceMs: PREVIEW_CAPTURE_DEBOUNCE_MS });
 
@@ -619,7 +619,7 @@ async function openSiteWindow({ siteDir, ctx }: { siteDir: string; ctx: SiteOpen
     sitePartition, readSiteName,
     createWindow: ({ url, title, partition }) => createWindow({ url }, { title, partition }),
     recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => siteChildRegistry.recordClosed({ registryDir: registryPath, key: dir }, { pid }),
-    siteThemePreviews, sitePreviewScheduler,
+    siteThemePreviews, sitePreviewScheduler: { cancel: ({ siteDir }) => sitePreviewScheduler.cancel({ key: siteDir }, {}) },
     endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: session.fromPartition(partition), adminUrl }),
     trackTeardown: ({ promise }) => pendingTeardowns.track({ promise }),
     cancelRestart: ({ siteDir: dir }) => { siteLifecycle?.cancel({ siteDir: dir }); recoveringSiteWindows.delete(dir); },
@@ -930,7 +930,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     readPreviewDataUrl: ({ id }: { id: string }) => readPreviewDataUrl({ userDataDir: app.getPath("userData"), siteDir: id }),
     deletePreview: ({ id }: { id: string }) => deletePreview({ userDataDir: app.getPath("userData"), siteDir: id }),
     cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
-      sitePreviewScheduler.cancel({ siteDir }, {});
+      sitePreviewScheduler.cancel({ key: siteDir }, {});
       siteThemePreviews.stop({ siteDir }, {});
     },
     sharedSites,

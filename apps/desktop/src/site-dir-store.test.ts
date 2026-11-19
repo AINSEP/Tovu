@@ -15,7 +15,7 @@ import { spawn } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { PassThrough, Writable } from "node:stream";
 
-import { MAX_RECENT_SITE_DIRS, SiteDirSelectionCancelled, stateFilePath, readDesktopState, rememberSiteDir, existingRecentSiteDirs, classifySiteDir, classifySiteDirSafely, resolveDevFallback, initSiteDir, resolveOrInitSiteDir, adoptSiteDir, resolveSiteDir } from "./site-dir-store.ts";
+import { SiteDirSelectionCancelled, stateFilePath, rememberSiteDir, existingRecentSiteDirs, classifySiteDir, classifySiteDirSafely, resolveDevFallback, initSiteDir, resolveOrInitSiteDir, adoptSiteDir, resolveSiteDir } from "./site-dir-store.ts";
 import type { RejectedDevFallback } from "./site-dir-store.ts";
 import { createSitesWorkspace } from "./shared-sites.ts";
 
@@ -103,30 +103,6 @@ test("resolveDevFallback rejects a non-site folder and names which marker file(s
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "half" }));
   assert.deepEqual(resolveDevFallback({ devFallbackDir: dir }), { useDir: null, rejected: { dir, kind: "incomplete", missing: [".site-meta.json"] } });
-});
-
-test("readDesktopState treats a missing or corrupt state file as empty rather than failing", () => {
-  assert.deepEqual(readDesktopState({ statePath: tempStatePath() }), { recentSiteDirs: [] });
-  const corrupt = tempStatePath();
-  fs.mkdirSync(path.dirname(corrupt), { recursive: true });
-  fs.writeFileSync(corrupt, "{ truncated");
-  assert.deepEqual(readDesktopState({ statePath: corrupt }), { recentSiteDirs: [] });
-});
-
-test("rememberSiteDir puts the newest folder first and de-duplicates", () => {
-  const statePath = tempStatePath();
-  rememberSiteDir({ statePath, dir: "/a" });
-  rememberSiteDir({ statePath, dir: "/b" });
-  rememberSiteDir({ statePath, dir: "/a" });
-  assert.deepEqual(readDesktopState({ statePath }).recentSiteDirs, ["/a", "/b"]);
-});
-
-test("rememberSiteDir caps the list", () => {
-  const statePath = tempStatePath();
-  for (let i = 0; i < MAX_RECENT_SITE_DIRS + 5; i += 1) rememberSiteDir({ statePath, dir: `/site-${i}` });
-  const recent = readDesktopState({ statePath }).recentSiteDirs;
-  assert.equal(recent.length, MAX_RECENT_SITE_DIRS);
-  assert.equal(recent[0], `/site-${MAX_RECENT_SITE_DIRS + 4}`);
 });
 
 test("existingRecentSiteDirs drops folders that were moved or deleted since they were remembered", () => {
@@ -321,7 +297,7 @@ test("resolveSiteDir remembers what the user picked, so the next launch does not
   const statePath = tempStatePath();
   const picked = fakeSiteDir();
   await resolveSiteDir({ statePath, repoRoot: fakeRepoRoot(), pickDir: () => picked });
-  assert.deepEqual(readDesktopState({ statePath }).recentSiteDirs, [picked]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(statePath, "utf8")), { recentSiteDirs: [picked] });
 });
 
 test("resolveSiteDir reports a cancelled picker as a cancellation, not a failure", async () => {
@@ -642,7 +618,7 @@ test("rememberSiteDir over a torn recent-sites file moves the damaged bytes asid
   const aside = asideCopies(statePath);
   assert.equal(aside.length, 1);
   assert.equal(fs.readFileSync(aside[0]!, "utf8"), torn, "the damaged bytes survive, byte for byte");
-  assert.deepEqual(readDesktopState({ statePath }), { recentSiteDirs: ["/sites/new"] });
+  assert.deepEqual(JSON.parse(fs.readFileSync(statePath, "utf8")), { recentSiteDirs: ["/sites/new"] });
   assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [
     `tovu desktop: recent-sites list ${statePath} was unreadable (torn or corrupt). Moved it aside to ${aside[0]}; the recently opened sites it listed are only in that copy now.`,
   ]);
@@ -684,7 +660,7 @@ test("a recent-sites write that dies partway leaves the previous file whole", (t
 
   assert.equal(crash.mock.callCount(), 1);
   assert.equal(fs.readFileSync(statePath, "utf8"), before);
-  assert.deepEqual(readDesktopState({ statePath }), { recentSiteDirs: ["/sites/a"] });
+  assert.deepEqual(JSON.parse(fs.readFileSync(statePath, "utf8")), { recentSiteDirs: ["/sites/a"] });
 });
 
 test("a crash between the recent-sites temp write and the rename leaves the previous file whole", (t) => {
@@ -700,7 +676,7 @@ test("a crash between the recent-sites temp write and the rename leaves the prev
 
   assert.equal(crash.mock.callCount(), 1);
   assert.equal(fs.readFileSync(statePath, "utf8"), before);
-  assert.deepEqual(readDesktopState({ statePath }), { recentSiteDirs: ["/sites/a"] });
+  assert.deepEqual(JSON.parse(fs.readFileSync(statePath, "utf8")), { recentSiteDirs: ["/sites/a"] });
 });
 
 
