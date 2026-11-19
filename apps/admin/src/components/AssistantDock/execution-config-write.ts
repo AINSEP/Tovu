@@ -74,8 +74,8 @@ export function withLocalCliSelection({ previous, selection }: {
   const agentId = selection.agentId || null;
   if (!agentId) return { ...previous, localCli: { ...previous.localCli, agentId: null } };
   let next = nextConfigForAgentSelect({ config: previous, agentId });
-  next = nextConfigForAgentModel(next, agentId, selection.model ?? "");
-  if (selection.reasoning !== undefined) next = nextConfigForAgentReasoning(next, agentId, selection.reasoning);
+  next = nextConfigForAgentModel({ config: next, agentId, model: selection.model ?? "" });
+  if (selection.reasoning !== undefined) next = nextConfigForAgentReasoning({ config: next, agentId, reasoning: selection.reasoning });
   return next;
 }
 

@@ -424,7 +424,7 @@ export function useVisitorCredentialForm({
   // `rules.ts`'s `defaultVisitorCredentialConfig` / `hasSavedVisitorCredential`.
   const [config, setConfig] = useState<ByokConfig>(defaultVisitorCredentialConfig);
 
-  const preset = useMemo(() => resolveSelectedPreset(DEFAULT_PROVIDER_PRESETS, config), [config]);
+  const preset = useMemo(() => resolveSelectedPreset({ presets: DEFAULT_PROVIDER_PRESETS, config }), [config]);
   // One port instance for this component's lifetime, matching `SettingsUi.tsx`'s `useRef` usage —
   // these are the SAME admin routes the Settings screen probes with, and they take the credential in
   // the request body rather than reading a stored one. That is what makes both controls below work

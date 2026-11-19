@@ -492,7 +492,7 @@ export function useByokRuntime(
    */
   const byokRuntime = useMemo(
     () => {
-      const preset = resolveSelectedPreset(DEFAULT_PROVIDER_PRESETS, executionConfig.byok);
+      const preset = resolveSelectedPreset({ presets: DEFAULT_PROVIDER_PRESETS, config: executionConfig.byok });
       const iconId = preset ? BYOK_PRESET_ICON_IDS[preset.id] : undefined;
       return {
         ...(preset ? { providerLabel: preset.title } : {}),
