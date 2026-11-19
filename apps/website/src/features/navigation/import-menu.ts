@@ -6,10 +6,9 @@ import {
   MenuConflictError,
   MenuNotFoundError,
   validateAndCloneTree,
-  type MenuRepoPort,
-  type NavLocationBindingRepoPort,
   type NavMenuEntry,
 } from "./index.js";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 
 /**
  * @file S3 of `ADS-memory/.local-artifacts/publish-types-plan-2026-09-24.md` — the host-local

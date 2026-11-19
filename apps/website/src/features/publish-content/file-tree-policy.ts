@@ -1,5 +1,5 @@
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
-import { scanTextForSecrets } from "#src/features/webhooks/index";
+import { scanTextForSecrets } from "#src/contracts/core/secret-scan";
 
 /**
  * @file `publish-files-plan-2026-09-24.md` §2 — the one pure module every file-tree publish type

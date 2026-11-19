@@ -1,5 +1,5 @@
-import { PUBLISHABLE_SETTINGS } from "./contracts.js";
-export { PUBLISHABLE_SETTINGS } from "./contracts.js";
+import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
+
 import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";

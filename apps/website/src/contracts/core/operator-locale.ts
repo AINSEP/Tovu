@@ -9,7 +9,7 @@ import { getEffective as settingsGetEffective, LANGUAGE_NAMESPACE } from "@jini-
  * the admin's own Language selector writes; this reads it the same way `settings_get_effective` does.
  */
 
-import type { OperatorLocaleDeps, GetEffectiveSetting } from '../../contracts/headless/index.js';
+import type { OperatorLocaleDeps, GetEffectiveSetting } from '../headless/index.js';
 
 const FALLBACK_LOCALE = "en";
 

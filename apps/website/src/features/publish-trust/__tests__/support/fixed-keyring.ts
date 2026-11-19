@@ -1,6 +1,6 @@
 import { hkdfSync } from "node:crypto";
 
-import type { KeyringPort } from "../../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /** One recorded `derive` request. */
 export interface RecordedDerive {

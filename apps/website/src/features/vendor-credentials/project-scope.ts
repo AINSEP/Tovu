@@ -1,4 +1,4 @@
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 /**
  * @file Shared scope policy for custom, publish and source-control credentials. Site-owned keys

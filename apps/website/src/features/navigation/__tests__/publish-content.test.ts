@@ -9,11 +9,10 @@ import type { PackedEntity, PublishContentDeps } from "#src/features/publish-con
 import {
   InMemoryMenuRepo,
   InMemoryNavLocationBindingRepo,
-  type MenuRepoPort,
-  type NavLocationBindingRepoPort,
   type NavMenuDoc,
   type NavMenuEntry,
 } from "../index.js";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { contributeMenusPublish } from "../publish-content.js";
 

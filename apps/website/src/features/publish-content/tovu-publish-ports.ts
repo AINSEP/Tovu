@@ -1,9 +1,9 @@
 import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort, RemovePostFn } from "#src/features/post/contracts";
 import type { AssetBlobRepoPort, BlobStorePort, MediaContentTypeStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
-import type { MenuRepoPort, NavLocationBindingRepoPort } from "#src/features/navigation/index";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
-import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "#src/features/content-types/index";
+import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type {
   ContentLookupPort,
   ContentTypeTaxonomyPolicyPort,
@@ -16,9 +16,9 @@ import type {
   TermListPort,
   TermRepoPort,
   UnassignableEntryTermRepoPort,
-} from "#src/features/taxonomy/index";
+} from "@jini-ai/cms/taxonomy";
 import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
-import type { EntryListPort, EntryRepoPort } from "#src/features/entries/index";
+import type { EntryListPort, EntryRepoPort } from "@jini-ai/cms/entries";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
 import type { EntryPublishReadPort } from "@jini-ai/cms/entries";

@@ -1,5 +1,5 @@
 import { normalizeCredentialToken, type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryVaultRepo, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import { VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";

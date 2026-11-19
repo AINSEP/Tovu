@@ -17,7 +17,7 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { resolveOperatorLocale } from "../../../settings/index.js";
+import { resolveOperatorLocale } from "#src/contracts/core/operator-locale";
 import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
 
 

@@ -4,7 +4,7 @@ import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { processOutbox } from "#src/contracts/core/events/index";
 import type { CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { DeployHostKit } from "#src/features/deployments/deploy-targets/types";
+import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
 import { createFormDestinationPort, FORM_PULL_LEASE_MS, formDestinationKey, listFormDestinations, pullFromFormDestination, type FormDestinationAddress, type FormDestinationRegistry } from "#src/features/form-destinations/index";
 import { readFormDestinationSetting } from "#src/features/settings/form-destination";

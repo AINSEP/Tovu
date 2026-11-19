@@ -12,7 +12,7 @@ export type {
   ExternalMcpOAuthRuntimePatch, ExternalMcpReplacedSecrets,
   ExternalMcpServerTarget, ExternalMcpServerConfig, ExternalMcpOAuthView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort,
   SaveExternalMcpOAuthInput, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth,
-  ExternalMcpAuthorizationStart, ExternalMcpDeviceStart, ExternalMcpConnectStart, ExternalMcpRevocationReason,
+  ExternalMcpAuthorizationStart, ExternalMcpDeviceStart, ExternalMcpRevocationReason,
 } from "@jini-ai/core/contracts/hosted-mcp";
 /** Sign-in contracts; Tovu binds its own shared-owner storage and credential-hint shapes below. */
 export type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "@jini-ai/integrations/api-connections/hosted-mcp";

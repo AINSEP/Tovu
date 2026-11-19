@@ -1,10 +1,10 @@
-import { ProjectKeyCreateConflictError } from '../project-keys/create-vault.js';
+import { ProjectKeyCreateConflictError } from '#src/contracts/core/credential-store';
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken, type CredentialConnection } from '@jini-ai/platform/secrets/credential-token';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/index.js";
 import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/index.js";

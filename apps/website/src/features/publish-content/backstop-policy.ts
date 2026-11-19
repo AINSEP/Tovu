@@ -1,5 +1,5 @@
 import { checkTreePath, credentialBaseName } from "./file-tree-policy.js";
-import { scanTextForSecrets } from "#src/features/webhooks/index";
+import { scanTextForSecrets } from "#src/contracts/core/secret-scan";
 
 /** An expected manual-publishing refusal with a caller-safe message.
  * Unexpected storage/transport errors must retain their original type for private diagnostics.

@@ -16,7 +16,7 @@ export type { Result } from "@jini-ai/core/primitives";
 export { CONTENT_TYPE_FIELD_KINDS, isContentTypeFieldKind, isIndexableFieldKind } from "@jini-ai/cms/content-types";
 export { DECLARED_CONTENT_TYPE_OWNERS } from "./declared-owners.js";
 
-export type { ContentTypeListPort } from "@jini-ai/cms/content-types";
+
 export { listContentTypes } from "@jini-ai/cms/content-types";
 
 export { parseContentTypeFieldDefs } from "@jini-ai/cms/content-types";
@@ -55,8 +55,6 @@ export {
 export type {
   AuthorizeFn,
   ContentTypeRevisionInput,
-  ContentTypeRepoPort,
-  IndexProvisionerPort,
   OutboxPort,
   WatermarkPort,
   ContentTypeWriteServiceDeps,

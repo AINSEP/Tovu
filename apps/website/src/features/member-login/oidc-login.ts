@@ -6,7 +6,7 @@ import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified
 import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken,
   type AuthorizationCallbackParams, type OAuthClient, type OAuthHttpPorts, type OAuthProviderDescriptor,
   type OAuthRandomBytes, type OidcIdTokenClaims } from "@jini-ai/oauth";
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { MemberLoginError, type LoginProvider, type VerifiedLoginIdentity } from "./types.js";
 
 export interface OidcLoginDeps {

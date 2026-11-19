@@ -1,5 +1,5 @@
 import type { HttpClientPort, HttpResponse } from "#src/platform/http/index";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 import { buildChallengeMessage } from "./challenge.js";
 import { DEFAULT_PUBLISHING_CAPABILITIES, type PublishingCapability } from "./grant.js";

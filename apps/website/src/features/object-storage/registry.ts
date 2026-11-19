@@ -8,7 +8,7 @@ import { createLocalFsObjectStoreProvider, parseObjectStoresFile as parseObjectS
 
 import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../agent-plugins/lifecycle.js";
-import type { DeployHostKit } from "../deployments/contracts.js";
+import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 
 /**
  * @file The site's object-store providers: the built-in `local` filesystem provider (the registry

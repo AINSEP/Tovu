@@ -27,7 +27,7 @@ import { nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning
 import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/deploy-config-registry";
 import { composedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { toPublishContentDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
 

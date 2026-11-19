@@ -6,11 +6,11 @@ import path from "node:path";
 import test from "node:test";
 
 import {
-  scanTextForSecrets,
   scanRepoForSecrets,
   scanGitHistoryForSecrets,
   isAllowlisted,
 } from "../secret-scan-guard.js";
+import { scanTextForSecrets } from "#src/contracts/core/secret-scan";
 
 /**
  * @file Two things, matching `seal-aad-invariant.test.ts`'s own split (see that file for why):

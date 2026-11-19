@@ -15,7 +15,7 @@ import { createCmsSearchAccessPort, memberSearchAudiences } from "#src/features/
 import { createCmsSearchDocumentSources } from "#src/features/site-search/cms-document-source";
 import { createSqlSearchIndexStore } from "#src/features/site-search/index-state-store";
 import { readSearchProviderSetting, writeSearchProviderSetting } from "#src/features/site-search/settings";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpClientPort } from "#src/platform/http/index";
 

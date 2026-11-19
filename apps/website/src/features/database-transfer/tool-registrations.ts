@@ -1,7 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/database-transfer.js';
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from './destination-exchange.js';
-import { resolveOperatorLocale } from '../settings/index.js';
+import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
 

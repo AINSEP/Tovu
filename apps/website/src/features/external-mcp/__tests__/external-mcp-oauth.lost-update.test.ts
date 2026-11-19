@@ -3,7 +3,7 @@ import test from "node:test";
 import { createTovuOAuthGuard } from "../../../platform/oauth/endpoint-safety.js";
 import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { SecretSealerPort } from "../../webhooks/ports.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService, ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";

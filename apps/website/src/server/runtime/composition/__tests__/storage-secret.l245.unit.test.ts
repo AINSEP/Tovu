@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import type { SecretSealerPort } from "#src/features/webhooks/ports";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { readSealedConnectionString, STORAGE_SECRET_FILENAME, StorageSecretError } from "../storage-secret.js";
 
 test("L245: missing, unreadable and malformed JSON files report only the path and category", async t => {

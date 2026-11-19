@@ -24,7 +24,7 @@ import {
 } from "../custom-credentials/index.js";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
-import type { SecretSealerPort } from "../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { inspectSiteKeyMaterial } from "../webhooks/index.js";
 import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/index.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";

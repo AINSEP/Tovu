@@ -32,16 +32,9 @@ import { authorizeContentEdit, createContentTargetPorts, createLiveCollectionTer
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks.js";
 import { taxonomyAgentToolCatalog } from "./agent-tools.js";
 import {
-  type TaxonomyListPort,
-  type TermListPort,
   type EntryRecordLookupPort,
-  type EntryTermRepoPort,
-  type TaxonomyRepoPort,
-  type TaxonomyRevisionRepoPort,
-  type TermRepoPort,
-  type ImportableTermRepoPort,
-  type UnassignableEntryTermRepoPort,
 } from "./index.js";
+import type { TaxonomyListPort, TermListPort, EntryTermRepoPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermRepoPort, ImportableTermRepoPort, UnassignableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 

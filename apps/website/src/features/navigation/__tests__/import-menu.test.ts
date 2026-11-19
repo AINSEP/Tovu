@@ -1,7 +1,8 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, MenuConflictError, MenuNotFoundError, type MenuRepoPort, type NavMenuEntry } from "../index.js";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, MenuConflictError, MenuNotFoundError, type NavMenuEntry  } from "../index.js";
+import type { MenuRepoPort } from "@jini-ai/cms/navigation";
 import { MenuVersionConflictError } from "../menu-version-conflict-error.js";
 import { importMenuEntity } from "../import-menu.js";
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";

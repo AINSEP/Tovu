@@ -9,7 +9,7 @@ import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools, runtimeSu
 import { assistantAgentDiscoveryPending, listAssistantAgents, listDetectedAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesting } from "../agents.js";
 import { createLiveModelDiscovery } from "../live-model-cache.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
-import type { SecretSealerPort } from "../../features/webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 // No test here may spawn a real CLI's model listing: every test runs against a prober that reports
 // "nothing live" unless it installs its own.

@@ -3,7 +3,7 @@ import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { CREDENTIAL_MESSAGES, type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale } from '../settings/index.js';
+import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -16,7 +16,7 @@ import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from '@jini-ai/core';
 import { getMediaProviderCredentials, type MediaProviderCredentialRepoPort } from '../media/provider-credential-store.js';
-import type { KeyringPort, SecretSealerPort } from '../webhooks/index.js';
+import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/webhooks';
 import type { AgentToolDefinition } from "@jini-ai/core";
 import { saveMediaProviderKey } from './provider-credential-save.js';
 

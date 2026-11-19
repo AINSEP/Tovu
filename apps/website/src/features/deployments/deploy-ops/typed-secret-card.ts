@@ -1,6 +1,6 @@
 import { SECRET_FORM_CARD_DEFINITIONS } from '../../../contracts/headless/index.js';
 import { credentialText } from '#src/contracts/core/credential-copy';
-import { resolveOperatorLocale } from '#src/features/settings/index';
+import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import { askThenReport, type AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';

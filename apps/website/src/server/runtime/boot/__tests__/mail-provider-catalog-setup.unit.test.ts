@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryCustomCredentialSetRepo, CustomCredentialSecretStoreUnconfiguredError } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { SecretSealerPort } from "#src/features/webhooks/index";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { loadMailProviderCatalog, SMTP_PROVIDER_SETUP, credentialFailureReason } from "../mail-provider-catalog.js";
 
 /**

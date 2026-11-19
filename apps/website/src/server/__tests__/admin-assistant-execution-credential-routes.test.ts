@@ -10,7 +10,7 @@ import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/d
 import { createAssistantSettingsModule } from "../runtime/composition/modules/assistant-settings.js";
 import { resolveExecutionCredential } from "../../assistant/execution-credential-store.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import type { KeyringPort } from "../../features/webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { RouteDeps } from "../routes/types.js";
 
 /**

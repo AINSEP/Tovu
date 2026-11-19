@@ -13,7 +13,8 @@ import { admitPublish, type RevocationRead } from "#src/features/publish-trust/r
 import { publishPrincipalIdFor } from "#src/features/publish-trust/keys";
 import { verifyPublishSession } from "#src/features/publish-trust/session";
 import type { GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
-import { isNoSiteKeyError, type KeyringPort } from "#src/features/webhooks/index";
+import { isNoSiteKeyError } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /**
  * @file Zero-setup publishing auth — the destination-side gate.

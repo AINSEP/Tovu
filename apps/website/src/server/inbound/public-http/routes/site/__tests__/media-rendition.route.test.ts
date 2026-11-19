@@ -9,7 +9,7 @@ import { startTestServer } from "../../../../../__tests__/helpers/http-test-serv
 import { registerTransform, uploadMedia } from "../../../../../../features/media/index.js";
 import type { PostRecord } from "../../../../../../features/post/index.js";
 import { buildWidgetInstanceFieldsJson } from "@jini-ai/cms/widgets";
-import type { EntryListPort } from "../../../../../../features/entries/index.js";
+import type { EntryListPort } from "@jini-ai/cms/entries";
 
 type Deps = ReturnType<typeof createRouteDeps>;
 const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13]);

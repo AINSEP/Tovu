@@ -1,13 +1,14 @@
 import type { Express, Response } from "express";
 
-import { isMenuHtmlAuthoring, MENU_RAW_HTML_PERMISSION, type MenuHtmlAuthoring, type MenuRepoPort, type NavMenuMode } from "#src/features/navigation/index";
+import { isMenuHtmlAuthoring, MENU_RAW_HTML_PERMISSION, type MenuHtmlAuthoring, type NavMenuMode  } from "#src/features/navigation/index";
+import type { MenuRepoPort } from "@jini-ai/cms/navigation";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type {
   NavItemNode,
-  NavLocationBindingRepoPort,
   NavLocationBindingRow,
   NavMenuEntry,
 } from "#src/features/navigation/index";
+import type { NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

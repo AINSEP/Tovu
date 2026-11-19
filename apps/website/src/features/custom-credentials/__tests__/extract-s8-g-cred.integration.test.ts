@@ -14,7 +14,7 @@ import { insertFixture } from "#src/platform/db/migrations/__tests__/secrets-vau
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { HKDF_EXTRACTION_SALT } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { SqlCustomCredentialSetRepo } from "../custom-credential-repo.js";

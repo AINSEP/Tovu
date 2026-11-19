@@ -1,5 +1,5 @@
 import { createKeyringBackedSigner as createWebhookSigner, type WebhookSigner } from "@jini-ai/integrations/webhooks";
-import type { KeyringPort } from "./ports.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { SIGNATURE_VOCABULARY } from "./signing.js";
 
 // Per-attempt keyring derivation rationale: Jini/packages/integrations/src/webhooks/signing.keyring.ts (ADR-036 §5).

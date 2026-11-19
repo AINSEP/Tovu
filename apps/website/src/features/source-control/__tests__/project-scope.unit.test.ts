@@ -1,3 +1,4 @@
+import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
@@ -224,11 +225,10 @@ test('a Source control-page save is visible after reload on this site only; site
 test('a create-only owner conflict stays a source-control duplicate with safe guidance', async () => {
   const project = projectHalf();
   await save(site(project), SITE_A, 'existing', secret('first'));
-  const { projectKeyCreateVault } = await import('#src/features/project-keys/create-vault');
   const raw = project.repo.vault!;
   const view = attachedOnlyVault({ vault: raw, attachments: fakeAttachments(), siteId: SITE_B });
   const b = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: view }),
     createRepo: new InMemorySourceControlCredentialSetRepo({ vault: projectKeyCreateVault({ owner: raw, view }) }) });
   await assert.rejects(save(b, SITE_B, 'existing', secret('second')), error =>
-    error instanceof SourceControlCredentialDuplicateLabelError && error.message.includes('Use a saved key'));
+    error instanceof SourceControlCredentialDuplicateLabelError && error.message.includes('Use a saved key') && error.message.includes('P25_KEY_CREATE_CONFLICT'));
 });

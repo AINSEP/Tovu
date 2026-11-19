@@ -1,7 +1,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
-import type { SecretSealerPort } from "../features/webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 

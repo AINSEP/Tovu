@@ -3,10 +3,9 @@ import {
   NoopContentTypeIndexProvisioner,
   registerContentType,
   toContentTypeOutbox,
-  type ContentTypeRepoPort,
   type ContentTypeWriteServiceDeps,
-  type IndexProvisionerPort,
 } from "#src/features/content-types/index";
+import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 
 import type { DeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-content-types";
 

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { FixedRootKeyKeyring as FixedSiteKeyKeyring } from "@jini-ai/platform/secrets"; // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
 import { HKDF_EXTRACTION_SALT } from "./keyring.env.js";
-import type { KeyringPort } from "./ports.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /** Ephemeral host keyring with the same Tovu salt and Jini derivation as persisted keys.
  *

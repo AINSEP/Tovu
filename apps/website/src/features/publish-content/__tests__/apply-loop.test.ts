@@ -34,7 +34,8 @@ import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type MenuRepoPort, type NavMenuEntry } from "#src/features/navigation/index";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry  } from "#src/features/navigation/index";
+import type { MenuRepoPort } from "@jini-ai/cms/navigation";
 import { contributeMenusPublish } from "#src/features/navigation/publish-content";
 import { urlFor } from "#src/platform/routing/adapter";
 import { type RouteTarget } from '@jini-ai/cms/routing';

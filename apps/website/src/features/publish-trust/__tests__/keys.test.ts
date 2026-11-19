@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { hkdfSync } from "node:crypto";
 import test from "node:test";
 
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import {
   derivePublishSigningKey,
   deriveInstallationId,

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac, hkdfSync } from "node:crypto";
 import test from "node:test";
 
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import {
   buildChallengeMessage,
   CHALLENGE_TTL_MS,

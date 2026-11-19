@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 import { commitSiteToSourceControl, previewCommitExport, type CommitSiteInput, type SourceControlCommitAdapter } from "../commit-site.js";
 import type { CommitFile } from "../provider-module.js";
