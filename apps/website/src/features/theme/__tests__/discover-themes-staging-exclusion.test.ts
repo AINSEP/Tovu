@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { discoverAllBuiltInThemes, discoverThemes, MIGRATION_STAGING_DIR_PREFIX } from "../theme-discovery.js";
-import { ENGINE_SUBFOLDERS } from "../theme-layout.js";
+import { ENGINE_SUBFOLDERS } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file ARCH-001 (2026-08-19, Terra round-2 architecture audit) — `migrate-theme.ts`'s

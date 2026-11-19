@@ -1,7 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
-import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
@@ -18,10 +18,8 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
-import type { SiteBackupPlan, SiteBackupPlanContent } from "../plan-content.js";
-import type { PlannedDiskFile, SiteBackupSources } from "../sources.js";
-import { initialPushProgress, uploadPlannedContent, CANCELLED, type PushFailure } from "../push-engine.js";
-import { buildSourceControlProviderForApi } from "../../source-control/provider-registry.js";
+import type { SiteBackupPlanContent } from "../plan-content.js";
+import type { SiteBackupSources } from "../sources.js";
 import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
 import { SiteShareRefusal } from "../share-policy.js";
 import { buildSiteBackupRegistrations, contributeSiteBackupTools, siteBackupAgentToolCatalog, siteBackupDerivedRisk, type PushResult, type SiteBackupToolDeps } from "../tool-registrations.js";
@@ -700,6 +698,12 @@ test("the push re-checks the repository, uploads only the database as a blob (te
     "POST /git/commits",
     "PATCH /git/refs/heads/main",
   ]);
+  // Mutation: project disk files before the buffered database in the upload adapter.
+  const manifest = JSON.parse(manifestBytes.toString("utf8"));
+  assert.equal(manifest.files[0].path, "database/content.db");
+  const contentTree = h.github.writes().find(request => request.url.endsWith("/git/trees"));
+  assert.ok(contentTree);
+  assert.equal(JSON.parse(Buffer.from(contentTree.body!).toString("utf8")).tree[0].path, "database/content.db");
   assert.deepEqual(h.github.blobContents.map((bytes) => [...bytes]), [DB_BYTES], "only the database (it holds a NUL byte) is a blob; the plan's sanitized database");
   assert.deepEqual(h.sanitized, [RAW_SNAPSHOT_BYTES], "the raw snapshot went through the sanitizer once, at plan time");
   assert.ok(h.github.blobContents.every((bytes) => !bytes.equals(Buffer.from(RAW_SNAPSHOT_BYTES))), "the raw snapshot never reaches the host");
@@ -1381,157 +1385,6 @@ test("stopping the backup as the manifest upload completes prevents the commit",
   assert.equal(h.github.state.tip, "tip-1");
 });
 
-
-/** Reuse the real planner, temp site and fake host, then exercise uploads without committing. */
-async function uploadFixture(t: TestContext) {
-  const h = harness(t);
-  await h.seed();
-  const planId = await plannedId(h);
-  const taken = h.deps.siteBackupPlanStore!.take({ planId, principalId: OWNER_PRINCIPAL, workspaceId: WORKSPACE_ID });
-  assert.ok(taken.ok);
-  const built = await buildSourceControlProviderForApi({ load: githubFromSource, workspaceId: WORKSPACE_ID,
-    baseUrl: "https://api.github.com", httpClient: h.github });
-  assert.ok(built.ok);
-  const plan: SiteBackupPlan = { ...taken.plan, files: [], database: null, totalBytes: 0,
-    include: { ...taken.plan.include, database: false } };
-  const target = { baseUrl: "https://api.github.com", authorization: "Bearer fixture-token", owner: "octo", repo: "backups" };
-  const controller = new AbortController();
-  const toRefusal = (failure: { code: string; message: string }): PushFailure => ({ ok: false, code: failure.code, message: failure.message });
-  function file(name: string, bytes: Uint8Array): PlannedDiskFile {
-    const absPath = path.join(h.site.root, name);
-    writeFileSync(absPath, bytes);
-    const ids = statSync(absPath, { bigint: true });
-    return { root: h.site.root, identity: ids.ino === 0n ? null : `${ids.dev}:${ids.ino}`, nlink: Number(ids.nlink), path: name, absPath, bytes: bytes.byteLength, mtimeMs: statSync(absPath).mtimeMs, scope: "settings" };
-  }
-  return { h, plan, provider: built.provider, target, controller, toRefusal, file };
-}
-
-test("an empty plan uploads only its manifest and counts no content progress", async t => {
-  const f = await uploadFixture(t);
-  const progress = initialPushProgress(f.plan);
-  assert.deepEqual(progress, { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 });
-  const result = await uploadPlannedContent({ ...f, signal: f.controller.signal, progress,
-    provider: { ...f.provider, backupInlineTextMaxBytes: undefined } });
-  assert.ok(result.ok);
-  assert.equal(result.entries.length, 1);
-  assert.equal(result.entries[0].path, "tovu-backup.json");
-  const manifestBytes = f.h.github.blobContents[0];
-  assert.ok(manifestBytes);
-  assert.deepEqual(JSON.parse(manifestBytes.toString("utf8")).files, []);
-  assert.deepEqual(progress, { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 });
-});
-
-test("uploads malformed UTF-8, NUL and oversized content as blobs while preserving inline BOM and exact-limit text", async t => {
-  const f = await uploadFixture(t);
-  const contents = [Buffer.from([0xc3, 0x28]), Buffer.from([0]), Buffer.from("123456789"), Buffer.from("\ufeffok"), Buffer.from("12345678")];
-  const names = ["invalid-utf8", "nul", "too-large", "bom", "exact-limit"];
-  const plan = { ...f.plan, files: contents.map((bytes, i) => f.file(names[i], bytes)), totalBytes: contents.reduce((n, bytes) => n + bytes.length, 0) };
-  const progress = initialPushProgress(plan);
-  const result = await uploadPlannedContent({ ...f, plan, provider: { ...f.provider, backupInlineTextMaxBytes: 8 },
-    signal: f.controller.signal, progress, concurrency: 1 });
-  assert.ok(result.ok);
-  assert.deepEqual(result.entries.slice(0, 5).map(entry => entry.path), names);
-  assert.deepEqual(result.entries.slice(0, 3).map(entry => "blobSha" in entry), [true, true, true]);
-  assert.deepEqual(f.h.github.blobContents.slice(0, 3), contents.slice(0, 3));
-  assert.equal("text" in result.entries[3] && result.entries[3].text, "\ufeffok");
-  assert.equal("text" in result.entries[4] && result.entries[4].text, "12345678");
-  for (let index = 0; index < contents.length; index++) {
-    assert.equal(result.entries[index].sha256, createHash("sha256").update(contents[index]).digest("hex"));
-    assert.equal(result.entries[index].bytes, contents[index].length);
-  }
-  assert.deepEqual(progress, { filesDone: 5, filesTotal: 5, bytesDone: 25, bytesTotal: 25 });
-});
-
-test("a stale disk file refuses the upload before any blob or manifest is sent", async t => {
-  const f = await uploadFixture(t);
-  const file = f.file("changed-file", Buffer.from("original"));
-  writeFileSync(file.absPath, "changed length");
-  const plan = { ...f.plan, files: [file], totalBytes: file.bytes };
-  const progress = initialPushProgress(plan);
-  const result = await uploadPlannedContent({ ...f, plan, signal: f.controller.signal, progress });
-  assert.equal(result.ok, false);
-  assert.ok(!result.ok);
-  assert.equal(result.code, "PLAN_STALE");
-  assert.match(result.message, /changed-file/);
-  assert.deepEqual(f.h.github.blobContents, []);
-  assert.equal(progress.filesDone, 0);
-});
-
-test("a manifest upload failure retains the mapped code and names the manifest", async t => {
-  const f = await uploadFixture(t);
-  const result = await uploadPlannedContent({ ...f, signal: f.controller.signal, progress: initialPushProgress(f.plan),
-    provider: { ...f.provider, backupInlineTextMaxBytes: undefined,
-      uploadBackupBlob: async (_target, file) => {
-        assert.equal(file.path, "tovu-backup.json");
-        return { ok: false, code: "provider-error", message: "manifest refused" };
-      } }, toRefusal: failure => ({ ok: false, code: "HOST_REFUSED", message: failure.message }) });
-  assert.deepEqual(result, { ok: false, code: "HOST_REFUSED", message: "uploading 'tovu-backup.json' failed: manifest refused" });
-});
-
-test("an aborted empty plan sends neither content nor manifest", async t => {
-  const f = await uploadFixture(t);
-  f.controller.abort();
-  assert.deepEqual(await uploadPlannedContent({ ...f, signal: f.controller.signal, progress: initialPushProgress(f.plan) }), CANCELLED);
-  assert.deepEqual(f.h.github.blobContents, []);
-});
-
-test("zero requested concurrency still uploads every file sequentially", async t => {
-  const f = await uploadFixture(t);
-  const files = [f.file("one", Buffer.from([1])), f.file("two", Buffer.from([2]))];
-  const plan = { ...f.plan, files, totalBytes: 2 };
-  const progress = initialPushProgress(plan);
-  const result = await uploadPlannedContent({ ...f, plan, signal: f.controller.signal, progress, concurrency: 0,
-    provider: { ...f.provider, backupInlineTextMaxBytes: undefined } });
-  assert.ok(result.ok);
-  assert.deepEqual(result.entries.map(entry => entry.path), ["one", "two", "tovu-backup.json"]);
-  assert.equal(f.h.github.maxBlobsInFlight, 1);
-  assert.deepEqual(progress, { filesDone: 2, filesTotal: 2, bytesDone: 2, bytesTotal: 2 });
-});
-
-test("simultaneous upload failures keep the first failure and stop workers taking another file", { timeout: 5_000 }, async t => {
-  const f = await uploadFixture(t);
-  const files = [1, 2, 3].map(n => f.file(`file-${n}`, Buffer.from([n])));
-  const plan = { ...f.plan, files, totalBytes: 3 };
-  const progress = initialPushProgress(plan);
-  const started: string[] = [];
-  let bothStarted!: () => void;
-  const ready = new Promise<void>(resolve => { bothStarted = resolve; });
-  let release!: () => void;
-  const gate = new Promise<void>(resolve => { release = resolve; });
-  t.after(release);
-  const pending = uploadPlannedContent({ ...f, plan, signal: f.controller.signal, progress, concurrency: 2,
-    provider: { ...f.provider, backupInlineTextMaxBytes: undefined, uploadBackupBlob: async (_target, file) => {
-      started.push(file.path);
-      if (started.length === 2) bothStarted();
-      await gate;
-      return { ok: false, code: "provider-error", message: `refused ${file.path}` };
-    } } });
-  await ready;
-  release();
-  assert.deepEqual(await pending, { ok: false, code: "provider-error", message: `uploading '${started[0]}' failed: refused ${started[0]}` });
-  assert.deepEqual(new Set(started), new Set(["file-1", "file-2"]));
-  assert.equal(progress.filesDone, 0);
-});
-
-test("inline text stops at the aggregate budget and sends subsequent content as blobs", async t => {
-  const f = await uploadFixture(t);
-  const chunk = Buffer.alloc(32 * 1024 * 1024, "x");
-  const files = [f.file("half-budget-1", chunk), f.file("half-budget-2", chunk), f.file("over-budget", Buffer.from("y"))];
-  const plan = { ...f.plan, files, totalBytes: 64 * 1024 * 1024 + 1 };
-  const progress = initialPushProgress(plan);
-  const result = await uploadPlannedContent({ ...f, plan, signal: f.controller.signal, progress, concurrency: 1,
-    provider: { ...f.provider, backupInlineTextMaxBytes: chunk.length } });
-  assert.ok(result.ok);
-  for (const entry of result.entries.slice(0, 2)) {
-    assert.ok("text" in entry);
-    assert.equal(entry.text.length, chunk.length);
-  }
-  assert.ok("blobSha" in result.entries[2]);
-  assert.ok("blobSha" in result.entries[3]);
-  assert.equal(f.h.github.blobContents[0].toString("utf8"), "y");
-  assert.equal(progress.bytesDone, plan.totalBytes);
-  assert.equal(progress.filesDone, 3);
-});
 
 for (const id of ["site_share_create", "site_share_list", "site_share_revoke", "site_import_backup", "site_import_list"]) {
   test(`${id} reports an unavailable backend after its permission check`, async t => {

@@ -43,8 +43,8 @@
  * already the closest possible ancestor (`apps/admin/node_modules`, admin's own independent
  * install), so the shadow has to go one level further in, at `apps/admin/src/node_modules/@jini-ai`
  * (still an ancestor of every file under `apps/admin/src`, and closer than `apps/admin/node_modules`
- * itself). Verified admin's two cross-package includes
- * (`apps/website/src/contracts/headless/**`, `.../features/theme/theme-layout.ts`) do not import
+ * itself). Admin's cross-package headless include
+ * (`apps/website/src/contracts/headless/**`) does not import
  * `@jini-ai/*` at all, so there is no ambiguity about which project's shadow they would see.
  * The shadow is created fresh, used for one `tsc` run, and removed in a `finally` — it never
  * coexists with, or touches, the real `node_modules/@jini-ai/*` symlinks.

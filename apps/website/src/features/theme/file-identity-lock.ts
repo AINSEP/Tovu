@@ -1,6 +1,25 @@
-import { resolveThemeLayout } from "./theme-layout.js";
-import { TRASH_DIR_NAME } from "./theme-layout.js";
-import { isPageFilePath, isPartialFilePath } from "./theme-layout.js";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
+/**
+ * The top-level folder `theme_trash_file` moves a soft-deleted file into (2026-08-30, owner
+ * decision: "agent can only do soft-delete and hard-delete is gated by needing a human" — see
+ * `tool-registrations.ts`'s `theme_trash_file`/`theme_restore_trashed_file` for the operations that
+ * use this).
+ *
+ * Deliberately NOT the `_unpublished/` convention an earlier agent invented ad hoc the same week to
+ * hide a page from public routing (moving its file out of `render/pages/` and dropping it from
+ * `theme.json`, entirely outside any audited read/write path — see that convention's own removal,
+ * replaced by `ThemeManifest.publishedPages`). The lesson that removal leaves: a new "hidden" location
+ * has to be a location every relevant scanner/writer explicitly knows about, not a side channel
+ * nothing else is aware of. `.trash/` is that: every discovery loader in `theme.ts` only ever
+ * `readdirSync`s a SPECIFIC named folder (`pagesDir`/`partialsDir`/`templatesDir`, never `themeDir`
+ * itself), so a `.trash/` folder is invisible to page/partial/template discovery for every tier by
+ * construction — but `theme_list_files` and `explore.ts`'s own file list are BOTH updated to filter
+ * it out explicitly (not left to accidentally not-show-up), and `assertThemeFileWritable`/
+ * `isThemeFileWritable` both refuse writing INTO it directly, so the only doors in or out are
+ * `theme_trash_file`/`theme_restore_trashed_file` themselves.
+ */
+import { TRASH_DIR_NAME } from "@jini-ai/cms/themes/layout";
+import { isPageFilePath, isPartialFilePath } from "@jini-ai/cms/themes/layout";
 import { isGeneratedThemePath, type ThemeFileWriteScope } from "./theme-file-policy.js";
 import type { ThemeManifest } from "./render-contract.js";
 
@@ -60,7 +79,7 @@ function isAssetExtension({ relativePath }: { relativePath: string }, _optional 
 }
 
 /** A path's own extension, lowercased (`""` if none) — the dot must fall after the last slash to
- *  count, matching {@link import("./theme-layout.js")}'s layout paths using the same rule. */
+ *  count, matching {@link import("@jini-ai/cms/themes/layout")}'s layout paths using the same rule. */
 export function fileExtension({ relativePath }: { relativePath: string }, _optional = {}): string {
   const dot = relativePath.lastIndexOf(".");
   const slash = relativePath.lastIndexOf("/");
@@ -124,26 +143,6 @@ export function requiredThemeFiles({ apiVersion }: { apiVersion: 2 | undefined }
   return resolveThemeLayout({}, { apiVersion }).requiredFiles;
 }
 
-/**
- * The top-level folder `theme_trash_file` moves a soft-deleted file into (2026-08-30, owner
- * decision: "agent can only do soft-delete and hard-delete is gated by needing a human" — see
- * `tool-registrations.ts`'s `theme_trash_file`/`theme_restore_trashed_file` for the operations that
- * use this).
- *
- * Deliberately NOT the `_unpublished/` convention an earlier agent invented ad hoc the same week to
- * hide a page from public routing (moving its file out of `render/pages/` and dropping it from
- * `theme.json`, entirely outside any audited read/write path — see that convention's own removal,
- * replaced by `ThemeManifest.publishedPages`). The lesson that removal leaves: a new "hidden" location
- * has to be a location every relevant scanner/writer explicitly knows about, not a side channel
- * nothing else is aware of. `.trash/` is that: every discovery loader in `theme.ts` only ever
- * `readdirSync`s a SPECIFIC named folder (`pagesDir`/`partialsDir`/`templatesDir`, never `themeDir`
- * itself), so a `.trash/` folder is invisible to page/partial/template discovery for every tier by
- * construction — but `theme_list_files` and `explore.ts`'s own file list are BOTH updated to filter
- * it out explicitly (not left to accidentally not-show-up), and `assertThemeFileWritable`/
- * `isThemeFileWritable` both refuse writing INTO it directly, so the only doors in or out are
- * `theme_trash_file`/`theme_restore_trashed_file` themselves.
- */
-export { TRASH_DIR_NAME } from "./theme-layout.js";
 
 /** Collapse a theme-relative path to comparable segments — `/` separators, no `.`, no `..`, no empty
  *  segments. A small local copy of the same normalization `theme-files.ts`'s own (private, exported

@@ -2,7 +2,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useEffect, useState } from "react";
 
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
-import { resolveThemeLayout } from "@tovu/theme-layout";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 
 import type { ThemeCanvasPort, ThemeTokens } from "./theme-canvas-port.hooks";
 import { ThemeServerResponseError } from "./theme-canvas-dependencies.hooks";
@@ -37,7 +37,7 @@ function themeAssetUrl({ themeId, relativePath }: { themeId: string; relativePat
 }
 
 /** The active theme's one required stylesheet, at the path its own `apiVersion` puts it
- *  (`css/theme.css` for v2, `css/styles.css` for v1) — resolved through `@tovu/theme-layout`, the
+ *  (`css/theme.css` for v2, `css/styles.css` for v1) — resolved through `@jini-ai/cms/themes/layout`, the
  *  same resolver the server render uses, rather than a second independently-spelled literal. */
 export function themeStylesheetUrl({ themeId, apiVersion }: { themeId: string; apiVersion: 2 | undefined }, _options = {}): string {
   return themeAssetUrl({ themeId, relativePath: resolveThemeLayout({}, { apiVersion }).stylesheetPath });
@@ -71,7 +71,7 @@ export function templateMarkupUrl({ themeId, apiVersion, templateChoice }: { the
  *  of `STATIC_TIER_PAGE_SHELL_IDS` in `apps/website/src/features/theme/static-render.ts` (see
  *  `resolveStaticTierPageShellFallback` there), which the live render path consults for exactly this
  *  case. That module is server/Node-only (its theme discovery reads real files off disk) and is not
- *  exposed through `@tovu/theme-layout`, the one deliberately-pure cross-runtime module this file
+ *  exposed through `@jini-ai/cms/themes/layout`, the one deliberately-pure cross-runtime module this file
  *  already imports from (see this file's own header) — so its constant cannot be imported here the
  *  way `resolveThemeLayout` is. This is the one fact of theirs {@link resolveCanvasTemplateChoice}
  *  actually needs, kept in sync by hand: if the canonical filename(s) ever change, update both.

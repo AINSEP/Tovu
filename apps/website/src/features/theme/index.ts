@@ -2,7 +2,6 @@ export { discoverThemes, discoverAllBuiltInThemes, findTheme, findStoredTheme, v
 export { loadTheme, type ThemeTokens, type DiscoveredTheme } from "./theme.js";
 export { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId, type ThemeManifest, type ThemeBuildInfo, type ThemeTier, type TemplateNode } from "./render-contract.js";
 export { isStandaloneThemePage, isPublishableThemePageCandidate } from "./theme-page-eligibility.js";
-export { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 
 export { applicableThemeTemplates, type ThemeTemplateFor, type ThemeTemplateKind } from "./template-applicability.js";
 export { isPackageShippedTheme } from "./theme-original-source.js";
@@ -135,9 +134,8 @@ export { restoreBuiltThemeGeneratedTree } from "./theme-generated-restore.js";
 export { writeThemeFile } from "./theme-file-writing.js";
 
 // 2026-08-19 architecture audit findings 1 & 2 — the one apiVersion-aware theme-layout resolver,
-// shared by `apps/website/src/server/inbound/admin-http/routes/themes/explore.ts` and (via the `@tovu/theme-layout` alias,
-// `apps/admin/vite.config.ts`) the admin SPA. See `theme-layout.ts`'s own file header.
-export { resolveThemeLayout, isPageFilePath, isPartialFilePath, type ThemeLayout } from "./theme-layout.js";
+// shared by `apps/website/src/server/inbound/admin-http/routes/themes/explore.ts` and the admin SPA,
+// is imported directly from `@jini-ai/cms/themes/layout` so both runtimes use the same path facts.
 
 // 2026-08-19 architecture audit finding 4 — re-exported so `routes/site/pages.ts`'s missing-template
 // diagnostic builder can pick the same apiVersion-correct `<link>` sentinel `renderStaticPage` itself
@@ -158,7 +156,6 @@ export {
   requiredThemeFiles,
   validateFileIdentityChange,
   IDENTITY_LOCKED_GROUPS,
-  TRASH_DIR_NAME,
   type ThemeFileGroup,
   type FileIdentityLockResult,
 } from "./file-identity-lock.js";

@@ -11,8 +11,7 @@ import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/ag
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { prepareShareContent } from "../share-preparation.js";
 import { createRuntimeShareDelivery } from "../share-hosting.js";
-import { uploadPlannedContent, initialPushProgress } from "../push-engine.js";
-import type { SourceControlProvider } from "../../source-control/provider-module.js";
+import { uploadBackupPlan, initialPushProgress } from "../push-content.js";
 import express from "express";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -95,8 +94,9 @@ test("ZIP target uses the common plan/manifest; repository plans retain their or
   assert.equal(taken.ok, true);
   if (taken.ok) {
     assert.equal(taken.plan.repository.branch, "main");
-    const provider = { backupInlineTextMaxBytes: 1_000_000 } as SourceControlProvider;
-    const uploaded = await uploadPlannedContent({ plan: taken.plan, provider, target: { baseUrl: "https://example.test", authorization: "test", owner: "owner", repo: "repo" }, signal: new AbortController().signal, progress: initialPushProgress(taken.plan), toRefusal: failure => ({ ok: false, code: failure.code, message: failure.message }) });
+    const uploaded = await uploadBackupPlan({ plan: taken.plan, signal: new AbortController().signal,
+      progress: initialPushProgress({ plan: taken.plan }), uploadBlob: async () => assert.fail("fixture content must stay inline"),
+    }, { inlineTextMaxBytes: 1_000_000 });
     assert.equal(uploaded.ok, true);
     if (uploaded.ok) {
       assert.equal(uploaded.entries[0]!.path, "database/content.db");

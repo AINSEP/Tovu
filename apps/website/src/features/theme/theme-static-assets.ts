@@ -3,7 +3,7 @@ import { type ThemeManifest, type ThemeTier } from "./render-contract.js";
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { markersOfType } from "@jini-ai/cms/widgets/markers";
-import { resolveThemeLayout } from "./theme-layout.js";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 import { type ThemeTokens, type DiscoveredTheme } from "./theme.js";
 import { readJson, isObject } from "./theme-manifest-fields.js";
 

@@ -3,7 +3,7 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 
 import { readThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
-import { ENGINE_SUBFOLDERS } from "./theme-layout.js";
+import { ENGINE_SUBFOLDERS } from "@jini-ai/cms/themes/layout";
 import { rescanThemes } from "./theme-discovery.js";
 import { type DiscoveredTheme } from "./theme.js";
 

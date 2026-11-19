@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { THEME_CATALOG_DIR } from "../theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { ThemePathError } from "../theme-files.js";
 import { themeFileDiffersFromOriginal } from "../theme-file-originals.js";
 

@@ -9,7 +9,8 @@ import { syncBuiltinESMExports } from "node:module";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeFileResetRoute } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";

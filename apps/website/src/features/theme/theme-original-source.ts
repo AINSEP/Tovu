@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { ThemeManifest } from "./render-contract.js";
-import { resolveThemeLayout, THEME_CATALOG_DIR } from "./theme-layout.js";
+import { resolveThemeLayout, THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { MAX_THEME_FILE_BYTES } from "./theme-files.js";
 
 
@@ -137,7 +137,7 @@ function manifestApiVersionOnDisk({ themeDir }: { themeDir: string }, _optional 
  * The one guard both per-file resets share (`explore.ts`'s reset route and `theme_reset_file`), and
  * what the Explore listing uses to decide `resettable`. Refuses when a theme's catalog original cannot
  * stand in for the live theme file by file: its `theme.json` resolves a different layout
- * (`theme-layout.ts`) than the live one, or cannot be read, so its layout is unknown.
+ * (`@jini-ai/cms/themes/layout`) than the live one, or cannot be read, so its layout is unknown.
  *
  * The refusal covers every file, not only `theme.json`. Copying a v1 original's `theme.json` over a v2
  * theme writes a manifest with no `apiVersion`, and `loadTheme` then requires v1's `pages/index.html`

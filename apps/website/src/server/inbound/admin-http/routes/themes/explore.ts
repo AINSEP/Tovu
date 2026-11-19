@@ -3,6 +3,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { setThemePagePublished, ThemePagePublicationError } from "#src/features/theme/index";
 import type { Response } from "express";
+import { isPageFilePath, isPartialFilePath } from "@jini-ai/cms/themes/layout";
 
 import {
   findTheme,
@@ -12,8 +13,6 @@ import {
   trashThemeFile,
   ThemeFileReadOnlyError,
   isGeneratedThemePath,
-  isPageFilePath,
-  isPartialFilePath,
   isPublishableThemePageCandidate,
   isStandaloneThemePage,
   listThemeFiles,
@@ -548,7 +547,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = ({ app, deps
         tier: theme.manifest.tier,
         // 2026-08-19 architecture audit findings 1 & 2 — the admin SPA's own rename-lock check
         // (`use-theme-explore.hooks.ts`) needs this to resolve the SAME apiVersion-aware layout the
-        // server just used to build `files` above, via the shared `@tovu/theme-layout` resolver.
+        // server just used to build `files` above, via the shared `@jini-ai/cms/themes/layout` resolver.
         apiVersion: theme.manifest.apiVersion,
         status: theme.status,
         errors: theme.errors,

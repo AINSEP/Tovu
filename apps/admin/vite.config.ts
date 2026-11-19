@@ -154,13 +154,10 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "src"),
       "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),
-      // Same cross-runtime precedent as `@tovu/headless` just above, extended to a pure resolver
-      // FUNCTION rather than wire-contract types: `theme-layout.ts` has zero `node:fs`/`node:path`
-      // imports (see its own file header), so this browser bundle can import the exact same
-      // apiVersion-aware path facts the server route uses — 2026-08-19 architecture audit findings
-      // 1 & 2, "one shared resolver, not six independent copies that can drift."
-      "@tovu/theme-layout": path.resolve(__dirname, "../website/src/features/theme/theme-layout.ts"),
-      // Third instance of the same cross-runtime pattern, for the Publish Content dialog's report
+      // `@jini-ai/cms/themes/layout` has no Node imports, so browser consumers resolve the
+      // same apiVersion-aware path facts as the server through the public package entry.
+      // This preserves the 2026-08-19 audit's one-resolver rule without a source alias.
+      // Another instance of the same cross-runtime pattern, for the Publish Content dialog's report
       // semantics (`features/publish-content/ui/`). That folder is pure TypeScript with no React and
       // no `node:*` — enforced by its own boundary test — precisely so this alias can exist: the
       // admin SPA renders the plan/confirm/execute ceremony from the SAME rules `planner.ts` applies

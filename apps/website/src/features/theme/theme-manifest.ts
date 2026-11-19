@@ -3,7 +3,7 @@ import { type ThemeSlotDescriptor } from "../../contracts/core/theme-slots.js";
 import { type ThemeManifest, type ThemeBuildInfo, type ThemeTier } from "./render-contract.js";
 import { join } from "node:path";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
-// Layout constants live in theme-layout so discovery and file I/O do not import each other.
+// Layout constants live in @jini-ai/cms/themes/layout so discovery and file I/O do not import each other.
 import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "./theme-file-policy.js";
 import { parseTemplateFor } from "./template-applicability.js";
 import { isObject, parseOptionalStringArray, parseTier, parseOptionalString, parseThemeBuildInfo, resolveThemeScripts, readJson } from "./theme-manifest-fields.js";

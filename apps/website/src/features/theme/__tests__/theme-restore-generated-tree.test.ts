@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { restoreBuiltThemeGeneratedTree } from "../theme-generated-restore.js";
 import { ThemePathError } from "../theme-files.js";
-import { THEME_CATALOG_DIR } from "../theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file ADR-020 §5's "restored atomically" half: `restoreBuiltThemeGeneratedTree` overwrites a built

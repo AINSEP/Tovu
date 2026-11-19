@@ -8,7 +8,7 @@ import type { TrashAdapter, TrashMarkerResult } from "@jini-ai/cms/trash";
 import { createDirectoryTrashAdapter, THEME_ENTITY_TYPE, type DirectoryTrashLocation } from "#src/features/trash/index";
 
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
-import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
+import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { findTheme, rescanThemes } from "./theme-discovery.js";
 import { type DiscoveredTheme } from "./theme.js";
 

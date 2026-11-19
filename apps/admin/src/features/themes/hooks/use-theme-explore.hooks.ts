@@ -1,7 +1,7 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { resolveThemeLayout } from "@tovu/theme-layout";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 
 import { ApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -139,7 +139,7 @@ export interface ThemeExploreDetail {
  * `pages/index.html` unconditionally, so a v2 theme's `render/pages/index.html` (every real static
  * theme on disk today) was never actually locked client-side — the operator's rename would start
  * inline, then fail with a round trip instead of an immediate inline refusal. Derived from
- * `resolveThemeLayout` (`@tovu/theme-layout` — the SAME resolver `explore.ts`'s server route uses)
+ * `resolveThemeLayout` (`@jini-ai/cms/themes/layout` — the SAME resolver `explore.ts`'s server route uses)
  * so the two cannot drift apart again.
  */
 function lockedIdentityPaths({ apiVersion }: { apiVersion: 2 | undefined }, _options = {}): readonly string[] {

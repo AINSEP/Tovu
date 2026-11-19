@@ -146,7 +146,7 @@ export function findThemeOrThrow({ routeDeps, themeId }: { routeDeps: ThemeToolD
  * there is exactly one place that decides "can this path be written at all" rather than copies that
  * could drift. The ADR-020/`preview/` pair is unchanged from `theme_write_file`'s own original inline
  * comments (git history); the `.trash/` refusal is new (2026-08-30, soft-delete) — see
- * `file-identity-lock.ts`'s `TRASH_DIR_NAME` doc for why writing directly into trash has to be
+ * `@jini-ai/cms/themes/layout`'s `TRASH_DIR_NAME` contract for why writing directly into trash has to be
  * refused rather than merely left unlikely: `theme_restore_trashed_file` is the only sanctioned door
  * back out, and an agent that could `theme_write_file`/`theme_edit_file` a `.trash/...` path in place
  * would have a second, unaudited way to mutate what is supposed to be inert, already-soft-deleted

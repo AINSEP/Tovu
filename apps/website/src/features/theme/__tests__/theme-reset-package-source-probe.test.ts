@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { resetThemeFileToOriginal } from "../theme-file-originals.js";
 import { resolveThemeOriginalSource, themeOriginalResetRefusal } from "../theme-original-source.js";
-import { THEME_CATALOG_DIR } from "../theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file Design C go/no-go probe (`ADS-memory/.local-artifacts/agent-reports/2026-09-16-w4-theme-

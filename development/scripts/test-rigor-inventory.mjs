@@ -358,7 +358,6 @@ function chainEnd(skel, openParen) {
 
 const ADMIN_ALIASES = {
   "@tovu/headless": "apps/website/src/contracts/headless/index.ts",
-  "@tovu/theme-layout": "apps/website/src/features/theme/theme-layout.ts",
   "@tovu/publish-content-ui": "apps/website/src/features/publish-content/ui/index.ts",
   "@tovu/embed-marker": "apps/website/src/contracts/core/embeds/marker.ts",
   "@tovu/assistant-run-events": "apps/website/src/contracts/core/assistant-run-events.ts",

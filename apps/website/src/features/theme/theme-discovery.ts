@@ -2,7 +2,7 @@ import { type ThemeTier } from "./render-contract.js";
 import { readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { themeIdCandidates } from "./theme-id-aliases.js";
-import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
+import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { type DiscoveredTheme, loadTheme } from "./theme.js";
 
 

@@ -10,7 +10,7 @@ import { listThemeFiles, MAX_LISTED_FILES } from "../theme-file-listing.js";
 import { MAX_WALK_DEPTH, resolveThemeFilePath, ThemePathError } from "../theme-files.js";
 import { themeFileDiffersFromOriginal } from "../theme-file-originals.js";
 import { writeThemeFile } from "../theme-file-writing.js";
-import { THEME_CATALOG_DIR } from "../theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file Boundary cases of the theme file service: listing bounds and refusals, deep not-yet-existing

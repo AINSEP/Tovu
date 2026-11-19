@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test, { after } from "node:test";
 
 import { runThemeSyncOriginalsCommand } from "../../commands/theme/sync-originals.js";
-import { THEME_CATALOG_DIR } from "#src/features/theme/theme-layout";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file `tovu theme sync-originals` — unit tier for the command's output shapes against a throwaway

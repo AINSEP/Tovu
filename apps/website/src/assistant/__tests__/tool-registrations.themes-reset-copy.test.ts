@@ -9,7 +9,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR, themeFileDiffersFromOriginal } from "../../features/theme/index.js";
+import { discoverAllBuiltInThemes, themeFileDiffersFromOriginal } from "../../features/theme/index.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { toolSearchKeywords } from "../tool-search-keywords.js";

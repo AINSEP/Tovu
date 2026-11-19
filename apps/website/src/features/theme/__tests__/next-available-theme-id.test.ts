@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { nextAvailableThemeId } from "../theme-discovery.js";
-import { THEME_CATALOG_DIR } from "../theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file `nextAvailableThemeId` — the collision-suffixing rule behind creating a new theme folder

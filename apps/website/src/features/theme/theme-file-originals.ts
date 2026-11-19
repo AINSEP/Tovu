@@ -1,7 +1,8 @@
 import { closeSync, copyFileSync, mkdirSync, openSync, readSync } from "node:fs";
 import { dirname } from "node:path";
 import { resolveThemeFilePath, statOrThemePathError, ThemePathError } from "./theme-files.js";
-import { writeFileAtomically } from "./theme-file-atomic-write.js";
+import { writeFileAtomically } from "@jini-ai/cms/themes/files/atomic-write";
+import { themeFileWritePorts } from "./theme-file-write-ports.js";
 
 
 /** Read size for {@link filesHaveSameBytes}: its memory is two buffers of this size, however large
@@ -163,6 +164,6 @@ export function resetThemeFileToOriginal(
     return { wasModified: false, bytes: original.size };
   }
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically({ target, relativePathForError: relativePath, fillTemp: (tempPath) => copyFileSync(original.path, tempPath) }, { stat: undefined, revisionFile: required });
+  writeFileAtomically({ ports: themeFileWritePorts, target, relativePathForError: relativePath, fillTemp: (tempPath) => copyFileSync(original.path, tempPath) }, { stat: undefined, revisionFile: required });
   return { wasModified: true, bytes: original.size };
 }

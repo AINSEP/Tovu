@@ -16,7 +16,7 @@ import { type TemplateNode, type ThemeManifest } from "./render-contract.js";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { checkBuiltThemeConformance } from "./build-conformance.js";
-import { resolveThemeLayout, THEME_CATALOG_DIR } from "./theme-layout.js";
+import { resolveThemeLayout, THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { stockThemesDir } from "../../platform/site-dir/product-root.js";
 import { readJson, isObject } from "./theme-manifest-fields.js";
 import { loadStaticTierAssets, inheritBundledTemplates, validateTemplateDeclarations } from "./theme-static-assets.js";

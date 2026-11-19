@@ -35,7 +35,7 @@ import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
 import { SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type TovuBackupPlanStore } from "./plan-content.js";
-import { CANCELLED, initialPushProgress, uploadPlannedContent } from "./push-engine.js";
+import { CANCELLED, initialPushProgress, uploadBackupPlan } from "./push-content.js";
 import { SiteBackupPushJobs, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import {
   captureDatabaseSnapshot,
@@ -66,7 +66,7 @@ import {
  *
  * A large backup outlasts one tool call: the push runs as a job (`push-jobs.ts`), the call waits for
  * it up to {@link PUSH_WAIT_MS} and otherwise returns its progress; calling the push again with the
- * same planId keeps waiting on the same job. The upload itself is `push-engine.ts`.
+ * same planId keeps waiting on the same job. The upload itself is `push-content.ts`.
  *
  * Safety rules, each re-checked at push time where the world can change in between:
  * - The database is the share projection ({@link captureBackupDatabase}): content, themes and
@@ -675,7 +675,7 @@ function pushRefusal(refusal: Refusal): PushResult {
  * private, branch not moved), upload, commit on the PLAN's parent. Stopping (`signal`) takes effect
  * between files and before the commit, never half-way through one.
  *
- * @complexity O(total bytes); see `push-engine.ts` for the uploads, plus a few fixed tree writes,
+ * @complexity O(total bytes); see `push-content.ts` for the uploads, plus a few fixed tree writes,
  *   one commit and one ref update.
  */
 async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps; plan: SiteBackupPlan; run: { signal: AbortSignal; progress: SiteBackupPushProgress } }, _optional: Record<string, never> = {}): Promise<PushResult> {
@@ -693,14 +693,13 @@ async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps
     });
   }
 
-  const uploaded = await uploadPlannedContent({
-    provider: credential.provider,
-    target,
-    plan,
-    signal: run.signal,
-    progress: run.progress,
-    toRefusal: (failure, _optional = {}) => providerRefusal({ deps, toolId: SITE_BACKUP_PUSH_TOOL_ID, failure }),
-  });
+  const uploaded = await uploadBackupPlan({
+    plan, signal: run.signal, progress: run.progress,
+    uploadBlob: async (file, _optional = {}) => {
+      const uploaded = await credential.provider.uploadBackupBlob(target, file);
+      return uploaded.ok ? { ok: true, blobSha: uploaded.blob.blobSha } : providerRefusal({ deps, toolId: SITE_BACKUP_PUSH_TOOL_ID, failure: uploaded });
+    },
+  }, { inlineTextMaxBytes: credential.provider.backupInlineTextMaxBytes });
   if (!uploaded.ok) return pushRefusal(uploaded);
   if (run.signal.aborted) return pushRefusal(CANCELLED);
 
@@ -778,7 +777,7 @@ export async function pushSiteBackup(
   if (!job) {
     const taken = (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).take(key);
     if (!taken.ok) return { pushed: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
-    job = jobs.start({ key, progress: initialPushProgress(taken.plan), run: ({ signal, progress }) => pushPlannedBackup({ deps, plan: taken.plan, run: { signal, progress } }) });
+    job = jobs.start({ key, progress: initialPushProgress({ plan: taken.plan }), run: ({ signal, progress }) => pushPlannedBackup({ deps, plan: taken.plan, run: { signal, progress } }) });
   }
 
   const waited = await jobs.wait({ job, signal: ctx.signal, budgetMs: pushWaitBudget({ deps, waitMs: optional.waitMs }) });

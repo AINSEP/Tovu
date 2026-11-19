@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { diffThemeFolders, writeGeneratedThemeOriginal } from "../sync-originals.js";
-import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "../theme-layout.js";
+import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file Canary: every SHIPPED theme's committed original matches what the generator produces from
