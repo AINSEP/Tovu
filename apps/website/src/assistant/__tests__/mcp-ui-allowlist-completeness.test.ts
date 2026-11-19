@@ -28,6 +28,10 @@ const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
  *  MCP-UI tool-calls endpoint, so they need no allowlist entry. */
 const A2UI_EXCHANGE_TOOL_IDS = new Set(["assistant_render_ui", "assistant_demo_a2ui"]);
 
+// Visitor confirmations use a dedicated store and reply channel, keeping visitor replies separate
+// from admin MCP-UI callbacks. Jini owns their open call; mcp-ui-tool-calls-route.visitor-isolation.test.ts
+// guards the host's store construction and reply isolation instead of adding an admin allowlist entry.
+
 /** Permanent-delete handlers iterate a static catalog and pass a parameterised toolId to
  * requireHumanConfirm. Their real exchange/handler tests exercise every id, including bypasses. */
 const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
