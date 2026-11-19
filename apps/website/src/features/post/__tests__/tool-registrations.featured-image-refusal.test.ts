@@ -17,7 +17,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { InMemoryMediaRepo } from "../../media/index.js";
 import type { FeaturedImageResolution } from "../featured-image.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { PostToolDeps } from "../tool-registrations.js";
+import type { PostToolDeps } from "../post-tool-deps.js";
 
 const WS = "workspace-1";
 

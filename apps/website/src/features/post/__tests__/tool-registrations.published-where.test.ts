@@ -7,7 +7,9 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, PUBLISHED_WHERE_LIVE, PUBLISHED_WHERE_LOCAL, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { PUBLISHED_WHERE_LIVE, PUBLISHED_WHERE_LOCAL } from "../post-tool-views.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 

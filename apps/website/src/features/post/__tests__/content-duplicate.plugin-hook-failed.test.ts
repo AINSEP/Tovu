@@ -29,7 +29,7 @@ import { buildContentDuplicationRegistrations } from "#src/features/content-dupl
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { BeforeSaveHookPort } from "../post.js";
-import { contributePostDuplicateHandlers } from "../tool-registrations.js";
+import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
 
 const WORKSPACE_ID = "ws-duplicate-plugin-hook";
 const NOW = "2026-10-05T00:00:00.000Z";

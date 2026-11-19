@@ -891,13 +891,6 @@
       "value": 154
     },
     {
-      "file": "apps/website/src/features/post/agent-tools.ts",
-      "function": "<file>",
-      "line": 790,
-      "rule": "max-lines",
-      "value": 699
-    },
-    {
       "file": "apps/website/src/features/post/post.ts",
       "function": "<file>",
       "line": 1347,
@@ -914,21 +907,14 @@
     {
       "file": "apps/website/src/features/post/tool-registrations.ts",
       "function": "buildPostRegistrations#1",
-      "line": 903,
+      "line": 42,
       "rule": "max-lines-per-function",
       "value": 278
     },
     {
-      "file": "apps/website/src/features/post/tool-registrations.ts",
-      "function": "<file>",
-      "line": 1041,
-      "rule": "max-lines",
-      "value": 796
-    },
-    {
-      "file": "apps/website/src/features/post/tool-registrations.ts",
+      "file": "apps/website/src/features/post/post-tool-duplicate.ts",
       "function": "duplicatePostOrPage#1",
-      "line": 1377,
+      "line": 59,
       "rule": "max-lines-per-function",
       "value": 83
     },

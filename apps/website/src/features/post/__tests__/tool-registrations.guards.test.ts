@@ -16,7 +16,8 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import type { ForgetRemovedPostFn, RemovePostFn } from "../post.js";
 import type { PostSearchQuery } from "../search.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, contributePostTools, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations, contributePostTools } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 import { removeVia } from "./remove-post-double.js";
 
