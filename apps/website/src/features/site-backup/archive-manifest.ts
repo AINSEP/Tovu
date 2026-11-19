@@ -170,8 +170,12 @@ function validateSchemaVersion({ identity, schema }: { identity: ArchiveManifest
  */
 export function requireArchiveFileRecord(required: { file: unknown }, _optional = {}): ArchiveFile {
   const file = required.file;
-  if (typeof file !== "object" || file === null || !("path" in file) || typeof file.path !== "string"
-    || !("bytes" in file) || typeof file.bytes !== "number" || !Number.isSafeInteger(file.bytes) || file.bytes < 0
-    || !("sha256" in file) || typeof file.sha256 !== "string" || !HASH.test(file.sha256)) invalid();
+  if (typeof file !== "object" || file === null || !("path" in file) || typeof file.path !== "string") invalid();
+  requireArchiveFileMetadata(file);
   return file as ArchiveFile;
+}
+
+function requireArchiveFileMetadata(file: object): void {
+  if (!("bytes" in file) || typeof file.bytes !== "number" || !Number.isSafeInteger(file.bytes) || file.bytes < 0
+    || !("sha256" in file) || typeof file.sha256 !== "string" || !HASH.test(file.sha256)) invalid();
 }

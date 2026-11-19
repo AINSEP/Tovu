@@ -133,34 +133,41 @@ function AgentPluginRowStateArea({
     return <AgentPluginLinkedLock plugin={plugin} providerPlugin={plugin.providerPlugin} t={t} agentHandleBase={agentHandleBase} />;
   }
   if (stateControl.kind === "toggle") {
-    return (
-      <>
-        {/* The word, not just the switch's position — see this file's header. */}
-        <span className="agent-plugin-state">{plugin.enabled ? t("Enabled") : t("Disabled")}</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={plugin.enabled}
-          aria-label={agentPluginToggleAriaLabel({ plugin, locale })}
-          aria-busy={busy}
-          disabled={busy}
-          className="agent-plugin-switch"
-          onClick={stateControl.onToggleEnabled}
-          // `checkbox`, not `switch`: `AgentElementRole` (`@jini-ai/agentic`) has no `switch`
-          // member, and `checkbox` is the two-state control a page driver already knows how to
-          // read and flip. That vocabulary is the DRIVER's, independent of the ARIA `role`
-          // above, which stays `switch` because that is what assistive tech should hear.
-          {...agentHandle({ handle: `${agentHandleBase}-enabled` }, {
-            role: "checkbox",
-            label: `${plugin.enabled ? "Disable" : "Enable"} the "${displayName}" Agent Plugin`,
-          })}
-        >
-          <span className="agent-plugin-switch-knob" aria-hidden="true" />
-        </button>
-      </>
-    );
+    return <AgentPluginToggleState plugin={plugin} t={t} locale={locale} busy={busy} agentHandleBase={agentHandleBase} displayName={displayName} stateControl={stateControl} />;
   }
+  return <AgentPluginActionState plugin={plugin} t={t} locale={locale} busy={busy} stateControl={stateControl} agentHandleBase={agentHandleBase} displayName={displayName} />;
+}
 
+function AgentPluginToggleState({ plugin, t, locale, busy, agentHandleBase, displayName, stateControl }: Omit<Parameters<typeof AgentPluginRowStateArea>[0], "stateControl"> & { stateControl: Extract<AgentPluginRowStateControl, { kind: "toggle" }> }) {
+  return (
+    <>
+      {/* The word, not just the switch's position — see this file's header. */}
+      <span className="agent-plugin-state">{plugin.enabled ? t("Enabled") : t("Disabled")}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={plugin.enabled}
+        aria-label={agentPluginToggleAriaLabel({ plugin, locale })}
+        aria-busy={busy}
+        disabled={busy}
+        className="agent-plugin-switch"
+        onClick={stateControl.onToggleEnabled}
+        // `checkbox`, not `switch`: `AgentElementRole` (`@jini-ai/agentic`) has no `switch`
+        // member, and `checkbox` is the two-state control a page driver already knows how to
+        // read and flip. That vocabulary is the DRIVER's, independent of the ARIA `role`
+        // above, which stays `switch` because that is what assistive tech should hear.
+        {...agentHandle({ handle: `${agentHandleBase}-enabled` }, {
+          role: "checkbox",
+          label: `${plugin.enabled ? "Disable" : "Enable"} the "${displayName}" Agent Plugin`,
+        })}
+      >
+        <span className="agent-plugin-switch-knob" aria-hidden="true" />
+      </button>
+    </>
+  );
+}
+
+function AgentPluginActionState({ plugin, t, locale, busy, stateControl, agentHandleBase, displayName }: Omit<Parameters<typeof AgentPluginRowStateArea>[0], "stateControl"> & { stateControl: Extract<AgentPluginRowStateControl, { kind: "remove-or-enable" }> }) {
   // Downloaded: a single action, not a toggle — its own label already names the state (a row
   // reading "Turn off" is implicitly on; one reading "Enable" is implicitly off), so this does not
   // need a second, separate state word the way the switch does.

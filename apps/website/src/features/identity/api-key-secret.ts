@@ -162,6 +162,12 @@ function parseStoredHash({ storedHash }: { storedHash: string }, _options = {}):
   if (scheme !== "scrypt" || rawN === undefined || rawR === undefined || rawP === undefined) return null;
   if (rawSalt === undefined || rawDigest === undefined || extra.length > 0) return null;
 
+  return parseStoredHashBody({ rawN, rawR, rawP, rawSalt, rawDigest });
+}
+
+function parseStoredHashBody({ rawN, rawR, rawP, rawSalt, rawDigest }: {
+  rawN: string; rawR: string; rawP: string; rawSalt: string; rawDigest: string;
+}): ParsedDigest | null {
   const params = parseStoredHashParams({ rawN, rawR, rawP });
   if (!params) return null;
 

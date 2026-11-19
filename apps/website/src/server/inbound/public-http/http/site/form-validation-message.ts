@@ -12,11 +12,15 @@ function text(node: Node): string {
     if (!current) throw new Error("form validation text traversal has an empty stack");
     if (current.nodeName === "#text" && "value" in current) result += current.value;
     else {
-      if ("tagName" in current && !["input", "textarea", "select", "script", "style", "template"].includes(current.tagName)) stack.push(...[...current.childNodes].reverse());
+      appendLabelTextChildren(current, stack);
     }
   }
   return result;
 }
+function appendLabelTextChildren(current: Node, stack: Node[]): void {
+  if ("tagName" in current && !["input", "textarea", "select", "script", "style", "template"].includes(current.tagName)) stack.push(...[...current.childNodes].reverse());
+}
+
 function elements(nodes: readonly Node[]): Element[] {
   const found: Element[] = [];
   const stack = [...nodes].reverse();

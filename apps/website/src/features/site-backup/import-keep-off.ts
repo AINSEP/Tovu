@@ -65,14 +65,18 @@ function formBodyMayRunScript(required: { html: string }, _optional = {}): boole
     const { node, depth } = next;
     if (!("tagName" in node)) continue;
     if (depth >= 128) return true;
-    if (node.namespaceURI === "http://www.w3.org/1999/xhtml") {
-      // Keep option grouping valid inside select so reparsing preserves its attributes.
-      if (tags.has(node.tagName)) node.tagName = node.nodeName = node.tagName === "optgroup" ? "option" : "div";
-      node.attrs = node.attrs.filter(attr => attr.namespace || attr.prefix || !attrs.has(attr.name));
-    }
+    stripInertFormHints(node, tags, attrs);
     pending.push(...[...node.childNodes, ...("content" in node ? node.content.childNodes : [])].map(node => ({ node, depth: depth + 1 })));
   }
   return pageBodyMayRunScript({ html: serialize(root) });
+}
+
+function stripInertFormHints(node: DefaultTreeAdapterMap["element"], tags: ReadonlySet<string>, attrs: ReadonlySet<string>): void {
+  if (node.namespaceURI === "http://www.w3.org/1999/xhtml") {
+    // Keep option grouping valid inside select so reparsing preserves its attributes.
+    if (tags.has(node.tagName)) node.tagName = node.nodeName = node.tagName === "optgroup" ? "option" : "div";
+    node.attrs = node.attrs.filter(attr => attr.namespace || attr.prefix || !attrs.has(attr.name));
+  }
 }
 
 function attributeHoldsMarkup(root: DefaultTreeAdapterMap["documentFragment"]): boolean {

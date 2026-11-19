@@ -57,12 +57,7 @@ async function includeThemeOriginals(required: { sources: SiteBackupSources; fil
     const original = resolveThemeOriginalSource({ manifest: { tier: tier as "static", id }, siteThemesRoot: required.sources.themesDir, packageThemesRoot: optional.packageThemesRoot });
     if (original) {
       const collected = await collectSiteBackupFiles({ sources: { ...required.sources, themesDir: original.originalDir }, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
-      required.notices.push(...(collected.notices ?? []));
-      if (collected.skipped.length) {
-        const skipped = collected.skipped[0];
-        if (skipped === undefined) throw new Error("Theme original export has no skipped-file details");
-        throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Cannot export theme original '${id}': ${skipped.reason}.` });
-      }
+      recordThemeOriginalCollection(required.notices, collected, id);
       required.files.push(...collected.files.filter(file => file.path.startsWith("themes/")).map(file => ({ ...file, path: originalPrefix + file.path.slice("themes/".length) })));
     } else {
       // A theme without a recorded baseline still needs a recoverable original in v2.
@@ -70,6 +65,15 @@ async function includeThemeOriginals(required: { sources: SiteBackupSources; fil
       const livePrefix = `themes/${tier}/${id}/`;
       required.files.push(...required.files.filter(file => file.path.startsWith(livePrefix)).map(file => ({ ...file, path: originalPrefix + file.path.slice(livePrefix.length) })));
     }
+  }
+}
+
+function recordThemeOriginalCollection(notices: string[], collected: Awaited<ReturnType<typeof collectSiteBackupFiles>>, id: string): void {
+  notices.push(...(collected.notices ?? []));
+  if (collected.skipped.length) {
+    const skipped = collected.skipped[0];
+    if (skipped === undefined) throw new Error("Theme original export has no skipped-file details");
+    throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Cannot export theme original '${id}': ${skipped.reason}.` });
   }
 }
 

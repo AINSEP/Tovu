@@ -2,62 +2,6 @@
   "version": 2,
   "violations": [
     {
-      "file": "apps/admin/src/features/plugins/AgentPluginRow.tsx",
-      "function": "AgentPluginRowStateArea#1",
-      "line": 95,
-      "rule": "complexity",
-      "value": 10
-    },
-    {
-      "file": "apps/admin/src/features/plugins/AgentPluginRow.tsx",
-      "function": "AgentPluginRowStateArea#1",
-      "line": 95,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
-      "function": "startAndWait#1",
-      "line": 55,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
-      "function": "useLiveImportSite#1.<anonymous>#1",
-      "line": 82,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/admin/src/features/sites/hooks/use-local-sites.hooks.ts",
-      "function": "useLocalSites#1",
-      "line": 68,
-      "rule": "complexity",
-      "value": 10
-    },
-    {
-      "file": "apps/admin/src/features/sites/hooks/use-local-sites.hooks.ts",
-      "function": "useLocalSites#1.<anonymous>#3",
-      "line": 111,
-      "rule": "complexity",
-      "value": 10
-    },
-    {
-      "file": "apps/website/src/features/agent-plugins/analytics-provider-registry.ts",
-      "function": "parseDescriptor#1",
-      "line": 46,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/consent/readiness.ts",
-      "function": "unmanagedWarnings#1",
-      "line": 40,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 12
-    },
-    {
       "file": "apps/website/src/features/deployments/publish-credentials/store.ts",
       "function": "isPublishLabelConflict#1",
       "line": 410,
@@ -75,20 +19,6 @@
       "file": "apps/website/src/features/deployments/static-publish/verify.ts",
       "function": "computeVerificationResult#1",
       "line": 203,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/identity/api-key-secret.ts",
-      "function": "parseStoredHash#1",
-      "line": 160,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/media/import-media-entity.ts",
-      "function": "replaceImportedMedia#1",
-      "line": 389,
       "rule": "complexity",
       "value": 11
     },
@@ -114,51 +44,9 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/features/pages/authoring-html.ts",
-      "function": "hasBareMediaToken#1",
-      "line": 5,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 13
-    },
-    {
       "file": "apps/website/src/features/post/tool-registrations.ts",
       "function": "duplicatePostOrPage#1",
       "line": 1377,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
-      "function": "treeFileContentReason#1",
-      "line": 483,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 12
-    },
-    {
-      "file": "apps/website/src/features/site-backup/archive-extensions.ts",
-      "function": "includeThemeOriginals#1",
-      "line": 50,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 13
-    },
-    {
-      "file": "apps/website/src/features/site-backup/archive-manifest.ts",
-      "function": "requireArchiveFileRecord#1",
-      "line": 171,
-      "rule": "complexity",
-      "value": 13
-    },
-    {
-      "file": "apps/website/src/features/site-backup/import-keep-off.ts",
-      "function": "formBodyMayRunScript#1",
-      "line": 57,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 18
-    },
-    {
-      "file": "apps/website/src/features/site-backup/share-preparation.ts",
-      "function": "prepareShareContent#1",
-      "line": 22,
       "rule": "complexity",
       "value": 11
     },
@@ -175,27 +63,6 @@
       "line": 445,
       "rule": "complexity",
       "value": 11
-    },
-    {
-      "file": "apps/website/src/features/theme/code-tier-asset-normalizer.ts",
-      "function": "rewriteCssUrlSegment#1",
-      "line": 277,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 16
-    },
-    {
-      "file": "apps/website/src/features/webmcp/published-html.ts",
-      "function": "nativeFormToolRanges#1",
-      "line": 23,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 12
-    },
-    {
-      "file": "apps/website/src/platform/site-dir/local-site-child.ts",
-      "function": "runLocalSiteChild#1",
-      "line": 107,
-      "rule": "complexity",
-      "value": 13
     },
     {
       "file": "apps/website/src/platform/site-dir/local-site-supervisor.ts",
@@ -226,13 +93,6 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/server/inbound/public-http/http/site/form-validation-message.ts",
-      "function": "text#1",
-      "line": 7,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/server/runtime/boot/bootstrap.ts",
       "function": "logBundledPluginRetirements#1",
       "line": 117,
@@ -240,32 +100,11 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/server/runtime/boot/local-owner-signin.ts",
-      "function": "resolveLocalOwnerSignIn#1",
-      "line": 16,
-      "rule": "complexity",
-      "value": 12
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts",
       "function": "run#1",
       "line": 99,
       "rule": "complexity",
       "value": 11
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts",
-      "function": "fetchAgentDaemon#1",
-      "line": 219,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 15
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts",
-      "function": "awaitDaemonForResponse#1",
-      "line": 351,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 14
     },
     {
       "file": "apps/website/src/server/runtime/composition/modules/assistant.ts",
