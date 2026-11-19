@@ -227,10 +227,12 @@ function ItemRow(props: MenuItemFieldProps & {
   onRemove: (path: number[]) => void;
   onAddChild: (path: number[]) => void;
   onMove: (path: number[], direction: -1 | 1) => void;
+  hooks?: { useMenuItemRemove: typeof useMenuItemRemove; useMenuTargetEditor: typeof useMenuTargetEditor };
 }) {
+  const { hooks = { useMenuItemRemove, useMenuTargetEditor } } = props;
   const { item, path, onChange, onRemove, onAddChild, onMove, t, pages } = props;
-  const { handleRemoveClick } = useMenuItemRemove({ item: item, path: path, onRemove: onRemove });
-  const targetController = useMenuTargetEditor({ item, path, onChange, pages });
+  const { handleRemoveClick } = hooks.useMenuItemRemove({ item: item, path: path, onRemove: onRemove });
+  const targetController = hooks.useMenuTargetEditor({ item, path, onChange, pages });
 
   return (
     <div className="menu-item-row" style={{ marginLeft: path.length * 20 }}>
@@ -322,8 +324,8 @@ const MODE_TABS: ReadonlyArray<{ id: AdminMenuMode; label: string }> = [{ id: "i
  * The authoring-mode tablist — PageEditor's `.page-editor-toolbar` > `.segmented role=tablist` row,
  * with the shared arrow/Home/End keys and roving tab stop from `useTabBarKeyboard`.
  */
-function MenuModeTabs({ mode, onChange, t }: { mode: AdminMenuMode; onChange: (mode: AdminMenuMode) => void; t: Translate }) {
-  const { onKeyDown } = useTabBarKeyboard({ tabs: MODE_TABS, activeId: mode, onChange: (id) => onChange(id as AdminMenuMode) });
+function MenuModeTabs({ mode, onChange, t, useTabBarKeyboard: useTabBarKeyboardHook = useTabBarKeyboard }: { mode: AdminMenuMode; onChange: (mode: AdminMenuMode) => void; t: Translate; useTabBarKeyboard?: typeof useTabBarKeyboard; }) {
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs: MODE_TABS, activeId: mode, onChange: (id) => onChange(id as AdminMenuMode) });
   return (
     <div className="page-editor-toolbar">
       <div className="segmented" role="tablist" aria-label={t("Menu editor mode")} onKeyDown={onKeyDown}>

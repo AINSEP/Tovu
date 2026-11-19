@@ -63,15 +63,17 @@ function deploymentTabPanel(activeTabId: DeploymentTabId) {
 }
 
 export interface DeploymentProps {
+  hooks?: { useAdminLocale: typeof useAdminLocale };
   /** The `?tab=` query value from `panels.tsx`'s `deployment` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). See {@link resolveDeploymentTabId}. */
   tabId?: string | null;
 }
 
 export function Deployment(props: DeploymentProps) {
+  const { hooks = { useAdminLocale } } = props;
   // No hook file of its own — this shell owns no fetch/state (each tab owns its own), matching
   // `Database.tsx`'s own carve-out for a top-level screen with nothing to inject.
-  const locale = useAdminLocale();
+  const locale = hooks.useAdminLocale();
   const activeTabId = resolveDeploymentTabId({ tabId: props.tabId });
 
   const tabs: TabBarTab[] = [

@@ -184,6 +184,7 @@ function CopyLine({
   copiedLabel,
   copyAccessibleName,
   agentHandleId,
+  useCopyLine: useCopyLineHook = useCopyLine,
 }: {
   text: string;
   copyLabel: string;
@@ -197,8 +198,9 @@ function CopyLine({
    *  CLI's "ask the assistant" line) — the id is caller-supplied rather than a constant baked into
    *  this component, same reason `copyAccessibleName` is. */
   agentHandleId: string;
+  useCopyLine?: typeof useCopyLine;
 }) {
-  const { copied, copy } = useCopyLine({ text });
+  const { copied, copy } = useCopyLineHook({ text });
 
   return (
     <div className="deployment-command">
@@ -429,6 +431,7 @@ function ExportTriggerAction({ controller, t: translate }: { controller: StaticE
 }
 
 export interface StaticSiteTabProps {
+  hooks?: { useStaticExportHook: typeof useWiredStaticExport; useStaticPublishHook: typeof useWiredStaticPublish; usePublishCredentialsHook: typeof useWiredPublishCredentials; useAdminLocale: typeof useAdminLocale };
   /** DI seams for tests — same convention as every other wired-hook prop in this app
    *  (`DockerfileTabProps.useDockerfileSourceHook`, `OverviewTabProps.useDeploymentOverviewHook`). */
   useStaticExportHook?: typeof useWiredStaticExport;
@@ -437,18 +440,16 @@ export interface StaticSiteTabProps {
 }
 
 export function StaticSiteTab(props: StaticSiteTabProps) {
-  const locale = useAdminLocale();
+  const { hooks = { useStaticExportHook: props.useStaticExportHook ?? useWiredStaticExport, useStaticPublishHook: props.useStaticPublishHook ?? useWiredStaticPublish, usePublishCredentialsHook: props.usePublishCredentialsHook ?? useWiredPublishCredentials, useAdminLocale } } = props;
+  const locale = hooks.useAdminLocale();
   const translate = createStaticSiteTabTranslator({ locale });
 
   // Keep the DI seams. Forwarding resolvers previously isolated these branches for the
   // complexity gate; this component is small enough to resolve its defaults directly.
-  const useStaticExportHook = props.useStaticExportHook ?? useWiredStaticExport;
-  const useStaticPublishHook = props.useStaticPublishHook ?? useWiredStaticPublish;
-  const usePublishCredentialsHook = props.usePublishCredentialsHook ?? useWiredPublishCredentials;
 
-  const exportController = useStaticExportHook();
-  const publishController = useStaticPublishHook();
-  const credentialsController = usePublishCredentialsHook({ targets: publishController.targets });
+  const exportController = hooks.useStaticExportHook();
+  const publishController = hooks.useStaticPublishHook();
+  const credentialsController = hooks.usePublishCredentialsHook({ targets: publishController.targets });
 
   return (
     <div className="deployment-tab">

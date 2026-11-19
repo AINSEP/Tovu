@@ -59,9 +59,9 @@ function ThemeSwatch({ theme, scheme }: { theme: AdminThemeManifest; scheme: Adm
 }
 
 /** Appearance reuses the picker so scheme preview, persistence and rollback have one owner. */
-export function AdminThemeSchemeControl({ port, env }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv } = {}) {
-  const locale = useAdminLocale();
-  const picker = useAdminThemePicker({}, { port, env });
+export function AdminThemeSchemeControl({ port, env, hooks = { useAdminLocale, useAdminThemePicker } }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv; hooks?: { useAdminLocale: typeof useAdminLocale; useAdminThemePicker: typeof useAdminThemePicker }; } = {}) {
+  const locale = hooks.useAdminLocale();
+  const picker = hooks.useAdminThemePicker({}, { port, env });
   const activeTheme = findAdminTheme({ id: picker.themeId ?? "" });
   return (
     <div className="jini-field">
@@ -95,9 +95,9 @@ export function AdminThemeSchemeControl({ port, env }: { port?: AdminThemePort; 
 }
 
 /** `themes` defaults to the installed registry; a host (or test) can pass its own manifests. */
-export function AdminThemes({ port, env, themes = ADMIN_THEMES }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv; themes?: readonly AdminThemeManifest[] } = {}) {
-  const locale = useAdminLocale();
-  const picker = useAdminThemePicker({}, { port, env });
+export function AdminThemes({ port, env, themes = ADMIN_THEMES, hooks = { useAdminLocale, useAdminThemePicker } }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv; themes?: readonly AdminThemeManifest[]; hooks?: { useAdminLocale: typeof useAdminLocale; useAdminThemePicker: typeof useAdminThemePicker }; } = {}) {
+  const locale = hooks.useAdminLocale();
+  const picker = hooks.useAdminThemePicker({}, { port, env });
   const activeTheme = findAdminTheme({ id: picker.themeId ?? "" }, { themes });
   const matchMedia = previewMatchMedia({ env });
   return (

@@ -24,6 +24,7 @@ export function PostEditorBody({
   currentPostId,
   cover,
   t,
+  usePostUrlDialog: usePostUrlDialogHook = usePostUrlDialog,
 }: {
   editor: Editor | null;
   mentionablePosts: AdminPost[];
@@ -31,8 +32,9 @@ export function PostEditorBody({
   /** The cover-image slot (`PostCoverImage`), drawn in the content column above the title node. */
   cover: ReactNode;
   t: Translate;
+  usePostUrlDialog?: typeof usePostUrlDialog;
 }) {
-  const urlDialog = usePostUrlDialog({ editor });
+  const urlDialog = usePostUrlDialogHook({ editor });
   return (
     <div
       className="editor-shell post-editor-pane"

@@ -54,6 +54,7 @@ import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
  * already has for `?theme=`/`?page=`/`?file=`.
  */
 export interface PagesProps {
+  hooks?: { usePagesHook: typeof useWiredPages; useThemePagesHook: typeof useWiredThemePages };
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    * for `useCustomSelect`, and `features/posts/Posts.tsx`'s `usePostsHook`.
@@ -100,8 +101,7 @@ export function pagesListNotice({ pages, error, t }: { pages: AdminPost[] | null
 }
 
 export function Pages(props: PagesProps) {
-  const usePagesHook = resolvePagesHook({ override: props.usePagesHook });
-  const useThemePagesHook = resolveThemePagesHook({ override: props.useThemePagesHook });
+  const { hooks = { usePagesHook: resolvePagesHook({ override: props.usePagesHook }), useThemePagesHook: resolveThemePagesHook({ override: props.useThemePagesHook }) } } = props;
   const {
     pages,
     error,
@@ -115,7 +115,7 @@ export function Pages(props: PagesProps) {
     t,
     locale,
     rowMenuHandleById,
-  } = usePagesHook();
+  } = hooks.usePagesHook();
   const {
     pages: themePages,
     pageCount: themePagesCount,
@@ -123,7 +123,7 @@ export function Pages(props: PagesProps) {
     error: themePagesError,
     savingPageId: themePageSavingId,
     setPagePublished: setThemePagePublished,
-  } = useThemePagesHook();
+  } = hooks.useThemePagesHook();
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — which tab is showing, no I/O
   // behind it — stays LOCAL rather than moving into `use-pages.hooks.ts`, unlike every other piece
   // of state on this screen. The line to draw: async/API/data state always moves into the hook;

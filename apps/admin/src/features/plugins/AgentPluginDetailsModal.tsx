@@ -16,6 +16,7 @@ import {
 
 import { type Translate } from '@jini-ai/core/text';
 export interface AgentPluginDetailsModalProps {
+  hooks?: { useAgentPluginDetailsView: typeof useAgentPluginDetailsView; useAgentPluginSurfaces: typeof useAgentPluginSurfaces; useWiredAgentPluginMemory: typeof useWiredAgentPluginMemory };
   readonly plugin: InspectedAgentPlugin;
   /** `AgentPlugins`' bound translator — the modal's title copy. */
   readonly t: Translate;
@@ -38,11 +39,11 @@ export interface AgentPluginDetailsModalProps {
  * Since 2026-10-20 each admin surface the plugin contributes (for example its "Manage connection"
  * screen) is one more view after Memory, titled by the plugin and rendered sandboxed.
  */
-export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWiredAgentPluginDetailsModal, surfacesPort = defaultAgentPluginSurfacesPort }: AgentPluginDetailsModalProps) {
-  const memory = useWiredAgentPluginMemory({ pluginId: plugin.id });
-  const view = useAgentPluginDetailsView({ displayName: plugin.displayName, t, memoryT: memory.t });
+export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWiredAgentPluginDetailsModal, surfacesPort = defaultAgentPluginSurfacesPort, hooks = { useAgentPluginDetailsView, useAgentPluginSurfaces, useWiredAgentPluginMemory } }: AgentPluginDetailsModalProps) {
+  const memory = hooks.useWiredAgentPluginMemory({ pluginId: plugin.id });
+  const view = hooks.useAgentPluginDetailsView({ displayName: plugin.displayName, t, memoryT: memory.t });
   const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails({ pluginId: plugin.id });
-  const listed = useAgentPluginSurfaces({ pluginId: plugin.id, port: surfacesPort });
+  const listed = hooks.useAgentPluginSurfaces({ pluginId: plugin.id, port: surfacesPort });
   // Opened from "Manage": the row already listed the screens, so the first render has their tabs
   // (the shell picks its starting view once, at mount).
   const surfaces = listed.length > 0 ? listed : plugin.surfaces ?? [];

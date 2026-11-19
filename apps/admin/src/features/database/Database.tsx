@@ -494,13 +494,15 @@ function databaseTabPanel(activeTabId: DatabaseTabId) {
 }
 
 export interface DatabaseProps {
+  useAdminLocale?: typeof useAdminLocale;
   /** The `?tab=` query value from `panels.tsx`'s `database` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). See {@link resolveDatabaseTabId}. */
   tabId?: string | null;
 }
 
 export function Database(props: DatabaseProps) {
-  const locale = useAdminLocale();
+  const { useAdminLocale: useAdminLocaleHook = useAdminLocale } = props;
+  const locale = useAdminLocaleHook();
   const activeTabId = resolveDatabaseTabId({ tabId: props.tabId });
 
   // Icons (2026-09-06): the same icon-beside-label idiom every other `TabBar` row in this admin

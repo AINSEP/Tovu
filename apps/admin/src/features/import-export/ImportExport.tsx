@@ -53,7 +53,7 @@ function ImportExportCard({ link, t }: { link: ImportExportLink; t: Translate })
 
 /** The Other tab: the cards for screens elsewhere, then Git backup. Its own component so the Git
  *  backup read runs only while this tab is open. */
-function OtherTab({ t, useGitBackup }: { t: Translate; useGitBackup: typeof useWiredGitBackup }) {
+function OtherTab({ t, useGitBackup = useWiredGitBackup }: { t: Translate; useGitBackup?: typeof useWiredGitBackup }) {
   const gitBackup = useGitBackup({ t });
   return (
     <>
@@ -67,10 +67,10 @@ function OtherTab({ t, useGitBackup }: { t: Translate; useGitBackup: typeof useW
 
 /** The Export and Import tabs, each with the translator it was written against. Hooks run here, not
  *  in `ImportExport`, so the Other tab never reads the sites list. */
-function TransferTab({ tab, useTransferTranslate, useSitesAvailable }: {
+function TransferTab({ tab, useTransferTranslate = useSiteTransferTranslate, useSitesAvailable = useSitesSectionAvailable }: {
   tab: "export" | "import";
-  useTransferTranslate: () => Translate;
-  useSitesAvailable: () => boolean;
+  useTransferTranslate?: typeof useSiteTransferTranslate;
+  useSitesAvailable?: typeof useSitesSectionAvailable;
 }) {
   const t = useTransferTranslate();
   const sitesAvailable = useSitesAvailable();

@@ -52,6 +52,7 @@ import { type Translate } from '@jini-ai/core/text';
  * middle-click and copy-link all keep working.
  */
 export interface OverviewTabProps {
+  hooks?: { useDeploymentOverviewHook: typeof useWiredDeploymentOverview };
   /** DI seam for tests — same convention as every other wired-hook prop in this app. */
   useDeploymentOverviewHook?: typeof useWiredDeploymentOverview;
 }
@@ -297,8 +298,8 @@ function OverviewDiagnostics({
 }
 
 export function OverviewTab(props: OverviewTabProps) {
-  const useDeploymentOverviewHook = resolveDeploymentOverviewHook({ override: props.useDeploymentOverviewHook });
-  const { snapshot, error, t } = useDeploymentOverviewHook();
+  const { hooks = { useDeploymentOverviewHook: resolveDeploymentOverviewHook({ override: props.useDeploymentOverviewHook }) } } = props;
+  const { snapshot, error, t } = hooks.useDeploymentOverviewHook();
 
   return (
     <div className="deployment-tab">

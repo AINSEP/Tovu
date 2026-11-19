@@ -27,6 +27,7 @@ import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
  * copy.
  */
 export interface PostsProps {
+  hooks?: { useWiredAdminLocale: typeof useWiredAdminLocale };
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    * for `useCustomSelect`.
@@ -54,7 +55,7 @@ export function postsListNotice({ posts, error, t }: { posts: AdminPost[] | null
   return null;
 }
 
-export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
+export function Posts({ usePostsHook = useWiredPosts, hooks = { useWiredAdminLocale } }: PostsProps) {
   const {
     posts,
     error,
@@ -67,7 +68,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     removePost,
     rowMenuHandleById,
   } = usePostsHook();
-  const locale = useWiredAdminLocale();
+  const locale = hooks.useWiredAdminLocale();
   const t = createPostsTranslator({ locale });
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — a client-side sort toggle with
   // no I/O behind it — stays LOCAL rather than moving into `use-posts.hooks.ts`, unlike every other

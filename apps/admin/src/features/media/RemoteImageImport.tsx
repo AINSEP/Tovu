@@ -8,8 +8,9 @@ import "../../styles/native-domain-dialogs.css";
 /** Markup only; downloads, mutation state, dialog state and list invalidation live in the hook.
  *  The "Import from URL" button sits beside "Upload image" and opens the same dialog shape
  *  (owner item #9, 2026-10-13). */
-export function RemoteImageImport(props: { t: (key: string) => string; dependencies?: { port: MediaImportPort } }) {
-  const controller = useRemoteImageImport({ t: props.t }, props.dependencies);
+export function RemoteImageImport(props: { t: (key: string) => string; dependencies?: { port: MediaImportPort }; useRemoteImageImport?: typeof useRemoteImageImport; }) {
+  const { useRemoteImageImport: useRemoteImageImportHook = useRemoteImageImport } = props;
+  const controller = useRemoteImageImportHook({ t: props.t }, props.dependencies);
   return (
     <>
       {/* Icon button (owner, 2026-11-01): tooltip and accessible name are the same text. */}

@@ -25,8 +25,8 @@ export interface ProviderSettingFieldProps {
 }
 
 /** A select of the declared options; "Custom…" (when allowed) reveals a text input for any other value. */
-function ChoiceControl({ field, id, value, onChange, t, controlAttrs }: Omit<ProviderSettingFieldProps, "handle" | "pluginName"> & { controlAttrs: Record<string, unknown> }) {
-  const { options, listed, custom, choose } = usePluginProviderChoice({ field, value, onChange });
+function ChoiceControl({ field, id, value, onChange, t, controlAttrs, usePluginProviderChoice: usePluginProviderChoiceHook = usePluginProviderChoice }: Omit<ProviderSettingFieldProps, "handle" | "pluginName"> & { controlAttrs: Record<string, unknown>; usePluginProviderChoice?: typeof usePluginProviderChoice; }) {
+  const { options, listed, custom, choose } = usePluginProviderChoiceHook({ field, value, onChange });
   return (
     <>
       <select id={id} value={custom ? CUSTOM : value} onChange={(event) => choose({ next: event.target.value })} {...controlAttrs}>
