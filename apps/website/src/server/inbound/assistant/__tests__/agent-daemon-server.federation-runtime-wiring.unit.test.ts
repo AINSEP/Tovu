@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createAssistantByokModule } from "#src/server/runtime/composition/modules/assistant-byok";
-import { captureDaemonRun, daemonSource } from "./helpers/daemon-source.js";
+import { captureDaemonRun, daemonSource, daemonManifest } from "./helpers/daemon-source.js";
 
 /** ADR-070 moves federation assembly, admissions and refusal diagnosis to the server owner.
  * The daemon retains prompt delivery and discovery over the site's principal-scoped descriptors.
  */
 test("the daemon has no independent federation, installed-extension or consent controller", () => {
-  const code = daemonSource.statements.map(statement => statement.getText(daemonSource)).join("\n");
+  const code = [...daemonManifest.values()].flatMap(bodies => bodies.get("<file>") ?? []).map(statement => statement.getText(statement.getSourceFile())).join("\n");
   for (const owner of ["createExternalMcpOAuthService", "attachAssistantToolExtensions", "createAutomaticPluginRuns", "registerInstalledExtensionTools", "registerFederationReloadRoute"]) {
     assert.equal(code.includes(owner), false, owner);
   }

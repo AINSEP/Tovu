@@ -346,16 +346,17 @@ test("the production daemon mounts ownership before run routes and records the d
   assert.ok(gate >= 0 && ownership > gate && list > gate && routes > ownership && routes > list,
     "both owner gates must execute after authentication and before the unscoped http-kit routes");
 
-  const declaration = daemonStatements.flatMap((node) => ts.isVariableStatement(node) ? [...node.declarationList.declarations] : [])
-    .find((node) => ts.isIdentifier(node.name) && node.name.text === "onStarted");
-  assert.ok(declaration?.initializer && ts.isArrowFunction(declaration.initializer));
-  const body = declaration.initializer.body;
-  assert.ok(ts.isBlock(body));
-  const record = body.statements.findIndex((node) => text(node) === "runOwners.record({ runId: run.id, principalId: principal.id }, {});");
-  assert.ok(record >= 0, "the decoded principal must be recorded unconditionally before starting work");
-  const decode = body.statements.findIndex((node) => ts.isTryStatement(node)
-    && node.tryBlock.statements.some((statement) => text(statement) === "const decoded = parseRunStartContextRef({ contextRef: request.contextRef });")
-    && node.tryBlock.statements.some((statement) => text(statement) === "principal = Object.freeze({ id: decoded.principalId });")
-    && node.catchClause?.block.statements.some(ts.isReturnStatement));
-  assert.ok(decode >= 0 && decode < record, "ownership must use the validated contextRef principal, with malformed input returning before recording");
+  const registration = statementsFor("agent-daemon-run-start.ts", "registerLiveRun");
+  assert.ok(registration.some(node => text(node) === "runOwners.record({ runId: run.id, principalId: principal.id }, {});"));
+  const decoding = statementsFor("agent-daemon-run-start.ts", "decodeRunStart");
+  assert.ok(decoding.some(node => ts.isTryStatement(node)
+    && node.tryBlock.statements.some(statement => text(statement) === "const decoded = parseRunStartContextRef({ contextRef: request.contextRef });")
+    && node.tryBlock.statements.some(statement => text(statement) === "principal = Object.freeze({ id: decoded.principalId });")
+    && node.catchClause?.block.statements.some(ts.isReturnStatement)));
+  const handler = statementsFor("agent-daemon-run-start.ts", "onStarted").map(text);
+  const decode = handler.findIndex(statement => statement.startsWith("const decoded = decodeRunStart("));
+  const refusal = handler.findIndex(statement => statement === "if (!decoded) return;");
+  const record = handler.indexOf("registerLiveRun(runPorts);");
+  assert.ok(decode >= 0 && refusal > decode && record > refusal);
+
 });

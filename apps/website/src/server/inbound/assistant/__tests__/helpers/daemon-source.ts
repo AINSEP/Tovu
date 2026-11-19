@@ -1,3 +1,5 @@
+import { createRunStartHandler, type RunStartRequired, type RunStartOptional } from '../../agent-daemon-run-start.js';
+import { createLiveRunTracker } from '#src/assistant/agent-session-preset';
 import { assistantCliPermissions, resolveFullCliAccess, resolveAssistantCliPermissions, fullCliEnvLock, isHostedAssistantRuntime } from "@tovu/contracts/assistant-native-fallbacks";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
@@ -55,6 +57,13 @@ export const daemonManifest = new Map<string, Map<string, readonly ts.Statement[
 for (const [file, owners] of [
   ["agent-daemon-scope-http.ts", ["createScopeApp", "resolvePrincipal", "resolveDiscoveryCaller", "mountIntake", "mountGuards", "mountToolAccessLowering", "mountRunRoutes", "mountDelegatedRoutes", "mountSurfaceRoutes", "mountDiscoveryRoutes"]],
   ["agent-daemon-scope-attachments.ts", ["createAttachmentRunFieldsResolver", "resolveAttachmentRunFields", "readStagedAttachment", "createRunUserMessageDelivery", "deliverRunUserMessage", "openScopeAttachments", "mountScopeAttachments"]],
+  ["agent-daemon-run-start.ts", ["createRunStartHandler", "onStarted", "holdRun", "noteFullRunInput", "decodeRunStart", "registerLiveRun", "scheduleTerminalCleanup", "prepareRun", "assembleRunPrompt", "prepareSitePlugins", "durableAttemptStillOwnsAnswer"]],
+  ["agent-daemon-run-session.ts", ["subscribeRunSession", "logRunSessionEvent", "clearFailedRunResume", "readPriorSessionId", "resolveSessionBinding", "refuseConcurrentMemoryRun", "persistRunSession"]],
+  ["agent-daemon-run-tool-access.ts", ["createRunToolLiveness", "createRunToolChoice", "createRunToolConsent", "resolveRunNativePolicy", "runToolAccessIsLive", "runToolAccessLive", "runToolSetupMessage", "qualifyRunAlternative", "prepareRunToolAccess", "prepareAgentToolChoice", "prepareUnavailableToolChoice", "askForRunToolAccess", "withRunToolAccessCard", "qualifiedRunAlternatives"]],
+  ["agent-daemon-run-launch.ts", ["createRunLaunch", "launchAgentRun", "executeRun", "dispatchRun", "warnRunFilesystemLimit", "verifyLaunchToolPolicy", "recordRunToolSnapshot", "emitNoToolsNotice", "observeRunToolGaps", "prepareCliLaunch"]],
+  ["agent-daemon-scope-runtime.ts", ["createScopeRuntime", "resolvePermissionMode", "createScopePromptAugmenter", "createScopeBridge", "createScopeAgentExecutor", "startBridgeProbe"]],
+  ["agent-daemon-scope-tools.ts", ["createScopeToolRegistry", "createScopeToolExecutor"]],
+  ["agent-daemon-scope-lifetime.ts", ["createScopeLifetime", "hold", "dispose"]],
 ] as const) {
   const source = ts.createSourceFile(file, readFileSync(path.join(import.meta.dirname, "../../", file), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const bodies = new Map<string, readonly ts.Statement[]>([["<file>", [...source.statements]]]);
@@ -64,6 +73,11 @@ for (const [file, owners] of [
     bodies.set(owner, [...fn.body.statements]);
   }
   daemonManifest.set(file, bodies);
+}
+for (const owner of ["createScopeRunState", "createScopeTracing", "unwindScope"]) {
+  const fn = rawSource.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === owner);
+  assert.ok(fn && ts.isFunctionDeclaration(fn) && fn.body);
+  daemonManifest.get("agent-daemon-scope.ts")!.set(owner, [...fn.body.statements]);
 }
 export const daemonStatements = [
   ...rawSource.statements.filter(statement => statement !== scopeFactory),
@@ -77,9 +91,9 @@ export function statementsFor(file: string, owner: string): readonly ts.Statemen
   return statements;
 }
 
-export function daemonInitializer(name: string): ts.Expression {
+export function daemonInitializer(name: string, statements?: readonly ts.Statement[]): ts.Expression {
   const initializers = new Map<string, ts.Expression[]>();
-  for (const bodies of daemonManifest.values()) {
+  for (const bodies of (statements ? [new Map([["selected", statements]])] : daemonManifest.values())) {
     for (const statements of bodies.values()) {
       for (const statement of statements) {
         if (!ts.isVariableStatement(statement)) continue;
@@ -129,7 +143,7 @@ export async function captureDaemonRun(
     assistantRunPlan, assistantToolSetupMessage, assistantRunToolFacts, surfaceExchanges: {},
     resolveAgentLaunch: () => ({ launchPath: process.execPath }),
     assistantInventory: { listAssistantAgents: async () => [{ id: options.request?.agentId ?? "claude", available: true, authStatus: "unknown" }] },
-    ownerRetentionTimers: new Set(),
+    ownerRetentionTimers: new Set(), siteId: "test-scope", tracing: { noteRunInput() {} },
     captureEarlySession: createEarlySessionCapture({ sessions: fixtureDeps?.agentSessions ?? { getSessionId: async () => null, setSessionId: async () => {}, clearSessionId: async () => {} }, readStart: async () => null }, {}),
     parseRunStartContextRef, buildPageContextPromptBlock, assemblePromptWithPluginPrefix,
     agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext,
@@ -176,7 +190,8 @@ export async function captureDaemonRun(
     principalByRunId: new Map(),
     messageAttachmentRefsByRunId: new Map(),
     durableMessageIdsByRunId: new Map(),
-    runOwners: { record() {} },
+    runOwners: { record() {}, forget() {} }, runCredentials: { revoke() {} },
+    liveRunTracker: createLiveRunTracker({}, {}),
     runActiveContexts: options.runActiveContexts ?? createRunActiveContextStore(),
     frontendControl: { bindOnStarted() {} },
     customInstructionsCache: { refresh: async () => {} },
@@ -199,7 +214,8 @@ export async function captureDaemonRun(
     agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => { resolve({ ...required, ...optional }); await options.executorSettles; } },
     ...options.bindings,
     // Partial fixture ports still need the site directory used by every CLI launch.
-    routeDeps: { workspaceId: "ws-daemon-test", tracker: createTracker({}), siteBinding: { dir: tmpdir() }, ...fixtureDeps },
+    routeDeps: { workspaceId: "ws-daemon-test", tracker: createTracker({}), siteBinding: { dir: tmpdir() }, chatRunLedger: {}, ...fixtureDeps,
+      agentSessions: { getSessionId: async () => null, setSessionId: async () => {}, clearSessionId: async () => {}, ...fixtureDeps?.agentSessions } },
   };
   // Evaluate the production resolver's wiring with this fixture's registry and warning sink.
   Object.assign(bindings, { resolveAssistantAgentId: evaluateDaemonExpression(daemonInitializer("resolveAssistantAgentId"), {
@@ -213,11 +229,21 @@ export async function captureDaemonRun(
         if (status.state === "failed") reject(new Error("onStarted failed the run before executor dispatch"));
       });
     }
-    const onStarted = evaluateDaemonExpression<(input: unknown) => void>(daemonInitializer("onStarted"), bindings);
+    const ports = bindings as unknown as RunStartRequired & RunStartRequired["state"] & RunStartOptional & { attachmentStore?: ReturnType<RunStartRequired["getAttachmentStore"]>; disposed?: boolean; optional?: { browserLease?: RunStartOptional["browserLease"] }; RUN_OWNER_RETENTION_MS?: number; STOPPING_RUN_WAIT_MS?: number; CONCURRENT_RUN_REFUSAL_MESSAGE?: string; verifyJsonAgentInstall?: RunStartOptional["ensureJsonAgentInstall"]; process?: { platform?: NodeJS.Platform } };
+    const onStarted = createRunStartHandler({
+      state: { principalByRunId: ports.principalByRunId, messageAttachmentRefsByRunId: ports.messageAttachmentRefsByRunId, durableMessageIdsByRunId: ports.durableMessageIdsByRunId, stagedAttachmentCleanupByRunId: ports.stagedAttachmentCleanupByRunId, chatSettingsByRunId: ports.chatSettingsByRunId, toolAccessRuns: ports.toolAccessRuns, revokedToolRuns: ports.revokedToolRuns, noToolsNotices: ports.noToolsNotices, cleanupFailures: ports.cleanupFailures, liveRunTracker: ports.liveRunTracker, runOwners: ports.runOwners, runCredentials: ports.runCredentials, conversationStartLock: ports.conversationStartLock, ownerRetentionTimers: ports.ownerRetentionTimers },
+      siteId: ports.siteId, env: ports.env, routeDeps: ports.routeDeps, siteTools: ports.siteTools, agentExecutor: ports.agentExecutor, customInstructionsCache: ports.customInstructionsCache, idlePark: ports.idlePark, getAgentDef: ports.getAgentDef, resolveAgentLaunch: ports.resolveAgentLaunch, resolveAssistantAgentId: ports.resolveAssistantAgentId, assistantInventory: ports.assistantInventory, visibleRegistry: ports.visibleRegistry, surfaceExchanges: ports.surfaceExchanges, frontendControl: ports.frontendControl, captureEarlySession: ports.captureEarlySession, bridgeInjection: ports.bridgeInjection, resolvePermissionMode: ports.resolvePermissionMode, probeAssistantChrome: ports.probeAssistantChrome, tracing: ports.tracing, runActiveContexts: ports.runActiveContexts, assistantCliCapabilitiesContext: ports.assistantCliCapabilitiesContext, assistantNativeToolsContext: ports.assistantNativeToolsContext, assistantRuntimeGuidanceContext: ports.assistantRuntimeGuidanceContext,
+      getAttachmentStore: () => ports.attachmentStore, isDisposed: () => ports.disposed ?? false,
+    }, Object.fromEntries(Object.entries({
+      console: ports.console, setTimeout: ports.setTimeout, resolveAttachmentRunFields: ports.resolveAttachmentRunFields, failRunBeforeStart: ports.failRunBeforeStart, waitForStoppingRuns: ports.waitForStoppingRuns, extractSessionRefFromEndEvent: ports.extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume: ports.shouldClearSessionOnFailedResume, agentCarriesOwnMemory: ports.agentCarriesOwnMemory, createToolGapCollector: ports.createToolGapCollector, resolveHostSignals: ports.resolveHostSignals, readLoginShellEnvironment: ports.readLoginShellEnvironment, requestAssistantToolConsent: ports.requestAssistantToolConsent, readAssistantRunToolPolicy: ports.readAssistantRunToolPolicy, randomUUID: ports.randomUUID, homedir: ports.homedir, existsSync: ports.existsSync, getCustomFsRoot: ports.getCustomFsRoot, parseRunStartContextRef: ports.parseRunStartContextRef, buildPageContextPromptBlock: ports.buildPageContextPromptBlock, wouldForcedColdStartLoseConversationContext: ports.wouldForcedColdStartLoseConversationContext, resolveAssistantDisallowedTools: ports.resolveAssistantDisallowedTools, resolveAssistantRunSettings: ports.resolveAssistantRunSettings,
+      browserLease: ports.optional?.browserLease, platform: ports.process?.platform ?? process.platform,
+      ownerRetentionMs: ports.RUN_OWNER_RETENTION_MS, stoppingRunWaitMs: ports.STOPPING_RUN_WAIT_MS, concurrentRunRefusalMessage: ports.CONCURRENT_RUN_REFUSAL_MESSAGE,
+      ensureJsonAgentInstall: ports.verifyJsonAgentInstall ?? ports.ensureJsonAgentInstall,
+    }).filter(([, value]) => value !== undefined)) as RunStartOptional);
     onStarted({
       request: { contextRef: JSON.stringify({ principalId: "daemon-test-principal", prompt: "Exercise the run lifecycle", ...context }), ...options.request },
       run: { id: runId },
-      lifecycle: withDaemonLifecycle({ lifecycle: options.lifecycle ?? { waitForTerminal: () => new Promise(() => {}) } }),
+      lifecycle: withDaemonLifecycle({ lifecycle: options.lifecycle ?? { waitForTerminal: () => new Promise(() => {}) } }) as Parameters<typeof onStarted>[0]["lifecycle"],
     });
     return await captured;
   } finally {

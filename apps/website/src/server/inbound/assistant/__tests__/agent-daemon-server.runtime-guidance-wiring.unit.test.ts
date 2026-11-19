@@ -9,7 +9,7 @@ import { buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assis
 import { CLAUDE_IN_CHROME_ALLOWED_TOOLS, CLAUDE_IN_CHROME_GUIDANCE, PREFER_SUBAGENTS_GUIDANCE, SHORT_REPLY_GUIDANCE, DETAILED_REPLY_GUIDANCE, buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 import { agentCapabilities, getAgentDef } from "@jini-ai/agent-runtime";
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";
-import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { statementsFor, captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /**
  * @file Wiring proof for the per-person runtime preferences: evaluates the daemon's real
@@ -24,7 +24,7 @@ async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChr
   const stored: Record<string, unknown> = { preferSubagents, useClaudeInChrome, replyLength };
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
   const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
-  const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter"), {
+  const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
     getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext,
     assistantCliCapabilitiesContext, assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },
@@ -72,7 +72,7 @@ test("the real overlay enables message relay guidance for Codex and excludes nat
 });
 
 test("the real overlay excludes engines without an injected MCP bridge", () => {
-  const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter"), {
+  const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
     getAgentDef: () => ({ ...getAgentDef({ id: "codex" }), externalMcpInjection: undefined }),
     buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance,
     assistantRuntimeGuidanceContext: new AsyncLocalStorage(), assistantCliCapabilitiesContext: new AsyncLocalStorage(),

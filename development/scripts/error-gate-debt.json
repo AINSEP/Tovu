@@ -1955,7 +1955,7 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
+    "file": "apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts",
     "rule": "catch-reads-error",
     "value": 2
   },

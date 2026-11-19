@@ -7,10 +7,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSiteScope, type SiteScopeOptions } from "../agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "../agent-daemon-idle-park.js";
-import { captureDaemonRun } from "./helpers/daemon-source.js";
+import { captureDaemonRun, daemonManifest } from "./helpers/daemon-source.js";
 
 test("site scopes never read ambient environment or working directory", async () => {
-  const source = await readFile(new URL("../agent-daemon-scope.ts", import.meta.url), "utf8");
+  const source = [...daemonManifest.values()].flatMap(bodies => bodies.get("<file>") ?? []).map(statement => statement.getText(statement.getSourceFile())).join("\n");
   assert.doesNotMatch(source, /process\s*\.\s*(env|cwd)\b/);
 });
 

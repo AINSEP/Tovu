@@ -1129,34 +1129,6 @@
       "value": 87
     },
     {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
-      "function": "createSiteScope#1",
-      "line": 187,
-      "rule": "max-lines-per-function",
-      "value": 828
-    },
-    {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
-      "function": "createSiteScope#1.onStarted#1",
-      "line": 670,
-      "rule": "max-lines-per-function",
-      "value": 440
-    },
-    {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
-      "function": "createSiteScope#1.onStarted#1.<anonymous>#4",
-      "line": 864,
-      "rule": "max-lines-per-function",
-      "value": 84
-    },
-    {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
-      "function": "<file>",
-      "line": 989,
-      "rule": "max-lines",
-      "value": 945
-    },
-    {
       "file": "apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts",
       "function": "createDaemonSiteTools#1",
       "line": 34,

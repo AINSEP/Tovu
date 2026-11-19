@@ -148,7 +148,7 @@ async function startedLifecycle({ runId }: { runId: string }): Promise<RunLifecy
 }
 
 /** Bindings the scope's end-of-run cleanup needs; the fake timer never fires. */
-const CLEANUP_BINDINGS = {
+const CLEANUP_BINDINGS: Record<string, unknown> = {
   failRunBeforeStart, console: { error() {}, warn() {}, log() {} },
   runOwners: { record() {}, forget() {} }, runCredentials: { revoke() {} }, RUN_OWNER_RETENTION_MS: 0, attachmentStore: undefined,
   setTimeout: () => ({ unref() { return this; } }),

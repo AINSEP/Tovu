@@ -27,7 +27,7 @@ import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js"
  * without updating the runtime plumbing (`AgentExecutorRunInput.disallowedTools`).
  */
 
-const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-run-launch.ts"), "utf8");
 
 describe("Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted", () => {
   test("imports the shared tool policy resolver from assistant-system-overlay.ts", () => {
@@ -196,7 +196,7 @@ test("catalog identity survives a parser continuation using the pre-existing req
 test("the real prompt augmenter receives the same fresh grant as each concurrent launch", async () => {
   const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string; turnIndex: number }): string }>(
-    daemonInitializer("assistantPromptAugmenter"), {
+    daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
       getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantCliCapabilitiesContext,
       assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
       bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => "Owner custom guidance" },

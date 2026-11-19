@@ -19,7 +19,7 @@ import { createAssistantToolExecutor } from "../../../../assistant/tool-recovery
 import { applyToolApprovalPolicy } from "../../../../assistant/tool-approval-policy.js";
 import { isChatToolAllowed } from "../../../../assistant/assistant-permanent-deletes-policy.js";
 import { PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../../../../contracts/headless/index.js";
-import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { statementsFor, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /** Evaluate the host's real composition expressions without its database/listener/process boot.
  * Only the transport is replaced: the launch env, MCP stdio server, daemon routes, credential
@@ -79,19 +79,19 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
     registry.register(humanApproval && id === ordinaryId ? applyToolApprovalPolicy({ registration: tool, surfaces: { surfaceExchanges } }) : tool);
   }
   const deleteScope = createChatDeleteScope({ readPolicy: async ({ principalId }) => policies.get(principalId ?? "") ?? disabledPolicy });
-  const visibleRegistry = evaluateDaemonExpression<Pick<typeof registry, "list">>(daemonInitializer("visibleRegistry"), {
+  const visibleRegistry = evaluateDaemonExpression<Pick<typeof registry, "list">>(daemonInitializer("visibleRegistry", statementsFor("agent-daemon-scope-tools.ts", "createScopeToolRegistry")), {
     siteTools: { registry: { list: () => registry.list({}).filter(tool => isChatToolAllowed({ toolId: tool.id, policy: deleteScope.policy() })) } },
   });
   const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => principals.get(runId) });
-  const bridgeInjection = evaluateDaemonExpression<McpJsonInjectionOptions>(daemonInitializer("bridgeInjection"), {
-    registry, visibleRegistry, runCredentials, daemonUrl: "http://127.0.0.1:4419",
+  const bridgeInjection = evaluateDaemonExpression<McpJsonInjectionOptions>(daemonInitializer("bridgeInjection", statementsFor("agent-daemon-scope-runtime.ts", "createScopeBridge")), {
+    registry, visibleRegistry, mintRunCredential: (runId: string) => runCredentials.mint({ runId }, {}), daemonUrl: "http://127.0.0.1:4419",
     // Why: the host's initializer calls this with the real `({ daemonUrl, mintRunCredential }, { runtime })` object args.
     resolveMcpJsonInjection: ({ daemonUrl, mintRunCredential }: { daemonUrl: string; mintRunCredential: (runId: string) => string }) => resolveMcpJsonInjection({ daemonUrl, mintRunCredential },
       { runtime: { execPath: process.execPath, electronVersion: undefined, env: {} } }),
   });
   // Also execute the host's handoff to createAgentExecutor, so a disconnected bridge object
   // cannot satisfy this fixture merely because its initializer still exists in the source.
-  const executorOptions = evaluateDaemonExpression<{ mcpJsonInjection: McpJsonInjectionOptions }>(daemonInitializer("agentExecutor"), {
+  const executorOptions = evaluateDaemonExpression<{ mcpJsonInjection: McpJsonInjectionOptions }>(daemonInitializer("agentExecutor", statementsFor("agent-daemon-scope-runtime.ts", "createScopeAgentExecutor")), {
     createAgentExecutor: (_required: unknown, optional: unknown) => optional,
     lifecycle: {}, getAgentDef: () => {}, resolveAgentLaunch: () => {}, assistantRuntime: {},
     bridgeInjection, assistantPromptAugmenter: {},

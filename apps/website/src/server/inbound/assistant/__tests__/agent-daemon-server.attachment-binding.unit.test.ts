@@ -1,3 +1,4 @@
+import ts from "typescript";
 import { createAttachmentRunFieldsResolver } from "../agent-daemon-scope-attachments.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -17,15 +18,22 @@ import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attach
 import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING_RUN_WAIT_MS } from "../../../../assistant/agent-session-preset.js";
 import { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "../../../../assistant/agent-session-preset.js";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
-import { captureDaemonRun, daemonFunction, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { statementsFor, captureDaemonRun, daemonFunction, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /** ADR-070 moved discovery to the server. Evaluate the daemon's real outgoing binding and feed it
  * through the server's real context/registration owners, without booting a listener or daemon. */
 function discoveryRegistration({ attachmentStore, ...bindings }: Record<string, unknown>): ToolRegistration {
-  const contextFor = evaluateDaemonExpression<{ contextFor: (input: { runId: string }) => DaemonCallContext }>(
-    daemonInitializer("siteTools"), { env: {}, siteToolToken: "fixture", registry: {}, routeDeps: {},
-      createDaemonSiteTools: (required: unknown) => required, ...bindings },
-  ).contextFor;
+  const statement = statementsFor("agent-daemon-scope.ts", "createSiteScope.try").find(node =>
+    ts.isVariableStatement(node) && node.declarationList.declarations.some(declaration =>
+      declaration.initializer && ts.isCallExpression(declaration.initializer) && declaration.initializer.expression.getText() === "createScopeToolRegistry"));
+  assert.ok(statement && ts.isVariableStatement(statement));
+  const initializer = statement.declarationList.declarations[0]!.initializer;
+  assert.ok(initializer && ts.isCallExpression(initializer));
+  const config = initializer.arguments[0];
+  assert.ok(config && ts.isObjectLiteralExpression(config));
+  const context = config.properties.find(property => ts.isPropertyAssignment(property) && property.name.getText() === "contextFor");
+  assert.ok(context && ts.isPropertyAssignment(context));
+  const contextFor = evaluateDaemonExpression<(input: { runId: string }) => DaemonCallContext>(context.initializer, bindings);
   const registration = buildDaemonAttachmentTools({ deps: {} as never, registrations: [] },
     { getLookup: () => attachmentStore as AttachmentLookup })
     .find(tool => tool.descriptor.id === "chat_list_pending_attachments");

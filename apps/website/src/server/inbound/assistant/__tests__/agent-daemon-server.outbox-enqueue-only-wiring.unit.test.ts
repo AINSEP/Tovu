@@ -1,3 +1,4 @@
+import { daemonManifest } from "./helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -18,6 +19,7 @@ import test from "node:test";
 const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
 
 /** Code lines only: the file's doc comments name the bypassing factories in prose. */
+const ALL_CODE_LINES = [...daemonManifest.values()].flatMap(bodies => bodies.get("<file>") ?? []).map(statement => statement.getText(statement.getSourceFile())).join("\n").split("\n").filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line));
 const CODE_LINES = DAEMON_ENTRY_SOURCE.split("\n").filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line));
 
 test("agent-daemon-server.ts builds routeDeps with createAgentDaemonCoreDeps", () => {
@@ -32,11 +34,11 @@ test("agent-daemon-server.ts builds routeDeps with createAgentDaemonCoreDeps", (
 });
 
 test("agent-daemon-server.ts never calls a RouteDeps factory directly, or starts plugin polling", () => {
-  const bypasses = CODE_LINES.filter((line) => /\b(createSiteRouteDepsForWorkspace|createSiteRouteDeps|createRouteDeps|startPluginActivationPolling)\(/.test(line));
+  const bypasses = ALL_CODE_LINES.filter((line) => /\b(createSiteRouteDepsForWorkspace|createSiteRouteDeps|createRouteDeps|startPluginActivationPolling)\(/.test(line));
   assert.deepEqual(bypasses, []);
 });
 
 test("agent-daemon-server.ts starts no outbox drain of its own", () => {
-  const drains = CODE_LINES.filter((line) => /\b(startOutboxDrainer|processOutbox|createServingApp)\(/.test(line));
+  const drains = ALL_CODE_LINES.filter((line) => /\b(startOutboxDrainer|processOutbox|createServingApp)\(/.test(line));
   assert.deepEqual(drains, []);
 });

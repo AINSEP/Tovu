@@ -6,7 +6,7 @@ import { getAgentDef } from "@jini-ai/agent-runtime";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from './helpers/daemon-source.js';
+import { statementsFor, captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from './helpers/daemon-source.js';
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from '../assistant-system-overlay.js';
 import { evaluateHostSignals } from "@tovu/contracts/host-signals";
 import type { RunProtocolEvent } from '@jini-ai/protocol';
@@ -71,7 +71,7 @@ test('non-owner and hosted owner launches explicitly lock native tools', async (
 
 test('prompt and runtime share the per-run grant across concurrent contexts', async () => {
   const native = new AsyncLocalStorage<boolean>();
-  const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer('assistantPromptAugmenter'), {
+  const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
     getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantNativeToolsContext: native,
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(), bashProhibitionEnabled: false,
     customInstructionsCache: { readOverlay: () => null },

@@ -219,13 +219,6 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
-      "function": "createSiteScope#1.onStarted#1.onEvent#2",
-      "line": 802,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/server/inbound/public-http/http/site/form-validation-message.ts",
       "function": "text#1",
       "line": 7,

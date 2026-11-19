@@ -42,7 +42,8 @@ import { captureDaemonRun, daemonFunction, daemonInitializer } from "./helpers/d
 // the historical kind filter without satisfying (or tripping) executable-code assertions.
 const sourcePrinter = ts.createPrinter({ removeComments: true });
 const resolveAttachmentRunFieldsSource = sourcePrinter.printNode(ts.EmitHint.Unspecified, daemonFunction("resolveAttachmentRunFields"), daemonFunction("resolveAttachmentRunFields").getSourceFile());
-const onStartedSource = sourcePrinter.printNode(ts.EmitHint.Expression, daemonInitializer("onStarted"), daemonInitializer("onStarted").getSourceFile());
+const promptSource = sourcePrinter.printNode(ts.EmitHint.Unspecified, daemonFunction("assembleRunPrompt"), daemonFunction("assembleRunPrompt").getSourceFile());
+const executionSource = sourcePrinter.printNode(ts.EmitHint.Unspecified, daemonFunction("executeRun"), daemonFunction("executeRun").getSourceFile());
 
 /** Both guards pin the complete delivery contract: adding a filter OR dropping a notice must fail
  * either guard independently. A readable PDF must be named to the agent before executor dispatch. */
@@ -58,9 +59,9 @@ function assertAttachmentDeliveryContract() {
   assert.match(resolveAttachmentRunFieldsSource,
     /return\s*\{\s*imagePaths:\s*prepared\.imagePaths,\s*imageContents:\s*prepared\.images,\s*attachmentNotice:\s*prepared\.notice,/,
     "image paths, pixels and non-image notices must all be returned");
-  assert.match(onStartedSource, /prompt\s*\+=\s*attachmentRunFields\.attachmentNotice\s*\?\?\s*""/,
+  assert.match(promptSource, /prompt\s*\+=\s*attachmentRunFields\.attachmentNotice\s*\?\?\s*""/,
     "the notice must be added to the actual executor prompt");
-  assert.match(onStartedSource, /\.\.\.attachmentRunFields\s*,/,
+  assert.match(executionSource, /\.\.\.attachmentRunFields\s*,/,
     "prepared image paths and pixels must be forwarded to the executor");
 }
 
