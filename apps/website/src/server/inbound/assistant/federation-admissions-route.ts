@@ -92,7 +92,7 @@ export interface FederationAdmissionsRouteDeps {
  * @complexity O(1) route dispatch; `reports()`/`configFailures()` are each O(1) (a `let` read).
  * @overallScore 100
  */
-export function registerFederationAdmissionsRoute(app: Express, deps: FederationAdmissionsRouteDeps): void {
+export function registerFederationAdmissionsRoute({ app, deps }: { app: Express; deps: FederationAdmissionsRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get(FEDERATION_ADMISSIONS_PATH, (_req: Request, res: Response) => {
     const connections = deps.reports();
     // `configFailures` is omitted entirely, not sent as `[]`, when the caller never wired it — the

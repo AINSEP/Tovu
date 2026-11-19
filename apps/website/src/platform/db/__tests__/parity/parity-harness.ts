@@ -447,11 +447,11 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
     t["assistant.1.site-set"] = await outcome(() => mods.site.setSiteAssistantCredential(d.site, { workspaceId: "ws2", apiKey: "ws2-new-site-key-1234567890" }));
     t["assistant.2.site-resolve"] = await outcome(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId: "ws2" } }));
     t["assistant.3.site-metadata-only"] = await outcome(() => mods.site.setSiteAssistantCredential(d.site, { workspaceId: "ws2", model: "ws2-next" }));
-    t["assistant.4.site-delete"] = await outcome(() => mods.site.deleteSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
+    t["assistant.4.site-delete"] = await outcome(() => mods.site.deleteSiteAssistantCredential({ deps: d.site, workspaceId: "ws2" }));
     t["assistant.5.site-get"] = await outcome(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
     t["assistant.6.exec-set"] = await outcome(() => mods.exec.setExecutionCredential(d.exec, { workspaceId: ws, principalId: "p2", model: "next-model" }));
     t["assistant.7.exec-resolve"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: ws, principalId: "p2" } }));
-    t["assistant.8.exec-delete"] = await outcome(() => mods.exec.deleteExecutionCredential(d.exec, { workspaceId: ws, principalId: "p2" }));
+    t["assistant.8.exec-delete"] = await outcome(() => mods.exec.deleteExecutionCredential({ deps: d.exec, workspaceId: ws, principalId: "p2" }));
     t["assistant.9.exec-other-untouched"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: ws, principalId: "p" } }));
   }
   return t;

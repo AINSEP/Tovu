@@ -245,7 +245,7 @@ test("delete clears only the key — provider/baseUrl/model survive", async () =
     model: "gemini-flash-latest",
   });
 
-  const view = await deleteSiteAssistantCredential(deps, { workspaceId: WORKSPACE });
+  const view = await deleteSiteAssistantCredential({ deps, workspaceId: WORKSPACE });
 
   assert.equal(view.isSet, false);
   assert.equal(view.masked, null);
@@ -256,7 +256,7 @@ test("delete clears only the key — provider/baseUrl/model survive", async () =
 
 test("deleting an already-unset key is a harmless no-op, not an error", async () => {
   const { deps } = makeDeps();
-  const view = await deleteSiteAssistantCredential(deps, { workspaceId: WORKSPACE });
+  const view = await deleteSiteAssistantCredential({ deps, workspaceId: WORKSPACE });
   assert.equal(view.isSet, false);
 });
 
@@ -442,7 +442,7 @@ test("public readiness performs one singleton read and at most one open for each
   assert.equal(opens.mock.callCount(), 1);
   assert.equal(byId.mock.callCount(), 0);
   assert.equal(lists.mock.callCount(), 0);
-  await deleteSiteAssistantCredential(deps, scope);
+  await deleteSiteAssistantCredential({ deps, ...scope });
   reads.mock.resetCalls(); opens.mock.resetCalls();
   assert.equal((await resolvePublicAssistantAvailability({ ...deps, ...scope })).ready, false);
   assert.equal(reads.mock.callCount(), 1);

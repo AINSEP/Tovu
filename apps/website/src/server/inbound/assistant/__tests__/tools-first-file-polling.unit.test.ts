@@ -11,7 +11,7 @@ test('an attached picture and saved tool result have a safe first read in every 
     assert.match(overlay, /Never use Bash, shell commands or scripts to inspect attachments or saved tool results/);
     assert.match(overlay, /chat_list_pending_attachments/);
   }
-  assert.doesNotMatch(buildBashGuidanceBlock(['Bash']), /Read remains available only for reading Tovu's own source/);
+  assert.doesNotMatch(buildBashGuidanceBlock({ disallowedTools: ['Bash'] }), /Read remains available only for reading Tovu's own source/);
 });
 
 test('a pending image job advertises a real wait before polling without a red Bash sleep row', () => {

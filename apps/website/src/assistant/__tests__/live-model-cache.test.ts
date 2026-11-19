@@ -426,18 +426,18 @@ const FALLBACK_WITH_ALIASES = [
 ];
 
 test("unionModels keeps every fallback entry unchanged when live discovery returns nothing", () => {
-  assert.deepEqual(unionModels(FALLBACK_WITH_ALIASES, []), FALLBACK_WITH_ALIASES);
+  assert.deepEqual(unionModels({ fallback: FALLBACK_WITH_ALIASES, live: [] }), FALLBACK_WITH_ALIASES);
 });
 
 test("unionModels appends a live id not already in fallback, after every fallback entry", () => {
   const live = [{ id: "claude-opus-5-20260101", label: "Claude Opus 5 (2026-01-01)" }];
-  assert.deepEqual(unionModels(FALLBACK_WITH_ALIASES, live), [...FALLBACK_WITH_ALIASES, ...live]);
+  assert.deepEqual(unionModels({ fallback: FALLBACK_WITH_ALIASES, live }), [...FALLBACK_WITH_ALIASES, ...live]);
 });
 
 test("unionModels dedupes by id — a live entry matching a fallback id is dropped, not duplicated or overwritten", () => {
   const live = [{ id: "claude-opus-5", label: "a different label the live call reported" }];
 
-  const result = unionModels(FALLBACK_WITH_ALIASES, live);
+  const result = unionModels({ fallback: FALLBACK_WITH_ALIASES, live });
 
   assert.equal(result.length, FALLBACK_WITH_ALIASES.length, "no duplicate entry for an id already in fallback");
   const opus5 = result.find((model) => model.id === "claude-opus-5");
@@ -450,7 +450,7 @@ test("unionModels never drops the sonnet/opus/haiku aliases or the default senti
     { id: "claude-sonnet-5-20260101", label: "Claude Sonnet 5" },
   ];
 
-  const result = unionModels(FALLBACK_WITH_ALIASES, live);
+  const result = unionModels({ fallback: FALLBACK_WITH_ALIASES, live });
 
   for (const alias of ["default", "sonnet", "opus", "haiku"]) {
     assert.ok(result.some((model) => model.id === alias), `expected alias/sentinel '${alias}' to survive the union`);

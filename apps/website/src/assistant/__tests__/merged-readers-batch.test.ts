@@ -310,7 +310,7 @@ test('collapsed batches retain the retired source policy and never turn a missin
     descriptor: { id: 'content_post_list', readOnly: true, inputSchema: { type: 'object', properties: {} } },
     policy: { authorize: () => 'allow' }, handler: async () => { listed++; return { posts: ['private list'] }; },
   };
-  const registrations = deriveContentReadRegistrations([withBatchInput({ registration: get, tool: { toolId: 'content_post_get' } }), list]);
+  const registrations = deriveContentReadRegistrations({ sourceRegistrations: [withBatchInput({ registration: get, tool: { toolId: 'content_post_get' } }), list] });
   assert.equal(registrations.some(registration => registration.descriptor.id === 'content_post_get'), false);
   const card = registrations.find(registration => registration.descriptor.id === 'content_read.content_post')!;
   const result = await invokeRegisteredTool(card, context({ items: [{ id: 'denied', enabled: 'true' }, {}, { id: 'allowed', enabled: 'false' }] })) as BatchResult;

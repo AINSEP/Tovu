@@ -391,7 +391,7 @@ for (const toolId of ["settings_set_value", "settings_clear_value"] as const) {
       // exchange delivery, card classification and settings write remain real.
       const app = { post: (path: string, handler: typeof callback) => { assert.equal(path, MCP_UI_TOOL_CALLS_PATH); callback = unwrapRouteHandle(handler); } } as unknown as Express;
       const toolExecutor = { execute: async () => { executions++; throw new Error("a reply must not start another tool call"); } } as unknown as ToolExecutor;
-      registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges: f.surfaceExchanges });
+      registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges: f.surfaceExchanges } });
       const reply = async (toolName: string, principalId: string | undefined, params: Record<string, unknown>) => {
         const response = { statusCode: 200, body: undefined as unknown,
           status(code: number) { this.statusCode = code; return this; },

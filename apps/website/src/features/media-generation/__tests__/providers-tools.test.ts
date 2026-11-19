@@ -41,14 +41,14 @@ test('t10 media callback delivers a human key only to its parked call, rejects w
   const f = fixture(); const { pending, emitted } = await form(f);
   let handler!: (req: Request, res: Response) => Promise<void>;
   // Invoke the registered production handler directly: no HTTP listener or transport mock.
-  registerMcpUiToolCallsRoute({ post: (path: string, callback: typeof handler) => {
+  registerMcpUiToolCallsRoute({ app: { post: (path: string, callback: typeof handler) => {
     assert.equal(path, MCP_UI_TOOL_CALLS_PATH);
     // asyncRoute's wrapper returns before the handler finishes; the restore-on-miss path is async, so await the real handler.
     handler = (callback as unknown as { handler: typeof handler }).handler;
-  } } as unknown as Express, {
+  } } as unknown as Express, deps: {
     scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaces,
     toolExecutor: { execute: async () => assert.fail('human secrets must never enter a fresh tool execution') } as unknown as ToolExecutor,
-  });
+  } });
   async function callback(principal: string, params: Record<string, unknown>) {
     let status = 200; let body: unknown;
     const response = Object.assign(new EventEmitter(), { status: (value: number) => { status = value; return response; }, json: (value: unknown) => { body = value; return response; } });

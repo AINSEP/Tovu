@@ -195,7 +195,7 @@ export const READ_ONLY_FRONTEND_CAPABILITY_IDS: ReadonlySet<string> = new Set(["
  *
  * @complexity O(n) in the registration count.
  */
-export function withReadOnlyFrontendCapabilities(registrations: readonly ToolRegistration[]): readonly ToolRegistration[] {
+export function withReadOnlyFrontendCapabilities({ registrations }: { registrations: readonly ToolRegistration[] }, _optional: Record<string, never> = {}): readonly ToolRegistration[] {
   return withToolMetadata({ registrations, metadata: toolMetadata }).map((registration) =>
     READ_ONLY_FRONTEND_CAPABILITY_IDS.has(registration.descriptor.id)
       ? { ...registration, descriptor: { ...registration.descriptor, readOnly: true } }

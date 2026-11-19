@@ -63,10 +63,10 @@ test("the daemon's actual loop asks one chat card before an opaque click; HTTP h
   const app = express();
   app.use(express.json());
   let callbackExecutions = 0;
-  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaceExchanges, toolExecutor: {
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaceExchanges, toolExecutor: {
     ...f.toolExecutor,
     execute: (...args) => { callbackExecutions++; return f.toolExecutor.execute(...args); },
-  } });
+  } } });
   const baseUrl = await startTestServer(app, t);
   const input = { handle: "delete-site-confirm" };
   let cards = 0;

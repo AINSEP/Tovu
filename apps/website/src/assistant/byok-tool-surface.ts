@@ -731,7 +731,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     { signal, emitSurface, exposure }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter; exposure?: ToolExposure } = {},
   ): Promise<ByokMetaToolResult> {
     await syncInstalled();
-    const args = isRecord(call.input) ? call.input : {};
+    const candidate = { value: call.input }; const args = isRecord(candidate) ? candidate.value : {};
 
     if (!META_TOOL_IDS.has(call.name) && !exposure) {
       // Reachable in practice: a model that has seen a real tool id (from a search hit, or from its

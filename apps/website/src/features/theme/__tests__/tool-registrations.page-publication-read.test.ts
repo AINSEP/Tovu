@@ -19,7 +19,7 @@ test("theme publication card lists only candidates, reads fresh disk state and d
   for (const page of ["index", "404", "about", "pricing", "shell"]) fs.writeFileSync(path.join(dir, "pages", `${page}.html`), "<!doctype html><html><body>Page</body></html>");
   const deps = { workspaceId: "ws", themesDir, themes: [loadTheme({ themeDir: dir, id: "plain", source: "site" })],
     authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as ThemeToolDeps;
-  const card = () => deriveContentReadRegistrations(buildThemesRegistrations(deps)).find(r => r.descriptor.id === "content_read.theme_page_publication")!;
+  const card = () => deriveContentReadRegistrations({ sourceRegistrations: buildThemesRegistrations(deps) }).find(r => r.descriptor.id === "content_read.theme_page_publication")!;
   assert.ok(card());
   assert.deepEqual((card().descriptor.inputSchema as { required: string[] }).required, ["themeId"], "themeId is required for both list and read-one; page is optional");
   const ctx = (input: unknown) => ({ input, principal: { id: "owner" } } as ToolExecutionContext);

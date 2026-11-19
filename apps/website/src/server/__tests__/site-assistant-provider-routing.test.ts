@@ -280,7 +280,7 @@ test("site assistant: a workspace configured for anthropic with no anthropic key
   await enablePublicAssistant(deps);
   const stub = await bootProviderStub(t, deps, () => googleReply("this must never be produced"), { GEMINI_API_KEY: FAKE_KEY });
   await storeSiteCredential(deps, { apiKey: FAKE_KEY, provider: "anthropic", baseUrl: stub.baseUrl, model: "claude-x" });
-  await deleteSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, clock: deps.clock }, { workspaceId: deps.workspaceId });
+  await deleteSiteAssistantCredential({ deps: { repo: deps.siteAssistantCredentialRepo, clock: deps.clock }, workspaceId: deps.workspaceId });
 
   // Drained BEFORE the request-log assertion: a streamed 200 resolves `fetch` the moment
   // `beginStream` flushes headers, which on a RED run is well before the provider is called. A
@@ -437,7 +437,7 @@ test("site assistant: a stored GOOGLE key saved then DELETED leaves the stored b
   const adminStoredEndpoint = await recordingStub(t, googleReply("this must never be produced"));
   const envEndpoint = await recordingStub(t, googleReply("Hello from the env endpoint."));
   await storeSiteCredential(deps, { apiKey: FAKE_KEY, provider: "google", baseUrl: adminStoredEndpoint.baseUrl });
-  await deleteSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, clock: deps.clock }, { workspaceId: deps.workspaceId });
+  await deleteSiteAssistantCredential({ deps: { repo: deps.siteAssistantCredentialRepo, clock: deps.clock }, workspaceId: deps.workspaceId });
 
   const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: FAKE_KEY, TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
   const app = express();

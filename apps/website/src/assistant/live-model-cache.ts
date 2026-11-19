@@ -150,8 +150,8 @@ export async function fetchLiveClaudeModels(
  *   `fallback`, one pass over `live`.
  */
 export function unionModels(
-  fallback: readonly AgentModelSummary[],
-  live: readonly ProviderModelOption[],
+  { fallback, live }: { fallback: readonly AgentModelSummary[]; live: readonly ProviderModelOption[] },
+  _optional: Record<string, never> = {},
 ): AgentModelSummary[] {
   // Preserve Tovu's client-safe projection: fallback metadata survives, while discovered entries
   // expose only the model ID and label. Deduplication/order belong to the package merger.

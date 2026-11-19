@@ -7,7 +7,7 @@ const VALID = { type: "resource", resource: { uri: "ui://tovu/ask-choice/p/1", m
 
 for (const mimeType of ["text/html", "text/html;profile=mcp-app", "text/html+skybridge"]) {
   test(`an HTML ui:// resource with ${mimeType} is accepted`, () => {
-    assert.equal(isAskChoiceUiResource({ ...VALID, resource: { ...VALID.resource, mimeType } }), true);
+    assert.equal(isAskChoiceUiResource({ ui: { ...VALID, resource: { ...VALID.resource, mimeType } } }), true);
   });
 }
 
@@ -29,14 +29,14 @@ for (const [name, ui] of [
   ["a non-string text", { type: "resource", resource: { ...VALID.resource, text: { html: "x" } } }],
 ] as const) {
   test(`${name} is not an ask-choice UI resource`, () => {
-    assert.equal(isAskChoiceUiResource(ui), false);
+    assert.equal(isAskChoiceUiResource({ ui }), false);
   });
 }
 
 test("a valid rendered form becomes the standard UI tool result", () => {
-  const ui: unknown = VALID;
-  assert.ok(isAskChoiceUiResource(ui));
-  assert.deepEqual(askChoiceToolResult({ modelText: "pending", ui }), { ...buildUIToolResult({ modelText: "pending", ui }) });
+  const required: { ui: unknown } = { ui: VALID };
+  assert.ok(isAskChoiceUiResource(required));
+  assert.deepEqual(askChoiceToolResult({ modelText: "pending", ui: required.ui }), { ...buildUIToolResult({ modelText: "pending", ui: required.ui }) });
 });
 
 test("an invalid rendered form is refused with the renderer error", () => {

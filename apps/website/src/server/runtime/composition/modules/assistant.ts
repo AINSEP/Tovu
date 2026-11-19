@@ -325,7 +325,7 @@ async function enrichAgentWithLiveModels(
   if (agent.id !== "claude") return agent;
   const live = await liveModels.getLiveClaudeModels({ workspaceId, principalId });
   if (!live || live.length === 0) return agent;
-  return { ...agent, models: unionModels(agent.models ?? [], live), modelsSource: "live" };
+  return { ...agent, models: unionModels({ fallback: agent.models ?? [], live }), modelsSource: "live" };
 }
 
 export async function respondWithEnrichedAgentList(
@@ -428,13 +428,13 @@ async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges
     return;
   }
   const principalId = getAuthedPrincipal(res).id;
-  const delivered = deliverA2uiAction(byokSurfaceExchanges, { exchangeId: action.exchangeId, principalId, message: action.message });
+  const delivered = deliverA2uiAction({ store: byokSurfaceExchanges, exchangeId: action.exchangeId, principalId, message: action.message });
   if (delivered.ok) {
     res.status(202).json({ delivered: true });
     return;
   }
   if (delivered.reason === "binding-mismatch") {
-    res.status(409).json(a2uiNotPendingBody(delivered.reason));
+    res.status(409).json(a2uiNotPendingBody({ reason: delivered.reason }));
     return;
   }
   await proxyPassthrough(req, res, daemon);

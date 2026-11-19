@@ -41,7 +41,7 @@ export interface FederationReloadRouteDeps {
  * `FederationReloadCoordinator.reload`).
  * @overallScore 100
  */
-export function registerFederationReloadRoute(app: Express, deps: FederationReloadRouteDeps): void {
+export function registerFederationReloadRoute({ app, deps }: { app: Express; deps: FederationReloadRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post(FEDERATION_RELOAD_PATH, async (_req: Request, res: Response) => {
     try {
       const result = await deps.reload();

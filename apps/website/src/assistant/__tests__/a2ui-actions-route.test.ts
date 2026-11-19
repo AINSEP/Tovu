@@ -24,7 +24,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 function buildApp(surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): express.Express {
   const app = express();
   app.use(express.json());
-  registerA2uiActionsRoute(app, { surfaceExchanges });
+  registerA2uiActionsRoute({ app, deps: { surfaceExchanges } });
   return app;
 }
 

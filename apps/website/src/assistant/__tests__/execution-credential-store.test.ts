@@ -215,7 +215,7 @@ test("two different admins in the SAME workspace have fully independent credenti
   assert.equal(viewB.model, "gpt-4o");
 
   // Deleting A's key must not touch B's.
-  await deleteExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  await deleteExecutionCredential({ deps, workspaceId: WORKSPACE, principalId: ADMIN_A });
   const afterDelete = await getExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_B });
   assert.equal(afterDelete.isSet, true);
   assert.equal(afterDelete.masked, "••••2222");
@@ -249,7 +249,7 @@ test("delete clears only the key — protocol/providerId/baseUrl/model/maxTokens
     maxTokens: 4096,
   });
 
-  const view = await deleteExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const view = await deleteExecutionCredential({ deps, workspaceId: WORKSPACE, principalId: ADMIN_A });
 
   assert.equal(view.isSet, false);
   assert.equal(view.masked, null);
@@ -262,7 +262,7 @@ test("delete clears only the key — protocol/providerId/baseUrl/model/maxTokens
 
 test("deleting an already-unset key is a harmless no-op, not an error", async () => {
   const { deps } = makeDeps();
-  const view = await deleteExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const view = await deleteExecutionCredential({ deps, workspaceId: WORKSPACE, principalId: ADMIN_A });
   assert.equal(view.isSet, false);
 });
 

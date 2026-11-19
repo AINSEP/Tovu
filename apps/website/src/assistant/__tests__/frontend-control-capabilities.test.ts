@@ -172,7 +172,7 @@ test("only page.find_elements, admin.capture_screenshot and chat.get_state are r
     capabilities: FRONTEND_CONTROL_CAPABILITIES,
     setTimer: () => ({ cancel: () => undefined }), resolveBindToken: () => undefined,
   });
-  const readOnlyIds = withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations)
+  const readOnlyIds = withReadOnlyFrontendCapabilities({ registrations: frontendControl.toolRegistrations })
     .filter((registration) => isReadOnlyTool({ descriptor: registration.descriptor }))
     .map((registration) => registration.descriptor.id)
     .sort();
@@ -184,7 +184,7 @@ test("marking read-only projects domain metadata and keeps each registration's h
     capabilities: FRONTEND_CONTROL_CAPABILITIES,
     setTimer: () => ({ cancel: () => undefined }), resolveBindToken: () => undefined,
   });
-  const marked = withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations);
+  const marked = withReadOnlyFrontendCapabilities({ registrations: frontendControl.toolRegistrations });
   assert.equal(marked.length, frontendControl.toolRegistrations.length);
   marked.forEach((registration, i) => {
     const original = frontendControl.toolRegistrations[i]!;
@@ -199,7 +199,7 @@ test("marking read-only projects domain metadata and keeps each registration's h
 
 test("chat.get_state is read-only while chat.send_message is not", () => {
   const control = createFrontendControl({ capabilities: FRONTEND_CONTROL_CAPABILITIES, setTimer: () => ({ cancel: () => undefined }), resolveBindToken: () => undefined });
-  const registrations = withReadOnlyFrontendCapabilities(control.toolRegistrations);
+  const registrations = withReadOnlyFrontendCapabilities({ registrations: control.toolRegistrations });
   assert.equal(registrations.find((r) => r.descriptor.id === "chat.get_state")?.descriptor.readOnly, true);
   assert.equal(registrations.find((r) => r.descriptor.id === "chat.send_message")?.descriptor.readOnly, undefined);
 });

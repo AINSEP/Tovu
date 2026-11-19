@@ -164,7 +164,7 @@ test("MCP: get_active_context against the daemon route returns the run's screen 
   store.record({ runId: "run-1", pageContext: PAGE_EDITOR });
   const app = express();
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: token } }, {}));
-  registerRunActiveContextRoute(app, store);
+  registerRunActiveContextRoute({ app, store });
   const baseUrl = await startTestServer(app, t);
 
   const answer = await getActiveContextTool.handler({ args: {}, ctx: { baseUrl, fetchImpl: fetch, authHeaders: { Authorization: `Bearer ${token}` } } });

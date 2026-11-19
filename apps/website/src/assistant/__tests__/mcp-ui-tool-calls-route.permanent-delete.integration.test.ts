@@ -20,10 +20,10 @@ for (const spec of PERMANENT_DELETE_SPECS) {
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const app = express();
     app.use(express.json());
-    registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler,
+    registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler,
       surfaceExchanges,
       toolExecutor: { execute: async () => { assert.fail("callback executed a new tool call"); } } as never,
-    });
+    } });
     const baseUrl = await startTestServer(app, t);
     const post = (params: Record<string, unknown>, principalId: string) => fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
       method: "POST", headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: principalId },

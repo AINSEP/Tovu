@@ -357,12 +357,12 @@ test("every overlay tells the model to batch the same operation on several items
 
 test("buildBashGuidanceBlock: the live grant disallows Bash, so the default block is the 'unavailable' text", () => {
   assert.ok(ASSISTANT_DISALLOWED_TOOLS.includes("Bash"));
-  assert.equal(BASH_GUIDANCE_BLOCK, buildBashGuidanceBlock(ASSISTANT_DISALLOWED_TOOLS));
+  assert.equal(BASH_GUIDANCE_BLOCK, buildBashGuidanceBlock({ disallowedTools: ASSISTANT_DISALLOWED_TOOLS }));
   assert.ok(BASH_GUIDANCE_BLOCK.startsWith("Bash is unavailable because it is disabled for this assistant. "));
 });
 
 test("buildBashGuidanceBlock: a grant that leaves Bash available narrows it to reading Tovu's own source", () => {
-  const text = buildBashGuidanceBlock(["Write", "Edit"]);
+  const text = buildBashGuidanceBlock({ disallowedTools: ["Write", "Edit"] });
   assert.ok(text.startsWith("Bash and file access remain available for one narrow purpose: reading Tovu's own source"));
   assert.ok(text.endsWith("you are about to do it the wrong way — search_tools again instead. "));
   assert.notEqual(text, BASH_GUIDANCE_BLOCK);

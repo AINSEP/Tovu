@@ -326,7 +326,7 @@ async function runServeBootLifecycle({ deps, dbPath }: { deps: Awaited<ReturnTyp
   // relative), not `deps.ts`'s `siteDir()`-based default — passing that default here would point the
   // `store-plugin` boot module at the wrong site entirely whenever `<dir>` differs from the default
   // site root.
-  const lifecycleResult = await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+  const lifecycleResult = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
   setReadinessSnapshot(lifecycleResult);
   if (!lifecycleResult.ok) {
     logCriticalBootFailures(lifecycleResult);

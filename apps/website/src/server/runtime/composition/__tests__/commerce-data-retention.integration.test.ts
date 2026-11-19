@@ -63,7 +63,7 @@ async function bootAndClose(filePath: string): Promise<void> {
     const modules = buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => filePath });
     assert.equal(modules.some(module => module.name === "store-plugin"), false);
     // Exercise the data-related serve lifecycle without starting unrelated plugin polling.
-    const result = await runBootLifecycle(modules.filter(module => ["database-migration-reconciliation", "settings", "seo", "comments"].includes(module.name)));
+    const result = await runBootLifecycle({ modules: modules.filter(module => ["database-migration-reconciliation", "settings", "seo", "comments"].includes(module.name)) });
     assert.equal(result.ok, true);
     await Promise.all([deps.identityReady, deps.settingsReady, deps.seoReady, deps.commentsReady, deps.commentsSettingsReady, deps.executionSettingsReady, deps.settingsUiTabsReady, deps.analyticsSettingsReady, deps.siteTitleReady, deps.pluginRuntimeReady, deps.blobHydrationReady, deps.adminPasswordResetReady]);
   } finally { await closeStore?.(); }

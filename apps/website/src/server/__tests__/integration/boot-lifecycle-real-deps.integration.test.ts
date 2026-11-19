@@ -28,7 +28,7 @@ test("wrapping the real settings/seo/newsletter promises in BootModules reports 
       { name: "newsletter", owner: "newsletter", criticality: "optional", prepare: () => deps.newsletterReady, start: noop, stop: noop },
     ];
 
-    const result = await runBootLifecycle(modules);
+    const result = await runBootLifecycle({ modules });
 
     assert.equal(result.ok, true);
     assert.deepEqual(

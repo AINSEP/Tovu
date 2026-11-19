@@ -64,7 +64,7 @@ export async function startResettablePinApi(
   const open = async () => {
     const deps = await createSiteRouteDeps({}, { dbPath, overrides: { onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; } } });
     modules = buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath });
-    const boot = await runBootLifecycle(modules);
+    const boot = await runBootLifecycle({ modules });
     setReadinessSnapshot(boot);
     assert.ok(boot.ok, "Pin composition boot failed");
     await awaitSiteBootReadiness({ deps });
