@@ -94,7 +94,10 @@ for (const m of M) {
   const rs = refs(decls.map((d) => topDecl.get(d.n).node), null);
   const out = outside(spans);
   const usedTop = topRows(rs).filter((t) => !m.names.includes(t.n));
-  const stillUsed = m.names.filter((n) => new RegExp('\\b' + n + '\\b').test(out.replace(/^import [\s\S]*?;$/mg, '')));
+  const movedNodes = new Set(decls.map((d) => topDecl.get(d.n).node));
+  const stillUsed = m.names.filter((n) => { const target = topDecl.get(n).node; let hit = false;
+    (function v(x) { if (hit) return; if (movedNodes.has(x)) return; if (ts.isIdentifier(x) && x.text === n && x.parent !== target) { const sym = ck.getSymbolAtLocation(x); if (sym && sym.declarations && sym.declarations.includes(target)) hit = true; } ts.forEachChild(x, v); })(sf);
+    return hit; });
   for (const d of decls) { const c = lines.filter((l) => l === d.anchor).length; if (c !== 1) d.anchorDup = c; }
   res.M.push({ ...m, decls, imports: importRows(rs, out), top: usedTop.map((t) => ({ ...t, from: [...movedBefore].find((x) => x.names.includes(t.n))?.id || 'deps.ts' })), stillUsed, code: decls.reduce((s, d) => s + d.code, 0), readers: readersIn(Math.min(...spans.map((s) => s[0])), Math.max(...spans.map((s) => s[1]))).filter(([p, h]) => h.some((x) => spans.some(([a, b]) => lines.slice(a - 1, b).join('\n').includes(x)))) });
   movedBefore.add(m);

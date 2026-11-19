@@ -149,7 +149,10 @@ ${depsImport}
 ### Imports used by the moved text
 ${impTable(m.imports)}
 
-## Importers to repoint
+${m.id === 'M2' ? `## Reader edit (required; found by applying M1-M3 in a scratch worktree)
+\`apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts\`, test "createSiteRouteDeps: storage choice, then hydration, then the store open …", reads \`openCompositionStore\`, \`prepareCompositionStorage\` and \`startOwnerSweeps\` from deps.ts and fails with \`anchor missing: async function openCompositionStore(\`. Change exactly its three reads of those bodies to the new file: add \`const store = readCode("server/runtime/composition/site-deps/open-store.ts");\` after \`const deps = …\`, and replace \`functionBody(deps, "async function openCompositionStore(")\`, \`functionBody(deps, "function prepareCompositionStorage(")\` and \`functionBody(deps, "function startOwnerSweeps(")\` with \`functionBody(store, …)\` (same signatures). The \`createSiteRouteDeps\` read stays on deps.ts. Commit it with this sheet.
+
+` : ''}## Importers to repoint
 ${importers.length ? importers.map((x) => '- ' + x).join('\n') : 'None: no moved name is imported outside deps.ts (verify: `git grep -nE "' + m.names.join('|') + '" -- apps development` lists only deps.ts, the new file, this test and prose comments).'}
 
 ## Source readers of deps.ts (literal match on the tip)
@@ -177,7 +180,7 @@ test("${m.id}: deps.ts imports exactly what it still uses from the new file", ()
 \`\`\`
 Red first (prove the pins bite, then revert each): paste one moved declaration back into deps.ts → test 1 fails; swap the first two declarations in the new file → test 1 fails; drop one name from the deps.ts import line → test 2 fails (typecheck too). Record the three failing outputs in the commit message body.
 
-${steps({ checks, checkNote: `Each hash proves one declaration (with its doc comment) is byte-identical to the design tip wherever it now sits.`, eslintFiles: [file], testFile, addFiles: [file, testFile, DEPS, ...(m.id === 'M1' ? ['apps/website/src/server/runtime/composition/__tests__/deps-observability-wiring.integration.test.ts'] : m.id === 'M3' ? ['apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts'] : [])], msg: `refactor(composition): ${m.id} ${m.name} helpers move out of deps.ts (deps-split v4)` })}`;
+${steps({ checks, checkNote: `Each hash proves one declaration (with its doc comment) is byte-identical to the design tip wherever it now sits.`, eslintFiles: [file], testFile, addFiles: [file, testFile, DEPS, ...(m.id === 'M2' ? ['apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts'] : []), ...(m.id === 'M1' ? ['apps/website/src/server/runtime/composition/__tests__/deps-observability-wiring.integration.test.ts'] : m.id === 'M3' ? ['apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts'] : [])], msg: `refactor(composition): ${m.id} ${m.name} helpers move out of deps.ts (deps-split v4)` })}`;
   fs.writeFileSync(`${OUT}/${m.id}-${m.name}.md`, md);
   index.push({ id: m.id, name: m.name, lines: m.decls.map((d) => `${d.a}-${d.b}`).join(', '), code: m.code, inputs: '-', getters: '-', outputs: m.stillUsed.length });
 }

@@ -10,3 +10,9 @@ eslint max-lines-per-function 50 / max-lines 500 on site-deps/*.ts   exit=0
 depcruise apps/website/src               14 errors, 78 warnings (identical to the tip; no violation involves site-deps/)
 M1/M2/M3 characterization tests (copied verbatim from the sheets)   6 pass, 0 fail
 # Not probed: B, H, L, R (their types depend on earlier sheets' outputs); the 70-file test set on the probe.
+70-file test set + the 3 M tests on the probe (concurrency 2): 366 tests, 357 pass, 9 fail (346 s) = the 8 tip base-red names
+  + "createSiteRouteDeps: storage choice, then hydration, then the store open …" (composition-boot-order.unit), which reads
+  openCompositionStore/prepareCompositionStorage/startOwnerSweeps from deps.ts. M2 now carries the exact reader edit; with it
+  applied (and hydrateContentDbIfNeeded no longer exported/imported — a comment-only mention had made the census count it as
+  still used; the census now resolves uses through the checker), tsc exit 0 and composition-boot-order + the M tests fail only
+  the 2 base-red names of that file.

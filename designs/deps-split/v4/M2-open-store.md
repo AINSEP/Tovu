@@ -7,7 +7,7 @@ Design tip: Tovu `2d82735a` (`origin/integ/merge-3-2026-11-18`), Jini `d37821a4`
 
 | declaration | tip lines (doc + body) | anchor line | exported from the new file |
 |---|---|---|---|
-| `hydrateContentDbIfNeeded` (function) | 536-551 | 546 | yes |
+| `hydrateContentDbIfNeeded` (function) | 536-551 | 546 | no (used only inside the new file) |
 | `prepareCompositionStorage` (function) | 653-660 | 653 | no (used only inside the new file) |
 | `StoreCloseRegistration` (typealias) | 662-667 | 667 | yes |
 | `openCompositionStore` (function) | 669-722 | 687 | yes |
@@ -17,7 +17,7 @@ Design tip: Tovu `2d82735a` (`origin/integ/merge-3-2026-11-18`), Jini `d37821a4`
 
 - **Edit, nothing else**: cut each row's lines from deps.ts and paste them, in this order, into the new file; add `export` to the rows marked "yes" (and to nothing else — no re-export from deps.ts, no shell); add the imports below to the new file. In deps.ts, add exactly one import line after the last relative `./` import:
 ```ts
-import { hydrateContentDbIfNeeded, type StoreCloseRegistration, openCompositionStore, resolveChatDbPath } from "./site-deps/open-store.js";
+import { type StoreCloseRegistration, openCompositionStore, resolveChatDbPath } from "./site-deps/open-store.js";
 ```
 - **Module helpers the moved text reads that stay elsewhere**: `CreateSiteRouteDepsOverrides` → import from `./overrides.js` (moved by M1); `resolveSiteBindingOverride` → import from `./overrides.js` (moved by M1).
 - **Why `hydrateContentDbIfNeeded` is here**: `openCompositionStore` calls it; leaving it in deps.ts would make `open-store.ts` import deps.ts, a cycle step 5's dependency-cruiser check rejects.
@@ -42,6 +42,9 @@ import { hydrateContentDbIfNeeded, type StoreCloseRegistration, openCompositionS
 | `startSubmissionIpExpirySweep` | `#src/features/forms/submission-ip-expiry-sweep` | **move** (delete from deps.ts) |
 
 Relative specifiers gain one `../` in `site-deps/` (`./x.js` → `../x.js`, `../../x.js` → `../../../x.js`); `#src/…` and package specifiers are unchanged. "copy"/"move" is measured on the tip; if after the edit an import marked copy has no remaining use in deps.ts, delete it there too (R lists every leftover).
+
+## Reader edit (required; found by applying M1-M3 in a scratch worktree)
+`apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts`, test "createSiteRouteDeps: storage choice, then hydration, then the store open …", reads `openCompositionStore`, `prepareCompositionStorage` and `startOwnerSweeps` from deps.ts and fails with `anchor missing: async function openCompositionStore(`. Change exactly its three reads of those bodies to the new file: add `const store = readCode("server/runtime/composition/site-deps/open-store.ts");` after `const deps = …`, and replace `functionBody(deps, "async function openCompositionStore(")`, `functionBody(deps, "function prepareCompositionStorage(")` and `functionBody(deps, "function startOwnerSweeps(")` with `functionBody(store, …)` (same signatures). The `createSiteRouteDeps` read stays on deps.ts. Commit it with this sheet.
 
 ## Importers to repoint
 None: no moved name is imported outside deps.ts (verify: `git grep -nE "hydrateContentDbIfNeeded|prepareCompositionStorage|StoreCloseRegistration|openCompositionStore|resolveChatDbPath|startOwnerSweeps|startOwnerChatExpirySweep" -- apps development` lists only deps.ts, the new file, this test and prose comments).
@@ -75,7 +78,7 @@ test("M2: the declarations live only in site-deps/open-store.ts, in tip order", 
 test("M2: deps.ts imports exactly what it still uses from the new file", () => {
   const found = parse(DEPS).statements.find((s): s is ts.ImportDeclaration => ts.isImportDeclaration(s) && (s.moduleSpecifier as ts.StringLiteral).text === "./site-deps/open-store.js");
   assert.ok(found?.importClause?.namedBindings && ts.isNamedImports(found.importClause.namedBindings), "import missing");
-  assert.deepEqual(found.importClause.namedBindings.elements.map((e) => e.name.text).sort(), ["StoreCloseRegistration","hydrateContentDbIfNeeded","openCompositionStore","resolveChatDbPath"]);
+  assert.deepEqual(found.importClause.namedBindings.elements.map((e) => e.name.text).sort(), ["StoreCloseRegistration","openCompositionStore","resolveChatDbPath"]);
 });
 ```
 Red first (prove the pins bite, then revert each): paste one moved declaration back into deps.ts → test 1 fails; swap the first two declarations in the new file → test 1 fails; drop one name from the deps.ts import line → test 2 fails (typecheck too). Record the three failing outputs in the commit message body.
@@ -221,7 +224,7 @@ Base status: INDEX-v4 records which of these are red on the tip (container facts
 ```bash
 set -euo pipefail
 git checkout -- development/scripts/check-architecture.baseline.json
-git add apps/website/src/server/runtime/composition/site-deps/open-store.ts apps/website/src/server/runtime/composition/site-deps/__tests__/open-store.characterization.unit.test.ts apps/website/src/server/runtime/composition/deps.ts
+git add apps/website/src/server/runtime/composition/site-deps/open-store.ts apps/website/src/server/runtime/composition/site-deps/__tests__/open-store.characterization.unit.test.ts apps/website/src/server/runtime/composition/deps.ts apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts
 git status --short
 git commit -m "refactor(composition): M2 open-store helpers move out of deps.ts (deps-split v4)"
 npm run check:why-comments -- --base "$(cat "$T/parent")"

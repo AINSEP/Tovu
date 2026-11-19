@@ -428,7 +428,6 @@
     }
    ],
    "stillUsed": [
-    "hydrateContentDbIfNeeded",
     "StoreCloseRegistration",
     "openCompositionStore",
     "resolveChatDbPath"
