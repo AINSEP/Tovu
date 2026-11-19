@@ -9,10 +9,41 @@ import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { buildShareZip } from "../share-zip.js";
 import { SHARE_LIMITS } from "../share-policy.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
-import { collectSiteBackupFiles, type PlannedDiskFile } from "../sources.js";
+import { checkSiteBackupLimits, collectSiteBackupFiles, skipOversizedFiles, type PlannedDiskFile } from "../sources.js";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { createBundledExportFilePolicy } from "../bundled-export-file-policy.js";
 type ZipArgs = Parameters<typeof zipFolderFiles>[0];
+
+// Mutations: change either cap comparison from > to >= (exact limit), or remove it (limit+1).
+for (const offset of [-1, 0, 1]) {
+  test(`backup maxFiles boundary at limit ${offset >= 0 ? "+" : ""}${offset}`, () => {
+    const files = Array.from({ length: 3 + offset }, (_, index) => ({ path: `file-${index}`, bytes: 1 }));
+    const result = checkSiteBackupLimits({ files, host: { label: "fixture" } }, { limits: { maxFiles: 3, maxTotalBytes: 100 } });
+    if (offset <= 0) assert.deepEqual(result, { ok: true, totalBytes: files.length });
+    else {
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.match(result.message, /4 files, over the 3-file cap/);
+    }
+  });
+  test(`backup maxTotalBytes boundary at limit ${offset >= 0 ? "+" : ""}${offset}`, () => {
+    const files = [{ path: "one", bytes: 4 }, { path: "two", bytes: 6 + offset }];
+    const result = checkSiteBackupLimits({ files, host: { label: "fixture" } }, { limits: { maxFiles: 3, maxTotalBytes: 10 } });
+    if (offset <= 0) assert.deepEqual(result, { ok: true, totalBytes: 10 + offset });
+    else {
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.match(result.message, /11 B, over the 10 B cap/);
+    }
+  });
+}
+
+// Mutation: change the per-file > / <= boundaries, or omit the skipped report.
+test("backup skips and reports an oversized disk file while retaining limit-1 and the exact limit", () => {
+  const files: PlannedDiskFile[] = [9, 10, 11].map(bytes => ({ path: `themes/${bytes}.txt`, bytes,
+    scope: "themes", absPath: `/unused/${bytes}`, root: "/unused", identity: null, nlink: 1, mtimeMs: 0 }));
+  const result = skipOversizedFiles(files, { label: "fixture", maxFileBytes: 10 });
+  assert.deepEqual(result.files, files.slice(0, 2));
+  assert.deepEqual(result.skipped, [{ path: "themes/11.txt", reason: "11 B, over fixture's 10 B per-file limit" }]);
+});
 function plan(overrides: Partial<SiteSharePlanContent> = {}): SiteSharePlanContent {
   return { target: { kind: "zip" }, profile: "share", include: { database: true, media: true, themes: true, plugins: true, settings: true }, database: { bytes: Buffer.from("db"), watermarkAtCapture: 4 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], media: [], plugins: [], skipped: [], scopeNotes: {}, totalBytes: 4, site: { name: "Site", folderName: "site" }, schema: { index: 1, tag: "test" }, tovuVersion: "test", createdAt: "2026-10-26", ...overrides };
 }

@@ -8,6 +8,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import Database from "better-sqlite3";
+import { buildShareZip } from "../../share-zip.js";
 import express from "express";
 import { IncomingMessage, ServerResponse } from "node:http";
 import { PassThrough } from "node:stream";
@@ -38,6 +40,34 @@ import { importFixture, MEDIA, OWNER_PASSWORD, reader } from "../import.fixture.
 import { verifySiteImport } from "../../import-verifier.js";
 import { rebuildImportDatabase } from "../../../../server/runtime/composition/site-portability.js";
 import { runtimeSchemaVersion } from "../../../../platform/site-dir/schema-guard.js";
+
+// Mutation: delete either additive-default map entry; the isolated worker refuses this archive.
+test("same-identity older Library shape imports with additive defaults through the public round trip", { timeout: 120000 }, async t => {
+  const h = await importFixture(t);
+  // openContentDb in the fixture runs the real chain. Only this serialized source copy is older.
+  const older = new Database(h.safe.bytes);
+  let bytes: Buffer;
+  try {
+    older.exec("ALTER TABLE media DROP COLUMN kind; ALTER TABLE media DROP COLUMN original_filename; ALTER TABLE media DROP COLUMN source_metadata_json; ALTER TABLE asset_blobs DROP COLUMN document_owned");
+    bytes = older.serialize();
+  } finally { older.close(); }
+  const archive = await buildShareZip({ plan: { ...h.plan, database: { bytes, watermarkAtCapture: 0 } }, zip: zipFolderFiles });
+  const { uploadId } = await h.backend.upload({ principalId: "owner", archive });
+  const pending = await h.backend.importBackup({ principalId: "owner", source: { uploadId } });
+  assert.equal(pending.status, "needs-owner");
+  const ready = await h.backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD });
+  assert.equal(ready.status, "ready");
+  const entry = h.workspace.registry({}).list({}).find(row => row.id === ready.newSiteId)!;
+  const imported = new Database(resolveSiteDatabasePaths({ dir: entry.path }, { workspace: h.workspace }).contentDbPath, { readonly: true });
+  try {
+    assert.deepEqual(imported.prepare("SELECT id,kind,original_filename,source_metadata_json FROM media").all(), [
+      { id: "media", kind: "media", original_filename: null, source_metadata_json: null },
+    ]);
+    assert.deepEqual(imported.prepare("SELECT id,document_owned FROM asset_blobs").all(), [{ id: "blob", document_owned: 0 }]);
+    assert.deepEqual(imported.prepare("SELECT id,title FROM posts ORDER BY id").all(), h.db.$client.prepare("SELECT id,title FROM posts ORDER BY id").all());
+    assert.deepEqual(imported.prepare("SELECT id FROM secrets_vault").all(), []);
+  } finally { imported.close(); }
+});
 
 /** Real admin handlers over an in-process stream; no listening socket is needed. */
 async function shareRequest(app: express.Express, endpoint: string, body: unknown) {
