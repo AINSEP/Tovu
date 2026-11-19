@@ -19,5 +19,5 @@ test("M2: the declarations live only in site-deps/open-store.ts, in tip order", 
 test("M2: deps.ts imports exactly what it still uses from the new file", () => {
   const found = parse(DEPS).statements.find((s): s is ts.ImportDeclaration => ts.isImportDeclaration(s) && (s.moduleSpecifier as ts.StringLiteral).text === "./site-deps/open-store.js");
   assert.ok(found?.importClause?.namedBindings && ts.isNamedImports(found.importClause.namedBindings), "import missing");
-  assert.deepEqual(found.importClause.namedBindings.elements.map((e) => e.name.text).sort(), ["StoreCloseRegistration","hydrateContentDbIfNeeded","openCompositionStore","resolveChatDbPath"]);
+  assert.deepEqual(found.importClause.namedBindings.elements.map((e) => e.name.text).sort(), ["StoreCloseRegistration","openCompositionStore","resolveChatDbPath"]);
 });

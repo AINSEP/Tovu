@@ -22,7 +22,7 @@ import { type CreateSiteRouteDepsOverrides, resolveSiteBindingOverride } from ".
  * install-dir path) has already opened its own db before reaching here, so `dbPath` is never even
  * read in that branch.
  */
-export function hydrateContentDbIfNeeded({ dbPath, storage }: { dbPath: string; storage: SiteStorage }, { overrides }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}): void {
+function hydrateContentDbIfNeeded({ dbPath, storage }: { dbPath: string; storage: SiteStorage }, { overrides }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}): void {
   if (overrides?.db !== undefined || storage.kind !== "sqlite") return;
   // The served site's stock seed, by its binding's name, not `basename(siteDir())`: see
   // {@link resolveExportOutputRootDir}'s doc for why the env/cwd site can be a different one.
