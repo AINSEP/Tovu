@@ -48,7 +48,7 @@ export interface PageEditorPort extends StandingDraftAutosavePort, Pick<PagesPor
      *  `activeThemeTier` documents. Gates whether `TemplateSourceModal` attempts a fetch at all. */
     activeThemeTier: ThemeTier | null;
   }>;
-  updatePageHtml(required: { id: string; html: string }): Promise<{ post: AdminPost }>;
+  updatePageHtml(required: { id: string; html: string; expectedVersion: number }): Promise<{ post: AdminPost }>;
   /**
    * Synchronous URL builder for the admin-only template-preview iframe — NOT a network call itself;
    * the browser navigates to the returned URL when the iframe's `src` is set. Belongs on the port

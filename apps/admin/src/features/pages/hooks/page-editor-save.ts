@@ -48,19 +48,9 @@ export function applySavedPage(
 /**
  * The two writes a Page save makes, in the order that makes the version guard real.
  *
- * **Metadata first, body second — reversed 2026-09-07, deliberately.** It used to be body first,
- * on the reasoning that "if the metadata write fails on a slug conflict, the operator's actual
- * content is already safe". That ordering is exactly what made a concurrency guard impossible:
- * `PUT /pages/:id/html` (`apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts`) reads the row and writes it back
- * inside ONE request, so the version its compare-and-set conditions on is one it captured
- * microseconds earlier — never the version this editor loaded — and it bumps `version` on the way
- * through. Writing it first therefore both clobbered the other operator's body AND invalidated the
- * basis the metadata write was about to claim. `updatePost` is the only one of the two that accepts
- * a client-supplied `expectedVersion`, so it has to go first for its 409 to mean anything.
- *
- * What the old ordering bought is not lost: the working copy is still in the editor either way, and
- * since 2026-09-06 a standing draft is parked server-side (`useStandingDraftAutosave`) — neither of
- * which existed when "body first" was chosen.
+ * Metadata first, body second: metadata checks the version this editor loaded, then the HTML
+ * request carries the version that successful metadata save returned. A save between those requests
+ * is refused by the HTML store instead of overwriting the other editor's body.
  *
  * @returns The final stored row: the body write's response when it fired, the metadata write's
  *   otherwise. Reading the earlier one would hand the caller a `version` already one behind.
@@ -71,7 +61,7 @@ export async function writePage({ port, pageId, plan, html }: { port: PageEditor
   const { post: updated } = await port.updatePost({ target: { id: pageId }, patch: plan.updatePostPayload });
   if (!plan.canSaveHtml) return updated;
   try {
-    const { post: withBody } = await port.updatePageHtml({ id: pageId, html });
+    const { post: withBody } = await port.updatePageHtml({ id: pageId, html, expectedVersion: updated.version });
     return withBody;
   } catch (e) {
     // The metadata write above already landed — losing that fact here is exactly the partial-success

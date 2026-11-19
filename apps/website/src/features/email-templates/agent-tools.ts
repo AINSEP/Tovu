@@ -56,7 +56,7 @@ export const emailTemplatesAgentToolCatalog = [{
   inputSchema: {
     type: "object",
     additionalProperties: false,
-    required: ["id", "html"],
+    required: ["id", "html", "expectedVersion"],
     properties: { id: { type: "string" }, html: { type: "string" }, expectedVersion: { type: "integer", minimum: 1 } },
   },
 }, {

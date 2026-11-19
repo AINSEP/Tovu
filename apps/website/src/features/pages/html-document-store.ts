@@ -47,19 +47,8 @@ import type { PostStatus } from "@jini-ai/cms/core";
  * second writer's content into the WRONG byte offset if the first edit changed the document's length
  * anywhere before the second writer's target region).
  *
- * Relationship to `updatePost`'s `expectedVersion` (2026-09-07, fable arch audit §4.15): the audit
- * read one `posts.version` column written under three different concurrency contracts and asked
- * whether this store should take a client-stated `expectedVersion` too. It should not, and the
- * difference is not an inconsistency. `updatePost`'s basis comes from a client that loaded the row
- * in an earlier request and states what it believes it is editing, so the guard there is opt-in
- * (a caller that sends nothing gets last-write-wins) and its rejection is a 409 the client must
- * reconcile. Here there is no earlier request and no client to state anything: the basis is the
- * version captured by the `read()` in THIS turn, which is what makes the guard mandatory rather
- * than opt-in — `write()` without a prior `read()` throws rather than falling back to an
- * unconditional overwrite. What the audit was actually pointing at — an arm writing this column
- * with NO predicate at all — was `routes/pages/update.ts` (C02) and `features/seo`'s
- * `setEntrySeoOverrides` (SEO-01); both now write under one, so every writer of `posts.version`
- * is version-predicated. The two remaining mechanisms differ only in where the basis comes from.
+ * Editor saves carry their loaded `expectedVersion` through `ensureHtmlFormat`, before any
+ * conversion. Its captured basis then guards `write()` without another read replacing that basis.
  */
 
 /** The query handle a kernel `run` body receives. */
@@ -188,8 +177,8 @@ export interface PagesHtmlDocumentStoreScope {
 export interface PagesHtmlDocumentStorePort {
   /** Safe warnings from the last validated write, for authenticated authoring surfaces. */
   embedWarnings?(): readonly PluginEmbedDiagnostic[];
-  /** Births an `"html"`-format Page, or no-ops if the row already is one. */
-  ensureHtmlFormat(required: { seedHtml: string }, optional?: Record<string, never>): Promise<void>;
+  /** Checks a supplied client basis before capturing it or converting a doc Page to HTML. */
+  ensureHtmlFormat(required: { seedHtml: string; expectedVersion?: number }, optional?: Record<string, never>): Promise<void>;
   read(): Promise<string>;
   write(required: { html: string }, optional?: Record<string, never>): Promise<void>;
   /**
@@ -383,7 +372,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * stop (D-1), and no Post may be converted to bespoke HTML through this or any other path.
    * @complexity O(1) — one indexed row lookup plus, on a `doc` row, one indexed row update.
    */
-  async ensureHtmlFormat({ seedHtml: authoredSeedHtml }: { seedHtml: string }, _optional = {}): Promise<void> {
+  async ensureHtmlFormat({ seedHtml: authoredSeedHtml, expectedVersion }: { seedHtml: string; expectedVersion?: number }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
     const row = await this.deps.kernel.run((db) =>
@@ -396,7 +385,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     if (!this.allowedKinds.has(row.kind as PostKind)) {
       throw new PageKindMismatchError(`'${this.scope.postId}' is not an allowed HTML document kind`);
     }
-
+    if (expectedVersion !== undefined && row.version !== expectedVersion) throw new PageConcurrentEditError(`page '${this.scope.postId}' is at version ${row.version}, not the expected version ${expectedVersion} — re-read and retry`);
     if (row.body_format === "html") {
       // Already born. Capture the version so a following `write()` has something to condition on,
       // and leave the content alone — re-seeding here would silently discard the page's real body

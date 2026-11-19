@@ -111,7 +111,7 @@ export class InMemoryPagesHtmlDocumentStore {
   }
 
   /** @see PagesHtmlDocumentStore.ensureHtmlFormat */
-  async ensureHtmlFormat({ seedHtml: authoredSeedHtml }: { seedHtml: string }, _optional = {}): Promise<void> {
+  async ensureHtmlFormat({ seedHtml: authoredSeedHtml, expectedVersion }: { seedHtml: string; expectedVersion?: number }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
     const row = await this.load();
@@ -122,6 +122,7 @@ export class InMemoryPagesHtmlDocumentStore {
       throw new PageKindMismatchError(`'${this.scope.postId}' is not an allowed HTML document kind`);
     }
 
+    if (expectedVersion !== undefined && row.version !== expectedVersion) throw new PageConcurrentEditError(`page '${this.scope.postId}' is at version ${row.version}, not the expected version ${expectedVersion} — re-read and retry`);
     if (row.bodyFormat === "html") {
       this.lastReadVersion = row.version;
       return;
@@ -138,13 +139,13 @@ export class InMemoryPagesHtmlDocumentStore {
       if (!existing.some((revision) => revision.seq === row.version)) {
         await this.appendRevision({ seq: row.version, recordedAt: updatedAt });
       }
-      await this.deps.repo.save({
-        ...row,
+      const { applied } = await this.deps.repo.saveIfVersion({ record: { ...row,
         bodyFormat: "html",
         bodyHtml: seedHtml,
         version: nextVersion,
         updatedAt,
-      });
+      }, ifVersion: row.version });
+      if (!applied) throw new PageConcurrentEditError(`page '${this.scope.postId}' was edited elsewhere while it was being converted to HTML — retry`);
       await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
       await this.catchUpGoLive({ row, nowIso: updatedAt });
     } });

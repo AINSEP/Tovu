@@ -680,9 +680,9 @@ describe("injected port — usePageEditor with no fetch stub", () => {
      *  fake port's own implementation so `updatePageHtmlCalls`/`current` still update normally. */
     function recordWriteOrder(port: ReturnType<typeof createFakePageEditorPort>, order: string[]): void {
       const original = port.updatePageHtml.bind(port);
-      port.updatePageHtml = async ({ id, html }) => {
+      port.updatePageHtml = async ({ id, html, expectedVersion }) => {
         order.push("write");
-        return original({ id, html });
+        return original({ id, html, expectedVersion });
       };
     }
 

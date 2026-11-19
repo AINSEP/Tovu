@@ -1,3 +1,5 @@
+import { ToolInputError } from "@jini-ai/core";
+import { parseExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { PluginEmbedValidationError } from "#src/features/agent-plugins/exports/diagnostics";
 import type { Response } from "express";
@@ -54,6 +56,10 @@ async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<bo
  * complexity reason as {@link allowedToWrite}; behavior is unchanged except for the new
  * `entityNotLiveResponse` arm (S5, web-high fix plan 2026-09-24). */
 function sendStoreError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  if (err instanceof ToolInputError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
   if (err instanceof PluginEmbedValidationError) {
     res.status(400).json({ error: err.message, code: err.code });
     return;
@@ -86,7 +92,7 @@ function withEmbedWarnings(required: { post: ReturnType<typeof toAdminPostRespon
 
 /**
  * PUT the bespoke-HTML body of a Page (SPEC-047/ADR-056 REQ-4) —
- * `PUT /api/admin/v1/workspaces/:workspaceId/pages/:pageId/html`, body `{ html: string }`.
+ * `PUT /api/admin/v1/workspaces/:workspaceId/pages/:pageId/html`, body `{ html: string, expectedVersion?: number }`.
  *
  * ## Why this is a separate route from `pages/update.ts`, not a field on it
  *
@@ -97,10 +103,9 @@ function withEmbedWarnings(required: { post: ReturnType<typeof toAdminPostRespon
  * convention a future edit can quietly break; keeping them apart is what makes "exactly one writer
  * of html rows" a structural fact.
  *
- * It also means the two have genuinely different concurrency semantics, and only one of them can
- * offer compare-and-set: the store conditions its `UPDATE` on the `version` captured at `read()`
- * (CIC-1), so a second admin's write lands as a 409 rather than silently discarding the first's
- * edit. `updatePost` has no such guarantee and does not need one for a title.
+ * The editor sends the version returned by its metadata save. The store checks that basis before
+ * conversion and carries it into the conditional HTML write, so a later save cannot overwrite an
+ * edit that landed between the two requests.
  *
  * ## First write births the row
  *
@@ -174,6 +179,8 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = ({ app, d
           return;
         }
 
+        const expectedVersion = parseExpectedVersion({ value: req.body?.expectedVersion });
+
         // S1 (fix plan 2026-09-24 row 14) — attributes this route's `post_revisions` rows to the
         // real authenticated principal, not the ledger's `SYSTEM_ACTOR_ID` fallback. Cheap: reads
         // `res.locals`, no second auth check (`allowedToWrite` above already ran one).
@@ -184,11 +191,7 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = ({ app, d
         await deps.pluginExports?.validateHtml({ workspaceId: deps.workspaceId, html });
         // Idempotent: a no-op once the page is already html-format, so both the first write and
         // every later one take this identical path.
-        await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
-        // `read()` is what captures the version `write()` conditions its compare-and-set on — not a
-        // wasted round trip. Dropping it would turn the write into the unconditional overwrite
-        // CIC-1 exists to prevent.
-        await store.read();
+        await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON, expectedVersion });
         await store.write({ html });
 
         const updated = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: pageId });

@@ -1,3 +1,4 @@
+import { pageToolInputWithBasis } from "./page-tool-input.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -6,7 +7,6 @@ import path from "node:path";
 import test from "node:test";
 import Ajv from "ajv";
 import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig, parseGalleryConfig } from "@jini-ai/cms/widgets/markers";
-
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { discoverAllBuiltInThemes, requestThemePreviewRefresh, type DiscoveredTheme } from "../../theme/index.js";
@@ -48,7 +48,7 @@ function harness(
   async function call(name: string, input: Record<string, unknown>) {
     const entry = byName.get(name);
     assert.ok(entry, `tool '${name}' is not registered`);
-    return entry.handler({ ...ctx, input } as never);
+    return entry.handler({ ...ctx, input: await pageToolInputWithBasis({ toolId: name, input, repo, workspaceId: WS }) } as never);
   }
 
   return { repo, byName, call };
@@ -129,17 +129,17 @@ test("all four Pages tools are registered with the input schemas the model needs
     const schema = entry.descriptor.inputSchema as { type: string; required: string[]; properties: Record<string, { type: string; minimum?: number }> };
     assert.ok(schema, `${name} must publish an input schema`);
     // why: N3 (42773ffa) made regionId the canonical region field; handle/region are executor-side aliases only.
-    const required = name === "pages_read_html" ? [] : name === "pages_write_html" ? ["id", "html"] : name === "pages_write_region" ? ["id", "regionId", "html"] : ["id", "regionId"];
+    const required = name === "pages_read_html" ? [] : name === "pages_write_html" ? ["id", "html", "expectedVersion"] : name === "pages_write_region" ? ["id", "regionId", "html", "expectedVersion"] : ["id", "regionId", "expectedVersion"];
     assert.equal(schema.type, "object");
     assert.deepEqual(schema.required ?? [], required);
-    for (const field of required) assert.equal(schema.properties[field].type, "string", `${name}.${field}`);
+    for (const field of required) assert.equal(schema.properties[field].type, field === "expectedVersion" ? "integer" : "string", `${name}.${field}`);
     const validate = new Ajv().compile(schema);
-    const valid: Record<string, string> = name === "pages_read_html" ? { id: "hero" } : Object.fromEntries(required.map((field) => [field, field === "html" ? "<p>Hi</p>" : "hero"]));
+    const valid: Record<string, string | number> = name === "pages_read_html" ? { id: "hero" } : Object.fromEntries(required.map((field) => [field, field === "expectedVersion" ? 1 : field === "html" ? "<p>Hi</p>" : "hero"]));
     assert.equal(validate(valid), true, `${name}: ${JSON.stringify(validate.errors)}`);
     for (const field of required) {
       const missing = { ...valid }; delete missing[field];
       assert.equal(validate(missing), false, `${name} requires ${field}`);
-      assert.equal(validate({ ...valid, [field]: 42 }), false, `${name}.${field} must be a string`);
+      assert.equal(validate({ ...valid, [field]: field === "expectedVersion" ? "1" : 42 }), false, `${name}.${field} must match its declared type`);
     }
     if (name !== "pages_read_html") {
       assert.equal(schema.properties.expectedVersion.type, "integer");

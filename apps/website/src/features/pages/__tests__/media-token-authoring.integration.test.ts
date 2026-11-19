@@ -18,7 +18,7 @@ test('page writers refuse unresolved Media widget tokens before saving a broken 
     const tool = tools.find(entry => entry.descriptor.id === name)!;
     for (const photo of ['<img src="{{media:pastry-counter-3}}">', '<img src="&#123;{media:pastry-counter-3}}">', '<template><img src="{{media:pastry-counter-3}}"></template>', '<p>{{media:pastry-counter-3}}</p>']) {
       const html = `<section data-agent-element="photo">${photo}</section>`;
-      await assert.rejects(tool.handler({ executionId: 'photo', principal: { id: 'owner' }, run: { id: 'chat' }, input: { id: 'visit', ...(name === 'pages_write_region' ? { regionId: 'photo' } : {}), html }, signal: new AbortController().signal }, {}), error => {
+      await assert.rejects(tool.handler({ executionId: 'photo', principal: { id: 'owner' }, run: { id: 'chat' }, input: { id: 'visit', expectedVersion: 1, ...(name === 'pages_write_region' ? { regionId: 'photo' } : {}), html }, signal: new AbortController().signal }, {}), error => {
         assert.ok(error instanceof ToolInputError);
         assert.match(error.message, /Media widget HTML mode only/);
         assert.match(error.message, /media.*slug/i);
@@ -31,6 +31,6 @@ test('page writers refuse unresolved Media widget tokens before saving a broken 
     assert.equal(row.version, 1);
   }
   const widgetHtml = `<section data-agent-element="photo"><div data-embed-config='${JSON.stringify({ type: 'media', content: { mode: 'html', html: '<img src="{{media:pastry-counter-3}}">' } })}'></div></section>`;
-  await tools.find(entry => entry.descriptor.id === 'pages_write_html')!.handler({ executionId: 'photo-valid', principal: { id: 'owner' }, run: { id: 'chat' }, input: { id: 'visit', html: widgetHtml }, signal: new AbortController().signal }, {});
+  await tools.find(entry => entry.descriptor.id === 'pages_write_html')!.handler({ executionId: 'photo-valid', principal: { id: 'owner' }, run: { id: 'chat' }, input: { id: 'visit', expectedVersion: 1, html: widgetHtml }, signal: new AbortController().signal }, {});
   assert.equal((await kernel.run(q => q.selectFrom('posts').select('body_html').where('id', '=', 'visit').executeTakeFirstOrThrow())).body_html, widgetHtml);
 });

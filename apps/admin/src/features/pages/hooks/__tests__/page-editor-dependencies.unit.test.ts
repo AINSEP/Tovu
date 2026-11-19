@@ -23,11 +23,11 @@ import type { AdminPost } from "@/features/posts/api/posts-api.types";
  *   that file's existing tests.
  */
 
-const { deletePage } = vi.hoisted(() => ({ deletePage: vi.fn() }));
+const { deletePage, updatePageHtml } = vi.hoisted(() => ({ deletePage: vi.fn(), updatePageHtml: vi.fn() }));
 
 vi.mock("../../api/pages-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/pages-api")>();
-  return { ...actual, pagesApi: { ...actual.pagesApi, deletePage } };
+  return { ...actual, pagesApi: { ...actual.pagesApi, deletePage, updatePageHtml } };
 });
 
 const { createFakePageEditorPort, defaultPageEditorPort } = await import("../page-editor-dependencies.hooks");
@@ -56,12 +56,20 @@ describe("defaultPageEditorPort.deletePage", () => {
   });
 });
 
+it("S7b: the live editor port forwards the HTML save's basis", async () => {
+  const response = { post: PAGE };
+  updatePageHtml.mockResolvedValue(response);
+  const input = { id: PAGE.id, html: "<p>Edited</p>", expectedVersion: PAGE.version };
+  await expect(defaultPageEditorPort.updatePageHtml(input)).resolves.toEqual(response);
+  expect(updatePageHtml).toHaveBeenCalledWith(input);
+});
+
 describe("createFakePageEditorPort — .current and id-mismatch guards", () => {
   it("current reflects the seeded page, then each write in turn", async () => {
     const port = createFakePageEditorPort({ page: PAGE });
     expect(port.current).toEqual(PAGE);
 
-    await port.updatePageHtml({ id: "page-1", html: "<p>edited</p>" });
+    await port.updatePageHtml({ id: "page-1", html: "<p>edited</p>", expectedVersion: PAGE.version });
     expect(port.current.bodyHtml).toBe("<p>edited</p>");
 
     await port.updatePost({ target: { id: "page-1" }, patch: { title: "Renamed" } });
@@ -70,7 +78,7 @@ describe("createFakePageEditorPort — .current and id-mismatch guards", () => {
 
   it("updatePageHtml rejects for an id that doesn't match the seeded page", async () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    await expect(port.updatePageHtml({ id: "wrong-id", html: "<p>x</p>" })).rejects.toThrow(
+    await expect(port.updatePageHtml({ id: "wrong-id", html: "<p>x</p>", expectedVersion: PAGE.version })).rejects.toThrow(
       "fake page editor port: unknown page id wrong-id",
     );
   });

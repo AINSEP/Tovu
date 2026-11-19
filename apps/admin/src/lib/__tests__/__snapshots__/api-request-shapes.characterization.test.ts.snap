@@ -9027,7 +9027,7 @@ exports[`request-shape table: what every fetching member sends > updatePageHtml 
   "full": {
     "calls": [
       {
-        "body": "{"html":"<html>"}",
+        "body": "{"html":"<html>","expectedVersion":1}",
         "cache": undefined,
         "credentials": "same-origin",
         "hasSignal": true,
@@ -9047,7 +9047,7 @@ exports[`request-shape table: what every fetching member sends > updatePageHtml 
   "min": {
     "calls": [
       {
-        "body": "{"html":"<html>"}",
+        "body": "{"html":"<html>","expectedVersion":1}",
         "cache": undefined,
         "credentials": "same-origin",
         "hasSignal": true,

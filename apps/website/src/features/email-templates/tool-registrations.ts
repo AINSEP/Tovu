@@ -1,3 +1,4 @@
+import { requireExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
 import { toolMetadata } from "../../contracts/core/tool-metadata/email-templates.js";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
@@ -67,7 +68,7 @@ export function buildEmailTemplatesRegistrations(deps: EmailTemplatesToolDeps): 
     email_template_edit: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       await permission({ deps, ctx, name: PAGES_EDIT_HTML_PERMISSION });
-      return editEmailTemplate({ store: emailTemplateStore({ deps }), input, actorId: ctx.principal.id });
+      return editEmailTemplate({ store: emailTemplateStore({ deps }), input: { ...input, expectedVersion: requireExpectedVersion({ value: input.expectedVersion, readToolId: "email_template_get" }) }, actorId: ctx.principal.id });
     },
     email_template_preview: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
