@@ -7,7 +7,8 @@ import type { MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/
 import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { DOC_NODE_HANDLERS } from "#src/server/inbound/public-http/http/site/render/doc/doc-nodes";
 import { MARK_RENDERERS } from "#src/server/inbound/public-http/http/site/render/doc/marks";
-import { postAgentToolCatalog, TIPTAP_DOC_SCHEMA } from "../agent-tools.js";
+import { postAgentToolCatalog } from "../agent-tools.js";
+import { TIPTAP_DOC_SCHEMA } from "../tiptap-doc-schema.js";
 
 /**
  * @file RED-then-GREEN evidence for the 2026-09-11 `TIPTAP_DOC_SCHEMA` expansion

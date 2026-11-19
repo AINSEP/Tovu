@@ -10,7 +10,8 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { createPost } from "../post.js";
 import type { PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 import { InMemoryPagesHtmlDocumentStore } from "../../pages/html-document-store.memory.js";
 import { DEFAULT_PAGE_SKELETON } from "../../pages/skeleton.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

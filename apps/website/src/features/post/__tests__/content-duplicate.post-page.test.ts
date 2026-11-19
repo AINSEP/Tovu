@@ -9,7 +9,8 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { contributePostDuplicateHandlers, type PostToolDeps } from "../tool-registrations.js";
+import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 import { InMemoryPagesHtmlDocumentStore } from "../../pages/html-document-store.memory.js";
 
 /**

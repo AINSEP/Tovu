@@ -99,7 +99,12 @@ import { contributeSkillsInstallTools } from "#src/features/skills/install-tool"
 import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-content/deps.js";
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
 import { installFirstPartyPublishContentTypes } from "./publish-content-manifest.js";
-import { contributePostTools, contributePostDuplicateHandlers, contributeContentStatsTools, contributePostPreviewTools } from "#src/features/post/tool-registrations";
+import { contributePostTools } from "#src/features/post/tool-registrations";
+import { contributePostDuplicateHandlers } from "#src/features/post/post-tool-duplicate";
+// Keep the standalone read tool on the existing registration seam, outside the content barrel.
+import { contributeContentStatsTools } from "#src/features/post/content-stats-tool";
+// Keep assistant contribution ports on the registration seam, outside the general post barrel.
+import { contributePostPreviewTools } from "#src/features/post/preview-tool";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
 import { contributeThemesTools, contributeSetActiveThemeTools, contributePreviewSwitcherTools, contributeDuplicateThemeTools, contributeImportThemeFileTools, contributeTrashThemeTools } from "#src/features/theme/tool-registrations";

@@ -4,7 +4,7 @@ import test from "node:test";
 import { ToolInputError, withBatchInput, type BatchResult, type ToolExecutionContext } from "@jini-ai/core";
 import { executeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
 import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
-import { POST_LIST_FIELDS } from "../agent-tools.js";
+import { POST_LIST_FIELDS } from "../post-tool-schemas.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -13,7 +13,8 @@ import { InMemoryPostRepo } from "../repo.memory.js";
 import { InMemoryPostSearchIndex } from "../search-index.memory.js";
 import { removeVia } from "./remove-post-double.js";
 import type { PostRecord } from "../post.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 

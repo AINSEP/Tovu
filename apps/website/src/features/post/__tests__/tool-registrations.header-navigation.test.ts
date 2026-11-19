@@ -11,7 +11,9 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { capabilityCard as themes } from "#src/features/theme/capability-card";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { postAgentToolCatalog } from "../agent-tools.js";
-import { buildPostRegistrations, PAGE_HEADER_NAVIGATION, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { PAGE_HEADER_NAVIGATION } from "../post-tool-views.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 
 /**
  * @file Demo 2026-11-02: after creating pages the chat's final summary named header links ("Menu",
