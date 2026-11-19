@@ -11,7 +11,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * `DatabaseContextEnvelope` server-side on arrival, INV-04, ADR-041 §7 / ADR-045 §5). Gated by
  * `backup.read`.
  */
-export function registerAdminRecoveryDeepLinkRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminRecoveryDeepLinkRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/recovery/deep-link", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

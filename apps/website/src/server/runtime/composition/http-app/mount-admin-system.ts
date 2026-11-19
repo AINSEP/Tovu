@@ -72,13 +72,13 @@ function mountAnalyticsAndSiteAssistant({ app, routeDeps }: MountInput, _optiona
 
 /** Module status, observability, browser telemetry, tool gaps and server logs routes. */
 function mountObservability({ app, routeDeps }: MountInput, _optional = {}): void {
-  registerAdminModuleStatusRoute(app, routeDeps);
+  registerAdminModuleStatusRoute({ app, deps: routeDeps });
   // Observability admin page, Overview tab (`development/todos.md` 2026-09-09 owner ask) — same
   // `system.read`-gated shape as the module-status route just above.
-  registerAdminObservabilityStatusRoute(app, routeDeps);
+  registerAdminObservabilityStatusRoute({ app, deps: routeDeps });
   // The admin browser's own errors and page views, relayed to the same provider-plugin ports.
   registerAdminBrowserTelemetryRoute({ app, deps: routeDeps });
-  registerAdminToolGapsRoute(app, routeDeps);
+  registerAdminToolGapsRoute({ app, deps: routeDeps });
   registerAdminServerLogsRoute({ app, deps: routeDeps });
 }
 
@@ -86,15 +86,15 @@ function mountObservability({ app, routeDeps }: MountInput, _optional = {}): voi
 function mountMail({ app, routeDeps }: MountInput, _optional = {}): void {
   // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
   // notification settings when it does not.
-  registerAdminMailStatusRoute(app, routeDeps);
-  registerAdminMailProviderRoutes(app, routeDeps);
+  registerAdminMailStatusRoute({ app, deps: routeDeps });
+  registerAdminMailProviderRoutes({ app, deps: routeDeps });
   // Email page: Sender and DNS (same operations as `mail_dns_status`/`mail_dns_verify`) and
   // Send test email (same operation as `mail_send_test`).
-  registerAdminMailDnsRoutes(app, { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY }, { observability: routeDeps.observability }) })(routeDeps) });
-  registerAdminMailTestSendRoute(app, routeDeps);
+  registerAdminMailDnsRoutes({ app, deps: { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY }, { observability: routeDeps.observability }) })(routeDeps) } });
+  registerAdminMailTestSendRoute({ app, deps: routeDeps });
   // Email page: What uses email and Recent sends and failures (same operations as
   // `mail_get_readiness`, `mail_list_activity`, `mail_get_activity`).
-  registerAdminMailActivityRoutes(app, routeDeps);
+  registerAdminMailActivityRoutes({ app, deps: routeDeps });
 }
 
 /** Assistant daemon/subagents/permanent deletes, deployment, sites, profile, export, share, import and backup routes. */
@@ -103,27 +103,27 @@ function mountSiteAdmin({ app, routeDeps }: MountInput, _optional = {}): void {
   // locally-spawned agent daemon, sibling to the on-demand recovery `apps/website/src/server/runtime/composition/modules/assistant.ts`'s
   // daemon-proxy code now triggers automatically on a known-failed request. See that route file's
   // own header for why its response never claims the daemon is healthy again.
-  registerAdminAssistantDaemonRoutes(app, routeDeps);
+  registerAdminAssistantDaemonRoutes({ app, deps: routeDeps });
   registerAdminAssistantSubagentsRoutes({ app, deps: routeDeps });
   registerAdminAssistantPermanentDeletesRoutes({ app, deps: routeDeps });
   // Admin Deployment panel (Overview + Dockerfile tabs) — same `system.read`-gated shape as the
   // module-status route just above; see each route file's own header for why they share it.
-  registerAdminDeploymentOverviewRoute(app, routeDeps);
-  registerAdminDockerfileSourceRoute(app, routeDeps);
+  registerAdminDeploymentOverviewRoute({ app, deps: routeDeps });
+  registerAdminDockerfileSourceRoute({ app, deps: routeDeps });
   // Admin "Sites" screen (2026-09-04 sites-switcher decision) — list/create/activate the sites
   // under `sites/<name>/`. `system.read`/`system.write`-gated, same shape as the routes just
   // above; Create/Activate additionally refuse when `TOVU_ENABLE_SITE_SWITCHER` is off (default),
   // which List does not — see that route file's own header for the full split.
-  registerAdminSitesRoutes(app, routeDeps);
+  registerAdminSitesRoutes({ app, deps: routeDeps });
   // The admin frontend's door to `buildSiteProfile()` — the SAME function the `site_get_profile`
   // agent tool calls, because `apps/admin` is a browser bundle and cannot invoke an agent tool.
   // Deliberately NOT gated by one `authorize()` call here: it authorizes each section against that
   // section's own domain permission. See that route file's header for why that difference matters.
-  registerAdminSiteProfileRoute(app, routeDeps);
+  registerAdminSiteProfileRoute({ app, deps: routeDeps });
   // Deployment panel → Static Site tab: trigger + poll the static exporter (`src/features/site-export/`).
   // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
   // that file's own header for the split.
-  registerAdminExportSiteRoutes(app, routeDeps);
+  registerAdminExportSiteRoutes({ app, deps: routeDeps });
   registerAdminSiteShareRoutes({ app, deps: routeDeps });
   registerAdminSiteImportRoutes({ app, deps: routeDeps });
   registerAdminSiteBackupRoutes({ app, deps: routeDeps });
@@ -135,18 +135,18 @@ function mountCredentialsAndFiles({ app, routeDeps }: MountInput, _optional = {}
   // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
   // gated for BOTH the trigger and the status poll — see that route file's own header for why.
   registerAdminConsentRoutes({ app, deps: routeDeps, service: routeDeps.siteConsent ?? bindSiteConsentService({ deps: routeDeps }) });
-  registerAdminPublishSiteRoutes(app, routeDeps);
+  registerAdminPublishSiteRoutes({ app, deps: routeDeps });
   // Deployment panel → Static Site tab's credential form: CRUD over saved provider connections
   // (`publish_credential_sets`). `system.publish`-gated on every verb — see that route file's own
   // header for why this doesn't split trigger/read the way `publish-site.ts` does.
-  registerAdminPublishCredentialsRoutes(app, routeDeps);
+  registerAdminPublishCredentialsRoutes({ app, deps: routeDeps });
   // Admin Source Control page: CRUD over saved plugin-provided source-control identities
   // (`source_control_credential_sets`). `source-control.credentials.write`-gated on every verb —
   // see that route file's own header for why this is NOT `system.publish`.
-  registerAdminSourceControlCredentialsRoutes(app, routeDeps);
+  registerAdminSourceControlCredentialsRoutes({ app, deps: routeDeps });
   // Access Tokens page's "Add custom provider" form: CRUD over saved user-defined provider
   // connections (`custom_credential_sets`). `custom-credentials.write`-gated on every verb.
-  registerAdminCustomCredentialsRoutes(app, routeDeps);
+  registerAdminCustomCredentialsRoutes({ app, deps: routeDeps });
   registerAdminCredentialCopyRoutes({ app, deps: routeDeps });
   // Security panel → site key tab: view/generate the TOVU_SITE_KEY site key's
   // generated-file fallback. `admin.security.site-key.manage`-gated on both verbs — see that route

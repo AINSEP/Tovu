@@ -57,7 +57,7 @@ export function createAdminNewsletterSendCampaignRoute(optional: SendCampaignRou
           deps: sendPipelineDeps,
           input: { workspaceId: deps.workspaceId, campaignId: String(req.params.id) },
         });
-        res.status(202).json(toDataResponse(campaign));
+        res.status(202).json(toDataResponse({ data: campaign }));
 
         try {
           await freezeAudience({

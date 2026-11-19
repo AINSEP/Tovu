@@ -26,10 +26,10 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminContentTypeListRoute(app, deps);
-  registerAdminContentTypeRegisterRoute(app, deps);
-  registerAdminContentTypeUpdateFieldsRoute(app, deps);
-  registerAdminContentTypeLifecycleRoute(app, deps);
+  registerAdminContentTypeListRoute({ app, deps });
+  registerAdminContentTypeRegisterRoute({ app, deps });
+  registerAdminContentTypeUpdateFieldsRoute({ app, deps });
+  registerAdminContentTypeLifecycleRoute({ app, deps });
   return { app, deps };
 }
 

@@ -63,9 +63,9 @@ test("existing stream emits exact theme frames across writers, reauthorizes and 
       reason: "test",
     }),
   };
-  registerAdminSettingsEventsRoute(
-    app as never,
-    {
+  registerAdminSettingsEventsRoute({
+    app: app as never,
+    deps: {
       ...deps,
       feedTimers: {
         scheduleInterval: (work: () => void, ms: number) => {
@@ -77,7 +77,7 @@ test("existing stream emits exact theme frames across writers, reauthorizes and 
         },
       },
     } as never,
-  );
+  });
   const closeHandlers: Function[] = [];
   const writes: string[] = [];
   const req = {

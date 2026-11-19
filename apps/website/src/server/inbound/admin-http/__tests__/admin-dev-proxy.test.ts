@@ -25,7 +25,7 @@ import { stripHopByHopHeaders } from "../admin-dev-proxy.js";
 /** Starts a bare Express app with `registerAdminStatic` mounted, listening on an ephemeral port. */
 function startAdminApp(t: import("node:test").TestContext, distDir: string): Promise<string> {
   const app = express();
-  registerAdminStatic(app, { distDir });
+  registerAdminStatic({ app, distDir });
   const server = app.listen(0);
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   return new Promise((resolve) => {

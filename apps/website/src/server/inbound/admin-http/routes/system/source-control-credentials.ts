@@ -87,7 +87,7 @@ function sendStoreError({ res, err }: { res: Response; err: unknown }, _optional
   sendAdminFailure({ res, error: err }, { operation: "routes/system/source-control-credentials", code: "INTERNAL_ERROR" });
 }
 
-export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: AdminSourceControlCredentialsDeps): void {
+export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app: Express; deps: AdminSourceControlCredentialsDeps }, _optional: Record<string, never> = {}): void {
   const readDeps = { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
   const writeDeps = {
     repo: deps.sourceControlCredentialSetRepo,

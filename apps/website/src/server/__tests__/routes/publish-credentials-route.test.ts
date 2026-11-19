@@ -709,7 +709,7 @@ function repoThatVanishesRowOnSecondRead(real: VendorCredentialSetRepoPort): Ven
 test("publish-credentials: rejectUnlessAuthorized's `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call with workspaceId absent", async () => {
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps(), workspaceId: "" };
   const app = express();
-  registerAdminPublishCredentialsRoutes(app, deps);
+  registerAdminPublishCredentialsRoutes({ app, deps });
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials");
   const { res } = createCapturingResponse();
 

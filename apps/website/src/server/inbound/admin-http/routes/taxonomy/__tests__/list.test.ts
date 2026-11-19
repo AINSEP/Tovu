@@ -46,7 +46,7 @@ function buildApp(depsOverrides: Partial<TaxonomyRouteDeps> = {}): express.Expre
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminTaxonomyListRoute(app, deps);
+  registerAdminTaxonomyListRoute({ app, deps });
   return app;
 }
 

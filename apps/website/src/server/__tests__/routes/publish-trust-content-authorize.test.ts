@@ -36,7 +36,7 @@ test("ceremony authorization preserves the human deps bag and replaces it only f
   };
   const deps = { authorize: ordinaryAuthorize } as GatewayDeps;
 
-  const human = withPublishTrustAuthorize({ locals: {} } as never, deps);
+  const human = withPublishTrustAuthorize({ res: { locals: {} } as never, deps });
 
   assert.equal(human, deps);
   assert.equal(human.authorize, ordinaryAuthorize);
@@ -45,7 +45,7 @@ test("ceremony authorization preserves the human deps bag and replaces it only f
     reason: "ordinary RBAC grant",
   });
 
-  const publishing = withPublishTrustAuthorize(publishingResponse(["post"]) as never, deps);
+  const publishing = withPublishTrustAuthorize({ res: publishingResponse(["post"]) as never, deps });
 
   assert.notEqual(publishing, deps);
   assert.notEqual(publishing.authorize, ordinaryAuthorize);

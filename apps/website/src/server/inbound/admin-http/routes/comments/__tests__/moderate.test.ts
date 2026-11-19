@@ -65,7 +65,7 @@ function buildApp(
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminCommentsModerateRoutes(app, deps);
+  registerAdminCommentsModerateRoutes({ app, deps });
   return { app, applyModerationCalls, purgeCalls };
 }
 

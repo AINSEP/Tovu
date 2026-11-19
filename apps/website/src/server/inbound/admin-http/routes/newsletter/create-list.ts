@@ -26,7 +26,7 @@ export const registerAdminNewsletterCreateListRoute: RouteRegistrar = ({ app, de
         deps: toListsDeps(deps),
         input: { workspaceId: deps.workspaceId, name: body.name, slug: body.slug },
       });
-      res.status(201).json(toDataResponse(list));
+      res.status(201).json(toDataResponse({ data: list }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

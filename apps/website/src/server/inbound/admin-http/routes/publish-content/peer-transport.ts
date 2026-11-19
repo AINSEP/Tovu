@@ -109,11 +109,11 @@ export function respondWithError({ res, err }: { res: Response; err: unknown }, 
   }
   // The mapper needs the registered template to distinguish preparation from an uncertain send.
   // Concrete request paths and mounted base URLs can contain private IDs and never enter copy.
-  sendRefusal(res, mappedErrorResponse({ err, table: PEER_ACTION_ERRORS }, {
+  sendRefusal({ res, refusal: mappedErrorResponse({ err, table: PEER_ACTION_ERRORS }, {
     tracker: res.locals?.adminFailureTracker, message, method: res.req?.method,
     route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
     discloseDetails: !res.req || !!res.locals?.principal,
-  }));
+  }) });
 }
 
 /** The per-request transport bag: the guarded client plus the opened credential.
@@ -232,7 +232,7 @@ function readPushPlanNarrowing({ body }: { body: unknown }, _options: Record<str
  */
 function mayOverwrite({ res, overwriteEntityKeys }: { res: Response; overwriteEntityKeys: readonly string[] | null }, _options: Record<string, never> = {}): boolean {
   if (overwriteEntityKeys === null || overwriteEntityKeys.length === 0) return true;
-  return rejectUnlessSessionCredential(res, {
+  return rejectUnlessSessionCredential({ res,
     message: "'overwriteEntityKeys' can only be sent from a signed-in admin session",
     permission: "publish_content.apply",
   });

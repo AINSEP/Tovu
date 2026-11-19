@@ -27,7 +27,7 @@ test("publish trigger preserves shape errors, validation order, and domain confi
   const deps = { ...createRouteDeps(), ...ports };
   // This pin exercises the missing-consent-service refusal, not the bootstrap owner's authorization.
   delete deps.siteConsent;
-  registerAdminPublishSiteRoutes(app, deps);
+  registerAdminPublishSiteRoutes({ app, deps });
   const base = await startTestServer(app, t), root = `${base}/api/admin/v1/workspaces/ws/system/publish`;
   const post = ({ body }: { body: unknown }, _options = {}) => fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   const cases: readonly [unknown, string][] = [

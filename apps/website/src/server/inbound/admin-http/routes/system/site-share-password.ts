@@ -20,7 +20,7 @@ export async function requireSavedKeysOwnerSession(required: { req: Request; res
   const { req, res, deps } = required;
   res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" });
   if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: "Saved keys access failed: this workspace is not available." }); return false; }
-  if (!rejectUnlessSessionCredential(res, { message: "Use the site owner's signed-in browser for saved keys.", permission: "site-backup.push" })) return false;
+  if (!rejectUnlessSessionCredential({ res, message: "Use the site owner's signed-in browser for saved keys.", permission: "site-backup.push" })) return false;
   if (getPublishTrustContext(res) || getAuthedPrincipal(res).id !== await deps.ownerPrincipalId) { res.status(403).json({ code: "FORBIDDEN", message: "Saved keys access requires the site owner’s signed-in browser on this Tovu site." }); return false; }
   const sameOrigin = isSameOriginAdminWrite({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site") });
   if (!sameOrigin || req.get("origin") !== req.protocol + "://" + req.get("host")) { res.status(403).json({ code: "FORBIDDEN", message: "Saved keys access requires the site owner’s signed-in browser on this Tovu site." }); return false; }

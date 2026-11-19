@@ -14,7 +14,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * `apps/website/src/server/inbound/admin-http/routes/database/restore-points.ts` reads — one persisted list, two gated views, per
  * ADR-045 §1 ("Database and Recovery are sibling faces" of the same underlying record).
  */
-export function registerAdminRecoveryRestorePointsListRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminRecoveryRestorePointsListRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/recovery/restore-points", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

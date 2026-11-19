@@ -47,7 +47,7 @@ function handler({ deps, permission, operation }: { deps: AdminMailDnsDeps; perm
  * @complexity O(1) registration; each request is one operation run.
  * @example registerAdminMailDnsRoutes(app, { workspaceId, dns })
  */
-export function registerAdminMailDnsRoutes(app: Express, deps: AdminMailDnsDeps): void {
+export function registerAdminMailDnsRoutes({ app, deps }: { app: Express; deps: AdminMailDnsDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/mail-dns", handler({ deps, permission: "deployments.read", operation: readMailDnsStatus }));
   app.post("/api/admin/v1/workspaces/:workspaceId/system/mail-dns/verify", handler({ deps, permission: "deployments.publish", operation: verifyMailDnsStatus }));
 }

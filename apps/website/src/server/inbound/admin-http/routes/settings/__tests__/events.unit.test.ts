@@ -114,7 +114,7 @@ async function open(t: test.TestContext, options: OpenOptions = {}) {
     ...options.deps,
   };
   const app = express();
-  registerAdminSettingsEventsRoute(app, deps);
+  registerAdminSettingsEventsRoute({ app, deps });
   const req = new FakeRequest(options.params ?? { workspaceId: WS }, options.query ?? {}, options.headers ?? {}, options.httpVersionMajor ?? 1);
   const res = new FakeResponse();
   if (options.principal !== null) res.locals.principal = options.principal ?? { id: "owner" };

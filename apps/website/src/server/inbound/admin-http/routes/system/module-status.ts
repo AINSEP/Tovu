@@ -19,7 +19,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  */
 export type AdminModuleStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize">;
 
-export function registerAdminModuleStatusRoute(app: Express, deps: AdminModuleStatusDeps): void {
+export function registerAdminModuleStatusRoute({ app, deps }: { app: Express; deps: AdminModuleStatusDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/module-status", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

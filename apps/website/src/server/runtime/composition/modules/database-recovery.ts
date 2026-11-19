@@ -58,14 +58,14 @@ export function createDatabaseRecoveryModule(deps: DatabaseRecoveryRouteDeps): S
   return {
     name: "database-recovery",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminDatabaseTimelineRoute(app, deps);
-      registerAdminDatabaseSchemaStateRoute(app, deps);
-      registerAdminDatabaseRestorePointsListRoute(app, deps);
-      registerAdminDatabaseRestorePointsCreateRoute(app, deps);
-      registerAdminRecoveryRestorePointsListRoute(app, deps);
-      registerAdminRecoveryDisclosureRoute(app, deps);
-      registerAdminRecoveryDeepLinkRoute(app, deps);
-      registerAdminRecoveryStatusRoute(app, deps);
+      registerAdminDatabaseTimelineRoute({ app, deps });
+      registerAdminDatabaseSchemaStateRoute({ app, deps });
+      registerAdminDatabaseRestorePointsListRoute({ app, deps });
+      registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
+      registerAdminRecoveryRestorePointsListRoute({ app, deps });
+      registerAdminRecoveryDisclosureRoute({ app, deps });
+      registerAdminRecoveryDeepLinkRoute({ app, deps });
+      registerAdminRecoveryStatusRoute({ app, deps });
     },
   };
 }

@@ -66,7 +66,7 @@ function setup(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}) {
     ...overrides,
   };
   const app = express();
-  return { app, deps, permissions, register: () => registerAdminPublishSiteRoutes(app, deps) };
+  return { app, deps, permissions, register: () => registerAdminPublishSiteRoutes({ app, deps }) };
 }
 
 async function direct(app: express.Express, path: string, req: object, locals: Record<string, unknown> = { principal: { id: "owner" } }) {

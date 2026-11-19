@@ -48,7 +48,7 @@ async function boot(t: TestContext, options: BootOptions = {}) {
   };
   const app = express();
   if (options.principal !== "none") app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerPluginsListRoute(app, deps);
+  registerPluginsListRoute({ app, deps });
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   t.after(() => server.close());

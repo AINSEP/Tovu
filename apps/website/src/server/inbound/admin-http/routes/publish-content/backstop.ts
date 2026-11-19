@@ -36,7 +36,7 @@ async function mayActorUseBackstop({ deps, actorId }: { deps: PublishContentRout
 /** Session-only: neither an API key nor an assistant can perform the manual confirmation.
  *  @returns the actor id, or `null` once the 403 has been sent. */
 async function backstopActorId(res: Response, deps: PublishContentRouteDeps): Promise<string | null> {
-  if (!rejectUnlessSessionCredential(res, { message: BACKSTOP_FORBIDDEN, permission: "publish.backstop" })) return null;
+  if (!rejectUnlessSessionCredential({ res, message: BACKSTOP_FORBIDDEN, permission: "publish.backstop" })) return null;
   const id = getAuthedPrincipal(res).id;
   if (await mayActorUseBackstop({ deps, actorId: id })) return id;
   res.status(403).json({ error: BACKSTOP_FORBIDDEN, code: "FORBIDDEN" });
@@ -183,7 +183,7 @@ async function handleBackstopRequest({ req, res, deps }: { req: Request; res: Re
   const actorId = await backstopActorId(res, deps); if (!actorId) return;
   const body = bodyRecord({ body: req.body });
   const target = await readBackstopTarget(body, deps);
-  if ("status" in target) { sendRefusal(res, target); return; }
+  if ("status" in target) { sendRefusal({ res, refusal: target }); return; }
   const projection = toPublishContentDeps(deps);
   if (!projection.backstop) { res.status(503).json({ error: "Send by hand needs its audit storage installed before it can send anything.", code: "BACKSTOP_NOT_INSTALLED" }); return; }
   const backstop = { ...projection.backstop, selection: target.request.selection };

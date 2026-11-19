@@ -22,7 +22,7 @@ const COVERED_CATEGORIES = ["posts_pages", "plugin_table"] as const;
  * behavior right now rather than a corner cut: this route always renders `"unknown"` for every
  * covered category, never a fabricated `0`.
  */
-export function registerAdminRecoveryDisclosureRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminRecoveryDisclosureRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/recovery/disclosure", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

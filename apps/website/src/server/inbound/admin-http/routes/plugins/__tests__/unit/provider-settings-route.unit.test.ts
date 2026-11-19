@@ -77,8 +77,8 @@ async function serve(t: TestContext, deps: Partial<ProviderSettingsRouteDeps> = 
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerPluginProviderSettingsRoutes(app, { workspaceId: WS, ownerPrincipalId: Promise.resolve("owner"), discoverPlugins: async () => RECORDS, providerConfig: config,
-    authorize: async ({ permission }: { permission: string }) => { permissions.push(permission); return { allowed: true, reason: "ok" }; }, ...deps } as ProviderSettingsRouteDeps);
+  registerPluginProviderSettingsRoutes({ app, deps: { workspaceId: WS, ownerPrincipalId: Promise.resolve("owner"), discoverPlugins: async () => RECORDS, providerConfig: config,
+    authorize: async ({ permission }: { permission: string }) => { permissions.push(permission); return { allowed: true, reason: "ok" }; }, ...deps } as ProviderSettingsRouteDeps });
   const server = app.listen(0);
   t.after(() => server.close());
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/admin/v1/workspaces`;

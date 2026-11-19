@@ -29,11 +29,11 @@ export function createContentTypesModule(deps: ContentTypesRouteDeps): ServerMod
   return {
     name: "content-types",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminContentTypeListRoute(app, deps);
-      registerAdminContentTypeRegisterRoute(app, deps);
-      registerAdminContentTypeUpdateFieldsRoute(app, deps);
-      registerAdminContentTypeLifecycleRoute(app, deps);
-      registerAdminEntryListRoute(app, deps);
+      registerAdminContentTypeListRoute({ app, deps });
+      registerAdminContentTypeRegisterRoute({ app, deps });
+      registerAdminContentTypeUpdateFieldsRoute({ app, deps });
+      registerAdminContentTypeLifecycleRoute({ app, deps });
+      registerAdminEntryListRoute({ app, deps });
       registerAdminEntryCreateRoute({ app, deps });
       registerAdminEntryUpdateRoute({ app, deps });
       registerAdminEntryLifecycleRoute({ app, deps });

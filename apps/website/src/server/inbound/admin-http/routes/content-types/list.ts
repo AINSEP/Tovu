@@ -13,7 +13,7 @@ import type { ContentTypesRouteDeps } from "./deps.js";
  * Follows `apps/website/src/server/inbound/admin-http/routes/database/timeline.ts`'s exact shape: `getAuthedPrincipal` ->
  * `deps.authorize()` -> 403 on denial -> call the domain read function -> `res.json()`.
  */
-export function registerAdminContentTypeListRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminContentTypeListRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/content-types", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

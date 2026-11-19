@@ -15,7 +15,7 @@ export function createAnalyticsModule(deps: AdminAnalyticsRecentHitsDeps): Serve
   return {
     name: "analytics",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminAnalyticsRecentHitsRoute(app, deps);
+      registerAdminAnalyticsRecentHitsRoute({ app, deps });
     },
   };
 }

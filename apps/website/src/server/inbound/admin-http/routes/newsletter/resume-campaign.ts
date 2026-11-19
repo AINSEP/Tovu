@@ -20,7 +20,7 @@ export const registerAdminNewsletterResumeCampaignRoute: RouteRegistrar = ({ app
         deps: toSendPipelineDeps(deps),
         input: { workspaceId: deps.workspaceId, campaignId: String(req.params.id) },
       });
-      res.status(200).json(toDataResponse(campaign));
+      res.status(200).json(toDataResponse({ data: campaign }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

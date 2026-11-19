@@ -33,7 +33,7 @@ function fixture(error: unknown, tracked: unknown[]) {
     dbOps: { getCapabilities: fail }, gatedMutations: { gatewayDeps: { authorizeInstance: fail } },
   } as unknown as RouteDeps;
   registerAdminSiteImportRoutes({ app, deps });
-  registerAdminRecoveryRestoreRoutes(app, deps);
+  registerAdminRecoveryRestoreRoutes({ app, deps });
   return app;
 }
 
@@ -75,7 +75,7 @@ test("restore gateway Result errors have the same private diagnostic envelope as
   let status = 0, body: any;
   const res = { locals: { adminFailureTracker: { error: (value: unknown) => tracked.push(value) } },
     status: (value: number) => { status = value; return { json: (value: unknown) => { body = value; } }; } };
-  sendRecoveryError(res as any, { code: "INTERNAL_ERROR", message: `database failed ${secret}` });
+  sendRecoveryError({ res: res as any, error: { code: "INTERNAL_ERROR", message: `database failed ${secret}` } });
   assert.equal(status, 500);
   assert.equal(typeof body.errorId, "string");
   assert.ok(body.error.includes(body.errorId));

@@ -25,7 +25,7 @@ test("Sites snapshot exposes the injected host and Trash; trashing the default r
     siteTrash: { trash: ({ name }) => ({ name, id: "new-id", displayName: name }), restore() {}, remove() {} },
     devRestart: { canSwitchSite: true, requestRestart() {} },
   };
-  const app = express(); registerAdminSitesRoutes(app, deps);
+  const app = express(); registerAdminSitesRoutes({ app, deps });
   const root = "/api/admin/v1/workspaces/:workspaceId/system/sites";
   const get = extractRouteHandler(app, "get", root);
   const response = createCapturingResponse(); response.res.locals.principal = { id: "operator" };

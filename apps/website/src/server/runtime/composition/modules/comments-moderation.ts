@@ -23,10 +23,10 @@ export function createCommentsModerationModule(deps: CommentsModerationRouteDeps
   return {
     name: "comments-moderation",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminCommentsModerationQueueRoute(app, deps);
-      registerAdminCommentsModerateRoutes(app, deps);
-      registerAdminCommentsGetSettingsRoute(app, deps);
-      registerAdminCommentsPutSettingsRoute(app, deps);
+      registerAdminCommentsModerationQueueRoute({ app, deps });
+      registerAdminCommentsModerateRoutes({ app, deps });
+      registerAdminCommentsGetSettingsRoute({ app, deps });
+      registerAdminCommentsPutSettingsRoute({ app, deps });
     },
   };
 }

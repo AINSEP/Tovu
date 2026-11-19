@@ -102,7 +102,7 @@ function parseTriggerRequestBody({ body }: { body: unknown }, _optional = {}): {
   return { ok: true, clean: raw.clean === true, ...(basePath !== undefined ? { basePath } : {}) };
 }
 
-export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSiteDeps): void {
+export function registerAdminExportSiteRoutes({ app, deps }: { app: Express; deps: AdminExportSiteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/system/export", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

@@ -148,7 +148,7 @@ export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = ({ app
           fields: mergeCampaignPatchFields(body, existing),
         },
       });
-      res.status(200).json(toDataResponse(campaign));
+      res.status(200).json(toDataResponse({ data: campaign }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

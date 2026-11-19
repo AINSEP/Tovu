@@ -54,7 +54,7 @@ test("unknown newsletter failures redact internal details, including non-Error t
 });
 
 test("newsletter data envelope retains all data values including false and null", () => {
-  assert.deepEqual(toDataResponse({ id: "campaign-8", enabled: false, optional: null }), {
+  assert.deepEqual(toDataResponse({ data: { id: "campaign-8", enabled: false, optional: null } }), {
     data: { id: "campaign-8", enabled: false, optional: null },
   });
 });

@@ -37,12 +37,12 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
   registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminTaxonomyListRoute(app, deps);
-  registerAdminTaxonomyCreateRoute(app, deps);
-  registerAdminTaxonomyCreateTermRoute(app, deps);
-  registerAdminTaxonomyAssignTermsRoute(app, deps);
-  registerAdminTaxonomyDeleteRoute(app, deps);
-  registerAdminTaxonomyDeleteTermRoute(app, deps);
+  registerAdminTaxonomyListRoute({ app, deps });
+  registerAdminTaxonomyCreateRoute({ app, deps });
+  registerAdminTaxonomyCreateTermRoute({ app, deps });
+  registerAdminTaxonomyAssignTermsRoute({ app, deps });
+  registerAdminTaxonomyDeleteRoute({ app, deps });
+  registerAdminTaxonomyDeleteTermRoute({ app, deps });
   registerAdminTrashRestoreRoute({ app, deps });
   return { app, deps };
 }

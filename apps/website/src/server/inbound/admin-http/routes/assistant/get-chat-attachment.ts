@@ -73,12 +73,12 @@ const ATTACHMENT_NOT_FOUND_BODY = { error: "attachment was not found", code: "NO
  * @complexity O(n) time/space in the attachment bytes read and served.
  */
 export function registerAdminChatAttachmentReadRoute(
-  app: Express,
-  deps: {
+  { app, deps }: { app: Express; deps: {
     readonly uploadDirectory: string;
     /** Owner-scoped reader boundary; defaults to the real filesystem implementation. */
     readonly readChatAttachmentForOwner?: typeof readChatAttachmentForOwner;
-  }
+  } },
+  _optional: Record<string, never> = {}
 ): void {
   app.get("/api/attachments/:ref", async (req, res) => {
     try {

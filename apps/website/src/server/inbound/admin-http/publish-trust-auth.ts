@@ -380,7 +380,7 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
  *
  * @complexity O(1) — one object spread.
  */
-export function withPublishTrustAuthorize(res: Response, deps: GatewayDeps): GatewayDeps {
+export function withPublishTrustAuthorize({ res, deps }: { res: Response; deps: GatewayDeps }, _optional: Record<string, never> = {}): GatewayDeps {
   const context = getPublishTrustContext(res);
   if (!context) return deps;
   return { ...deps, authorize: publishTrustAuthorizeFor(context) };

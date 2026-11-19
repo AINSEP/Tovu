@@ -79,7 +79,7 @@ async function gateImport(input: { deps: Deps; req: Request; res: Response; perm
 async function gateImportOwner(input: { ctx: Pick<ImportRouteContext, "deps" | "gate">; req: Request; res: Response }) {
   const { ctx, req, res } = input;
   const { gate } = ctx;
-  if (!rejectUnlessSessionCredential(res, { message: "Open owner setup in your signed-in browser; passwords are never submitted through an agent tool.", permission: "system.write" })) return false;
+  if (!rejectUnlessSessionCredential({ res, message: "Open owner setup in your signed-in browser; passwords are never submitted through an agent tool.", permission: "system.write" })) return false;
   const backend = await gate(req, res, "system.write");
   if (!backend) return false;
   backend.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });

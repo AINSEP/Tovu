@@ -15,7 +15,7 @@ import type { TaxonomyRouteDeps } from "./deps.js";
  * the shared `authorizeOrRespond` guard (`trashTerm` has no permission hook of its own — same
  * precedent as `routes/menus/delete.ts`'s just-landed `trashMenu` wiring).
  */
-export function registerAdminTaxonomyDeleteTermRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyDeleteTermRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.delete("/api/admin/v1/taxonomy/terms/:id", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

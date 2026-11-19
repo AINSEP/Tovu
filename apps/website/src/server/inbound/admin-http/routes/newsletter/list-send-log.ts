@@ -21,7 +21,7 @@ export const registerAdminNewsletterListSendLogRoute: RouteRegistrar = ({ app, d
       if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
 
       const rows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: deps.workspaceId, campaignId });
-      res.status(200).json(toDataResponse(rows));
+      res.status(200).json(toDataResponse({ data: rows }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

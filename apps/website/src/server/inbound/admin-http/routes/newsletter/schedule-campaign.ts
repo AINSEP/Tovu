@@ -49,7 +49,7 @@ export const registerAdminNewsletterScheduleCampaignRoute: RouteRegistrar = ({ a
         deps: toCampaignWriteServiceDeps(deps),
         input: { workspaceId: deps.workspaceId, id: String(req.params.id), actorId: getAuthedPrincipal(res).id, scheduledAt },
       });
-      res.status(200).json(toDataResponse(campaign));
+      res.status(200).json(toDataResponse({ data: campaign }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

@@ -89,7 +89,7 @@ export function apiKeyServiceDepsFrom(deps: ApiKeysRouteDeps): ApiKeyServiceDeps
  * @overallScore 100
  */
 export function rejectApiKeyCredential(res: Response): boolean {
-  return rejectUnlessSessionCredential(res, {
+  return rejectUnlessSessionCredential({ res,
     message: "api-key credentials may not manage api keys; use an admin session",
     permission: "apikey.manage",
   });

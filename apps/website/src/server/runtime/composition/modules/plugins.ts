@@ -33,12 +33,12 @@ export function createPluginsModule(deps: RouteDeps): ServerModuleHandle {
     name: "plugins",
     registerRoutes: ({ app }, _options = {}) => {
       registerChartProviderRoutes({ app, deps });
-      registerPluginsListRoute(app, deps);
+      registerPluginsListRoute({ app, deps });
       registerPluginSetEnabledRoute({ app, deps });
       registerPluginUninstallRoute({ app, deps });
       registerPluginFilesRoute({ app, deps });
-      registerPluginProviderSettingsRoutes(app, deps);
-      registerPluginInstallRoutes(app, deps);
+      registerPluginProviderSettingsRoutes({ app, deps });
+      registerPluginInstallRoutes({ app, deps });
       // After the install routes: `.../plugins/:pluginId/preview` also matches
       // `.../plugins/install/preview`, and Express runs the first registered match.
       registerPluginPreviewRoute({ app, deps });

@@ -153,7 +153,7 @@ async function rawPlanPreview({ deps, res, input }: { deps: ImportDeps; res: Res
 }
 
 function sendImportFailure({ res, err }: { res: Response; err: unknown }): void {
-  sendRefusal(res, importErrorResponse({ err }, { tracker: res.locals?.adminFailureTracker }));
+  sendRefusal({ res, refusal: importErrorResponse({ err }, { tracker: res.locals?.adminFailureTracker }) });
 }
 
 async function handleImportPlan({ deps, req, res }: ImportRouteInput): Promise<void> {
@@ -170,7 +170,7 @@ async function handleImportPlan({ deps, req, res }: ImportRouteInput): Promise<v
 
     const hooks = buildHooks({ deps, bundleId, actorId: principal.id, res, overwriteEntityKeys });
     const result = await plan({
-      deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
+      deps: withPublishTrustAuthorize({ res, deps: deps.gatedMutations.gatewayDeps }),
       principalId: principal.id,
       principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
       hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
@@ -200,7 +200,7 @@ async function handleImportConfirm({ deps, req, res }: ImportRouteInput): Promis
     }
 
     const record = await confirm({
-      deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
+      deps: withPublishTrustAuthorize({ res, deps: deps.gatedMutations.gatewayDeps }),
       principalId: principal.id,
       // Reports the credential that actually authenticated this request rather than the literal
       // `"user"` this used to pass for every caller: a session is a human, an api_key is a peer
@@ -227,7 +227,7 @@ async function handleImportConfirm({ deps, req, res }: ImportRouteInput): Promis
  *  @returns `true` when allowed; on `false` the 403 has already been sent. */
 async function authorizeImportExecute({ deps, res, principalId }: { deps: ImportDeps; res: Response; principalId: string }): Promise<boolean> {
   const preCheck = await authorizeForHooks({
-    deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
+    deps: withPublishTrustAuthorize({ res, deps: deps.gatedMutations.gatewayDeps }),
     hooks: confirmOnlyHooks({ workspaceId: deps.workspaceId }),
     required: { principalId, permission: "publish_content.apply" },
   });
@@ -258,7 +258,7 @@ async function runGatedImportExecute({ deps, res, principalId, bundleId, confirm
     costClass: capabilities.restorePoint.costClass,
     gatewayExecute: () =>
       execute({
-        deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
+        deps: withPublishTrustAuthorize({ res, deps: deps.gatedMutations.gatewayDeps }),
         principalId,
         principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
         hooks: hooks as unknown as GatedMutationHooks<unknown, ImportExecuteResult>,

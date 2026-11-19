@@ -43,7 +43,7 @@ async function boot(t: TestContext, options: BootOptions = {}) {
   const app = express();
   if (options.principal !== "none") app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   if (options.jsonParser !== false) app.use(express.json());
-  registerPluginInstallRoutes(app, deps);
+  registerPluginInstallRoutes({ app, deps });
   const server = app.listen(0, "127.0.0.1");
   await new Promise(resolve => server.once("listening", resolve));
   t.after(() => {

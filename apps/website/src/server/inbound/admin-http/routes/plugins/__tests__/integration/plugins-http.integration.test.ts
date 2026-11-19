@@ -80,7 +80,7 @@ function buildTestApp(): { app: express.Express; pluginDeps: PluginsRouteDeps; b
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerPluginsListRoute(app, pluginDeps);
+  registerPluginsListRoute({ app, deps: pluginDeps });
   registerPluginSetEnabledRoute({ app, deps: pluginDeps });
   return { app, pluginDeps, baseDeps };
 }

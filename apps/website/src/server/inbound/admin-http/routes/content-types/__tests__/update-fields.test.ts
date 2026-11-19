@@ -39,7 +39,7 @@ test("update-fields HTTP characterization", async (t) => {
     res.locals.principal = { id: "operator", kind: "user", displayName: "Operator" };
     next();
   });
-  registerAdminContentTypeUpdateFieldsRoute(app, deps);
+  registerAdminContentTypeUpdateFieldsRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
   const fields = [{ name: "title", kind: "text", required: false, queryable: false }];
   async function send({ body }: { body: unknown }, _options = {}) {

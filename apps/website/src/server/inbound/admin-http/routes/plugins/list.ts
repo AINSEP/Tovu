@@ -26,7 +26,7 @@ export type PluginsListRouteDeps = Pick<PluginsRouteDeps, "workspaceId" | "autho
  * `toAdminPluginResponse()` alongside its activation row. Verified against
  * `__tests__/integration/plugins-http.integration.test.ts`.
  */
-export const registerPluginsListRoute = (app: Express, deps: PluginsListRouteDeps): void => {
+export const registerPluginsListRoute = ({ app, deps }: { app: Express; deps: PluginsListRouteDeps }, _optional: Record<string, never> = {}): void => {
   app.get("/api/admin/v1/workspaces/:workspaceId/plugins", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

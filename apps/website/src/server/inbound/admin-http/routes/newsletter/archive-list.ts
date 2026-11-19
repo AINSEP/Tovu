@@ -20,7 +20,7 @@ export const registerAdminNewsletterArchiveListRoute: RouteRegistrar = ({ app, d
         deps: toListsDeps(deps),
         input: { workspaceId: deps.workspaceId, id: String(req.params.id) },
       });
-      res.status(200).json(toDataResponse(list));
+      res.status(200).json(toDataResponse({ data: list }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

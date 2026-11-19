@@ -12,7 +12,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * for this whole domain (no `.read`/`.write` split), so this list route reuses it rather than
  * inventing an unratified `admin.taxonomy.read` string.
  */
-export function registerAdminTaxonomyListRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyListRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/taxonomy", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

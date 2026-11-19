@@ -205,7 +205,7 @@ function registerTemplatedPreview(app: Express, deps: RouteDeps): void {
 async function renderTemplatedPreview(required: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<void> {
   const { req, res, deps } = required;
   try {
-    if (!(await authorizeThemeSetPermission(deps, res))) return;
+    if (!(await authorizeThemeSetPermission({ deps, res }))) return;
 
     const themeId = String(req.params.themeId ?? "");
     const templateId = String(req.params.templateId ?? "");

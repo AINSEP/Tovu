@@ -33,9 +33,9 @@ export function mountAdminData({ app, routeDeps }: MountInput, _optional = {}): 
   // dispatch) — the 3 deferred gated-mutation ceremonies: taxonomy `mergeTerm`, database
   // `migrate-forward`, recovery `restore`. Each registers 3 endpoints (`/plan`, `/confirm`,
   // `/execute`) mirroring `gateway.ts`'s own 3-method shape.
-  registerAdminTaxonomyMergeTermRoutes(app, routeDeps);
-  registerAdminDatabaseMigrateForwardRoutes(app, routeDeps);
-  registerAdminRecoveryRestoreRoutes(app, routeDeps);
+  registerAdminTaxonomyMergeTermRoutes({ app, deps: routeDeps });
+  registerAdminDatabaseMigrateForwardRoutes({ app, deps: routeDeps });
+  registerAdminRecoveryRestoreRoutes({ app, deps: routeDeps });
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `seo` server module (SPEC-008 SEO) — 6 admin
   // routes gated by `admin.seo.manage`, plus the 2 public site routes (sitemap.xml/robots.txt),

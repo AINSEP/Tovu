@@ -87,7 +87,7 @@ function handle({ deps, run }: { deps: AdminMailActivityDeps; run: (required: { 
  * @complexity One readiness pass or one activity read per request.
  * @example registerAdminMailActivityRoutes(app, routeDeps)
  */
-export function registerAdminMailActivityRoutes(app: Express, deps: AdminMailActivityDeps): void {
+export function registerAdminMailActivityRoutes({ app, deps }: { app: Express; deps: AdminMailActivityDeps }, _optional: Record<string, never> = {}): void {
   app.get(`${BASE}/mail-uses`, handle({ deps, run: async ({ res, principalId }, _optional = {}) => {
     if (await statusAllowed({ deps, principalId, res })) res.json(await readMailUseReadiness(mailUseReadinessDepsFrom(deps)));
   } }));

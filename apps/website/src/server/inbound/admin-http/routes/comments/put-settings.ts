@@ -13,7 +13,7 @@ import type { CommentsModerationRouteDeps } from "./deps.js";
  * Retyped from the generic `RouteRegistrar` to `CommentsModerationRouteDeps` (ADR-046 Phase 3,
  * SPEC-040) — a genuine narrowing, not a widening; see `deps.ts`'s file header for the confirmed
  * field set. */
-export const registerAdminCommentsPutSettingsRoute = (app: Express, deps: CommentsModerationRouteDeps): void => {
+export const registerAdminCommentsPutSettingsRoute = ({ app, deps }: { app: Express; deps: CommentsModerationRouteDeps }, _optional: Record<string, never> = {}): void => {
   app.put("/api/admin/v1/workspaces/:workspaceId/comments/settings", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

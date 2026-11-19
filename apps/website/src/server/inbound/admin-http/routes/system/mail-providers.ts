@@ -77,7 +77,7 @@ function readCredentialInput({ body }: { body: unknown }, _optional = {}): MailP
   return input;
 }
 
-export function registerAdminMailProviderRoutes(app: Express, deps: AdminMailProviderDeps): void {
+export function registerAdminMailProviderRoutes({ app, deps }: { app: Express; deps: AdminMailProviderDeps }, _optional: Record<string, never> = {}): void {
   const credentials = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
 
   /** Workspace match + per-action permission; writes the response and returns null when the caller must stop. */

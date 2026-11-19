@@ -43,7 +43,7 @@ function buildApp(depsOverrides: Partial<ContentTypesRouteDeps> = {}): express.E
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminContentTypeListRoute(app, deps);
+  registerAdminContentTypeListRoute({ app, deps });
   return app;
 }
 

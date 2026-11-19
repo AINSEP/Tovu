@@ -25,7 +25,7 @@ function routeDeps(base: string, overrides: Partial<AdminSitesDeps> = {}): Admin
 
 async function create(deps: AdminSitesDeps, body: unknown) {
   const app = express();
-  registerAdminSitesRoutes(app, deps);
+  registerAdminSitesRoutes({ app, deps });
   const handler = extractRouteHandler(app, "post", ROUTE);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "authorized-owner" };

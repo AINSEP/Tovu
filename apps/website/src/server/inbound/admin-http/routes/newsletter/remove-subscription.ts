@@ -37,7 +37,7 @@ export const registerAdminNewsletterRemoveSubscriptionRoute: RouteRegistrar = ({
         deps: toUnsubscribeSubscriptionDeps(deps),
         input: { workspaceId: deps.workspaceId, id },
       });
-      res.status(200).json(toDataResponse(subscription));
+      res.status(200).json(toDataResponse({ data: subscription }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

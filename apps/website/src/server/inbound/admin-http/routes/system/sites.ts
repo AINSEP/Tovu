@@ -464,7 +464,7 @@ async function handleActivateSite({ ports, req, res }: { ports: SitesPorts; req:
   }
 }
 
-export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): void {
+export function registerAdminSitesRoutes({ app, deps }: { app: Express; deps: AdminSitesDeps }, _optional: Record<string, never> = {}): void {
   const sitesWorkspace = deps.sitesWorkspace ?? createSitesWorkspace({});
   registerSitesHomeRoutes({ app, deps, workspace: sitesWorkspace });
   if (registerWarmSiteControl({ app, binding: deps.siteBinding, workspaceId: deps.workspaceId })) return;

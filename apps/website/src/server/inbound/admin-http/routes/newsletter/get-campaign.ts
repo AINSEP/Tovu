@@ -18,7 +18,7 @@ export const registerAdminNewsletterGetCampaignRoute: RouteRegistrar = ({ app, d
       await deps.newsletterReady;
       const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: String(req.params.id) });
       if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${req.params.id} was not found`);
-      res.status(200).json(toDataResponse(campaign));
+      res.status(200).json(toDataResponse({ data: campaign }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

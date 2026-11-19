@@ -27,7 +27,7 @@ function buildTestApp(ledger = new InMemoryDatabaseLedgerRepo()): { app: express
   app.use(express.json());
   registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminDatabaseTimelineRoute(app, deps);
+  registerAdminDatabaseTimelineRoute({ app, deps });
 
   return { app, deps };
 }

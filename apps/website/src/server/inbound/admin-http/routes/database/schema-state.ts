@@ -36,7 +36,7 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
  * See `apps/website/src/server/inbound/admin-http/routes/database-recovery/deps.ts`, whose header previously listed it among the fields
  * excluded from `DatabaseRecoveryRouteDeps` for want of a consumer; this route is that consumer.
  */
-export function registerAdminDatabaseSchemaStateRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminDatabaseSchemaStateRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/database/schema-state", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

@@ -20,7 +20,7 @@ test("a failed ledger head read after the stream opened closes the stream instea
   };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSettingsEventsRoute(app, deps);
+  registerAdminSettingsEventsRoute({ app, deps });
   app.use(captureRouteError);
   const baseUrl = await startTestServer(app, t);
 
@@ -51,7 +51,7 @@ test("a failed ledger head read sends one error event in plain words before the 
   };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSettingsEventsRoute(app, deps);
+  registerAdminSettingsEventsRoute({ app, deps });
   app.use(captureRouteError);
   const baseUrl = await startTestServer(app, t);
 

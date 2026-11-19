@@ -33,7 +33,7 @@ function statusFor({ err }: { err: unknown }, _optional = {}): { status: number;
  * @file design-spec.md §2.3/§2.8 — `POST /api/admin/v1/taxonomy/:taxonomyId/terms` (creates a
  * term, AC-03/AC-13/EC-04). Gated by `admin.taxonomy.manage`.
  */
-export function registerAdminTaxonomyCreateTermRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyCreateTermRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/taxonomy/:taxonomyId/terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

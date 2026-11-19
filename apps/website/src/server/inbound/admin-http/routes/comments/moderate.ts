@@ -67,7 +67,7 @@ function respondToModerationResult(res: Response, result: Awaited<ReturnType<Com
   res.status(204).end();
 }
 
-export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCommentsModerateDeps): void {
+export function registerAdminCommentsModerateRoutes({ app, deps }: { app: Express; deps: AdminCommentsModerateDeps }, _optional: Record<string, never> = {}): void {
   for (const spec of ACTIONS) {
     app.post(`/api/admin/v1/workspaces/:workspaceId/comments/:commentId/${spec.path}`, async (req, res) => {
       if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;

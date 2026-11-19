@@ -49,7 +49,7 @@ test("resolveSiteKeySources: local mode with a resolvable siteKeyId prefers the 
   try {
     writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "site-abc" }));
 
-    const { sources, keyFilePath } = resolveSiteKeySources(depsFor(dir), { TOVU_RUNTIME_MODE: "local" });
+    const { sources, keyFilePath } = resolveSiteKeySources(depsFor(dir), { env: { TOVU_RUNTIME_MODE: "local" } });
 
     assert.deepEqual(
       sources.map((s) => s.kind),
@@ -69,7 +69,7 @@ test("resolveSiteKeySources: local mode with a resolvable siteKeyId prefers the 
 test("resolveSiteKeySources: no .site-meta.json falls back to today's behavior — no per-site candidate, legacy default keyFilePath", () => {
   const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-sources-"));
   try {
-    const { sources, keyFilePath } = resolveSiteKeySources(depsFor(dir), { TOVU_RUNTIME_MODE: "local" });
+    const { sources, keyFilePath } = resolveSiteKeySources(depsFor(dir), { env: { TOVU_RUNTIME_MODE: "local" } });
 
     assert.deepEqual(
       sources.map((s) => s.kind),
@@ -98,7 +98,7 @@ test("resolveSiteKeySources: production mode never has a per-site candidate, eve
     writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "site-abc" }));
     process.env.TOVU_RUNTIME_MODE = "production";
 
-    const { sources, keyFilePath } = resolveSiteKeySources(depsFor(dir), { TOVU_RUNTIME_MODE: "production" });
+    const { sources, keyFilePath } = resolveSiteKeySources(depsFor(dir), { env: { TOVU_RUNTIME_MODE: "production" } });
 
     assert.deepEqual(
       sources.map((s) => s.kind),
@@ -123,7 +123,7 @@ test("resolveSiteKeySources: the env candidate keeps its place whether TOVU_SITE
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "site-abc" }));
   for (const value of ["new-key", " \t "]) {
-    assert.deepEqual(resolveSiteKeySources(depsFor(dir), { TOVU_RUNTIME_MODE: "local", TOVU_SITE_KEY: value }).sources, [
+    assert.deepEqual(resolveSiteKeySources(depsFor(dir), { env: { TOVU_RUNTIME_MODE: "local", TOVU_SITE_KEY: value } }).sources, [
       { kind: "per-site-file", path: `${SOURCE_HOME}/.tovu/site-keys/site-abc.hex` },
       { kind: "env" },
       { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/${LEGACY_SITE_KEY_FILENAME}` },
@@ -136,7 +136,7 @@ for (const meta of ["{ malformed", "{}", '{"siteId":42}', '{"siteId":"../escape"
     const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-sources-"));
     t.after(() => rmSync(dir, { recursive: true, force: true }));
     writeFileSync(join(dir, ".site-meta.json"), meta);
-    assert.deepEqual(resolveSiteKeySources(depsFor(dir), { TOVU_RUNTIME_MODE: "local" }), {
+    assert.deepEqual(resolveSiteKeySources(depsFor(dir), { env: { TOVU_RUNTIME_MODE: "local" } }), {
       sources: [
         { kind: "env" },
         { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/${LEGACY_SITE_KEY_FILENAME}` },

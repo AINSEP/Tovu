@@ -84,8 +84,8 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * security passes kept finding.
  */
 export async function authorizeThemeSetPermission(
-  deps: Pick<ContentRouteDeps, "workspaceId" | "authorize">,
-  res: Response
+  { deps, res }: { deps: Pick<ContentRouteDeps, "workspaceId" | "authorize">; res: Response },
+  _optional: Record<string, never> = {}
 ): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
   const params = { principalId: principal.id, permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" };
@@ -103,7 +103,7 @@ async function authorizeThemeAccess(
     res.status(404).json({ error: "workspace was not found" });
     return false;
   }
-  return authorizeThemeSetPermission(deps, res);
+  return authorizeThemeSetPermission({ deps, res });
 }
 
 /** Resolves `:themeId` to a discovered theme, or writes the route's standard 404 and returns

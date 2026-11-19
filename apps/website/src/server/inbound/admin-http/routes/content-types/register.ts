@@ -17,7 +17,7 @@ import { contentTypeWriteErrorStatus } from "./write-error-status.js";
  * route's own pre-check exists only for a fast, structured 403 before touching the body at all,
  * mirroring `apps/website/src/server/inbound/admin-http/routes/settings/register-definitions.ts`'s identical pattern.
  */
-export function registerAdminContentTypeRegisterRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminContentTypeRegisterRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/content-types", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
