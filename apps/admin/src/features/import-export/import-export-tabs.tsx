@@ -39,6 +39,7 @@ export function resolveImportExportTabs(
     {
       id: "import",
       label: t("Import"),
+      // Import uses the same tray as Export, with the arrow pointing in.
       icon: <Icon name="tray-import" size={16} strokeWidth={1.5} />,
       handle: "import-export-tab-import",
       handleLabel: "Switch to the Import tab — import a share link, a .tovu.zip or a live website",
@@ -46,6 +47,7 @@ export function resolveImportExportTabs(
     {
       id: "other",
       label: t("Other"),
+      // Other uses the three-dot ‘more’ mark for the remaining paths: static HTML and Git backup.
       icon: <Icon name="more-horizontal-outline" size={16} strokeWidth={1.5} />,
       handle: "import-export-tab-other",
       handleLabel: "Switch to the Other tab — static site export and Git backup",
