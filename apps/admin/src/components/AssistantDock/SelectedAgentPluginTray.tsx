@@ -39,7 +39,7 @@ export interface SelectedAgentPluginChip {
 
 export interface SelectedAgentPluginTrayProps {
   readonly chips: readonly SelectedAgentPluginChip[];
-  /** {@link import("./hooks/AssistantDock.hooks.js").UseSelectedAgentPlugins.removePluginRef}. */
+  /** {@link import("./hooks/selected-agent-plugins.hooks.js").UseSelectedAgentPlugins.removePluginRef}. */
   readonly onRemove: (pluginRefId: string) => void;
   readonly onSendSkills?: () => void;
 }

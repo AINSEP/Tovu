@@ -3,12 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
-import {
-  EXECUTION_CONFIG_MAX_AGE_MS,
-  useAssistantTransport,
-  useExecutionConfig,
-  useLocalCliSelection,
-} from "../AssistantDock/hooks/AssistantDock.hooks";
+import { useAssistantTransport } from "../AssistantDock/hooks/assistant-transport.hooks";
+import { EXECUTION_CONFIG_MAX_AGE_MS } from "../AssistantDock/hooks/execution-config-ledger.hooks";
+import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
+import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
 import type { ExecutionConfigWrite } from "../AssistantDock/execution-config-write";
 import { DEFAULT_EXECUTION_CONFIG, EXECUTION_NAMESPACE } from "../../lib/execution-settings";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
@@ -336,9 +334,10 @@ describe("dock execution config freshness", () => {
     const { result } = renderHook(fake.useDock);
     await flush();
     fake.advanceClock(EXECUTION_CONFIG_MAX_AGE_MS);
-    fake.loadConfig.mockRejectedValueOnce(new Error("cannot read saved execution config"));
+    const failure = new Error("cannot read saved execution config");
+    fake.loadConfig.mockRejectedValueOnce(failure);
     await act(async () => {
-      await expect(result.current.transport.startRun(runInput, handlers)).rejects.toThrow("cannot read saved execution config");
+      await expect(result.current.transport.startRun(runInput, handlers)).rejects.toBe(failure);
     });
     expect(fake.startRun).not.toHaveBeenCalled();
   });

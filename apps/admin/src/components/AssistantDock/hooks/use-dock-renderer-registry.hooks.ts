@@ -17,7 +17,7 @@ import { AGENT_FAILURE_EVENT } from "../agent-failure";
 import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "../SlowRunNoticeCard";
-import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "./AssistantDock.hooks";
+import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "./assistant-mcp-ui";
 
 /**
  * Wires the MCP-UI dialog's confirmed click back to Tovu's own redemption endpoint (ADR-053

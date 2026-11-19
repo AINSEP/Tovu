@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { deriveConversationTitle } from '@jini-ai/chat/core';
 import type { UseAssistantChats } from '@/hooks/use-assistant-chats.hooks';
-import { resolveAssistantConversationTitle } from '../hooks/AssistantDock.hooks';
+import { resolveAssistantConversationTitle } from '../hooks/dock-chrome.hooks';
 
 describe('dock conversation title', () => {
   const prompt = 'I want to connect a Mailchimp account';

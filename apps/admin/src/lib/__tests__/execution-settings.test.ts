@@ -381,7 +381,9 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
     const { createSystemClock } = await import("@jini-ai/platform/system");
     const { createTimeoutScheduler } = await import("@jini-ai/daemon/scheduler");
     const { act, renderHook } = await import("@/__tests__/fetch-query-render");
-    const { useExecutionConfig, useLocalCliSelection, useAssistantTransport } = await import("../../components/AssistantDock/hooks/AssistantDock.hooks");
+    const { useExecutionConfig } = await import("../../components/AssistantDock/hooks/execution-config.hooks");
+    const { useLocalCliSelection } = await import("../../components/AssistantDock/hooks/local-cli-selection.hooks");
+    const { useAssistantTransport } = await import("../../components/AssistantDock/hooks/assistant-transport.hooks");
     const repo = new InMemorySettingsRepo({ definitions: [
       ["localCli.agentId", "old-agent"], ["localCli.model", "old-model"], ["localCli.reasoning", "high"],
     ].map(([key, defaultValue]) => ({ settingId: key!, version: 1, workspaceId: null,

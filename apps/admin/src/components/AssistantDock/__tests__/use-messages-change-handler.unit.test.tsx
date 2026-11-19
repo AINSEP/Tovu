@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { useMessagesChangeHandler } from "../hooks/AssistantDock.hooks";
+import { useMessagesChangeHandler } from "../hooks/messages-change.hooks";
 import { resetContentRefreshBus, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 import { resetSettingsRefreshBus, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 
@@ -44,6 +44,30 @@ function runningWithToolResults(id: string, count: number): ChatMessage {
     })),
   };
 }
+
+it("mirrors before persistence and advances both publication markers before synchronous settings re-entry", () => {
+  const messages: ChatMessage[] = [{ ...runningWithToolResults("reentrant", 1), runStatus: "succeeded" }];
+  const order: string[] = [];
+  const onMessagesChange = vi.fn(() => {
+    expect(window.__tovuAssistantMessages).toBe(messages);
+    order.push("persist");
+  });
+  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange } }));
+  const settings = vi.fn(() => {
+    order.push("settings");
+    if (settings.mock.calls.length === 1) result.current(messages);
+  });
+  const content = vi.fn(() => { order.push("content"); });
+  subscribeToSettingsRefresh(settings);
+  subscribeToContentRefresh({ listener: content });
+  result.current(messages);
+  expect(onMessagesChange).toHaveBeenCalledTimes(2);
+  expect(onMessagesChange).toHaveBeenNthCalledWith(1, { messages });
+  expect(onMessagesChange).toHaveBeenNthCalledWith(2, { messages });
+  expect(settings).toHaveBeenCalledTimes(1);
+  expect(content).toHaveBeenCalledTimes(1);
+  expect(order).toEqual(["persist", "settings", "persist", "content"]);
+});
 
 it("announces a content refresh when a run finishes, not only a settings refresh", () => {
   const content = vi.fn();

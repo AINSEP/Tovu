@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { FetchQueryProvider, useFetchQuery } from '@jini-ai/ui/fetch-query';
 import { FetchQueryProvider as AdminFetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
-import { useRuntimeAccess } from '../hooks/AssistantDock.hooks';
+import { useRuntimeAccess } from '../hooks/runtime-access.hooks';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 it('probes localhost outside an offline query gate and shares only the pending transport', async () => {

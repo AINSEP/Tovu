@@ -97,31 +97,18 @@ vi.mock("@/features/fs-files/hooks/use-folder-drop.hooks", () => ({
   useFolderDrop: mockUseFolderDrop,
 }));
 
-import {
-  resolveRunContext,
-  shouldPublishContentOnToolProgress,
-  shouldPublishOnMessagesChange,
-  useAssistantDockChrome,
-  useAssistantTransport,
-  useAttachmentUploader,
-  useByokRuntime,
-  useChatI18n,
-  useChatsSeam,
-  useComposerDiscoverySelect,
-  useExecutionConfig,
-  useLocalCliSelection,
-  useMessagesChangeHandler,
-  useRunContext,
-  useAgentsPlaceholder,
-  getResumeCapableAgentIds,
-  useRuntimeAccess,
-  useSelectedAgentPlugins,
-  useSelectedPluginChips,
-  useWorkingDirectoryAccess,
-  useWorkingDirectoryAccessSeam,
-  useFolderDropBridge,
-  useLocalCliDaemonPrewarm,
-} from "../AssistantDock/hooks/AssistantDock.hooks";
+import { resolveRunContext, useRunContext } from "../AssistantDock/hooks/run-context.hooks";
+import { shouldPublishContentOnToolProgress, shouldPublishOnMessagesChange, useMessagesChangeHandler } from "../AssistantDock/hooks/messages-change.hooks";
+import { useAssistantDockChrome, useChatI18n, useChatsSeam } from "../AssistantDock/hooks/dock-chrome.hooks";
+import { useAttachmentUploader, useWorkingDirectoryAccess, useWorkingDirectoryAccessSeam, useFolderDropBridge } from "../AssistantDock/hooks/composer-files.hooks";
+import { useComposerDiscoverySelect } from "../AssistantDock/hooks/composer-discovery.hooks";
+import { useSelectedAgentPlugins, useSelectedPluginChips } from "../AssistantDock/hooks/selected-agent-plugins.hooks";
+import { useAssistantTransport, useLocalCliDaemonPrewarm } from "../AssistantDock/hooks/assistant-transport.hooks";
+import { useAgentsPlaceholder, useRuntimeAccess } from "../AssistantDock/hooks/runtime-access.hooks";
+import { getResumeCapableAgentIds } from "../AssistantDock/hooks/agents-inventory.hooks";
+import { useByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";
+import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
+import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
 import { publishAssistantDockState, resetAssistantDockBus } from "../../lib/assistant-dock-bus";
 import {
   DEFAULT_EXECUTION_CONFIG,
@@ -213,6 +200,19 @@ afterEach(() => {
 });
 
 describe("useExecutionConfig", () => {
+  it("adopts a deferred initial read after a same-value mode pick", async () => {
+    let resolveLoad!: (config: ExecutionConfig) => void;
+    mockLoadExecutionConfig.mockReturnValue(new Promise((resolve) => { resolveLoad = resolve; }));
+    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    act(() => result.current.handleExecutionModeChange("local"));
+    expect(mockSaveExecutionConfig).not.toHaveBeenCalled();
+    const loaded = byokConfig();
+    await act(async () => { resolveLoad(loaded); });
+    await waitFor(() => expect(result.current.configLoaded).toBe(true));
+    expect(result.current.executionConfig).toBe(loaded);
+    expect(result.current.executionConfigRef.current).toBe(loaded);
+  });
+
   it("starts on the default config and adopts the loaded one once the fetch resolves", async () => {
     const loaded: ExecutionConfig = { ...DEFAULT_EXECUTION_CONFIG, mode: "byok" };
     mockLoadExecutionConfig.mockResolvedValue(loaded);
