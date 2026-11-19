@@ -330,27 +330,14 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
   validatePeerCacheBounds({ maxSites, idleMs });
   const cache = new Map<string, PeerBag>();
   const running = new Set<Promise<unknown>>();
-  let closed = false;
   // Serialize cold opens, evictions and close: concurrent first reads must not create duplicate bags.
-  let pending: Promise<unknown> = Promise.resolve();
+  const state: { closed: boolean; pending: Promise<unknown> } = { closed: false, pending: Promise.resolve() };
   // Lazy workspace resolution keeps registry/filesystem access behind the adapter's owner gate.
   const catalog = () => (workspace ??= createSitesWorkspace({}));
   const assertLocal = () => {
     if (!localHost) throw new ToolInputError({ message: 'Reading another site needs a local Tovu host.' });
   };
-  const isCurrentSite: PeerSiteReads['isCurrentSite'] = ({ siteName }) => {
-    assertLocal();
-    try {
-      return catalog().registry({}).list({}).some(entry => {
-        if (entry.name !== siteName) return false;
-        try { return fs.realpathSync(entry.path) === fs.realpathSync(currentSiteDir); } catch { return false; }
-      });
-    } catch (error) {
-      // A server fault, not bad tool input: the tool transport gives it an error ID, logs the
-      // redacted cause and shows Copy details. A ToolInputError told the model its call was wrong.
-      throw new Error('The local site registry could not be read.', { cause: error });
-    }
-  };
+  const isCurrentSite = createCurrentSiteCheck(assertLocal, catalog, currentSiteDir);
   /** Close an evicted/idle entry exactly once. @complexity O(1), at most three handles. */
   const remove = async ({ key, entry }: { key: string; entry: PeerBag }, _optional = {}) => {
     if (cache.get(key) !== entry || entry.busy) return;
@@ -364,13 +351,50 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
     cache.delete(key); cache.set(key, entry);
     clearTimeout(entry.timer);
     entry.timer = schedule(() => {
-      pending = pending.then(() => remove({ key, entry })).catch((error: unknown) => console.error("[peer-sites] Could not close an idle site", describeErrorForLog({ err: error })));
+      state.pending = state.pending.then(() => remove({ key, entry })).catch((error: unknown) => console.error("[peer-sites] Could not close an idle site", describeErrorForLog({ err: error })));
     }, idleMs);
     entry.timer.unref();
   };
+  const openPeer = createPeerReadOpener(openContent, openChat, now);
+  /** Expire idle bags, then evict the least recently used idle bag only for a cold open. O(cache size). */
+  const cachedOrMakeRoom = async ({ key }: { key: string }, _options = {}): Promise<PeerBag | undefined> => {
+    for (const [id, entry] of cache) if (now() - entry.usedAt >= idleMs) await remove({ key: id, entry });
+    const entry = cache.get(key);
+    if (entry) return entry;
+    while (cache.size >= maxSites) {
+      const candidate = [...cache].find(([, bag]) => bag.busy === 0);
+      if (!candidate) throw new ToolInputError({ message: 'Other-site reads are busy. Try again.' });
+      const [id, oldest] = candidate;
+      await remove({ key: id, entry: oldest });
+    }
+    return undefined;
+  };
+  const resolve = createPeerSiteResolver({ currentSiteDir, catalog, assertLocal, isCurrentSite, cache, running, state, cachedOrMakeRoom, openPeer, touch });
+  return { readDomains: CROSS_SITE_READ_DOMAINS, excludedReadTools: new Set(Object.keys(CROSS_SITE_EXCLUDED_TOOLS)), isCurrentSite, resolve,
+    async close() { state.closed = true; await state.pending; await Promise.allSettled([...running]); await Promise.all([...cache].map(([key, entry]) => remove({ key, entry }))); },
+  };
+}
+
+function createCurrentSiteCheck(assertLocal: () => void, catalog: () => SitesWorkspace, currentSiteDir: string): PeerSiteReads["isCurrentSite"] {
+  return ({ siteName }) => {
+    assertLocal();
+    try {
+      return catalog().registry({}).list({}).some(entry => {
+        if (entry.name !== siteName) return false;
+        try { return fs.realpathSync(entry.path) === fs.realpathSync(currentSiteDir); } catch { return false; }
+      });
+    } catch (error) {
+      // A server fault, not bad tool input: the tool transport gives it an error ID, logs the
+      // redacted cause and shows Copy details. A ToolInputError told the model its call was wrong.
+      throw new Error('The local site registry could not be read.', { cause: error });
+    }
+  };
+}
+
+function createPeerReadOpener(openContent: typeof openSqliteFileKernel, openChat: typeof openNativeSqlite, now: () => number) {
   /** Open and compose one read-only peer; failed provisional opens close all acquired handles.
    * @complexity O(t + f) for t registrations and f theme files, plus bounded schema/owner reads. */
-  const openPeer = async ({ source, paths, request }: {
+  return async ({ source, paths, request }: {
     source: RegisteredSiteSource;
     paths: ReturnType<typeof resolveSiteDatabasePaths>;
     request: Parameters<PeerSiteReads['resolve']>[0];
@@ -407,23 +431,19 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
       throw error;
     }
   };
-  /** Expire idle bags, then evict the least recently used idle bag only for a cold open. O(cache size). */
-  const cachedOrMakeRoom = async ({ key }: { key: string }, _options = {}): Promise<PeerBag | undefined> => {
-    for (const [id, entry] of cache) if (now() - entry.usedAt >= idleMs) await remove({ key: id, entry });
-    const entry = cache.get(key);
-    if (entry) return entry;
-    while (cache.size >= maxSites) {
-      const candidate = [...cache].find(([, bag]) => bag.busy === 0);
-      if (!candidate) throw new ToolInputError({ message: 'Other-site reads are busy. Try again.' });
-      const [id, oldest] = candidate;
-      await remove({ key: id, entry: oldest });
-    }
-    return undefined;
-  };
-  const resolve: PeerSiteReads['resolve'] = required => {
-    const work = pending.then(async () => {
+}
+
+function createPeerSiteResolver(context: {
+  currentSiteDir: string; catalog: () => SitesWorkspace; assertLocal: () => void; isCurrentSite: PeerSiteReads["isCurrentSite"];
+  cache: Map<string, PeerBag>; running: Set<Promise<unknown>>; state: { closed: boolean; pending: Promise<unknown> };
+  cachedOrMakeRoom: (input: { key: string }) => Promise<PeerBag | undefined>; openPeer: ReturnType<typeof createPeerReadOpener>;
+  touch: (input: { key: string; entry: PeerBag }) => void;
+}): PeerSiteReads["resolve"] {
+  const { currentSiteDir, catalog, assertLocal, isCurrentSite, cache, state, cachedOrMakeRoom, openPeer, touch } = context;
+  return required => {
+    const work = state.pending.then(async () => {
       assertLocal();
-      if (closed) throw new ToolInputError({ message: 'Cross-site reads are closed.' });
+      if (state.closed) throw new ToolInputError({ message: 'Cross-site reads are closed.' });
       try {
         if (isCurrentSite({ siteName: required.siteName })) return 'current' as const;
         const active = resolveSiteDatabasePaths({ dir: currentSiteDir }, { workspace: catalog(), reserveIdentity: false });
@@ -443,16 +463,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
         const registration = entry.registrations.get(required.toolId);
         if (!registration) throw new ToolInputError({ message: "This tool can't read another site." });
         const selected = entry;
-        return { principal: entry.principal, site: source, handler: async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
-          if (closed || cache.get(key) !== selected) throw new ToolInputError({ message: 'This site read expired. Try again.' });
-          selected.busy++;
-          clearTimeout(selected.timer);
-          // Track the entire handler lifetime so close/idle/eviction cannot interrupt an active read.
-          const read = Promise.resolve().then(registration.handler.bind(registration, ctx, optional));
-          running.add(read);
-          try { return await read; }
-          finally { running.delete(read); selected.busy--; if (!closed) touch({ key, entry: selected }); }
-        } };
+        return { principal: entry.principal, site: source, handler: createPeerReadHandler(context, { key, selected, registration }) };
       } catch (error) {
         if (error instanceof ToolInputError) throw error;
         // SQLite/config errors may contain private paths; expose only a fixed refusal to the model.
@@ -460,10 +471,23 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
       }
     });
     // The caller receives work; this recovery keeps later site reads runnable.
-    pending = work.catch(() => {});
+    state.pending = work.catch(() => {});
     return work;
   };
-  return { readDomains: CROSS_SITE_READ_DOMAINS, excludedReadTools: new Set(Object.keys(CROSS_SITE_EXCLUDED_TOOLS)), isCurrentSite, resolve,
-    async close() { closed = true; await pending; await Promise.allSettled([...running]); await Promise.all([...cache].map(([key, entry]) => remove({ key, entry }))); },
+}
+
+function createPeerReadHandler(context: Parameters<typeof createPeerSiteResolver>[0], { key, selected, registration }: {
+  key: string; selected: PeerBag; registration: ToolRegistration;
+}) {
+  const { state, cache, running, touch } = context;
+  return async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
+    if (state.closed || cache.get(key) !== selected) throw new ToolInputError({ message: 'This site read expired. Try again.' });
+    selected.busy++;
+    clearTimeout(selected.timer);
+    // Track the entire handler lifetime so close/idle/eviction cannot interrupt an active read.
+    const read = Promise.resolve().then(registration.handler.bind(registration, ctx, optional));
+    running.add(read);
+    try { return await read; }
+    finally { running.delete(read); selected.busy--; if (!state.closed) touch({ key, entry: selected }); }
   };
 }

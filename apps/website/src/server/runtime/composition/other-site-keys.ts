@@ -91,10 +91,48 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
     { siteId: target.siteId, name: target.name, dir: target.dir, isTarget: true },
     ...registeredSources({ workspace, targetSiteId: target.siteId, targetSiteDir: target.dir, targetFile: target.file }),
   ];
-  const label = (source: Source & { isTarget?: boolean }) => source.isTarget ? "this site" : source.name;
 
+  const readSource = createSourceReader(workspace, home, openSource);
+
+  /** readSource for a chosen key: any failure becomes fixed plain words, never a driver or crypto message. */
+  function readPlainly<T>(input: Parameters<typeof readSource<T>>[0]): Promise<T> {
+    return readSource(input).catch(error => {
+      if (error instanceof ToolInputError) throw error;
+      throw refused({ message: couldNotRead({ site: input.source.name }) });
+    });
+  }
+
+  return {
+    list: createKeyList(sources, readSource),
+    /** Metadata only, for the permission check that precedes a grant. */
+    async find({ keyId }: { keyId: string }, _options = {}): Promise<VaultRecord | null> {
+      const { source, rowId } = resolveKeyId({ keyId }, sources);
+      return readPlainly({ source, read: async ({ rows }) => {
+        const row = rows.find(item => item.id === rowId);
+        if (!row) return null;
+        return { workspaceId: PROJECT_WORKSPACE_ID, id: row.id, kind: row.kind, label: row.label, ownerKey: "tovu", principalId: null, binding: null, provider: row.provider, isDefault: false, revision: 1, sealed: null, last4: null, tokenLength: null, meta: parseMeta({ row }) as VaultMeta, createdAt: "", updatedAt: "" };
+      } });
+    },
+    /** After owner approval, re-seal the source key into Shared Keys; the plaintext stays in this function. */
+    async adopt({ keyId }: { keyId: string }, _options = {}): Promise<{ keyId: string }> {
+      const { source, rowId } = resolveKeyId({ keyId }, sources);
+      return readPlainly({ source, read: async ({ kernel, workspaceId, rows, keyStatus, keyring }) => {
+        const row = rows.find(item => item.id === rowId);
+        if (!row) throw refused({ message: `This saved key is no longer on ${source.name}. Open Use a saved key again.` });
+        const locked = lockedReason({ row, source, keyStatus });
+        if (locked) throw refused({ message: locked });
+        const opened = await siteVaultService({ kernel, workspaceId, keyring }).get({ workspaceId, id: row.id, kind: row.kind, ownerKey: "tovu", principalId: null, binding: null })
+          .catch(() => { throw refused({ message: unlockHelp({ site: source.name }) }); });
+        if (!opened?.payload) throw refused({ message: `This saved key on ${source.name} is empty. Save it there again, then try again. Details: P25_SITE_KEY_EMPTY.` });
+        return { keyId: await promote({ summary: opened.summary, payload: opened.payload, source }, projectVault, project) };
+      } });
+    },
+  };
+}
+
+function createSourceReader(workspace: SitesWorkspace, home: string, openSource: typeof openSqliteFileKernel) {
   /** Open one source read-only, read its metadata, and always close it. */
-  async function readSource<T>({ source, read }: { source: Source; read: (input: { kernel: ContentKernel; workspaceId: string; rows: MetaRow[]; keyStatus: boolean; keyring: EnvOrFileKeyring }) => Promise<T> }): Promise<T> {
+  return async function readSource<T>({ source, read }: { source: Source; read: (input: { kernel: ContentKernel; workspaceId: string; rows: MetaRow[]; keyStatus: boolean; keyring: EnvOrFileKeyring }) => Promise<T> }): Promise<T> {
     if (resolveSiteStorage({ siteDir: source.dir }).kind !== "sqlite") throw refused({ message: couldNotRead({ site: source.name }) });
     const resolved = resolveSiteDatabasePaths({ dir: source.dir }, { workspace, reserveIdentity: false });
     const kernel = openSource<SecretsVaultDatabase>({ filePath: resolved.contentDbPath }, { readOnly: true });
@@ -112,105 +150,75 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
       const keyring = new EnvOrFileKeyring({ sources: keySources }, { env: () => ({}) });
       return await read({ kernel: kernel as unknown as ContentKernel, workspaceId, rows, keyStatus, keyring });
     } finally { await kernel.close(); }
-  }
+  };
+}
 
-  /** readSource for a chosen key: any failure becomes fixed plain words, never a driver or crypto message. */
-  function readPlainly<T>(input: Parameters<typeof readSource<T>>[0]): Promise<T> {
-    return readSource(input).catch(error => {
-      if (error instanceof ToolInputError) throw error;
-      throw refused({ message: couldNotRead({ site: input.source.name }) });
-    });
-  }
+/** A label or provider shaped like a token is never displayed, whatever else is wrong with the row. */
+function hasSafeNames({ row }: { row: MetaRow }, _options = {}): boolean {
+  try { assertCredentialFreeField({ value: row.label, field: "label" }); if (row.provider !== null) assertCredentialFreeField({ value: row.provider, field: "provider" }); return true; }
+  catch { return false; }
+}
 
-  /** A label or provider shaped like a token is never displayed, whatever else is wrong with the row. */
-  function hasSafeNames({ row }: { row: MetaRow }, _options = {}): boolean {
-    try { assertCredentialFreeField({ value: row.label, field: "label" }); if (row.provider !== null) assertCredentialFreeField({ value: row.provider, field: "provider" }); return true; }
-    catch { return false; }
-  }
+/** A row's reason it cannot be used yet, in plain words; undefined when it can. */
+function lockedReason({ row, source, keyStatus }: { row: MetaRow; source: Source; keyStatus: boolean }, _options = {}): string | undefined {
+  if (!keyStatus) return unlockHelp({ site: source.name });
+  const meta = parseMeta({ row });
+  if (needsUpgrade({ kind: row.kind, meta })) return upgradeHelp({ site: source.name });
+  return hasSafeNames({ row }) ? undefined : renameHelp({ site: source.name });
+}
 
-  /** A row's reason it cannot be used yet, in plain words; undefined when it can. */
-  function lockedReason({ row, source, keyStatus }: { row: MetaRow; source: Source; keyStatus: boolean }, _options = {}): string | undefined {
-    if (!keyStatus) return unlockHelp({ site: source.name });
-    const meta = parseMeta({ row });
-    if (needsUpgrade({ kind: row.kind, meta })) return upgradeHelp({ site: source.name });
-    return hasSafeNames({ row }) ? undefined : renameHelp({ site: source.name });
-  }
+function keyId({ source, row }: { source: Source; row: { id: string } }, _options = {}): string {
+  return `${SITE_KEY_ID_PREFIX}${source.siteId}:${row.id}`;
+}
+function parseKeyId({ keyId }: { keyId: string }, _options = {}): { siteId: string; rowId: string } | undefined {
+  const rest = keyId.slice(SITE_KEY_ID_PREFIX.length);
+  const colon = rest.indexOf(":");
+  return colon < 1 ? undefined : { siteId: rest.slice(0, colon), rowId: rest.slice(colon + 1) };
+}
+/** Registered identity re-resolved on every submission; a submitted site path is never trusted. */
+function resolveKeyId({ keyId }: { keyId: string }, sources: () => Source[]): { source: Source; rowId: string } {
+  const parsed = keyId.startsWith(SITE_KEY_ID_PREFIX) ? parseKeyId({ keyId }) : undefined;
+  const source = parsed && sources().find(item => item.siteId === parsed.siteId);
+  if (!parsed || !source) throw refused({ message: "This saved key is no longer on any site here. Open Use a saved key again." });
+  return { source, rowId: parsed.rowId };
+}
 
-  function keyId({ source, row }: { source: Source; row: { id: string } }, _options = {}): string {
-    return `${SITE_KEY_ID_PREFIX}${source.siteId}:${row.id}`;
+/** Same-secret keys reuse the existing Shared Key; otherwise a free id and label are chosen. */
+async function promote({ summary, payload, source }: { summary: VaultSummary; payload: VaultMeta; source: Source }, projectVault: SecretsVaultService, project: ProjectVaultScope): Promise<string> {
+  const context = { workspaceId: PROJECT_WORKSPACE_ID, kind: summary.kind, ownerKey: "tovu", principalId: null } as const;
+  const rows = (await projectVault.list(context)).filter(row => row.provider === summary.provider && row.binding === null);
+  for (const row of rows.filter(row => row.last4 === summary.last4 && row.tokenLength === summary.tokenLength)) {
+    const existing = await projectVault.get({ ...context, id: row.id, binding: null });
+    if (isDeepStrictEqual(existing?.payload ?? null, payload)) return row.id;
   }
-  function parseKeyId({ keyId }: { keyId: string }, _options = {}): { siteId: string; rowId: string } | undefined {
-    const rest = keyId.slice(SITE_KEY_ID_PREFIX.length);
-    const colon = rest.indexOf(":");
-    return colon < 1 ? undefined : { siteId: rest.slice(0, colon), rowId: rest.slice(colon + 1) };
-  }
-  /** Registered identity re-resolved on every submission; a submitted site path is never trusted. */
-  function resolveKeyId({ keyId }: { keyId: string }, _options = {}): { source: Source; rowId: string } {
-    const parsed = keyId.startsWith(SITE_KEY_ID_PREFIX) ? parseKeyId({ keyId }) : undefined;
-    const source = parsed && sources().find(item => item.siteId === parsed.siteId);
-    if (!parsed || !source) throw refused({ message: "This saved key is no longer on any site here. Open Use a saved key again." });
-    return { source, rowId: parsed.rowId };
-  }
+  const suffix = createHash("sha256").update(source.siteId).digest("hex").slice(0, 8);
+  const taken = await project.repo.find({ workspaceId: PROJECT_WORKSPACE_ID, id: summary.id });
+  const labels = new Set(rows.map(row => row.label));
+  const withSite = `${summary.label} (${source.name})`;
+  const newLabel = !labels.has(summary.label) ? summary.label : labels.has(withSite) ? `${withSite} ${suffix}` : withSite;
+  const id = taken ? `${summary.id}-${suffix}` : summary.id;
+  await projectVault.put({ ...context, id, binding: null, provider: summary.provider, label: newLabel, meta: summary.meta, payload,
+    expectedRevision: null, isDefault: false, ...(typeof payload.token === "string" ? { hintToken: payload.token } : {}) });
+  return id;
+}
 
-  /** Same-secret keys reuse the existing Shared Key; otherwise a free id and label are chosen. */
-  async function promote({ summary, payload, source }: { summary: VaultSummary; payload: VaultMeta; source: Source }): Promise<string> {
-    const context = { workspaceId: PROJECT_WORKSPACE_ID, kind: summary.kind, ownerKey: "tovu", principalId: null } as const;
-    const rows = (await projectVault.list(context)).filter(row => row.provider === summary.provider && row.binding === null);
-    for (const row of rows.filter(row => row.last4 === summary.last4 && row.tokenLength === summary.tokenLength)) {
-      const existing = await projectVault.get({ ...context, id: row.id, binding: null });
-      if (isDeepStrictEqual(existing?.payload ?? null, payload)) return row.id;
-    }
-    const suffix = createHash("sha256").update(source.siteId).digest("hex").slice(0, 8);
-    const taken = await project.repo.find({ workspaceId: PROJECT_WORKSPACE_ID, id: summary.id });
-    const labels = new Set(rows.map(row => row.label));
-    const withSite = `${summary.label} (${source.name})`;
-    const newLabel = !labels.has(summary.label) ? summary.label : labels.has(withSite) ? `${withSite} ${suffix}` : withSite;
-    const id = taken ? `${summary.id}-${suffix}` : summary.id;
-    await projectVault.put({ ...context, id, binding: null, provider: summary.provider, label: newLabel, meta: summary.meta, payload,
-      expectedRevision: null, isDefault: false, ...(typeof payload.token === "string" ? { hintToken: payload.token } : {}) });
-    return id;
-  }
-
-  return {
-    /** Per-source failures never hide other sites: that site gets one locked, plain-words row. */
-    async list(_required: Record<string, never>, _options = {}): Promise<SiteKeyChoice[]> {
-      const choices: SiteKeyChoice[] = [];
-      for (const source of sources()) {
-        try {
-          await readSource({ source, read: async ({ rows, keyStatus }) => {
-            for (const row of rows) {
-              const locked = lockedReason({ row, source, keyStatus });
-              choices.push({ keyId: keyId({ source, row }), kind: row.kind, name: hasSafeNames({ row }) ? keyName({ row, site: label(source) }) : `Key with an unsafe name, ${label(source)}`, siteName: source.name, ...(locked ? { locked } : {}) });
-            }
-          } });
-        } catch {
-          choices.push({ keyId: `${SITE_KEY_ID_PREFIX}${source.siteId}:`, kind: "vendor", name: `Keys saved on ${source.name}`, siteName: source.name, locked: couldNotRead({ site: source.name }) });
-        }
+function createKeyList(sources: () => (Source & { isTarget?: boolean })[], readSource: ReturnType<typeof createSourceReader>) {
+  const label = (source: Source & { isTarget?: boolean }) => source.isTarget ? "this site" : source.name;
+  /** Per-source failures never hide other sites: that site gets one locked, plain-words row. */
+  return async function list(_required: Record<string, never>, _options = {}): Promise<SiteKeyChoice[]> {
+    const choices: SiteKeyChoice[] = [];
+    for (const source of sources()) {
+      try {
+        await readSource({ source, read: async ({ rows, keyStatus }) => {
+          for (const row of rows) {
+            const locked = lockedReason({ row, source, keyStatus });
+            choices.push({ keyId: keyId({ source, row }), kind: row.kind, name: hasSafeNames({ row }) ? keyName({ row, site: label(source) }) : `Key with an unsafe name, ${label(source)}`, siteName: source.name, ...(locked ? { locked } : {}) });
+          }
+        } });
+      } catch {
+        choices.push({ keyId: `${SITE_KEY_ID_PREFIX}${source.siteId}:`, kind: "vendor", name: `Keys saved on ${source.name}`, siteName: source.name, locked: couldNotRead({ site: source.name }) });
       }
-      return choices;
-    },
-    /** Metadata only, for the permission check that precedes a grant. */
-    async find({ keyId }: { keyId: string }, _options = {}): Promise<VaultRecord | null> {
-      const { source, rowId } = resolveKeyId({ keyId });
-      return readPlainly({ source, read: async ({ rows }) => {
-        const row = rows.find(item => item.id === rowId);
-        if (!row) return null;
-        return { workspaceId: PROJECT_WORKSPACE_ID, id: row.id, kind: row.kind, label: row.label, ownerKey: "tovu", principalId: null, binding: null, provider: row.provider, isDefault: false, revision: 1, sealed: null, last4: null, tokenLength: null, meta: parseMeta({ row }) as VaultMeta, createdAt: "", updatedAt: "" };
-      } });
-    },
-    /** After owner approval, re-seal the source key into Shared Keys; the plaintext stays in this function. */
-    async adopt({ keyId }: { keyId: string }, _options = {}): Promise<{ keyId: string }> {
-      const { source, rowId } = resolveKeyId({ keyId });
-      return readPlainly({ source, read: async ({ kernel, workspaceId, rows, keyStatus, keyring }) => {
-        const row = rows.find(item => item.id === rowId);
-        if (!row) throw refused({ message: `This saved key is no longer on ${source.name}. Open Use a saved key again.` });
-        const locked = lockedReason({ row, source, keyStatus });
-        if (locked) throw refused({ message: locked });
-        const opened = await siteVaultService({ kernel, workspaceId, keyring }).get({ workspaceId, id: row.id, kind: row.kind, ownerKey: "tovu", principalId: null, binding: null })
-          .catch(() => { throw refused({ message: unlockHelp({ site: source.name }) }); });
-        if (!opened?.payload) throw refused({ message: `This saved key on ${source.name} is empty. Save it there again, then try again. Details: P25_SITE_KEY_EMPTY.` });
-        return { keyId: await promote({ summary: opened.summary, payload: opened.payload, source }) };
-      } });
-    },
+    }
+    return choices;
   };
 }

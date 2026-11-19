@@ -276,8 +276,8 @@
     },
     {
       "file": "apps/website/src/server/runtime/composition/peer-site-reads.ts",
-      "function": "createPeerSiteReads#1.openPeer#1",
-      "line": 372,
+      "function": "createPeerReadOpener#1.<anonymous>#1",
+      "line": 401,
       "rule": "complexity",
       "value": 11
     },

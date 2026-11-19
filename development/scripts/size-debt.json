@@ -1143,27 +1143,6 @@
       "value": 111
     },
     {
-      "file": "apps/website/src/server/runtime/boot/bootstrap.ts",
-      "function": "buildBootModules#1",
-      "line": 232,
-      "rule": "max-lines-per-function",
-      "value": 105
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/app.ts",
-      "function": "createRouteDeps#1",
-      "line": 128,
-      "rule": "max-lines-per-function",
-      "value": 159
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/commerce.ts",
-      "function": "composeCommerce#1",
-      "line": 68,
-      "rule": "max-lines-per-function",
-      "value": 266
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/deps.ts",
       "function": "<file>",
       "line": 763,
@@ -1213,20 +1192,6 @@
       "value": 105
     },
     {
-      "file": "apps/website/src/server/runtime/composition/other-site-keys.ts",
-      "function": "createOtherSiteKeys#1",
-      "line": 77,
-      "rule": "max-lines-per-function",
-      "value": 116
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/peer-site-reads.ts",
-      "function": "createPeerSiteReads#1",
-      "line": 324,
-      "rule": "max-lines-per-function",
-      "value": 131
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/provider-plugins.ts",
       "function": "bootProviderPlugins#1",
       "line": 332,
@@ -1239,20 +1204,6 @@
       "line": 347,
       "rule": "max-lines-per-function",
       "value": 252
-    },
-    {
-      "file": "apps/website/src/server/runtime/lifecycle/local-site-process.ts",
-      "function": "createLocalSiteProcessPort#1",
-      "line": 136,
-      "rule": "max-lines-per-function",
-      "value": 122
-    },
-    {
-      "file": "apps/website/src/server/runtime/lifecycle/local-site-process.ts",
-      "function": "createLocalSiteProcessPort#1.launch#1",
-      "line": 170,
-      "rule": "max-lines-per-function",
-      "value": 87
     }
   ]
 }

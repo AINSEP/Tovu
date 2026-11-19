@@ -127,6 +127,73 @@ function inMemoryPluginRuntimeOptions({ options }: { options: CreateRouteDepsOpt
 
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
 export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps & ByokToolSurfaceDeps {
+  const runtime = createMemoryRuntime(options, {
+    routeDeps: () => routeDeps, agentPluginLayout: () => agentPluginLayout,
+    declaredContentTypes: () => createDeclaredContentTypePorts({ repo: contentTypeRepo, clock, ids: idGen, outbox }),
+  });
+  const { clock, idGen, settingsRepo, postRepo } = runtime;
+  const foundation = createMemoryFoundation(runtime, {
+    formDefinitionRepo: () => formDefinitionRepo, entryRefsRepo: () => entryRefsRepo, menuRepo: () => menuRepo,
+    navLocationBindingRepo: () => navLocationBindingRepo, routeDeps: () => routeDeps,
+  });
+  const { outbox, commentRepo, entryRepo, mediaRepo, workspaceId, trash, trashRepo, commentsSettingsReady,
+    identity, settingsPrincipals, siteTitleSettingsDeps, siteSettingsReady, originRegistry } = foundation;
+  const widgets = createMemoryWidgets({ ...runtime, ...foundation }, {
+    transformDefinitionRepo: () => transformDefinitionRepo, mediaContentTypeStore: () => mediaContentTypeStore,
+  });
+  const { formDefinitionRepo, entryRefsRepo, menuRepo, navLocationBindingRepo, contentTypeRepo } = widgets;
+  const { commentsModule, commentsCapability } = composeMemoryComments({ commentRepo, entryRepo, postRepo, outbox, clock, idGen, settingsRepo, workspaceId, trash, trashRepo, commentsSettingsReady, identity, settingsPrincipals });
+  const { externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, siteAssistantCredentialRepo, externalMcpOAuthDevices, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks } = composeMemberSecrets({  });
+
+  const derivedPublicOrigin = deriveMemoryPublicOrigin();
+  const publishing = createMemoryPublishing({ ...runtime, ...foundation, ...widgets }, options);
+  const { mediaContentTypeStore } = publishing;
+  // One lazy in-memory `chat.db` behind both the chat store and its run ledger (`store-factory.ts`).
+  const inMemoryChatHistory = createInMemoryChatHistory();
+  const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeMemoryOutboundHttp({  });
+  const { seoDeps, sitemapService, transformDefinitionRepo } = composeMemorySeo({ postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, originRegistry, clock });
+  const { agentPluginLifecycle, agentPluginLayout, customCredentialSetRepo, siteBinding, federatedMcpPresetRegistry, skillLayout } = composeMemoryAgentPlugins({ routeDeps: () => routeDeps });
+  // Hermetic readiness registers definitions without asynchronously publishing CMS default content.
+  // Serialize ledger registration, but never gate consent on unrelated title preservation.
+  const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
+    after: Promise.all([siteSettingsReady, identity.identityReady]).then(() => undefined),
+    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  });
+  const pluginExports = createPluginExportRuntime({ workspaceId: seededWorkspace.id, embedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === true, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: async () => [] });
+  // ONE composed MCP port: routeDeps.mcp and the sign-in grant share its projections and classifier.
+  const agentPluginMcp = composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock });
+    // 2026-08-16 — see `routes/types.ts`'s `createSiteApp` doc: the direct reference this file can
+    // take (createApp is declared in this same module) closing `export -> server` for the in-memory
+    // composition root. `apps/website/src/server/runtime/composition/deps.ts`'s SQLite composition root needs the lazy-`require`d
+    // equivalent instead, since it cannot take a same-file reference.
+    //
+    // 2026-08-20 (RouteDeps-narrowing pass 2) — now NULLARY, closed over the `const routeDeps`
+    // binding below rather than taking it per call. Same self-referencing-closure shape
+    // `exportSiteBound` below already uses (safe for the identical reason: this arrow only runs
+    // after `createRouteDeps()` has returned, by which point `routeDeps` is fully constructed) — see
+    // `routes/types.ts`'s `exportSiteBound` doc, now generalized, for the TEST GOTCHA this closure
+    // shape carries (spread-override is silently inert; mutate the object in place instead).
+  const createSiteApp: MemoryRouteDeps["createSiteApp"] = ({ themeId, consentAudit }: { themeId?: string; consentAudit?: true } = {}) => createApp(routeDeps, { ...(themeId === undefined ? {} : { themeIdOverride: themeId }), ...(consentAudit ? { consentAudit } : {}) });
+  const context: MemoryRootContext = {
+    ...runtime, ...foundation, ...widgets, ...publishing,
+    options, routeDeps: () => routeDeps, createSiteApp, derivedPublicOrigin,
+    agentPluginLayout, agentPluginLifecycle, agentPluginMcp, customCredentialSetRepo, siteBinding, federatedMcpPresetRegistry, skillLayout,
+    commentsModule, commentsCapability, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring,
+    siteAssistantCredentialRepo, externalMcpOAuthDevices, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks,
+    inMemoryChatHistory, externalMcpOAuthHttpPorts, guardedOutboundHttpClient, seoDeps, sitemapService, transformDefinitionRepo,
+    siteConsentReady, pluginExports,
+  };
+  const routeDeps: MemoryRouteDeps = assembleMemoryRouteDeps(context);
+  routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
+  routeDeps.pluginRuntimeReady = runtime.pluginRuntime.attachEnabledPluginsAtBoot();
+  routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
+  return routeDeps;
+}
+
+function createMemoryRuntime(options: CreateRouteDepsOptions, references: {
+  routeDeps: () => MemoryRouteDeps; agentPluginLayout: () => MemoryRootContext["agentPluginLayout"];
+  declaredContentTypes: () => ReturnType<typeof createDeclaredContentTypePorts>;
+}) {
   // TOVU_DB=memory can still serve public routes; anonymous audit traffic shares this bounded sink.
   const toolAttemptAuditSink = createInMemoryToolAttemptAuditSink({});
   const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [seededWorkspace] });
@@ -140,9 +207,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // face follows every write of its activation row. `agentPluginLayout` is declared further down;
   // the thunk only runs on a write, after composition finishes.
   const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id,
-    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId: seededWorkspace.id }).root }) });
+    ports: bindProviderFacePorts({ workspaceRoot: () => references.agentPluginLayout().forWorkspace({ workspaceId: seededWorkspace.id }).root }) });
   const pluginRuntime = composePluginRuntime({
-    getPluginHost: () => routeDeps.pluginHost,
+    getPluginHost: () => references.routeDeps().pluginHost,
     workspaceId: seededWorkspace.id,
     clock,
     activationRepo: pluginActivationRepo,
@@ -156,17 +223,34 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Deferred: `contentTypeRepo`/`outbox` are declared further down, and enable never runs during
     // composition.
     declaredContentTypes: deferDeclaredContentTypePorts({
-      build: () => createDeclaredContentTypePorts({ repo: contentTypeRepo, clock, ids: idGen, outbox }),
+      build: references.declaredContentTypes,
     }),
     ...inMemoryPluginRuntimeOptions({ options }),
   });
+  return { toolAttemptAuditSink, workspaceRepo, postRepo, presentationRepo, settingsRepo, clock, idGen, pluginActivationRepo, pluginRuntime };
+}
+
+function createMemoryFoundation(runtime: ReturnType<typeof createMemoryRuntime>, deferred: Pick<Parameters<typeof composeMemoryTrash>[0],
+  "formDefinitionRepo" | "entryRefsRepo" | "menuRepo" | "navLocationBindingRepo" | "routeDeps">) {
+  const { clock, idGen, settingsRepo, pluginRuntime, pluginActivationRepo, postRepo } = runtime;
   const { settingsPrincipals, analyticsSettingsReady, settingsReady, commentsSettingsReady, identity, seoReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady } = composeIdentitySettings({ clock, idGen, settingsRepo });
   const { siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, siteTitlePreservationStore } = composeSiteTitleSettings({ settingsRepo, clock, idGen, settingsPrincipals, analyticsSettingsReady });
   const { originRegistry, newsletterListRepoInMemory } = composeOriginNewsletter({ clock });
   const { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo } = composeMemoryRepos();
   const { trashRegistry, termRepo, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, taxonomyRepo, entryTermRepo, taxonomyRevisionRepo } = composeTaxonomyTrashRepos({ taxonomyDb, workspaceId, outbox, clock, idGen });
-  const { trash, trashAdapters, formTrashEntry, removePlugin } = composeMemoryTrash({ pluginRuntime, pluginActivationRepo, trashRegistry, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, outbox, clock, idGen, postRepo, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, formDefinitionRepo: () => formDefinitionRepo, entryRefsRepo: () => entryRefsRepo, menuRepo: () => menuRepo, navLocationBindingRepo: () => navLocationBindingRepo, routeDeps: () => routeDeps });
+  const { trash, trashAdapters, formTrashEntry, removePlugin } = composeMemoryTrash({ pluginRuntime, pluginActivationRepo, trashRegistry, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, outbox, clock, idGen, postRepo, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, ...deferred });
 
+  const redirectsWriteDeps = createMemoryRedirects({ ...runtime, redirectRepo, trash, trashRepo, originRegistry, outbox, bus, redirectHitSink });
+  return { settingsPrincipals, analyticsSettingsReady, settingsReady, commentsSettingsReady, identity, seoReady, assistantSettingsReady,
+    executionSettingsReady, settingsUiTabsReady, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, siteTitlePreservationStore,
+    originRegistry, newsletterListRepoInMemory, taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo,
+    formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo, trashRegistry,
+    termRepo, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, taxonomyRepo, entryTermRepo,
+    taxonomyRevisionRepo, trash, trashAdapters, formTrashEntry, removePlugin, redirectsWriteDeps };
+}
+
+function createMemoryRedirects(context: ReturnType<typeof createMemoryRuntime> & Pick<MemoryRootContext, "redirectRepo" | "trash" | "trashRepo" | "originRegistry" | "outbox" | "bus" | "redirectHitSink">) {
+  const { redirectRepo, trash, trashRepo, originRegistry, clock, idGen, outbox, bus, redirectHitSink } = context;
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
     remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
@@ -200,6 +284,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   }, { hits: { outbox, clock, idGen } });
   registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) });
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
+  return redirectsWriteDeps;
+}
+
+function createMemoryWidgets(context: ReturnType<typeof createMemoryRuntime> & ReturnType<typeof createMemoryFoundation>, deferred: {
+  transformDefinitionRepo: () => MemoryRootContext["transformDefinitionRepo"]; mediaContentTypeStore: () => MemoryRootContext["mediaContentTypeStore"];
+}) {
+  const { settingsRepo, entryRepo, mediaRepo, postRepo } = context;
   const { menuRepo, navLocationBindingRepo, formDefinitionRepo, contentTypeRepo, contentTypeIndexProvisioner, entryRefsRepo, widgetBindingRepo } = composeNavFormContentRepos({  });
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `apps/website/src/server/runtime/composition/deps.ts`'s
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
@@ -211,7 +302,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     crypto: globalThis.crypto,
     // Defer captures: media MIME metadata is assembled later in this composition root.
     galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
-      host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,
+      host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: deferred.transformDefinitionRepo(), mediaContentTypeStore: deferred.mediaContentTypeStore(),
     } }),
     menus: { resolveMenuDoc },
     collectionList: widgetCollectionListPort,
@@ -221,15 +312,21 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
     contentTypes: contentTypeRepo,
   });
-  const { commentsModule, commentsCapability } = composeMemoryComments({ commentRepo, entryRepo, postRepo, outbox, clock, idGen, settingsRepo, workspaceId, trash, trashRepo, commentsSettingsReady, identity, settingsPrincipals });
-  const { externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, siteAssistantCredentialRepo, externalMcpOAuthDevices, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks } = composeMemberSecrets({  });
+  return { menuRepo, navLocationBindingRepo, formDefinitionRepo, contentTypeRepo, contentTypeIndexProvisioner, entryRefsRepo, widgetBindingRepo, siteTimeZone };
+}
 
+function deriveMemoryPublicOrigin() {
   // See `routes/types.ts`'s `derivedPublicOrigin` doc. Mirrors `deps.ts`'s identical derivation
   // (`resolveCheckoutRoot`, a walk-up that is right from both the tsx and the compiled tree) — this
   // hermetic root backs the same live HTTP server as `deps.ts`'s in `TOVU_DB=memory` mode, so its
   // fallback origin must be derived the same way rather than silently differing.
   const REPO_ROOT_FOR_ORIGIN = resolveCheckoutRoot({});
   const derivedPublicOrigin = process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${deriveDevScheme({ tlsActive: resolveDevTls(resolveDevTlsCertPaths({ repoRoot: REPO_ROOT_FOR_ORIGIN })).active })}://localhost:${Number(process.env.PORT ?? 3000)}`;
+  return derivedPublicOrigin;
+}
+
+function createMemoryPublishing(context: ReturnType<typeof createMemoryRuntime> & ReturnType<typeof createMemoryFoundation> & ReturnType<typeof createMemoryWidgets>, options: CreateRouteDepsOptions) {
+  const { outbox, trashAdapters, trash } = context;
   const { publishContentBundleRepo, publishContentBaselineRepo, publishContentRunRepo, changeSets, assetBlobRepo, blobStore, mediaContentTypeStore, fileBlobIndex, publishContentPeerRepo } = composePublishContentStores({ outbox });
   const publishContentSeedHash = options.publishContentSeedHash ?? NO_PUBLISH_CONTENT_SEED_HASH;
   // One array shared by `routeDeps.themes` (below) and the theme-files apply's refresh hook, so a
@@ -242,6 +339,23 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
   const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
+  const publishContentApplyPort = createMemoryPublishApply({ ...context,
+    publishContentBundleRepo, publishContentBaselineRepo, publishContentRunRepo, changeSets, assetBlobRepo, blobStore,
+    mediaContentTypeStore, publishContentSeedHash, siteThemes,
+  });
+  return { publishContentBundleRepo, publishContentBaselineRepo, publishContentRunRepo, changeSets, assetBlobRepo, blobStore,
+    mediaContentTypeStore, fileBlobIndex, publishContentPeerRepo, publishContentSeedHash, siteThemes, removeTheme, publishContentApplyPort };
+}
+
+function createMemoryPublishApply(context: Pick<MemoryRootContext,
+  "publishContentBundleRepo" | "publishContentBaselineRepo" | "publishContentRunRepo" | "clock" | "idGen" | "outbox" |
+  "changeSets" | "identity" | "publishContentSeedHash" | "postRepo" | "trashRepo" | "trash" | "mediaRepo" |
+  "assetBlobRepo" | "blobStore" | "mediaContentTypeStore" | "redirectsWriteDeps" | "menuRepo" | "navLocationBindingRepo" |
+  "siteThemes" | "formDefinitionRepo" | "contentTypeRepo" | "contentTypeIndexProvisioner" | "taxonomyRepo" | "termRepo" |
+  "entryTermRepo" | "taxonomyRevisionRepo" | "entryRepo" | "entryRefsRepo" | "widgetBindingRepo" | "settingsRepo" |
+  "settingsPrincipals" | "presentationRepo">): ReturnType<typeof memoryPublishContentApplyPort> {
+  const { publishContentBundleRepo, publishContentBaselineRepo, publishContentRunRepo, clock, idGen, outbox,
+    changeSets, identity, publishContentSeedHash } = context;
   const publishContentApplyPort = memoryPublishContentApplyPort({
     workspaceId: seededWorkspace.id,
     bundleRepo: publishContentBundleRepo,
@@ -253,81 +367,40 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     changeSets,
     authorize: identity.authorize,
     getSeedHash: publishContentSeedHash,
-    ports: memoryPublishContentPorts({
-      postRepo, trashRepo, trash, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, redirectsWriteDeps,
-      menuRepo, navLocationBindingRepo, siteThemes,
-      content: {
-        workspaceId: seededWorkspace.id,
-        postRepo,
-        formDefinitionRepo,
-        contentTypeRepo,
-        contentTypeIndexProvisioner,
-        taxonomyRepo,
-        termRepo,
-        entryTermRepo,
-        taxonomyRevisionRepo,
-        stampWatermark: noopStampWatermark,
-        entryRepo,
-        entryRefsRepo,
-        widgetBindingRepo,
-        settingsRepo,
-        principalRepo: settingsPrincipals,
-        presentationRepo,
-        themes: siteThemes,
-      },
-    }),
+    ports: createMemoryPublishPorts(context),
   });
 
-  // One lazy in-memory `chat.db` behind both the chat store and its run ledger (`store-factory.ts`).
-  const inMemoryChatHistory = createInMemoryChatHistory();
-  const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeMemoryOutboundHttp({  });
-  const { seoDeps, sitemapService, transformDefinitionRepo } = composeMemorySeo({ postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, originRegistry, clock });
-  const { agentPluginLifecycle, agentPluginLayout, customCredentialSetRepo, siteBinding, federatedMcpPresetRegistry, skillLayout } = composeMemoryAgentPlugins({ routeDeps: () => routeDeps });
-  // Hermetic readiness registers definitions without asynchronously publishing CMS default content.
-  // Serialize ledger registration, but never gate consent on unrelated title preservation.
-  const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
-    after: Promise.all([siteSettingsReady, identity.identityReady]).then(() => undefined),
-    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  return publishContentApplyPort;
+}
+
+function createMemoryPublishPorts(context: Parameters<typeof createMemoryPublishApply>[0]) {
+  const { postRepo, trashRepo, trash, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, redirectsWriteDeps,
+    menuRepo, navLocationBindingRepo, siteThemes, formDefinitionRepo, contentTypeRepo, contentTypeIndexProvisioner,
+    taxonomyRepo, termRepo, entryTermRepo, taxonomyRevisionRepo, entryRepo, entryRefsRepo, widgetBindingRepo,
+    settingsRepo, settingsPrincipals, presentationRepo } = context;
+  return memoryPublishContentPorts({
+    postRepo, trashRepo, trash, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, redirectsWriteDeps,
+    menuRepo, navLocationBindingRepo, siteThemes,
+    content: {
+      workspaceId: seededWorkspace.id,
+      postRepo,
+      formDefinitionRepo,
+      contentTypeRepo,
+      contentTypeIndexProvisioner,
+      taxonomyRepo,
+      termRepo,
+      entryTermRepo,
+      taxonomyRevisionRepo,
+      stampWatermark: noopStampWatermark,
+      entryRepo,
+      entryRefsRepo,
+      widgetBindingRepo,
+      settingsRepo,
+      principalRepo: settingsPrincipals,
+      presentationRepo,
+      themes: siteThemes,
+    },
   });
-  const pluginExports = createPluginExportRuntime({ workspaceId: seededWorkspace.id, embedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === true, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: async () => [] });
-  // ONE composed MCP port: routeDeps.mcp and the sign-in grant share its projections and classifier.
-  const agentPluginMcp = composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock });
-    // 2026-08-16 — see `routes/types.ts`'s `createSiteApp` doc: the direct reference this file can
-    // take (createApp is declared in this same module) closing `export -> server` for the in-memory
-    // composition root. `apps/website/src/server/runtime/composition/deps.ts`'s SQLite composition root needs the lazy-`require`d
-    // equivalent instead, since it cannot take a same-file reference.
-    //
-    // 2026-08-20 (RouteDeps-narrowing pass 2) — now NULLARY, closed over the `const routeDeps`
-    // binding below rather than taking it per call. Same self-referencing-closure shape
-    // `exportSiteBound` below already uses (safe for the identical reason: this arrow only runs
-    // after `createRouteDeps()` has returned, by which point `routeDeps` is fully constructed) — see
-    // `routes/types.ts`'s `exportSiteBound` doc, now generalized, for the TEST GOTCHA this closure
-    // shape carries (spread-override is silently inert; mutate the object in place instead).
-  const createSiteApp: MemoryRouteDeps["createSiteApp"] = ({ themeId, consentAudit }: { themeId?: string; consentAudit?: true } = {}) => createApp(routeDeps, { ...(themeId === undefined ? {} : { themeIdOverride: themeId }), ...(consentAudit ? { consentAudit } : {}) });
-  const context: MemoryRootContext = {
-    options, routeDeps: () => routeDeps, createSiteApp,
-    agentPluginLayout, agentPluginLifecycle, agentPluginMcp, analyticsSettingsReady, assetBlobRepo, assetRenditionRepo,
-    assistantSettingsReady, blobStore, bus, changeSets, clock, commentsCapability,
-    commentsModule, commentsSettingsReady, contentTypeIndexProvisioner, contentTypeRepo, customCredentialSetRepo, derivedPublicOrigin,
-    entryRefsRepo, entryRepo, entryTermRepo, executionSettingsReady, externalMcpOAuthDevices, externalMcpOAuthHttpPorts,
-    externalMcpServerRepo, federatedMcpPresetRegistry, fileBlobIndex, formDefinitionRepo, formSubmissionRepo, formTrashEntry,
-    guardedOutboundHttpClient, idGen, identity, inMemoryChatHistory, mediaContentTypeStore, mediaRepo,
-    memberRepo, menuRepo, navLocationBindingRepo, newsletterHooks, newsletterKeyring, newsletterListRepoInMemory,
-    newsletterSubscriberDirectory, originRegistry, outbox, pluginActivationRepo, pluginExports, pluginRuntime,
-    postRepo, presentationRepo, publishContentApplyPort, publishContentBaselineRepo, publishContentBundleRepo, publishContentPeerRepo,
-    publishContentRunRepo, publishContentSeedHash, redirectHitSink, redirectRepo, redirectsWriteDeps, removePlugin,
-    removeTheme, restorePointsRepo, seoDeps, seoReady, settingsPrincipals, settingsReady,
-    settingsRepo, settingsUiTabsReady, siteAssistantCredentialRepo, siteAssistantSecretKeyring, siteAssistantSecretSealer, siteBinding,
-    siteConsentReady, siteThemes, siteTimeZone, siteTitlePreservationStore, siteTitleReady, sitemapService,
-    skillLayout, sqliteTrashDb, taxonomyDb, taxonomyRepo, taxonomyRevisionRepo, termRepo,
-    toolAttemptAuditSink, transformDefinitionRepo, trash, trashAdapters, trashRegistry, trashRepo,
-    widgetBindingRepo, workspaceId, workspaceRepo,
-  };
-  const routeDeps: MemoryRouteDeps = assembleMemoryRouteDeps(context);
-  routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
-  routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
-  routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
-  return routeDeps;
 }
 
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, options: CreateAppOptions = {}) {

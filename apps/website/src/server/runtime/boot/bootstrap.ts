@@ -229,7 +229,6 @@ export interface BuildBootModulesOptions {
  * Commerce is off: no store/payment declaration or seeding module is constructed in any mode.
  */
 export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule[] {
-  let pluginActivationPoll: { stop: () => void } | undefined;
   return [
     {
       name: "database-migration-reconciliation",
@@ -250,129 +249,146 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
     { name: "seo", owner: "seo", criticality: "critical", prepare: () => deps.seoReady, start: noop, stop: noop },
     { name: "newsletter", owner: "newsletter", criticality: "optional", prepare: () => deps.newsletterReady, start: noop, stop: noop },
     { name: "comments", owner: "comments", criticality: "optional", prepare: () => deps.commentsReady, start: noop, stop: noop },
-    {
-      // P0a fix (2026-09-23): re-attaches every durably-enabled plugin to this process's (fresh,
-      // empty) hook registry before the server starts serving — see `deps.pluginRuntimeReady`'s own
-      // doc. OPTIONAL: `attachEnabledPluginsAtBoot()` already isolates per-plugin failures itself
-      // (logs and continues), so this module's own promise realistically never rejects; optional
-      // criticality is a defensive floor, not the primary safety net.
-      //
-      // `start` keeps this process's registry reconciled with the durable activation table after
-      // boot. `plugins_set_enabled` runs in the AGENT DAEMON process, so a chat-driven disable
-      // detached the hook only there; without this poll, every save served here kept running the
-      // disabled plugin's beforeSave hook until restart. ADR-070 now routes chat writes here too;
-      // this server-owned poll still reconciles durable version changes made by other processes
-      // (`plugin-activation-polling.ts`), without recreating a daemon hook registry.
-      name: "plugin-runtime-attach",
-      owner: "features/plugin-runtime",
-      criticality: "optional",
-      prepare: () => deps.pluginRuntimeReady,
-      start: async () => {
-        pluginActivationPoll?.stop();
-        pluginActivationPoll = startPluginActivationPolling(
-          deps,
-          options.pluginActivationPollIntervalMs === undefined ? {} : { intervalMs: options.pluginActivationPollIntervalMs },
-        );
-      },
-      stop: async () => {
-        pluginActivationPoll?.stop();
-        pluginActivationPoll = undefined;
-      },
-    },
-    {
-      // Finishes or rolls back an Agent Plugin update a crash interrupted, then removes retained
-      // rollback bytes. It runs here, in array order: before the bundled seed touches any package and
-      // before the listener serves a run, since no run can hold those paths yet.
-      //
-      // OPTIONAL, like the seed below: one bad plugin must not stop the server. An unrecovered plugin
-      // is switched OFF (the update transaction switches it off before moving any bytes; recovery of
-      // an unreadable journal switches it off and rethrows; a restored revision whose MCP servers
-      // could not be re-provisioned stays off with an event), and its retained journal refuses any
-      // change to it (`PLUGIN_UPDATE_PENDING`, 409) until a later boot recovers it. Refusing to boot
-      // the whole site would also lock the operator out of the admin that could fix it. The composed
-      // lifecycle binds the real MCP port (`createDeferredAgentPluginUpdateEffects`), so recovery
-      // re-provisions a restored revision's servers.
-      name: "agent-plugin-update-recovery",
-      owner: "features/agent-plugins",
-      criticality: "optional",
-      prepare: async () => {
-        try {
-          await deps.agentPluginLifecycle.reconcileAgentPluginUpdates({ workspaceId: deps.workspaceId });
-        } catch (error) {
-          consoleLogger.error({ message: `[agent-plugin-update-recovery] an interrupted Agent Plugin update could not be recovered; it is retried next boot: ${error instanceof Error ? error.message : String(error)}` });
-          throw error;
-        }
-      },
-      start: noop,
-      stop: noop,
-    },
-    {
-      // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and
-      // records each INACTIVE until an operator enables it (see
-      // `Jini packages/agent-plugins/src/lifecycle/seed-bundled.ts` for why it re-runs every boot rather than once).
-      //
-      // OPTIONAL, not critical, and deliberately so: a bundled plugin that fails to seed costs the
-      // operator one dormant, disabled capability. Refusing to boot a whole CMS over that would be a
-      // wildly disproportionate failure mode for a feature that is switched off by default anyway.
-      // Per-plugin failures are captured in the returned report and logged here rather than thrown,
-      // so one bad package cannot hide the others.
-      name: "bundled-agent-plugins",
-      owner: "features/agent-plugins",
-      criticality: "optional",
-      prepare: async () => {
-        const result = await seedBundledAgentPlugins({
-          layout: deps.agentPluginLayout,
-          workspaceId: deps.workspaceId,
-          sourceRoot: bundledAgentPluginsDir(),
-        });
-        for (const outcome of result.outcomes) {
-          if (outcome.status === "failed") {
-            consoleLogger.warn({ message: `[bundled-agent-plugins] '${outcome.pluginId}' could not be seeded: ${outcome.reason}` });
-          }
-        }
-        if (result.ledgerFailure !== undefined) {
-          // Not a seed failure: every package is installed and every activation decision intact.
-          // What is lost is this boot's record of WHICH digest the build published, so a bundled
-          // plugin that was upgraded in place falls back to being refused as ambiguous until a
-          // later boot writes the ledger (`Jini packages/agent-plugins/src/lifecycle/bundled-digests.ts`).
-          consoleLogger.warn({ message: `[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}` });
-        }
-        logBundledPluginRetirements({ retirements: result.retirements });
-        await warnAboutMissingBundledPlugins(deps, { result });
-        await syncProviderFacesAtBoot(deps);
-        await lockSoonAgentPluginsAtBoot(deps);
-        await importAgentPluginTokensAtBoot({ deps, options });
-        // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
-        // that plugin provisioned, so a saved selection never names a tool the server stopped offering.
-        await applyAgentPluginToolRenames(
-          { deps: {
-            workspaceId: deps.workspaceId,
-            agentPluginLayout: deps.agentPluginLayout,
-            externalMcpServerRepo: deps.externalMcpServerRepo,
-            clock: deps.clock,
-            notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
-          },
-          log: bootLog },
-        );
-        // A plugin that is on with a signed-in account gets the tools it declares even when the
-        // sign-in's own grant missed them (bug 2026-11-04) — after the renames, so it grants the new names.
-        await grantDeclaredToolsAtBoot(
-          { deps: {
-            workspaceId: deps.workspaceId,
-            agentPluginLayout: deps.agentPluginLayout,
-            repo: deps.externalMcpServerRepo,
-            applyAccess: deps.mcp.applyAccess,
-            clock: deps.clock,
-            notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
-            ...agentPluginMcpPortsOf(deps.mcp),
-          },
-          log: bootLog },
-        );
-      },
-      start: noop,
-      stop: noop,
-    },
+    pluginRuntimeBootModule(deps, options),
+    agentPluginRecoveryBootModule(deps),
+    bundledAgentPluginsBootModule(deps, options),
   ];
+}
+
+function pluginRuntimeBootModule(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule {
+  let pluginActivationPoll: { stop: () => void } | undefined;
+  return {
+    // P0a fix (2026-09-23): re-attaches every durably-enabled plugin to this process's (fresh,
+    // empty) hook registry before the server starts serving — see `deps.pluginRuntimeReady`'s own
+    // doc. OPTIONAL: `attachEnabledPluginsAtBoot()` already isolates per-plugin failures itself
+    // (logs and continues), so this module's own promise realistically never rejects; optional
+    // criticality is a defensive floor, not the primary safety net.
+    //
+    // `start` keeps this process's registry reconciled with the durable activation table after
+    // boot. `plugins_set_enabled` runs in the AGENT DAEMON process, so a chat-driven disable
+    // detached the hook only there; without this poll, every save served here kept running the
+    // disabled plugin's beforeSave hook until restart. ADR-070 now routes chat writes here too;
+    // this server-owned poll still reconciles durable version changes made by other processes
+    // (`plugin-activation-polling.ts`), without recreating a daemon hook registry.
+    name: "plugin-runtime-attach",
+    owner: "features/plugin-runtime",
+    criticality: "optional",
+    prepare: () => deps.pluginRuntimeReady,
+    start: async () => {
+      pluginActivationPoll?.stop();
+      pluginActivationPoll = startPluginActivationPolling(
+        deps,
+        options.pluginActivationPollIntervalMs === undefined ? {} : { intervalMs: options.pluginActivationPollIntervalMs },
+      );
+    },
+    stop: async () => {
+      pluginActivationPoll?.stop();
+      pluginActivationPoll = undefined;
+    },
+  };
+}
+
+function agentPluginRecoveryBootModule(deps: NewsletterRouteDeps): BootModule {
+  return {
+    // Finishes or rolls back an Agent Plugin update a crash interrupted, then removes retained
+    // rollback bytes. It runs here, in array order: before the bundled seed touches any package and
+    // before the listener serves a run, since no run can hold those paths yet.
+    //
+    // OPTIONAL, like the seed below: one bad plugin must not stop the server. An unrecovered plugin
+    // is switched OFF (the update transaction switches it off before moving any bytes; recovery of
+    // an unreadable journal switches it off and rethrows; a restored revision whose MCP servers
+    // could not be re-provisioned stays off with an event), and its retained journal refuses any
+    // change to it (`PLUGIN_UPDATE_PENDING`, 409) until a later boot recovers it. Refusing to boot
+    // the whole site would also lock the operator out of the admin that could fix it. The composed
+    // lifecycle binds the real MCP port (`createDeferredAgentPluginUpdateEffects`), so recovery
+    // re-provisions a restored revision's servers.
+    name: "agent-plugin-update-recovery",
+    owner: "features/agent-plugins",
+    criticality: "optional",
+    prepare: async () => {
+      try {
+        await deps.agentPluginLifecycle.reconcileAgentPluginUpdates({ workspaceId: deps.workspaceId });
+      } catch (error) {
+        consoleLogger.error({ message: `[agent-plugin-update-recovery] an interrupted Agent Plugin update could not be recovered; it is retried next boot: ${error instanceof Error ? error.message : String(error)}` });
+        throw error;
+      }
+    },
+    start: noop,
+    stop: noop,
+  };
+}
+
+function bundledAgentPluginsBootModule(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule {
+  return {
+    // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and
+    // records each INACTIVE until an operator enables it (see
+    // `Jini packages/agent-plugins/src/lifecycle/seed-bundled.ts` for why it re-runs every boot rather than once).
+    //
+    // OPTIONAL, not critical, and deliberately so: a bundled plugin that fails to seed costs the
+    // operator one dormant, disabled capability. Refusing to boot a whole CMS over that would be a
+    // wildly disproportionate failure mode for a feature that is switched off by default anyway.
+    // Per-plugin failures are captured in the returned report and logged here rather than thrown,
+    // so one bad package cannot hide the others.
+    name: "bundled-agent-plugins",
+    owner: "features/agent-plugins",
+    criticality: "optional",
+    prepare: async () => {
+      const result = await seedBundledAgentPlugins({
+        layout: deps.agentPluginLayout,
+        workspaceId: deps.workspaceId,
+        sourceRoot: bundledAgentPluginsDir(),
+      });
+      logBundledSeedFailures(result);
+      logBundledPluginRetirements({ retirements: result.retirements });
+      await warnAboutMissingBundledPlugins(deps, { result });
+      await syncProviderFacesAtBoot(deps);
+      await lockSoonAgentPluginsAtBoot(deps);
+      await importAgentPluginTokensAtBoot({ deps, options });
+      // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
+      // that plugin provisioned, so a saved selection never names a tool the server stopped offering.
+      await applyAgentPluginToolRenames(
+        { deps: {
+          workspaceId: deps.workspaceId,
+          agentPluginLayout: deps.agentPluginLayout,
+          externalMcpServerRepo: deps.externalMcpServerRepo,
+          clock: deps.clock,
+          notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
+        },
+        log: bootLog },
+      );
+      // A plugin that is on with a signed-in account gets the tools it declares even when the
+      // sign-in's own grant missed them (bug 2026-11-04) — after the renames, so it grants the new names.
+      await grantDeclaredToolsAtBoot(
+        { deps: {
+          workspaceId: deps.workspaceId,
+          agentPluginLayout: deps.agentPluginLayout,
+          repo: deps.externalMcpServerRepo,
+          applyAccess: deps.mcp.applyAccess,
+          clock: deps.clock,
+          notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
+          ...agentPluginMcpPortsOf(deps.mcp),
+        },
+        log: bootLog },
+      );
+    },
+    start: noop,
+    stop: noop,
+  };
+}
+
+function logBundledSeedFailures(result: Awaited<ReturnType<typeof seedBundledAgentPlugins>>): void {
+  for (const outcome of result.outcomes) {
+    if (outcome.status === "failed") {
+      consoleLogger.warn({ message: `[bundled-agent-plugins] '${outcome.pluginId}' could not be seeded: ${outcome.reason}` });
+    }
+  }
+  if (result.ledgerFailure !== undefined) {
+    // Not a seed failure: every package is installed and every activation decision intact.
+    // What is lost is this boot's record of WHICH digest the build published, so a bundled
+    // plugin that was upgraded in place falls back to being refused as ambiguous until a
+    // later boot writes the ledger (`Jini packages/agent-plugins/src/lifecycle/bundled-digests.ts`).
+    consoleLogger.warn({ message: `[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}` });
+  }
 }
 
 /** Logs one line per critical, not-ready module from a failed boot. Called only when
