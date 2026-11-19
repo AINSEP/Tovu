@@ -1,3 +1,4 @@
+import { isFullHtmlDocument } from "@jini-ai/cms/presentation/html";
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { PostRecord } from "#src/features/post/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
@@ -31,34 +32,6 @@ const EMPTY_MEDIA_TRANSFORM_VERSIONS: ReadonlyMap<string, number> = new Map();
 /** {@link renderBareEntryDocument}'s own empty default for `mediaAssetMetadata` — see
  *  {@link EMPTY_INLINE_RESOLVED}'s doc for why this is a local copy, not an import. */
 const EMPTY_MEDIA_ASSET_METADATA: ReadonlyMap<string, MediaAssetRenderMeta> = new Map();
-
-/**
- * True when `html`, after stripping a leading BOM and any run of leading whitespace/HTML comments,
- * starts with `<!doctype html` or an `<html` tag (case-insensitive). An `"html"`-format Page body
- * that matches this is a COMPLETE document the author wrote their own `<head>` for — not a fragment
- * {@link renderBareEntryDocument} should wrap. Only the PREFIX is inspected (never a scan for a
- * `<html>` tag anywhere in the string), so an ordinary fragment that merely mentions "doctype" or
- * "<html>" later in its body — e.g. in a code sample — never false-positives into passthrough.
- *
- * Exported for direct unit coverage of the detection rule without constructing a full
- * {@link renderBareEntryDocument} call for every prefix variant (BOM, comment, case).
- *
- * @complexity O(n) over `html`'s length — one linear scan stripping alternating whitespace/comment
- * runs, each consumed exactly once, plus one bounded regex test against the remaining prefix.
- */
-export function isFullHtmlDocument({ html }: { html: string }, _optional = {}): boolean {
-  let rest = html.charCodeAt(0) === 0xfeff ? html.slice(1) : html;
-  for (;;) {
-    const withoutLeadingSpace = rest.replace(/^\s+/, "");
-    const comment = /^<!--[\s\S]*?-->/.exec(withoutLeadingSpace);
-    if (!comment) {
-      rest = withoutLeadingSpace;
-      break;
-    }
-    rest = withoutLeadingSpace.slice(comment[0].length);
-  }
-  return /^<!doctype html/i.test(rest) || /^<html[\s>]/i.test(rest);
-}
 
 /**
  * Wraps a fragment body in the minimal valid document a bare Page gets: doctype, charset, viewport,

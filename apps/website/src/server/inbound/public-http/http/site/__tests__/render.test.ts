@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
+import { FORM_RESULT_QUERY_KEYS } from "../form-wire-policy.js";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PublicPostRecord } from "#src/features/post/index";
@@ -9,15 +10,16 @@ import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { renderSite } from "../render-site.js";
-import { decodeFormSubmissionResultFromQuery, encodeFormSubmissionResultQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, encodeFormFlashCookieValue, mergeFormFlashIntoResult, type FormSubmissionRedirectResult, type FormFlashPayload } from "../form-render.js";
+import { decodeFormSubmissionResultFromQuery, encodeFormSubmissionResultQuery } from "@jini-ai/cms/forms/result-query";
+import { injectFormSubmissionResultIntoHtml } from "../form-render.js";
+import { decodeFormFlashCookieValue, encodeFormFlashCookieValue, mergeFormFlashIntoResult, type FormFlashPayload } from "@jini-ai/cms/forms/result-flash";
+import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms";
 import type { MediaAssetRenderMeta, SiteProduct, SiteRenderContext } from "../render-context.js";
 import { renderBlockSeam } from "../render/blocks.js";
 import { renderHtmlPageBody } from "../render/page-body.js";
 import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
-import {
-  injectExtraHeadIntoStaticPage,
-  injectSiteAssistantIntoStaticPage,
-} from "../render/static-page-injection.js";
+import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
+import { injectSiteAssistantIntoStaticPage } from "../render/site-assistant-mount.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { useSiteChatBuild } from "./site-chat.fixture.js";
 
@@ -1833,16 +1835,16 @@ test("builder form: an empty required email shows a friendly field sentence whil
     slug: "contact-us",
     fieldErrors: [{ field: "email", reason: "required" }],
   };
-  const params = encodeFormSubmissionResultQuery(result);
+  const params = encodeFormSubmissionResultQuery({ result, keys: FORM_RESULT_QUERY_KEYS });
   assert.equal(params.get("form_errors"), JSON.stringify([{ field: "email", reason: "required" }]));
-  const decoded = decodeFormSubmissionResultFromQuery(Object.fromEntries(params));
+  const decoded = decodeFormSubmissionResultFromQuery({ query: Object.fromEntries(params), keys: FORM_RESULT_QUERY_KEYS });
   assert.deepEqual(decoded, result);
 
   const updated = injectFormSubmissionResultIntoHtml({ html, result: decoded });
   assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error">Please enter your email\.<\/div>/);
   assert.match(updated, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact-us" data-contact-form-slug="contact-us">Please fix the highlighted fields below\.<\/div>/);
   assert.doesNotMatch(updated, />required<\/div>/);
-  assert.equal(encodeFormSubmissionResultQuery(result).toString(), params.toString(), "rendering must leave machine-readable reasons unchanged");
+  assert.equal(encodeFormSubmissionResultQuery({ result, keys: FORM_RESULT_QUERY_KEYS }).toString(), params.toString(), "rendering must leave machine-readable reasons unchanged");
 });
 
 test("builder field instructions use document language and honor a form language override", () => {
@@ -1946,29 +1948,29 @@ test("encodeFormSubmissionResultQuery + decodeFormSubmissionResultFromQuery roun
     { kind: "error", slug: "contact" },
   ];
   for (const result of cases) {
-    const params = encodeFormSubmissionResultQuery(result);
+    const params = encodeFormSubmissionResultQuery({ result, keys: FORM_RESULT_QUERY_KEYS });
     const query = Object.fromEntries(params.entries());
-    assert.deepEqual(decodeFormSubmissionResultFromQuery(query), result);
+    assert.deepEqual(decodeFormSubmissionResultFromQuery({ query, keys: FORM_RESULT_QUERY_KEYS }), result);
   }
 });
 
 test("decodeFormSubmissionResultFromQuery: malformed/hostile query input degrades to undefined or an empty error list rather than throwing", () => {
-  assert.equal(decodeFormSubmissionResultFromQuery({}), undefined);
-  assert.equal(decodeFormSubmissionResultFromQuery({ form: "contact" }), undefined, "status missing");
-  assert.equal(decodeFormSubmissionResultFromQuery({ form: "contact", form_status: "bogus" }), undefined);
-  assert.deepEqual(decodeFormSubmissionResultFromQuery({ form: "contact", form_status: "validation", form_errors: "not json" }), {
+  assert.equal(decodeFormSubmissionResultFromQuery({ query: {}, keys: FORM_RESULT_QUERY_KEYS }), undefined);
+  assert.equal(decodeFormSubmissionResultFromQuery({ query: { form: "contact" }, keys: FORM_RESULT_QUERY_KEYS }), undefined, "status missing");
+  assert.equal(decodeFormSubmissionResultFromQuery({ query: { form: "contact", form_status: "bogus" }, keys: FORM_RESULT_QUERY_KEYS }), undefined);
+  assert.deepEqual(decodeFormSubmissionResultFromQuery({ query: { form: "contact", form_status: "validation", form_errors: "not json" }, keys: FORM_RESULT_QUERY_KEYS }), {
     kind: "validation",
     slug: "contact",
     fieldErrors: [],
   });
-  assert.deepEqual(decodeFormSubmissionResultFromQuery({ form: "contact", form_status: "validation", form_errors: '{"not":"an array"}' }), {
+  assert.deepEqual(decodeFormSubmissionResultFromQuery({ query: { form: "contact", form_status: "validation", form_errors: '{"not":"an array"}' }, keys: FORM_RESULT_QUERY_KEYS }), {
     kind: "validation",
     slug: "contact",
     fieldErrors: [],
   });
   // Oversized array is truncated, not rejected outright or allowed to grow unbounded.
   const manyErrors = JSON.stringify(Array.from({ length: 50 }, (_, i) => ({ field: `f${i}`, reason: "bad" })));
-  const decoded = decodeFormSubmissionResultFromQuery({ form: "contact", form_status: "validation", form_errors: manyErrors });
+  const decoded = decodeFormSubmissionResultFromQuery({ query: { form: "contact", form_status: "validation", form_errors: manyErrors }, keys: FORM_RESULT_QUERY_KEYS });
   assert.equal(decoded?.kind, "validation");
   assert.equal(decoded?.kind === "validation" ? decoded.fieldErrors.length : -1, 20);
 });
@@ -2000,7 +2002,7 @@ test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml:
     ]),
   };
 
-  const decoded = decodeFormSubmissionResultFromQuery(query);
+  const decoded = decodeFormSubmissionResultFromQuery({ query, keys: FORM_RESULT_QUERY_KEYS });
   assert.equal(decoded?.kind, "validation");
   // Decoded value is the RAW, unescaped string — decoding preserves machine data; localization
   // happens only at the HTML sink, so a safe final response alone cannot prove the decoder contract.
@@ -2030,7 +2032,7 @@ test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml:
 
 test("encodeFormFlashCookieValue + decodeFormFlashCookieValue round-trip a small payload", () => {
   const payload: FormFlashPayload = { slug: "contact", values: { name: "Ada Lovelace", email: "ada@example.com" } };
-  const json = encodeFormFlashCookieValue(payload);
+  const json = encodeFormFlashCookieValue({ payload });
   assert.ok(json, "small payload must fit and encode to a real string");
   assert.deepEqual(decodeFormFlashCookieValue({ raw: json }), payload);
 });
@@ -2045,7 +2047,7 @@ test("encodeFormFlashCookieValue: never puts field values in the URL/query layer
     fieldErrors: [{ field: "message", reason: "Required" }],
     values: { name: "Ada Lovelace", email: "ada@example.com" },
   };
-  const params = encodeFormSubmissionResultQuery(result);
+  const params = encodeFormSubmissionResultQuery({ result, keys: FORM_RESULT_QUERY_KEYS });
   const serialized = params.toString();
   assert.doesNotMatch(serialized, /Ada/);
   assert.doesNotMatch(serialized, /example\.com/);
@@ -2054,7 +2056,7 @@ test("encodeFormFlashCookieValue: never puts field values in the URL/query layer
 
 test("encodeFormFlashCookieValue: a value longer than the per-field bound is truncated, not rejected", () => {
   const longValue = "begin:" + "x".repeat(294) + "end:" + "y".repeat(4696); // MAX_BODY_STRING_LENGTH's own bound in forms-submit.ts
-  const json = encodeFormFlashCookieValue({ slug: "contact", values: { message: longValue } });
+  const json = encodeFormFlashCookieValue({ payload: { slug: "contact", values: { message: longValue } } });
   assert.ok(json);
   const decoded = decodeFormFlashCookieValue({ raw: json });
   assert.equal(decoded?.values.message.length, 300);
@@ -2064,7 +2066,7 @@ test("encodeFormFlashCookieValue: a value longer than the per-field bound is tru
 
 test("encodeFormFlashCookieValue: a form with many long fields that would not fit in one cookie drops LATER fields, keeping earlier ones, rather than emitting an oversized/broken cookie", () => {
   const fields = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`field${i}`, "y".repeat(300)]));
-  const json = encodeFormFlashCookieValue({ slug: "contact", values: fields });
+  const json = encodeFormFlashCookieValue({ payload: { slug: "contact", values: fields } });
   assert.ok(json, "must still encode SOMETHING — dropping fields, not giving up entirely");
   assert.ok(Buffer.byteLength(json, "utf8") <= 3000, "encoded cookie value must respect the byte budget");
   const decoded = decodeFormFlashCookieValue({ raw: json })!;

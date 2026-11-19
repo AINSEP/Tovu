@@ -4,9 +4,13 @@ import { readRequestCookie } from "#src/server/http/request-cookie";
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { injectListingScript } from "@jini-ai/cms/listing";
-import { decodeFormSubmissionResultFromQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, mergeFormFlashIntoResult, FORM_FLASH_COOKIE_NAME, type FormSubmissionRedirectResult } from "../../../http/site/form-render.js";
-import { injectExtraHeadIntoStaticPage } from "../../../http/site/render/static-page-injection.js";
-import { markOffSiteLinksOpenInNewTab } from "../../../http/site/external-links.js";
+import { decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-query";
+import { injectFormSubmissionResultIntoHtml } from "../../../http/site/form-render.js";
+import { decodeFormFlashCookieValue, mergeFormFlashIntoResult } from "@jini-ai/cms/forms/result-flash";
+import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS } from "../../../http/site/form-wire-policy.js";
+import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms";
+import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
+import { markOffSiteLinksOpenInNewTab } from "@jini-ai/cms/presentation/html";
 import { injectFormAttemptTokens } from "../../../http/site/form-render.js";
 import { injectMemberAuthScript } from "../../../http/site/member-auth-script.js";
 import { isHttpsRequest } from "../../../../../../platform/express/public-origin.js";
@@ -59,7 +63,7 @@ interface PerVisitorResponse {
  * @complexity O(1) plus the bounded cost already documented on the functions it calls.
  */
 export function resolvePerVisitorResponse({ req, res }: { req: Request; res: Response }, _optional: Record<string, never> = {}): PerVisitorResponse {
-  const queryResult = decodeFormSubmissionResultFromQuery(req.query);
+  const queryResult = decodeFormSubmissionResultFromQuery({ query: req.query, keys: FORM_RESULT_QUERY_KEYS });
   const flash = decodeFormFlashCookieValue({ raw: readRequestCookie({ request: req, name: FORM_FLASH_COOKIE_NAME }) });
   if (flash) clearFormFlashCookie(req, res);
   const result = mergeFormFlashIntoResult({ result: queryResult, flash });

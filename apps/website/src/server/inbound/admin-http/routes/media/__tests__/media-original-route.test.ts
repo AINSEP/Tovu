@@ -216,6 +216,7 @@ test("media original route: Range requests — full body without a Range header,
   const clampedTail = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie, Range: "bytes=15-9999" } });
   assert.equal(clampedTail.status, 206);
   assert.equal(clampedTail.headers.get("content-range"), "bytes 15-19/20");
+  assert.equal(clampedTail.headers.get("content-length"), "5");
   assert.equal(await clampedTail.text(), "FGHIJ");
 
   const suffix = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie, Range: "bytes=-5" } });

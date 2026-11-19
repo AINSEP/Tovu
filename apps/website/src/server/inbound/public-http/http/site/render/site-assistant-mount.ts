@@ -1,3 +1,4 @@
+import { insertBeforeUncommentedTag } from "@jini-ai/cms/presentation/html";
 import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSelection } from "../site-chat-markup.js";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -54,3 +55,26 @@ export function siteAssistantMarkup({ enabled }: { enabled: SiteChatSelection },
   return renderLazySiteChatMarkup({ enabled: true, variant, assetsReady, mountId: SITE_ASSISTANT_MOUNT_ID })
     ?? { head: "", body: "" };
 }
+
+/**
+ * {@link injectExtraHeadIntoStaticPage}'s sibling for the ADR-054 visitor-chat markup. Every
+ * `renderStaticPage` call site bypasses `pageShell()` (see this file's own module doc), so
+ * `pageShell`'s `siteAssistantMarkup()` splice never runs for a static-tier page unless each bypass
+ * site calls this too — this was the actual gap: `site.assistant.public_enabled` could read `true`
+ * and the pageShell-routed tiers would show the widget while every static-tier page (the home route
+ * when the active theme is `"static"`, a theme's own marketing pages, and a template-picker render)
+ * stayed silently unchanged, because none of them ever called {@link siteAssistantMarkup} at all.
+ *
+ * Same two insertion points `pageShell` itself uses — the stylesheet link immediately before
+ * `</head>`, the mount node + deferred script immediately before `</body>` — just spliced into an
+ * already-complete document instead of built into one. A no-op (returns `html` unchanged) when
+ * `enabled` is `false`, matching {@link siteAssistantMarkup}'s own "disabled emits nothing, not an
+ * inert tag" contract.
+ */
+export function injectSiteAssistantIntoStaticPage({ html, enabled }: { html: string; enabled: SiteChatSelection }, _optional = {}): string {
+  const { head, body } = siteAssistantMarkup({ enabled });
+  if (!head && !body) return html;
+  const withHead = insertBeforeUncommentedTag({ html, tag: "head", markup: head });
+  return insertBeforeUncommentedTag({ html: withHead, tag: "body", markup: body });
+}
+

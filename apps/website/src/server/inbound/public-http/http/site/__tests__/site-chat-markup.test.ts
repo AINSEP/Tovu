@@ -4,7 +4,7 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { createSiteChatAssetReadiness, renderLazySiteChatMarkup } from '../site-chat-markup.js';
 import { renderSite } from '../render-site.js';
-import { injectSiteAssistantIntoStaticPage } from '../render/static-page-injection.js';
+import { injectSiteAssistantIntoStaticPage } from '../render/site-assistant-mount.js';
 import { useSiteChatBuild } from './site-chat.fixture.js';
 
 for (const variant of ['react', 'vanilla'] as const) test(`${variant}: enabled public markup includes only bubble CSS and the tiny loader`, () => {

@@ -19,10 +19,8 @@ import {
 import {
   pageShell,
 } from "../render/document-shell.js";
-import {
-  injectExtraHeadIntoStaticPage,
-  injectSiteAssistantIntoStaticPage,
-} from "../render/static-page-injection.js";
+import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
+import { injectSiteAssistantIntoStaticPage } from "../render/site-assistant-mount.js";
 
 process.env.TOVU_THEME_RENDER_TIMEOUT_MS ??= "60000";
 
@@ -433,6 +431,8 @@ test("golden (e): injectExtraHeadIntoStaticPage / injectSiteAssistantIntoStaticP
   pin("inject-assistant:commented-tags", injectSiteAssistantIntoStaticPage({
     html: "<html><head><!-- </head> --></head><body><!-- </body> --></body></html>", enabled: true,
   }));
+  assert.equal(OUT["inject-head:commented-closing-head"],
+    '<html><head><title>T</title><!-- </head> --><meta name="a" content="b"/></head><body></body></html>');
   assert.notEqual(OUT["inject-assistant:on"], OUT["inject-assistant:off"], "assistant markup must be spliced when enabled");
   assert.ok(OUT["inject-head:basic"]!.includes("<title>Contact</title>") && !OUT["inject-head:basic"]!.includes("Theme Title"));
   assert.ok(OUT["inject-head:commented-title-only"]!.includes("<!-- <title>commented</title> -->"), "a commented-out <title> is skipped, not removed");

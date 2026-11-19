@@ -2,7 +2,8 @@ import { createSeoPageHeadHook } from "#src/features/seo/page-head-contributor";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { postPublicPath, urlFor } from "#src/platform/routing/index";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
-import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../../http/site/page-head.js";
+import { foldPageHead, serializeHeadElements } from "@jini-ai/cms/presentation/page-head";
+import type { PageHeadContext } from "@jini-ai/cms/seo";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resolveSiteTitleForRender } from "./render-context/site-title.js";
 
@@ -64,6 +65,6 @@ export async function buildExtraHead({ deps, route, siteTitle, post }: { deps: R
     rootSlug: deps.seoDeps.rootSlug,
     siteTitle: () => resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true }),
   });
-  const elements = await foldPageHead(ctx, { contributors: [seoHook, ...(deps.pageHeadContributors ?? [])] });
+  const elements = await foldPageHead({ context: ctx }, { contributors: [seoHook, ...(deps.pageHeadContributors ?? [])] });
   return serializeHeadElements({ elements });
 }

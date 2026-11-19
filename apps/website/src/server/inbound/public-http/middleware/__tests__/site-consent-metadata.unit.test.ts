@@ -5,7 +5,7 @@ import { JSDOM } from 'jsdom';
 import { renderBanner } from '@jini-ai/cookie-consent/render';
 import { consentDeclarationReadiness } from '#src/features/consent/readiness';
 import { pageShell } from '../../http/site/render/document-shell.js';
-import { serializeHeadElements } from '../../http/site/page-head.js';
+import { serializeHeadElements } from '@jini-ai/cms/presentation/page-head';
 
 function documentWithAssets(head: string): string {
   const assets = renderBanner({ mode: 'jini', client: { contract: 1, policy: 'metadata', regionMode: 'opt-in' }, copy: {} });

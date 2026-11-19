@@ -13,7 +13,7 @@ import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
 import { findPublishedPostBySlug } from '#src/features/post/post';
 import { isBarePageChoice } from '#src/features/theme/static-render';
-import { isFullHtmlDocument } from '../../inbound/public-http/http/site/bare-page.js';
+import { isFullHtmlDocument } from '@jini-ai/cms/presentation/html';
 import type { ConsentProblem } from '#src/features/consent/validation';
 import { NO_THEME_ID, resolveActiveTheme } from '#src/features/theme/active-theme';
 

@@ -11,7 +11,7 @@ import { ImageSourceCorruptError, ImageTransformUnavailableError } from "@jini-a
 import { isTrashed, type PostRecord } from "#src/features/post/post";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
 import type { MemberAccessResolver } from "#src/features/members/index";
-import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
+import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { SVG_CONTENT_SECURITY_POLICY, DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";

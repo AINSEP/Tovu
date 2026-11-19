@@ -6,7 +6,7 @@ import { resolveRenderThemeId } from "../../middleware/render-theme-override.js"
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
 import { renderSite } from "../../http/site/render-site.js";
 import type { SiteProduct } from "../../http/site/render-context.js";
-import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
+import { markOffSiteLinksOpenInNewTab } from "@jini-ai/cms/presentation/html";
 import { resolveSiteAssistantWidgetForRequest } from "./pages/render-context/widgets.js";
 import { CACHE_CONTROL_PRIVATE_STATIC_EXPORT, isStaticExportRequest } from "./pages/request-policy.js";
 import { resolveSiteTitleForRender } from "./pages/render-context/site-title.js";

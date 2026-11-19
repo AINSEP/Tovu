@@ -4,10 +4,8 @@ import test from "node:test";
 import {
   foldPageHead as fold,
   serializeHeadElements,
-  type HeadElement,
-  type PageHeadContext,
-  type PageHeadHook,
-} from "../page-head.js";
+} from "@jini-ai/cms/presentation/page-head";
+import type { HeadElement, PageHeadContext, PageHeadHook } from "@jini-ai/cms/seo";
 
 /**
  * @file T005 — failing-first certification of `page-head.ts`'s
@@ -26,7 +24,7 @@ const ctx: PageHeadContext = {
 let contributors: PageHeadHook[] = [];
 test.beforeEach(() => { contributors = []; });
 function registerPageHeadContributor(hook: PageHeadHook) { contributors.push(hook); }
-function foldPageHead(ctx: PageHeadContext) { return fold(ctx, { contributors }); }
+function foldPageHead(ctx: PageHeadContext) { return fold({ context: ctx }, { contributors }); }
 
 function hook(priority: number, elements: HeadElement[], opts: { throws?: boolean } = {}): PageHeadHook {
   return {
@@ -76,7 +74,9 @@ test("foldPageHead: same-priority collision — the later-registered contributor
 test("foldPageHead: equal contributor priorities preserve registration order for collisions", async () => {
   registerPageHeadContributor(hook(10, [{ kind: "title", text: "first", priority: 100 }]));
   registerPageHeadContributor(hook(10, [{ kind: "title", text: "second", priority: 100 }]));
-  assert.deepEqual(await foldPageHead(ctx), [{ kind: "title", text: "second", priority: 100 }]);
+  const result = await foldPageHead(ctx);
+  assert.deepEqual(result, [{ kind: "title", text: "second", priority: 100 }]);
+  assert.equal(serializeHeadElements({ elements: result }), "<title>second</title>");
 });
 
 test("foldPageHead: contributors receive the page context and execute by priority, independently of element order", async () => {

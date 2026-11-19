@@ -19,7 +19,8 @@ import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
-import { decodeFormFlashCookieValue, FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/form-render.js";
+import { decodeFormFlashCookieValue } from "@jini-ai/cms/forms/result-flash";
+import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/form-wire-policy.js";
 
 /**
  * @file Route-level tests for the public `POST /forms/:slug/submit` endpoint (SPEC-010 REQ-05/07,

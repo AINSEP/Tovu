@@ -5,7 +5,8 @@ import type { MemberContext, MemberAccessResolver } from "#src/features/members/
 import { isStandaloneThemePage } from "#src/features/theme/theme-page-eligibility";
 import { type DiscoveredTheme } from "#src/features/theme/theme";
 import { postPublicPath } from "#src/platform/routing/index";
-import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "../../../../http/site/render/static-page-injection.js";
+import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
+import { injectSiteAssistantIntoStaticPage } from "../../../../http/site/render/site-assistant-mount.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resolveSiteTitleForRender } from "../render-context/site-title.js";
 import type { StaticMenuMap } from "../render-context/static-menus.js";

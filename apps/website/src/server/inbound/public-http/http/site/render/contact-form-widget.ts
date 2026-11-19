@@ -1,5 +1,6 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE, stampFormFieldMaxLengths, renderFormSuccessSlot, renderFormErrorSlot } from "../form-render.js";
+import { FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE } from "../form-presentation-assets.js";
+import { stampFormFieldMaxLengths, renderFormSuccessSlot, renderFormErrorSlot } from "../form-render.js";
 import { str, arr } from "./value-readers.js";
 import { renderWidgetPlaceholder } from "./widgets/placeholder.js";
 import { randomUUID } from "node:crypto";

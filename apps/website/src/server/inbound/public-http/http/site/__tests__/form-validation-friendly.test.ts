@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { injectFormSubmissionResultIntoHtml, encodeFormSubmissionResultQuery, decodeFormSubmissionResultFromQuery } from "../form-render.js";
+import { FORM_RESULT_QUERY_KEYS } from "../form-wire-policy.js";
+import { injectFormSubmissionResultIntoHtml } from "../form-render.js";
+import { encodeFormSubmissionResultQuery, decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-query";
 import { FORM_VALIDATION_COPY } from "../form-validation-i18n.js";
 
 test("native HTML validation uses authored labels and sentences, with localized document language", () => {
@@ -10,8 +12,8 @@ test("native HTML validation uses authored labels and sentences, with localized 
   const spanish = injectFormSubmissionResultIntoHtml({ html: `<html lang="es-MX">${form}</html>`, result });
   assert.match(spanish, /Introduce Your email\./);
   assert.doesNotMatch(spanish, /internal_email: required|Please check your answers/);
-  const params = encodeFormSubmissionResultQuery(result);
-  assert.deepEqual(decodeFormSubmissionResultFromQuery(Object.fromEntries(params)), result);
+  const params = encodeFormSubmissionResultQuery({ result, keys: FORM_RESULT_QUERY_KEYS });
+  assert.deepEqual(decodeFormSubmissionResultFromQuery({ query: Object.fromEntries(params), keys: FORM_RESULT_QUERY_KEYS }), result);
 });
 
 test("validation safely escapes labels, never echoes forged error text or unknown machine field ids", () => {

@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
-import { isFullHtmlDocument, renderBareEntryDocument } from "../bare-page.js";
+import { isFullHtmlDocument } from "@jini-ai/cms/presentation/html";
+import { renderBareEntryDocument } from "../bare-page.js";
 
 /**
  * @file S3 (`no-template-bare-plan-2026-09-23.md`) — certifies `bare-page.ts`, the renderer for a
