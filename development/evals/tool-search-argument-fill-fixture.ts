@@ -166,7 +166,230 @@ function main(): void {
   );
 
   const order = shuffledIndices(HELD_OUT_V2.length, SHUFFLE_SEED);
-  const cases = order.map((i, position) => {
+  const cases = buildCases(order, readOnlyOf);
+  const affected = cases.filter((c) => c.acceptableResources.length > 0);
+
+  writeFileSync(
+    join(outDir, "afill-key.json"),
+    JSON.stringify({ shuffleSeed: SHUFFLE_SEED, resources, cases, affectedCount: affected.length }, null, 2),
+  );
+
+  // ---- Shared query block --------------------------------------------------------------------
+  const queryBlock = cases.map((c) => `${c.caseNo}. ${c.query}`).join("\n");
+
+  // ---- The fat tool's description: mechanical, labelled by resource key -----------------------
+  const fatDescription = writeFatReadFixtures({ resources, membersByResource, plainOf, cases, queryBlock, outDir });
+
+  // ---- Arm C: the card design's counterpart decision, held INFORMATION-SYMMETRIC to arm A ------
+  // Arm A shows the model 28 resources with their own text and asks for a `resource` ARGUMENT.
+  // Arm C shows the model the identical 28 resources with the identical text and asks for a TOOL ID.
+  // The retrieval step is deliberately NOT re-measured here — it is already measured
+  // deterministically for both designs (`tool-search-fat-concat-arm.eval.ts`: D1-strict 85% top-10
+  // on the affected cases, C2 97%). Holding it out is what makes A-vs-C attributable to the shape
+  // of the choice rather than to how the candidates were reached.
+  //
+  // Each card's text is exactly what `describe_tool` returns for the SHIPPED card — the same
+  // stripped member-description concatenation arm A folds into its labelled fat description.
+  writeCardAndVerbReadFixtures({ resources, membersByResource, plainOf, cases, queryBlock, outDir });
+
+
+  // ---- The DELETE family: the same three shapes, on a tool whose false fill destroys something ---
+  //
+  // `ADS-memory/reports/2026-09-08-content-delete-eval.md` §2.6 point 3 states the gap this whole
+  // eval exists to close, in its own words: A-concat's 100% "is scored a hit whenever the single
+  // `content_delete` entry ranks, with no requirement that the model would go on to fill the
+  // `resource` argument correctly — a cost this eval, like theirs, defers entirely to
+  // argument-filling and does not measure." These three arms measure it for that family.
+  //
+  // Why it needs its own arms rather than an inference from the read family: a false fill on a READ
+  // returns the wrong rows and wastes a turn. A false fill on a DELETE destroys the wrong thing. The
+  // read family's out-of-scope set is 75 mutation requests aimed at a read tool; the delete family's
+  // is 122 non-delete requests aimed at a delete tool — the direction that actually carries risk.
+  //
+  // Family and card keys are taken verbatim from that report's §1.2 scope calls and §4.1 card list,
+  // NOT re-derived here: the scope calls are its ruling to make, and re-deriving them would silently
+  // re-litigate a decision this measurement is supposed to take as given.
+  writeDeleteArgumentFillFixtures({ preIds, order, outDir, readOnlyOf, plainOf, queryBlock });
+  console.log(`resources derived: ${resources.length} (verified identical to the shipped card set)`);
+  console.log(`cases: ${cases.length}   in-scope for content_read: ${affected.length}   out-of-scope: ${cases.length - affected.length}`);
+  console.log(`fat description words: ${fatDescription.split(/\s+/).filter(Boolean).length}`);
+  console.log(`wrote payloads + key to ${outDir}`);
+}
+
+function writeFatReadFixtures({ resources, membersByResource, plainOf, cases, queryBlock, outDir }: { resources: string[]; membersByResource: Map<string, string[]>; plainOf: (id: string) => string; cases: ReturnType<typeof buildCases>; queryBlock: string; outDir: string }) {
+  const fatBody = resources
+    .map((r) => `- ${r}: ${membersByResource.get(r)!.map(plainOf).join(" ")}`)
+    .join("\n");
+  const fatDescription = `Reads a named collection of records this site holds, or one record from it by id. ` +
+    `resource names WHICH kind of thing to read. What each resource covers, in that resource's own words:\n${fatBody}`;
+
+  const schemaFor = createSchemaFor(resources);
+
+  const fatPayload = createFatPayload({ fatDescription, schemaFor, cases, queryBlock });
+
+  writeFileSync(join(outDir, "afill-arm-A-fat-enum.md"), fatPayload("A (fat entry, closed enum)", true));
+
+  // ---- Arm A2: arm A's decision with arm C's FRAMING ------------------------------------------
+  // Arm A's prompt pre-commits the model ("You have decided to call the tool content_read"), which
+  // is a fair model of an agent that has just retrieved the fat entry — but it is NOT symmetric with
+  // arm C, which offers the tools and lets the model decline. Left unseparated, every abstention
+  // difference between A and C is attributable to my own prompt rather than to either design. A2
+  // holds the design fixed and adopts C's framing verbatim, so A-vs-A2 isolates the framing and
+  // A2-vs-C isolates the design.
+  const a2Payload = buildA2Payload({ fatDescription, schemaFor, cases, queryBlock });
+  writeFileSync(join(outDir, "afill-arm-A2-fat-enum-neutral.md"), a2Payload);
+
+  writeFileSync(join(outDir, "afill-arm-B-fat-free.md"), fatPayload("B (fat entry, free-string resource)", false));
+  return fatDescription;
+}
+
+
+function writeCardAndVerbReadFixtures({ resources, membersByResource, plainOf, cases, queryBlock, outDir }: { resources: string[]; membersByResource: Map<string, string[]>; plainOf: (id: string) => string; cases: ReturnType<typeof buildCases>; queryBlock: string; outDir: string }) {
+  const cardBlock = resources
+    .map((r) => `- content_read.${r}: ${membersByResource.get(r)!.map(plainOf).join(" ")}`)
+    .join("\n");
+
+  const cardPayload = buildCardPayload(cardBlock, cases, queryBlock);
+  writeFileSync(join(outDir, "afill-arm-C-card-pick.md"), cardPayload);
+
+  // ---- Arms D and E: the 2x2 that separates GRANULARITY from VERB-LABELLING -------------------
+  // A2 (one fat entry) false-fills on out-of-scope requests where C (28 cards) abstains. Two
+  // mechanisms could produce that and the A2-vs-C contrast cannot tell them apart:
+  //   (i)  GRANULARITY — one option that covers everything invites being applied to everything;
+  //   (ii) VERB-LABELLING — every card id the model must type contains the word `content_read`,
+  //        whereas the fat entry's enum values are bare resource NOUNS with no verb attached, so
+  //        choosing among them answers "what is this request ABOUT", not "what should I DO".
+  // D holds granularity at 28 and STRIPS the verb (bare-noun tool ids). E holds granularity at 1
+  // and ADDS the verb (enum values prefixed `read_`). Whichever variable moves the abstention rate
+  // is the mechanism.
+  const bareCardBlock = resources
+    .map((r) => `- ${r}: ${membersByResource.get(r)!.map(plainOf).join(" ")}`)
+    .join("\n");
+
+  const barePayload = buildBarePayload(bareCardBlock, cases, queryBlock);
+  writeFileSync(join(outDir, "afill-arm-D-bare-noun-cards.md"), barePayload);
+
+  const verbResources = resources.map((r) => `read_${r}`);
+  const verbFatBody = resources
+    .map((r) => `- read_${r}: ${membersByResource.get(r)!.map(plainOf).join(" ")}`)
+    .join("\n");
+  const verbFatDescription = `Reads a named collection of records this site holds, or one record from it by id. ` +
+    `resource names WHICH kind of thing to read. What each resource covers, in that resource's own words:\n${verbFatBody}`;
+  const verbSchema = buildVerbSchema(verbResources);
+
+  const verbPayload = buildVerbPayload({ verbFatDescription, verbSchema, cases, queryBlock });
+  writeFileSync(join(outDir, "afill-arm-E-fat-verb-enum.md"), verbPayload);
+}
+
+
+function writeDeleteArgumentFillFixtures({ preIds, order, outDir, readOnlyOf, plainOf, queryBlock }: { preIds: Map<string, Descriptor>; order: number[]; outDir: string; readOnlyOf: Map<string, boolean>; plainOf: (id: string) => string; queryBlock: string }) {
+  const DELETE_FAMILY: readonly (readonly [string, string])[] = buildDELETE_FAMILY();
+  const missingDelete = DELETE_FAMILY.filter(([, id]) => !preIds.has(id)).map(([, id]) => id);
+  if (missingDelete.length > 0) throw new Error(`delete-family ids absent from the catalog: ${missingDelete.join(", ")}`);
+
+  const deleteKeys = DELETE_FAMILY.map(([key]) => key);
+  const deleteCases = buildDeleteCases(order, DELETE_FAMILY);
+  writeFileSync(
+    join(outDir, "afill-delete-key.json"),
+    JSON.stringify(
+      {
+        shuffleSeed: SHUFFLE_SEED,
+        resources: deleteKeys,
+        cases: deleteCases.map((c) => ({
+          ...c,
+          alsoAcceptable: [],
+          acceptableShippedIds: [],
+          sourceIndex: 0,
+          // Classified from the ground-truth tool's own readOnly flag, exactly as the read family is
+          // — NOT hardcoded to "mutation". Hardcoding it made the split table read "read n=0", which
+          // is false: plenty of the 122 out-of-scope delete cases wanted a read.
+          truthKind: [c.expect].every((id) => readOnlyOf.get(id) === true) ? "read" : "mutation",
+        })),
+        affectedCount: deleteCases.filter((c) => c.acceptableResources.length > 0).length,
+      },
+      null,
+      2
+    )
+  );
+
+  const deleteBody = (label: (key: string) => string) => DELETE_FAMILY.map(([key, id]) => `- ${label(key)}: ${plainOf(id)}`).join("\n");
+  const deleteDescription = (label: (key: string) => string) => `Deletes, trashes, or tombstones one record this site holds. resource names WHICH kind of thing to ` +
+    `delete. What each resource covers, in that resource's own words:\n${deleteBody(label)}`;
+  const deleteSchema = createDeleteSchema();
+
+  const deleteFatPayload = createDeleteFatPayload({ deleteDescription, deleteSchema, deleteKeys, deleteCases, queryBlock });
+
+  writeFileSync(join(outDir, "afill-arm-F-delete-fat-noun.md"), deleteFatPayload("arm F (content_delete, bare-noun enum)", (k) => k));
+  writeFileSync(join(outDir, "afill-arm-G-delete-fat-verb.md"), deleteFatPayload("arm G (content_delete, verb-carrying enum)", (k) => `delete_${k}`));
+
+  const deleteCardPayload = buildDeleteCardPayload({ DELETE_FAMILY, plainOf, deleteCases, queryBlock });
+  writeFileSync(join(outDir, "afill-arm-H-delete-cards.md"), deleteCardPayload);
+
+  console.log(`delete family: ${DELETE_FAMILY.length} resources; in-scope cases: ${deleteCases.filter((c) => c.acceptableResources.length > 0).length}`);
+}
+
+
+function buildDeleteCases(order: number[], DELETE_FAMILY: readonly (readonly [string, string])[]) {
+  return order.map((i, position) => {
+    const c = HELD_OUT_V2[i]!;
+    const truthIds = [c.expect, ...(c.alsoAcceptable ?? [])];
+    return {
+      caseNo: position + 1,
+      query: c.query,
+      expect: c.expect,
+      acceptableResources: [...new Set(DELETE_FAMILY.filter(([, id]) => truthIds.includes(id)).map(([key]) => key))].sort(),
+    };
+  });
+}
+
+function buildDELETE_FAMILY() {
+  return [
+    ["content_post", "content_post_delete"],
+    ["media_asset", "media_trash_asset"],
+    ["comment", "comments_trash_comment"],
+    ["widget_instance", "widgets_trash_instance"],
+    ["theme_file", "theme_trash_file"],
+    ["redirect", "redirects_tombstone"],
+    ["collection_content_type", "collections_content_type_tombstone"],
+    ["webhook_subscription", "webhooks_delete_subscription"],
+  ];
+}
+
+function buildVerbSchema(verbResources: string[]) {
+  return JSON.stringify(
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["resource"],
+      properties: {
+        resource: { type: "string", enum: verbResources, description: "Which kind of thing to read." },
+        id: { type: "string", description: "Optional. The single record's own id. Omit to list the whole collection." },
+      },
+    },
+    null,
+    2,
+  );
+}
+
+function createDeleteSchema() {
+  return (values: readonly string[]) =>
+    JSON.stringify(
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["resource", "id"],
+        properties: {
+          resource: { type: "string", enum: values, description: "Which kind of thing to delete." },
+          id: { type: "string", minLength: 1, description: "The record's own id." },
+        },
+      },
+      null,
+      2,
+    );
+}
+
+function buildCases(order: number[], readOnlyOf: Map<string, boolean>) {
+  return order.map((i, position) => {
     const c = HELD_OUT_V2[i]!;
     const truthIds = [c.expect, ...(c.alsoAcceptable ?? [])];
     const inScope = truthIds.filter((id) => TIER1_CLEAN.includes(id));
@@ -186,25 +409,10 @@ function main(): void {
       truthKind: truthIds.every((id) => readOnlyOf.get(id) === true) ? "read" : "mutation",
     };
   });
-  const affected = cases.filter((c) => c.acceptableResources.length > 0);
+}
 
-  writeFileSync(
-    join(outDir, "afill-key.json"),
-    JSON.stringify({ shuffleSeed: SHUFFLE_SEED, resources, cases, affectedCount: affected.length }, null, 2),
-  );
-
-  // ---- Shared query block --------------------------------------------------------------------
-  const queryBlock = cases.map((c) => `${c.caseNo}. ${c.query}`).join("\n");
-
-  // ---- The fat tool's description: mechanical, labelled by resource key -----------------------
-  const fatBody = resources
-    .map((r) => `- ${r}: ${membersByResource.get(r)!.map(plainOf).join(" ")}`)
-    .join("\n");
-  const fatDescription =
-    `Reads a named collection of records this site holds, or one record from it by id. ` +
-    `resource names WHICH kind of thing to read. What each resource covers, in that resource's own words:\n${fatBody}`;
-
-  const schemaFor = (enumerated: boolean) =>
+function createSchemaFor(resources: string[]) {
+  return (enumerated: boolean) =>
     JSON.stringify(
       {
         type: "object",
@@ -225,8 +433,109 @@ function main(): void {
       null,
       2,
     );
+}
 
-  const fatPayload = (arm: string, enumerated: boolean) => `# Task — arm ${arm}
+function buildDeleteCardPayload({ DELETE_FAMILY, plainOf, deleteCases, queryBlock }: { DELETE_FAMILY: readonly (readonly [string, string])[]; plainOf: (id: string) => string; deleteCases: ReturnType<typeof buildDeleteCases>; queryBlock: string }) {
+  return `# Task — arm H (content_delete as 8 cards)
+
+You are the tool-calling model behind a website admin assistant. A site administrator types a request
+in their own words. Your ONLY job is to decide which tool you would call.
+
+## Available tools
+
+${DELETE_FAMILY.map(([key, id]) => `- content_delete.${key}: ${plainOf(id)}`).join("\n")}
+
+## Instructions
+
+- For EACH of the ${deleteCases.length} numbered requests below, output the single tool id you would call.
+- The id MUST be one of the ids listed above, exactly as written.
+- If none of the tools above serves the request — the thing being asked for is not one of them —
+  output \`NONE\`. Do not force a tool that does not fit.
+- Answer every request independently. Do not assume the answers are evenly distributed across tools,
+  and do not assume any particular number of them are \`NONE\`.
+- Output NOTHING but the answer lines, one per request, in this exact format:
+
+\`\`\`
+1 <tool-id-or-NONE>
+2 <tool-id-or-NONE>
+...
+${deleteCases.length} <tool-id-or-NONE>
+\`\`\`
+
+## Requests
+
+${queryBlock}
+`;
+}
+
+function buildBarePayload(bareCardBlock: string, cases: ReturnType<typeof buildCases>, queryBlock: string) {
+  return `# Task — arm D (28 tools, bare-noun ids)
+
+You are the tool-calling model behind a website admin assistant. A site administrator types a request
+in their own words. Your ONLY job is to decide which tool you would call.
+
+## Available tools
+
+${bareCardBlock}
+
+## Instructions
+
+- For EACH of the ${cases.length} numbered requests below, output the single tool id you would call.
+- The id MUST be one of the ids listed above, exactly as written.
+- If none of the tools above serves the request — the thing being asked for is not one of them —
+  output \`NONE\`. Do not force a tool that does not fit.
+- Answer every request independently. Do not assume the answers are evenly distributed across tools,
+  and do not assume any particular number of them are \`NONE\`.
+- Output NOTHING but the answer lines, one per request, in this exact format:
+
+\`\`\`
+1 <tool-id-or-NONE>
+2 <tool-id-or-NONE>
+...
+${cases.length} <tool-id-or-NONE>
+\`\`\`
+
+## Requests
+
+${queryBlock}
+`;
+}
+
+function buildCardPayload(cardBlock: string, cases: ReturnType<typeof buildCases>, queryBlock: string) {
+  return `# Task — arm C (card design: the same choice, expressed as a tool id)
+
+You are the tool-calling model behind a website admin assistant. A site administrator types a request
+in their own words. Your ONLY job is to decide which tool you would call.
+
+## Available tools
+
+${cardBlock}
+
+## Instructions
+
+- For EACH of the ${cases.length} numbered requests below, output the single tool id you would call.
+- The id MUST be one of the ids listed above, exactly as written.
+- If none of the tools above serves the request — the thing being asked for is not one of them —
+  output \`NONE\`. Do not force a tool that does not fit.
+- Answer every request independently. Do not assume the answers are evenly distributed across tools,
+  and do not assume any particular number of them are \`NONE\`.
+- Output NOTHING but the answer lines, one per request, in this exact format:
+
+\`\`\`
+1 <tool-id-or-NONE>
+2 <tool-id-or-NONE>
+...
+${cases.length} <tool-id-or-NONE>
+\`\`\`
+
+## Requests
+
+${queryBlock}
+`;
+}
+
+function createFatPayload({ fatDescription, schemaFor, cases, queryBlock }: { fatDescription: string; schemaFor: ReturnType<typeof createSchemaFor>; cases: ReturnType<typeof buildCases>; queryBlock: string }) {
+  return (arm: string, enumerated: boolean) => `# Task — arm ${arm}
 
 You are the tool-calling model behind a website admin assistant. A site administrator types a request
 in their own words. You have decided to call the tool \`content_read\`, defined below. Your ONLY job is
@@ -265,302 +574,10 @@ ${cases.length} <resource-or-NONE>
 
 ${queryBlock}
 `;
+}
 
-  writeFileSync(join(outDir, "afill-arm-A-fat-enum.md"), fatPayload("A (fat entry, closed enum)", true));
-
-  // ---- Arm A2: arm A's decision with arm C's FRAMING ------------------------------------------
-  // Arm A's prompt pre-commits the model ("You have decided to call the tool content_read"), which
-  // is a fair model of an agent that has just retrieved the fat entry — but it is NOT symmetric with
-  // arm C, which offers the tools and lets the model decline. Left unseparated, every abstention
-  // difference between A and C is attributable to my own prompt rather than to either design. A2
-  // holds the design fixed and adopts C's framing verbatim, so A-vs-A2 isolates the framing and
-  // A2-vs-C isolates the design.
-  const a2Payload = `# Task — arm A2 (fat entry, closed enum, free to decline)
-
-You are the tool-calling model behind a website admin assistant. A site administrator types a request
-in their own words. Your ONLY job is to decide which tool you would call, and with what arguments.
-
-## Available tools
-
-You have exactly one tool, \`content_read\`.
-
-Description:
-
-${fatDescription}
-
-inputSchema:
-
-\`\`\`json
-${schemaFor(true)}
-\`\`\`
-
-## Instructions
-
-- For EACH of the ${cases.length} numbered requests below, output the single \`resource\` value you would pass
-  to \`content_read\`.
-- The value MUST be one of the enum values in the schema, exactly as written.
-- If \`content_read\` does not serve the request — the thing being asked for is not one of the
-  resources it reads — output \`NONE\`. Do not force a value that does not fit.
-- Answer every request independently. Do not assume the answers are evenly distributed across the
-  enum values, and do not assume any particular number of them are \`NONE\`.
-- Output NOTHING but the answer lines, one per request, in this exact format:
-
-\`\`\`
-1 <resource-or-NONE>
-2 <resource-or-NONE>
-...
-${cases.length} <resource-or-NONE>
-\`\`\`
-
-## Requests
-
-${queryBlock}
-`;
-  writeFileSync(join(outDir, "afill-arm-A2-fat-enum-neutral.md"), a2Payload);
-
-  writeFileSync(join(outDir, "afill-arm-B-fat-free.md"), fatPayload("B (fat entry, free-string resource)", false));
-
-  // ---- Arm C: the card design's counterpart decision, held INFORMATION-SYMMETRIC to arm A ------
-  // Arm A shows the model 28 resources with their own text and asks for a `resource` ARGUMENT.
-  // Arm C shows the model the identical 28 resources with the identical text and asks for a TOOL ID.
-  // The retrieval step is deliberately NOT re-measured here — it is already measured
-  // deterministically for both designs (`tool-search-fat-concat-arm.eval.ts`: D1-strict 85% top-10
-  // on the affected cases, C2 97%). Holding it out is what makes A-vs-C attributable to the shape
-  // of the choice rather than to how the candidates were reached.
-  //
-  // Each card's text is exactly what `describe_tool` returns for the SHIPPED card — the same
-  // stripped member-description concatenation arm A folds into its labelled fat description.
-  const cardBlock = resources
-    .map((r) => `- content_read.${r}: ${membersByResource.get(r)!.map(plainOf).join(" ")}`)
-    .join("\n");
-
-  const cardPayload = `# Task — arm C (card design: the same choice, expressed as a tool id)
-
-You are the tool-calling model behind a website admin assistant. A site administrator types a request
-in their own words. Your ONLY job is to decide which tool you would call.
-
-## Available tools
-
-${cardBlock}
-
-## Instructions
-
-- For EACH of the ${cases.length} numbered requests below, output the single tool id you would call.
-- The id MUST be one of the ids listed above, exactly as written.
-- If none of the tools above serves the request — the thing being asked for is not one of them —
-  output \`NONE\`. Do not force a tool that does not fit.
-- Answer every request independently. Do not assume the answers are evenly distributed across tools,
-  and do not assume any particular number of them are \`NONE\`.
-- Output NOTHING but the answer lines, one per request, in this exact format:
-
-\`\`\`
-1 <tool-id-or-NONE>
-2 <tool-id-or-NONE>
-...
-${cases.length} <tool-id-or-NONE>
-\`\`\`
-
-## Requests
-
-${queryBlock}
-`;
-  writeFileSync(join(outDir, "afill-arm-C-card-pick.md"), cardPayload);
-
-  // ---- Arms D and E: the 2x2 that separates GRANULARITY from VERB-LABELLING -------------------
-  // A2 (one fat entry) false-fills on out-of-scope requests where C (28 cards) abstains. Two
-  // mechanisms could produce that and the A2-vs-C contrast cannot tell them apart:
-  //   (i)  GRANULARITY — one option that covers everything invites being applied to everything;
-  //   (ii) VERB-LABELLING — every card id the model must type contains the word `content_read`,
-  //        whereas the fat entry's enum values are bare resource NOUNS with no verb attached, so
-  //        choosing among them answers "what is this request ABOUT", not "what should I DO".
-  // D holds granularity at 28 and STRIPS the verb (bare-noun tool ids). E holds granularity at 1
-  // and ADDS the verb (enum values prefixed `read_`). Whichever variable moves the abstention rate
-  // is the mechanism.
-  const bareCardBlock = resources
-    .map((r) => `- ${r}: ${membersByResource.get(r)!.map(plainOf).join(" ")}`)
-    .join("\n");
-
-  const barePayload = `# Task — arm D (28 tools, bare-noun ids)
-
-You are the tool-calling model behind a website admin assistant. A site administrator types a request
-in their own words. Your ONLY job is to decide which tool you would call.
-
-## Available tools
-
-${bareCardBlock}
-
-## Instructions
-
-- For EACH of the ${cases.length} numbered requests below, output the single tool id you would call.
-- The id MUST be one of the ids listed above, exactly as written.
-- If none of the tools above serves the request — the thing being asked for is not one of them —
-  output \`NONE\`. Do not force a tool that does not fit.
-- Answer every request independently. Do not assume the answers are evenly distributed across tools,
-  and do not assume any particular number of them are \`NONE\`.
-- Output NOTHING but the answer lines, one per request, in this exact format:
-
-\`\`\`
-1 <tool-id-or-NONE>
-2 <tool-id-or-NONE>
-...
-${cases.length} <tool-id-or-NONE>
-\`\`\`
-
-## Requests
-
-${queryBlock}
-`;
-  writeFileSync(join(outDir, "afill-arm-D-bare-noun-cards.md"), barePayload);
-
-  const verbResources = resources.map((r) => `read_${r}`);
-  const verbFatBody = resources
-    .map((r) => `- read_${r}: ${membersByResource.get(r)!.map(plainOf).join(" ")}`)
-    .join("\n");
-  const verbFatDescription =
-    `Reads a named collection of records this site holds, or one record from it by id. ` +
-    `resource names WHICH kind of thing to read. What each resource covers, in that resource's own words:\n${verbFatBody}`;
-  const verbSchema = JSON.stringify(
-    {
-      type: "object",
-      additionalProperties: false,
-      required: ["resource"],
-      properties: {
-        resource: { type: "string", enum: verbResources, description: "Which kind of thing to read." },
-        id: { type: "string", description: "Optional. The single record's own id. Omit to list the whole collection." },
-      },
-    },
-    null,
-    2,
-  );
-
-  const verbPayload = `# Task — arm E (fat entry, verb-carrying enum, free to decline)
-
-You are the tool-calling model behind a website admin assistant. A site administrator types a request
-in their own words. Your ONLY job is to decide which tool you would call, and with what arguments.
-
-## Available tools
-
-You have exactly one tool, \`content_read\`.
-
-Description:
-
-${verbFatDescription}
-
-inputSchema:
-
-\`\`\`json
-${verbSchema}
-\`\`\`
-
-## Instructions
-
-- For EACH of the ${cases.length} numbered requests below, output the single \`resource\` value you would pass
-  to \`content_read\`.
-- The value MUST be one of the enum values in the schema, exactly as written.
-- If \`content_read\` does not serve the request — the thing being asked for is not one of the
-  resources it reads — output \`NONE\`. Do not force a value that does not fit.
-- Answer every request independently. Do not assume the answers are evenly distributed across the
-  enum values, and do not assume any particular number of them are \`NONE\`.
-- Output NOTHING but the answer lines, one per request, in this exact format:
-
-\`\`\`
-1 <resource-or-NONE>
-2 <resource-or-NONE>
-...
-${cases.length} <resource-or-NONE>
-\`\`\`
-
-## Requests
-
-${queryBlock}
-`;
-  writeFileSync(join(outDir, "afill-arm-E-fat-verb-enum.md"), verbPayload);
-
-
-  // ---- The DELETE family: the same three shapes, on a tool whose false fill destroys something ---
-  //
-  // `ADS-memory/reports/2026-09-08-content-delete-eval.md` §2.6 point 3 states the gap this whole
-  // eval exists to close, in its own words: A-concat's 100% "is scored a hit whenever the single
-  // `content_delete` entry ranks, with no requirement that the model would go on to fill the
-  // `resource` argument correctly — a cost this eval, like theirs, defers entirely to
-  // argument-filling and does not measure." These three arms measure it for that family.
-  //
-  // Why it needs its own arms rather than an inference from the read family: a false fill on a READ
-  // returns the wrong rows and wastes a turn. A false fill on a DELETE destroys the wrong thing. The
-  // read family's out-of-scope set is 75 mutation requests aimed at a read tool; the delete family's
-  // is 122 non-delete requests aimed at a delete tool — the direction that actually carries risk.
-  //
-  // Family and card keys are taken verbatim from that report's §1.2 scope calls and §4.1 card list,
-  // NOT re-derived here: the scope calls are its ruling to make, and re-deriving them would silently
-  // re-litigate a decision this measurement is supposed to take as given.
-  const DELETE_FAMILY: readonly (readonly [string, string])[] = [
-    ["content_post", "content_post_delete"],
-    ["media_asset", "media_trash_asset"],
-    ["comment", "comments_trash_comment"],
-    ["widget_instance", "widgets_trash_instance"],
-    ["theme_file", "theme_trash_file"],
-    ["redirect", "redirects_tombstone"],
-    ["collection_content_type", "collections_content_type_tombstone"],
-    ["webhook_subscription", "webhooks_delete_subscription"],
-  ];
-  const missingDelete = DELETE_FAMILY.filter(([, id]) => !preIds.has(id)).map(([, id]) => id);
-  if (missingDelete.length > 0) throw new Error(`delete-family ids absent from the catalog: ${missingDelete.join(", ")}`);
-
-  const deleteKeys = DELETE_FAMILY.map(([key]) => key);
-  const deleteCases = order.map((i, position) => {
-    const c = HELD_OUT_V2[i]!;
-    const truthIds = [c.expect, ...(c.alsoAcceptable ?? [])];
-    return {
-      caseNo: position + 1,
-      query: c.query,
-      expect: c.expect,
-      acceptableResources: [...new Set(DELETE_FAMILY.filter(([, id]) => truthIds.includes(id)).map(([key]) => key))].sort(),
-    };
-  });
-  writeFileSync(
-    join(outDir, "afill-delete-key.json"),
-    JSON.stringify(
-      {
-        shuffleSeed: SHUFFLE_SEED,
-        resources: deleteKeys,
-        cases: deleteCases.map((c) => ({
-          ...c,
-          alsoAcceptable: [],
-          acceptableShippedIds: [],
-          sourceIndex: 0,
-          // Classified from the ground-truth tool's own readOnly flag, exactly as the read family is
-          // — NOT hardcoded to "mutation". Hardcoding it made the split table read "read n=0", which
-          // is false: plenty of the 122 out-of-scope delete cases wanted a read.
-          truthKind: [c.expect].every((id) => readOnlyOf.get(id) === true) ? "read" : "mutation",
-        })),
-        affectedCount: deleteCases.filter((c) => c.acceptableResources.length > 0).length,
-      },
-      null,
-      2,
-    ),
-  );
-
-  const deleteBody = (label: (key: string) => string) =>
-    DELETE_FAMILY.map(([key, id]) => `- ${label(key)}: ${plainOf(id)}`).join("\n");
-  const deleteDescription = (label: (key: string) => string) =>
-    `Deletes, trashes, or tombstones one record this site holds. resource names WHICH kind of thing to ` +
-    `delete. What each resource covers, in that resource's own words:\n${deleteBody(label)}`;
-  const deleteSchema = (values: readonly string[]) =>
-    JSON.stringify(
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["resource", "id"],
-        properties: {
-          resource: { type: "string", enum: values, description: "Which kind of thing to delete." },
-          id: { type: "string", minLength: 1, description: "The record's own id." },
-        },
-      },
-      null,
-      2,
-    );
-
-  const deleteFatPayload = (arm: string, label: (key: string) => string) => `# Task — ${arm}
+function createDeleteFatPayload({ deleteDescription, deleteSchema, deleteKeys, deleteCases, queryBlock }: { deleteDescription: (label: (key: string) => string) => string; deleteSchema: ReturnType<typeof createDeleteSchema>; deleteKeys: string[]; deleteCases: ReturnType<typeof buildDeleteCases>; queryBlock: string }) {
+  return (arm: string, label: (key: string) => string) => `# Task — ${arm}
 
 You are the tool-calling model behind a website admin assistant. A site administrator types a request
 in their own words. Your ONLY job is to decide which tool you would call, and with what arguments.
@@ -601,47 +618,94 @@ ${deleteCases.length} <resource-or-NONE>
 
 ${queryBlock}
 `;
+}
 
-  writeFileSync(join(outDir, "afill-arm-F-delete-fat-noun.md"), deleteFatPayload("arm F (content_delete, bare-noun enum)", (k) => k));
-  writeFileSync(join(outDir, "afill-arm-G-delete-fat-verb.md"), deleteFatPayload("arm G (content_delete, verb-carrying enum)", (k) => `delete_${k}`));
-
-  const deleteCardPayload = `# Task — arm H (content_delete as 8 cards)
+function buildVerbPayload({ verbFatDescription, verbSchema, cases, queryBlock }: { verbFatDescription: string; verbSchema: ReturnType<typeof buildVerbSchema>; cases: ReturnType<typeof buildCases>; queryBlock: string }) {
+  return `# Task — arm E (fat entry, verb-carrying enum, free to decline)
 
 You are the tool-calling model behind a website admin assistant. A site administrator types a request
-in their own words. Your ONLY job is to decide which tool you would call.
+in their own words. Your ONLY job is to decide which tool you would call, and with what arguments.
 
 ## Available tools
 
-${DELETE_FAMILY.map(([key, id]) => `- content_delete.${key}: ${plainOf(id)}`).join("\n")}
+You have exactly one tool, \`content_read\`.
+
+Description:
+
+${verbFatDescription}
+
+inputSchema:
+
+\`\`\`json
+${verbSchema}
+\`\`\`
 
 ## Instructions
 
-- For EACH of the ${deleteCases.length} numbered requests below, output the single tool id you would call.
-- The id MUST be one of the ids listed above, exactly as written.
-- If none of the tools above serves the request — the thing being asked for is not one of them —
-  output \`NONE\`. Do not force a tool that does not fit.
-- Answer every request independently. Do not assume the answers are evenly distributed across tools,
-  and do not assume any particular number of them are \`NONE\`.
+- For EACH of the ${cases.length} numbered requests below, output the single \`resource\` value you would pass
+  to \`content_read\`.
+- The value MUST be one of the enum values in the schema, exactly as written.
+- If \`content_read\` does not serve the request — the thing being asked for is not one of the
+  resources it reads — output \`NONE\`. Do not force a value that does not fit.
+- Answer every request independently. Do not assume the answers are evenly distributed across the
+  enum values, and do not assume any particular number of them are \`NONE\`.
 - Output NOTHING but the answer lines, one per request, in this exact format:
 
 \`\`\`
-1 <tool-id-or-NONE>
-2 <tool-id-or-NONE>
+1 <resource-or-NONE>
+2 <resource-or-NONE>
 ...
-${deleteCases.length} <tool-id-or-NONE>
+${cases.length} <resource-or-NONE>
 \`\`\`
 
 ## Requests
 
 ${queryBlock}
 `;
-  writeFileSync(join(outDir, "afill-arm-H-delete-cards.md"), deleteCardPayload);
+}
 
-  console.log(`delete family: ${DELETE_FAMILY.length} resources; in-scope cases: ${deleteCases.filter((c) => c.acceptableResources.length > 0).length}`);
-  console.log(`resources derived: ${resources.length} (verified identical to the shipped card set)`);
-  console.log(`cases: ${cases.length}   in-scope for content_read: ${affected.length}   out-of-scope: ${cases.length - affected.length}`);
-  console.log(`fat description words: ${fatDescription.split(/\s+/).filter(Boolean).length}`);
-  console.log(`wrote payloads + key to ${outDir}`);
+function buildA2Payload({ fatDescription, schemaFor, cases, queryBlock }: { fatDescription: string; schemaFor: ReturnType<typeof createSchemaFor>; cases: ReturnType<typeof buildCases>; queryBlock: string }) {
+  return `# Task — arm A2 (fat entry, closed enum, free to decline)
+
+You are the tool-calling model behind a website admin assistant. A site administrator types a request
+in their own words. Your ONLY job is to decide which tool you would call, and with what arguments.
+
+## Available tools
+
+You have exactly one tool, \`content_read\`.
+
+Description:
+
+${fatDescription}
+
+inputSchema:
+
+\`\`\`json
+${schemaFor(true)}
+\`\`\`
+
+## Instructions
+
+- For EACH of the ${cases.length} numbered requests below, output the single \`resource\` value you would pass
+  to \`content_read\`.
+- The value MUST be one of the enum values in the schema, exactly as written.
+- If \`content_read\` does not serve the request — the thing being asked for is not one of the
+  resources it reads — output \`NONE\`. Do not force a value that does not fit.
+- Answer every request independently. Do not assume the answers are evenly distributed across the
+  enum values, and do not assume any particular number of them are \`NONE\`.
+- Output NOTHING but the answer lines, one per request, in this exact format:
+
+\`\`\`
+1 <resource-or-NONE>
+2 <resource-or-NONE>
+...
+${cases.length} <resource-or-NONE>
+\`\`\`
+
+## Requests
+
+${queryBlock}
+`;
 }
 
 // Only build fixtures when invoked directly; `tool-search-argument-fill.eval.ts` imports

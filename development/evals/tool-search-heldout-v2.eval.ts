@@ -118,12 +118,7 @@ function run(): void {
 
   // ---- Integrity. A bad id silently scores as a permanent miss, which reads as a retrieval failure
   // ---- rather than the data bug it actually is. Surface it instead.
-  const badIds: string[] = [];
-  for (const c of HELD_OUT_V2) {
-    for (const id of [c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor)) {
-      if (!realIds.has(id)) badIds.push(`${id} (case: "${c.query}")`);
-    }
-  }
+  const badIds: string[] = collectInvalidHeldOutToolIds(realIds);
   const v1 = new Set(V1_QUERIES.map((q) => q.toLowerCase().trim()));
   const overlaps = HELD_OUT_V2.filter((c) => v1.has(c.query.toLowerCase().trim())).map((c) => c.query);
   const dupes = HELD_OUT_V2.map((c) => c.query.toLowerCase().trim()).filter((q, i, a) => a.indexOf(q) !== i);
@@ -165,6 +160,21 @@ function run(): void {
   }
 
   // Paired McNemar at every cutoff: prompt-form vs the shipped-keywords baseline, same cases.
+  reportHeldOutPairedSignificance(configs, n);
+}
+
+function collectInvalidHeldOutToolIds(realIds: Set<unknown>) {
+  const badIds: string[] = [];
+  for (const c of HELD_OUT_V2) {
+    for (const id of [c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor)) {
+      if (!realIds.has(id)) badIds.push(`${id} (case: "${c.query}")`);
+    }
+  }
+  return badIds;
+}
+
+
+function reportHeldOutPairedSignificance(configs: readonly [{ readonly name: "no keywords (pre-fix index)"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "shipped keywords (raw query)"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "+ HyDE via prompt (free)"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }], n: number) {
   const base = configs[1]!.vecs;
   const prompt = configs[2]!.vecs;
   console.log(`\n  PAIRED McNemar exact test — HyDE via prompt vs. shipped keywords (same ${n} cases):\n`);
@@ -173,7 +183,7 @@ function run(): void {
     let c = 0;
     let both = 0;
     let neither = 0;
-    for (let i = 0; i < n; i++) {
+    for (let i = 0;i < n;i++) {
       const x = base[k][i]!;
       const y = prompt[k][i]!;
       if (x && !y) b++;
@@ -183,10 +193,11 @@ function run(): void {
     }
     const p = mcnemarExactP(b, c);
     console.log(
-      `     ${label(k).padEnd(10)} both=${String(both).padStart(3)} baseline-only=${String(b).padStart(3)} prompt-only=${String(c).padStart(3)} neither=${String(neither).padStart(3)}   exact p=${p < 0.0001 ? p.toExponential(2) : p.toFixed(4)}   ${p < 0.05 ? "SIGNIFICANT at .05" : "not significant"}`,
+      `     ${label(k).padEnd(10)} both=${String(both).padStart(3)} baseline-only=${String(b).padStart(3)} prompt-only=${String(c).padStart(3)} neither=${String(neither).padStart(3)}   exact p=${p < 0.0001 ? p.toExponential(2) : p.toFixed(4)}   ${p < 0.05 ? "SIGNIFICANT at .05" : "not significant"}`
     );
   }
   console.log("");
 }
+
 
 run();

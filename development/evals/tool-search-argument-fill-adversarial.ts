@@ -124,7 +124,54 @@ function main(): void {
   );
 
   const body = (label: (k: string) => string) => DELETE_FAMILY.map(([k, id]) => `- ${label(k)}: ${plainOf(id)}`).join("\n");
-  const fatPayload = (arm: string, label: (k: string) => string) => `# Task — ${arm}
+  const fatPayload = createFatPayload(body, queryBlock);
+
+  writeFileSync(join(outDir, "afill-adv-arm-J-fat-noun.md"), fatPayload("arm J (content_delete, bare-noun enum, adversarial set)", (k) => k));
+  writeFileSync(join(outDir, "afill-adv-arm-K-fat-verb.md"), fatPayload("arm K (content_delete, verb-carrying enum, adversarial set)", (k) => `delete_${k}`));
+
+  writeAdversarialCardPayload(outDir, plainOf, queryBlock);
+
+  console.log(`adversarial delete set: ${CASES.length} cases (${CASES.filter((c) => c.bait !== null).length} bait, ${CASES.filter((c) => c.bait === null).length} control)`);
+  console.log(`wrote payloads + key to ${outDir}`);
+}
+
+function writeAdversarialCardPayload(outDir: string, plainOf: (id: string) => string, queryBlock: string) {
+  writeFileSync(
+    join(outDir, "afill-adv-arm-L-cards.md"),
+    `# Task — arm L (content_delete as 8 cards, adversarial set)
+
+You are the tool-calling model behind a website admin assistant. A site administrator types a request
+in their own words. Your ONLY job is to decide which tool you would call.
+
+## Available tools
+
+${DELETE_FAMILY.map(([k, id]) => `- content_delete.${k}: ${plainOf(id)}`).join("\n")}
+
+## Instructions
+
+- For EACH of the ${CASES.length} numbered requests below, output the single tool id you would call.
+- The id MUST be one of the ids listed above, exactly as written.
+- If none of the tools above serves the request, output \`NONE\`.
+- Answer every request independently.
+- Output NOTHING but the answer lines, one per request, in this exact format:
+
+\`\`\`
+1 <tool-id-or-NONE>
+2 <tool-id-or-NONE>
+...
+${CASES.length} <tool-id-or-NONE>
+\`\`\`
+
+## Requests
+
+${queryBlock}
+`
+  );
+}
+
+
+function createFatPayload(body: (label: (k: string) => string) => string, queryBlock: string) {
+  return (arm: string, label: (k: string) => string) => `# Task — ${arm}
 
 You are the tool-calling model behind a website admin assistant. A site administrator types a request
 in their own words. Your ONLY job is to decide which tool you would call, and with what arguments.
@@ -176,44 +223,6 @@ ${CASES.length} <resource-or-NONE>
 
 ${queryBlock}
 `;
-
-  writeFileSync(join(outDir, "afill-adv-arm-J-fat-noun.md"), fatPayload("arm J (content_delete, bare-noun enum, adversarial set)", (k) => k));
-  writeFileSync(join(outDir, "afill-adv-arm-K-fat-verb.md"), fatPayload("arm K (content_delete, verb-carrying enum, adversarial set)", (k) => `delete_${k}`));
-
-  writeFileSync(
-    join(outDir, "afill-adv-arm-L-cards.md"),
-    `# Task — arm L (content_delete as 8 cards, adversarial set)
-
-You are the tool-calling model behind a website admin assistant. A site administrator types a request
-in their own words. Your ONLY job is to decide which tool you would call.
-
-## Available tools
-
-${DELETE_FAMILY.map(([k, id]) => `- content_delete.${k}: ${plainOf(id)}`).join("\n")}
-
-## Instructions
-
-- For EACH of the ${CASES.length} numbered requests below, output the single tool id you would call.
-- The id MUST be one of the ids listed above, exactly as written.
-- If none of the tools above serves the request, output \`NONE\`.
-- Answer every request independently.
-- Output NOTHING but the answer lines, one per request, in this exact format:
-
-\`\`\`
-1 <tool-id-or-NONE>
-2 <tool-id-or-NONE>
-...
-${CASES.length} <tool-id-or-NONE>
-\`\`\`
-
-## Requests
-
-${queryBlock}
-`,
-  );
-
-  console.log(`adversarial delete set: ${CASES.length} cases (${CASES.filter((c) => c.bait !== null).length} bait, ${CASES.filter((c) => c.bait === null).length} control)`);
-  console.log(`wrote payloads + key to ${outDir}`);
 }
 
 main();

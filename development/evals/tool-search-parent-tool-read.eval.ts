@@ -269,6 +269,16 @@ function run(): void {
   console.log(`  ${"BASELINE (177 tools, shipped)".padEnd(34)}${CUTOFFS.map((k) => pct(baseVecs[k].filter(Boolean).length, n)).join("")}`);
 
   const results: { name: string; vecs: Record<Cutoff, boolean[]> }[] = [];
+  scoreReadCollapseVariants({ arms, all, results, n });
+
+  // ---- Paired McNemar against the baseline, same 130 cases, so the delta is attributable.
+  reportReadCollapseSignificance(results, n, baseVecs);
+
+  // ---- Where the collapsed arm actually loses, on the cases the collapse is supposed to serve.
+  reportReadCollapseCoverage(baseVecs, results);
+}
+
+function scoreReadCollapseVariants({ arms, all, results, n }: { arms: readonly [{ readonly name: "T1 only (35 collapsed)"; readonly ids: readonly string[]; }, { readonly name: "T1+T2 (42 collapsed)"; readonly ids: readonly string[]; }]; all: readonly Descriptor[]; results: { name: string; vecs: Record<Cutoff, boolean[]> }[]; n: number }) {
   for (const arm of arms) {
     const collapsed = new Set(arm.ids);
     const survivors = all.filter((d) => !collapsed.has(d.id));
@@ -284,15 +294,17 @@ function run(): void {
       console.log(`  ${name.padEnd(34)}${CUTOFFS.map((k) => pct(vecs[k].filter(Boolean).length, n)).join("")}`);
     }
   }
+}
 
-  // ---- Paired McNemar against the baseline, same 130 cases, so the delta is attributable.
+
+function reportReadCollapseSignificance(results: { name: string; vecs: Record<Cutoff, boolean[]> }[], n: number, baseVecs: Record<1 | 5 | 10 | 20, boolean[]>) {
   console.log(`\n  PAIRED McNemar exact test — each collapsed arm vs. the shipped baseline:\n`);
   for (const r of results) {
     const cells: string[] = [];
     for (const k of CUTOFFS) {
       let b = 0;
       let c = 0;
-      for (let i = 0; i < n; i++) {
+      for (let i = 0;i < n;i++) {
         const x = baseVecs[k][i]!;
         const y = r.vecs[k][i]!;
         if (x && !y) b++;
@@ -303,8 +315,10 @@ function run(): void {
     }
     console.log(`  ${r.name.padEnd(34)}${cells.join("")}`);
   }
+}
 
-  // ---- Where the collapsed arm actually loses, on the cases the collapse is supposed to serve.
+
+function reportReadCollapseCoverage(baseVecs: Record<1 | 5 | 10 | 20, boolean[]>, results: { name: string; vecs: Record<Cutoff, boolean[]> }[]) {
   const collapsedAll = new Set([...TIER1_CLEAN, ...TIER2_PARENT_SCOPED]);
   const affected = HELD_OUT_V2.filter((c) => [c.expect, ...(c.alsoAcceptable ?? [])].some((id) => collapsedAll.has(id)));
   console.log(`\n  Restricted to the ${affected.length} cases whose ground truth is inside the collapse set:\n`);
@@ -323,6 +337,7 @@ function run(): void {
   for (const m of misses) console.log(`    ${m.expect.padEnd(34)} "${m.query}"`);
   console.log("");
 }
+
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) run();
 
@@ -382,26 +397,7 @@ const RESOURCE_KEY_ARTIFACTS =
 function runAddendum(): void {
   // This used to reuse whatever `run()` had installed into the module-level contributor registry;
   // that registry is a per-composition pair now, so this section installs its own.
-  const contributions = createEvalToolContributions();
-  installFirstPartyToolContributors({ contributions });
-  const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), { surfaces: undefined, options: { includeContentReadCollapse: false, contributions } })) registry.register(r);
-  const all = registry.list({}) as readonly Descriptor[];
-  const n = HELD_OUT_V2.length;
-
-  const collapsed = new Set(TIER1_CLEAN);
-  const survivors = all.filter((d) => !collapsed.has(d.id));
-  const byId = new Map(all.map((d) => [d.id, d]));
-
-  // ---- Group the 35 collapsed tools into resource cards. A card's indexed text is the member
-  // ---- tools' OWN live indexed text, concatenated — no authored vocabulary.
-  const cards = new Map<string, string[]>();
-  for (const id of TIER1_CLEAN) {
-    const key = resourceKeyOf(id);
-    cards.set(key, [...(cards.get(key) ?? []), id]);
-  }
-  const cardList = [...cards.entries()].sort(([a], [b]) => a.localeCompare(b));
-  const memberSetOf = new Map(cardList.map(([key, ids]) => [key, new Set(ids)]));
+  const { byId, collapsed, memberSetOf, cardList, cards, registry, survivors, n } = prepareReadCollapseAddendum();
 
   function cardDescription(ids: readonly string[]): string {
     return ids.map((id) => indexedDescriptionFor({ toolId: id, description: byId.get(id)?.description ?? "" })).join(" ");
@@ -418,23 +414,7 @@ function runAddendum(): void {
 
   let cardIdFor: (key: string) => string = (k) => k;
 
-  const armDefs = [
-    {
-      name: "D1 resource-keyed cards",
-      id: (key: string) => `content_read.${key}`,
-      note: "id column keeps the resource nouns",
-    },
-    {
-      name: "D2 opaque-keyed cards",
-      id: (key: string) => `content_read.r${String(cardList.findIndex(([k]) => k === key) + 1).padStart(2, "0")}`,
-      note: "id column is an opaque handle",
-    },
-    {
-      name: "D3 id-preserving (limit case)",
-      id: (key: string) => cards.get(key)!.join(" "),
-      note: "index untouched; only execution collapses",
-    },
-  ] as const;
+  const armDefs = buildReadCollapseArmDefinitions(cardList, cards);
 
   const baseline = buildToolCatalogQuery(registry);
   const baseVecs = hitVectors((q, l) => baseline.search({ query: q }, { limit: l }), baselineAcceptable);
@@ -474,6 +454,57 @@ function runAddendum(): void {
     ...armResults,
   ];
 
+  reportAddendumRetrieval({ n, rows, affectedIdx, baseVecs });
+
+  reportAddendumMisses(armResults, affectedIdx);
+}
+
+function prepareReadCollapseAddendum() {
+  const contributions = createEvalToolContributions();
+  installFirstPartyToolContributors({ contributions });
+  const registry = createToolRegistry({});
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), { surfaces: undefined, options: { includeContentReadCollapse: false, contributions } })) registry.register(r);
+  const all = registry.list({}) as readonly Descriptor[];
+  const n = HELD_OUT_V2.length;
+
+  const collapsed = new Set(TIER1_CLEAN);
+  const survivors = all.filter((d) => !collapsed.has(d.id));
+  const byId = new Map(all.map((d) => [d.id, d]));
+
+  // ---- Group the 35 collapsed tools into resource cards. A card's indexed text is the member
+  // ---- tools' OWN live indexed text, concatenated — no authored vocabulary.
+  const cards = new Map<string, string[]>();
+  for (const id of TIER1_CLEAN) {
+    const key = resourceKeyOf(id);
+    cards.set(key, [...(cards.get(key) ?? []), id]);
+  }
+  const cardList = [...cards.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const memberSetOf = new Map(cardList.map(([key, ids]) => [key, new Set(ids)]));
+  return { byId, collapsed, memberSetOf, cardList, cards, registry, survivors, n };
+}
+
+
+function buildReadCollapseArmDefinitions(cardList: [string, string[]][], cards: Map<string, string[]>) {
+  return [
+    {
+      name: "D1 resource-keyed cards",
+      id: (key: string) => `content_read.${key}`,
+      note: "id column keeps the resource nouns",
+    },
+    {
+      name: "D2 opaque-keyed cards",
+      id: (key: string) => `content_read.r${String(cardList.findIndex(([k]) => k === key) + 1).padStart(2, "0")}`,
+      note: "id column is an opaque handle",
+    },
+    {
+      name: "D3 id-preserving (limit case)",
+      id: (key: string) => cards.get(key)!.join(" "),
+      note: "index untouched; only execution collapses",
+    },
+  ] as const;
+}
+
+function reportAddendumRetrieval({ n, rows, affectedIdx, baseVecs }: { n: number; rows: { name: string; note: string; vecs: Record<1 | 5 | 10 | 20, boolean[]>; }[]; affectedIdx: number[]; baseVecs: Record<1 | 5 | 10 | 20, boolean[]> }) {
   console.log(`  Whole set, n=${n}\n`);
   console.log(`  ${"configuration".padEnd(32)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
   for (const r of rows) console.log(`  ${r.name.padEnd(32)}${CUTOFFS.map((k) => pct(r.vecs[k].filter(Boolean).length, n)).join("")}`);
@@ -488,7 +519,7 @@ function runAddendum(): void {
     const cells = CUTOFFS.map((k) => {
       let b = 0;
       let c = 0;
-      for (let i = 0; i < n; i++) {
+      for (let i = 0;i < n;i++) {
         const x = baseVecs[k][i]!;
         const y = r.vecs[k][i]!;
         if (x && !y) b++;
@@ -499,13 +530,17 @@ function runAddendum(): void {
     });
     console.log(`  ${r.name.padEnd(32)}${cells.join("")}`);
   }
+}
 
+
+function reportAddendumMisses(armResults: { name: string; note: string; vecs: Record<Cutoff, boolean[]> }[], affectedIdx: number[]) {
   const best = armResults[0]!;
   const misses = affectedIdx.filter((i) => !best.vecs[10][i]).map((i) => HELD_OUT_V2[i]!);
   console.log(`\n  Cases still missing at top-10 under "${best.name}" (${misses.length} of ${affectedIdx.length}):\n`);
   for (const m of misses) console.log(`    ${m.expect.padEnd(34)} "${m.query}"`);
   console.log("");
 }
+
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) runAddendum();
 

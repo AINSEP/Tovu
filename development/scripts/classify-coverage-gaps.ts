@@ -139,17 +139,7 @@ function main(): void {
 
   console.log(`\nclassify-coverage-gaps — ${gaps.length} file(s) below tier threshold, ${allFiles.size} scanned:\n`);
 
-  const reportArchitectureDebt = (_required: Record<string, never>, _options = {}): void => {
-    if (architectureDebt.length > 0) {
-      console.log(`ARCHITECTURE_DEBT (${architectureDebt.length}) — refactor before chasing coverage:`);
-      for (const g of architectureDebt) {
-        console.log(`  - ${g.file}: unit ${g.evaluation.unit.detail}, integration ${g.evaluation.integration.detail}`);
-        for (const r of g.complexityReasons) console.log(`      ${r}`);
-      }
-      console.log("");
-    }
-
-  };
+  const reportArchitectureDebt = createReportArchitectureDebt(architectureDebt);
   reportArchitectureDebt({});
 
   const reportTestGaps = (_required: Record<string, never>, _options = {}): void => {
@@ -168,6 +158,20 @@ function main(): void {
   if (gaps.length === 0) {
     console.log(`nothing below threshold on either tier across ${allFiles.size} scanned file(s).`);
   }
+}
+
+function createReportArchitectureDebt(architectureDebt: GapClassification[]) {
+  return (_required: Record<string, never>, _options = {}): void => {
+    if (architectureDebt.length > 0) {
+      console.log(`ARCHITECTURE_DEBT (${architectureDebt.length}) — refactor before chasing coverage:`);
+      for (const g of architectureDebt) {
+        console.log(`  - ${g.file}: unit ${g.evaluation.unit.detail}, integration ${g.evaluation.integration.detail}`);
+        for (const r of g.complexityReasons) console.log(`      ${r}`);
+      }
+      console.log("");
+    }
+
+  };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

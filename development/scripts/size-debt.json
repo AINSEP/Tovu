@@ -632,13 +632,6 @@
       "value": 85
     },
     {
-      "file": "apps/admin/src/lib/browser-stream.ts",
-      "function": "startBrowserStream#1",
-      "line": 48,
-      "rule": "max-lines-per-function",
-      "value": 105
-    },
-    {
       "file": "apps/admin/src/panels.tsx",
       "function": "<file>",
       "line": 893,
@@ -646,25 +639,11 @@
       "value": 726
     },
     {
-      "file": "apps/desktop/src/main/boot/site-backend.ts",
-      "function": "createSiteBackend#1",
-      "line": 100,
-      "rule": "max-lines-per-function",
-      "value": 85
-    },
-    {
       "file": "apps/desktop/src/main/index.ts",
       "function": "<file>",
       "line": 904,
       "rule": "max-lines",
       "value": 665
-    },
-    {
-      "file": "apps/desktop/src/main/updates/desktop-updater.ts",
-      "function": "createDesktopUpdater#1",
-      "line": 81,
-      "rule": "max-lines-per-function",
-      "value": 83
     },
     {
       "file": "apps/desktop/src/project-ipc.ts",
@@ -728,13 +707,6 @@
       "line": 430,
       "rule": "max-lines-per-function",
       "value": 170
-    },
-    {
-      "file": "apps/desktop/src/renderer/workspace-chat-transport.ts",
-      "function": "createWorkspaceChatTransport#1",
-      "line": 323,
-      "rule": "max-lines-per-function",
-      "value": 101
     },
     {
       "file": "apps/website/src/assistant/byok-tool-surface.ts",

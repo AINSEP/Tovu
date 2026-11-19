@@ -44,15 +44,7 @@ function main() {
     return;
   }
 
-  const logs = failing.map(({ exitCode, logFile }) => {
-    let log = "";
-    try {
-      log = readFileSync(logFile, "utf8");
-    } catch {
-      // Missing log file (e.g. an earlier step never ran) — nothing to scan, no hits.
-    }
-    return { projectKey: logFile, exitCode, stdout: log, stderr: "" };
-  });
+  const logs = buildLogs(failing);
   const hitsByFile = diagnosePublishedTypes({ scope: "@jini-ai", logs }).failures
     .filter((entry) => entry.hits.length > 0)
     .map((entry) => ({ logFile: entry.projectKey, hits: entry.hits }));
@@ -86,6 +78,12 @@ function main() {
   }
 
   console.error("Raw typecheck output for every failing project follows:");
+  reportFailingTypecheckLogs(failing);
+
+  process.exitCode = 1;
+}
+
+function reportFailingTypecheckLogs(failing) {
   for (const { exitCode, logFile } of failing) {
     console.error(`\n----- ${logFile} (exit ${exitCode}) -----`);
     try {
@@ -94,8 +92,19 @@ function main() {
       console.error(`(could not read ${logFile}: ${err.message})`);
     }
   }
+}
 
-  process.exitCode = 1;
+
+function buildLogs(failing) {
+  return failing.map(({ exitCode, logFile }) => {
+    let log = "";
+    try {
+      log = readFileSync(logFile, "utf8");
+    } catch {
+      // Missing log file (e.g. an earlier step never ran) — nothing to scan, no hits.
+    }
+    return { projectKey: logFile, exitCode, stdout: log, stderr: "" };
+  });
 }
 
 main();

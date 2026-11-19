@@ -29,21 +29,14 @@ export function createJourneyContentCleanup(
   return {
     track,
     /** Register before the first UI action; reads only successful create responses. */
-    capture({ response }: { response: CreateResponse }, _options: Record<string, never> = {}) {
-      if (response.status() !== 201 || response.request().method() !== "POST") return;
-      const pathname = new URL(response.url()).pathname;
-      if (!pathname.startsWith(`${workspaceApi}/`)) return;
-      const type = CONTENT_COLLECTIONS[pathname.slice(workspaceApi.length)];
-      if (!type) return;
-      pending.push(response.json().then(body => {
-        const payload = body as Record<string, { id: string }>;
-        const row = type === "form" ? payload.data : type === "page" ? payload.post : payload[type];
-        assert.equal(typeof row?.id, "string", "create response must name the created row");
-        track({ type, id: row.id });
-      }).catch(error => { captureErrors.push(error); }));
-    },
+    capture: createContentResponseCapture({ workspaceApi, pending, track, captureErrors }),
     /** Run in afterEach, including failed journeys. Every purge outcome must confirm removal. */
-    async cleanup(_required: Record<string, never>, _options: Record<string, never> = {}) {
+    cleanup: createTrackedContentCleaner({ pending, captureErrors, created, workspaceApi, request }),
+  };
+}
+
+function createTrackedContentCleaner({ pending, captureErrors, created, workspaceApi, request }: { pending: Promise<void>[]; captureErrors: unknown[]; created: Map<string, CreatedContent>; workspaceApi: string; request: CleanupRequest }) {
+  return async function cleanup(_required: Record<string, never>, _options: Record<string, never> = {}) {
       await Promise.all(pending);
       const failures = [...captureErrors];
       if (!created.size) {
@@ -91,8 +84,23 @@ export function createJourneyContentCleanup(
         assert.deepEqual(report.results.map(row => row.outcome), ids.map(() => "purged"));
       }
       if (failures.length) throw new AggregateError(failures, "journey content cleanup failed");
-    },
-  };
+    };
+}
+
+function createContentResponseCapture({ workspaceApi, pending, track, captureErrors }: { workspaceApi: string; pending: Promise<void>[]; track: (row: CreatedContent, _options?: Record<string, never>) => void; captureErrors: unknown[] }) {
+  return function capture({ response }: { response: CreateResponse }, _options: Record<string, never> = {}) {
+      if (response.status() !== 201 || response.request().method() !== "POST") return;
+      const pathname = new URL(response.url()).pathname;
+      if (!pathname.startsWith(`${workspaceApi}/`)) return;
+      const type = CONTENT_COLLECTIONS[pathname.slice(workspaceApi.length)];
+      if (!type) return;
+      pending.push(response.json().then(body => {
+        const payload = body as Record<string, { id: string }>;
+        const row = type === "form" ? payload.data : type === "page" ? payload.post : payload[type];
+        assert.equal(typeof row?.id, "string", "create response must name the created row");
+        track({ type, id: row.id });
+      }).catch(error => { captureErrors.push(error); }));
+    };
 }
 
 export type JourneyContentCleanup = ReturnType<typeof createJourneyContentCleanup>;

@@ -39,16 +39,7 @@ export function registerAdminPageWebMcpTools(
   const assertOpen = () => {
     if (signal.aborted || !isEnabled()) throw new Error("WebMCP admin access is disabled or closed");
   };
-  const register = (registration: WebMcpToolRegistration) => {
-    try {
-      const pending = modelContext.registerTool({ tool: registration }, registration.registerOptions);
-      void Promise.resolve(pending).catch((error: unknown) => {
-        if (!signal.aborted) onError({ name: registration.name, error });
-      });
-    } catch (error) {
-      if (!signal.aborted) onError({ name: registration.name, error });
-    }
-  };
+  const register = createToolRegistrationHandler(modelContext, signal, onError);
   for (const definition of PAGE_CAPABILITIES) {
     const registration = toWebMcpTool({
       // Owner 2026-10-07: ordinary edits run directly; opaque clicks require explicit consent.
@@ -73,3 +64,17 @@ export function registerAdminPageWebMcpTools(
     register(registration);
   }
 }
+
+function createToolRegistrationHandler(modelContext: AgentModelContextLike, signal: AbortSignal, onError: (required: { name: string; error: unknown; }) => void) {
+  return (registration: WebMcpToolRegistration) => {
+    try {
+      const pending = modelContext.registerTool({ tool: registration }, registration.registerOptions);
+      void Promise.resolve(pending).catch((error: unknown) => {
+        if (!signal.aborted) onError({ name: registration.name, error });
+      });
+    } catch (error) {
+      if (!signal.aborted) onError({ name: registration.name, error });
+    }
+  };
+}
+

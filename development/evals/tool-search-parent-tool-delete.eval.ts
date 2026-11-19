@@ -250,6 +250,30 @@ function run(): void {
 
   const results: { name: string; vecs: Record<Cutoff, boolean[]> }[] = [];
 
+  const { cardList, catalogB } = scoreDeleteCollapseArms({ byId, survivors, collapsed, results });
+
+  // ---- B-LENIENT: any content_delete.* card counts, not just the correct resource's own — mirrors
+  // ---- the read eval's D1-LENIENT, which quantified the strict-vs-lenient scoring asymmetry a single
+  // ---- fat entry benefits from (a fat entry is scored a hit whenever it ranks at all; a card design
+  // ---- is scored a hit only when the CORRECT card ranks). Measuring both on the same B index lets the
+  // ---- asymmetry be quantified on this family's own numbers instead of assumed from the read eval's.
+  const allCardIds = new Set(cardList.map(([key]) => `content_delete.${key}`));
+  function acceptableCardsForLenient(c: EvalCase): ReadonlySet<string> {
+    const ids = caseIds(c);
+    const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
+    if (ids.some((id) => collapsed.has(id))) for (const cardId of allCardIds) out.add(cardId);
+    return out;
+  }
+  const vecsBLenient = hitVectors((q, l) => catalogB.search({ query: q }, { limit: l }), acceptableCardsForLenient);
+  results.push({ name: `B-LENIENT: any of ${cardList.length} cards counts`, vecs: vecsBLenient });
+
+  reportDeleteCollapseComparisons({ results, n, cardList, baseVecs });
+
+  // ---- Restricted to the cases whose ground truth is inside the delete family.
+  reportDeleteCollapseCoverage(collapsed, baseVecs, results);
+}
+
+function scoreDeleteCollapseArms({ byId, survivors, collapsed, results }: { byId: Map<string, Descriptor>; survivors: Descriptor[]; collapsed: Set<string>; results: { name: string; vecs: Record<Cutoff, boolean[]> }[] }) {
   function memberDescription(id: string): string {
     return indexedDescriptionFor({ toolId: id, description: byId.get(id)?.description ?? "" });
   }
@@ -299,22 +323,11 @@ function run(): void {
   const catalogB = buildToolCatalogQuery({ list: () => listB as never });
   const vecsB = hitVectors((q, l) => catalogB.search({ query: q }, { limit: l }), acceptableCardsFor);
   results.push({ name: `B: ${cardList.length} resource-keyed cards`, vecs: vecsB });
+  return { cardList, catalogB };
+}
 
-  // ---- B-LENIENT: any content_delete.* card counts, not just the correct resource's own — mirrors
-  // ---- the read eval's D1-LENIENT, which quantified the strict-vs-lenient scoring asymmetry a single
-  // ---- fat entry benefits from (a fat entry is scored a hit whenever it ranks at all; a card design
-  // ---- is scored a hit only when the CORRECT card ranks). Measuring both on the same B index lets the
-  // ---- asymmetry be quantified on this family's own numbers instead of assumed from the read eval's.
-  const allCardIds = new Set(cardList.map(([key]) => `content_delete.${key}`));
-  function acceptableCardsForLenient(c: EvalCase): ReadonlySet<string> {
-    const ids = caseIds(c);
-    const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
-    if (ids.some((id) => collapsed.has(id))) for (const cardId of allCardIds) out.add(cardId);
-    return out;
-  }
-  const vecsBLenient = hitVectors((q, l) => catalogB.search({ query: q }, { limit: l }), acceptableCardsForLenient);
-  results.push({ name: `B-LENIENT: any of ${cardList.length} cards counts`, vecs: vecsBLenient });
 
+function reportDeleteCollapseComparisons({ results, n, cardList, baseVecs }: { results: { name: string; vecs: Record<Cutoff, boolean[]> }[]; n: number; cardList: [string, string[]][]; baseVecs: Record<1 | 5 | 10 | 20, boolean[]> }) {
   for (const r of results) console.log(`  ${r.name.padEnd(34)}${CUTOFFS.map((k) => pct(r.vecs[k].filter(Boolean).length, n)).join("")}`);
 
   console.log(`\n  Card grouping (${DELETE_FAMILY.length} tools -> ${cardList.length} cards, ${DELETE_FAMILY.length - cardList.length} merged):\n`);
@@ -327,7 +340,7 @@ function run(): void {
     for (const k of CUTOFFS) {
       let b = 0;
       let c = 0;
-      for (let i = 0; i < n; i++) {
+      for (let i = 0;i < n;i++) {
         const x = baseVecs[k][i]!;
         const y = r.vecs[k][i]!;
         if (x && !y) b++;
@@ -338,8 +351,10 @@ function run(): void {
     }
     console.log(`  ${r.name.padEnd(34)}${cells.join("")}`);
   }
+}
 
-  // ---- Restricted to the cases whose ground truth is inside the delete family.
+
+function reportDeleteCollapseCoverage(collapsed: Set<string>, baseVecs: Record<1 | 5 | 10 | 20, boolean[]>, results: { name: string; vecs: Record<Cutoff, boolean[]> }[]) {
   const affected = HELD_OUT_V2.filter((c) => caseIds(c).some((id) => collapsed.has(id)));
   console.log(`\n  Restricted to the ${affected.length} cases whose ground truth is inside the delete-family collapse set:\n`);
   console.log(`  ${"configuration".padEnd(34)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
@@ -361,5 +376,6 @@ function run(): void {
   }
   console.log("");
 }
+
 
 run();

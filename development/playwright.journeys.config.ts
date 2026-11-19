@@ -52,19 +52,7 @@ export default Promise.all([
     ["html", { outputFolder: path.join(REPO_ROOT, "development/playwright-report/journeys"), open: "never" }],
     ["./e2e/support/journey-site-cleanup-reporter.ts", { sites: [site, mediaSite] }],
   ],
-  use: {
-    baseURL: site.adminURL,
-    storageState: site.storageState,
-    browserName: "chromium",
-    locale: "en-US",
-    timezoneId: "UTC",
-    colorScheme: "light",
-    viewport: { width: 1440, height: 900 },
-    headless: true,
-    launchOptions: { slowMo: Number(process.env.TOVU_E2E_SLOWMO ?? 0) },
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
-  },
+  use: journeyBrowserOptions(site),
   projects: [
     {
       name: "chromium", testIgnore: /(?:^|\/)(?:media\.journey|admin-visual\.pins\.journey)\.ts$/,
@@ -95,3 +83,20 @@ export default Promise.all([
     ...isolatedJourneyWebServers({ site: mediaSite }),
   ],
 }));
+
+function journeyBrowserOptions(site: Awaited<ReturnType<typeof createIsolatedJourneySite>>) : NonNullable<Parameters<typeof defineConfig>[0]["use"]> {
+  return {
+    baseURL: site.adminURL,
+    storageState: site.storageState,
+    browserName: "chromium",
+    locale: "en-US",
+    timezoneId: "UTC",
+    colorScheme: "light",
+    viewport: { width: 1440, height: 900 },
+    headless: true,
+    launchOptions: { slowMo: Number(process.env.TOVU_E2E_SLOWMO ?? 0) },
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+  };
+}
+

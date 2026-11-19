@@ -456,24 +456,7 @@ export async function seedSite(required) {
       const seedSize = fs.statSync(scratchDbPath).size;
       publishSeed(scratchDbPath, seedDbPath);
 
-      console.log(`seed-site: site "${siteName}"`);
-      console.log(`  live db:  ${liveDbPath} (${formatMb(liveStatBefore.size)}, untouched)`);
-      console.log(`  seed db:  ${seedDbPath} (${formatMb(seedSize)})`);
-      console.log(
-        `  pruned:   ${Object.entries(removed)
-          .map(([table, count]) => `${table}=${count}`)
-          .join(", ")}`
-      );
-      if (skipped.length > 0) {
-        console.log(`  skipped:  ${skipped.join(", ")} (table(s) not present — nothing to prune)`);
-      }
-      console.log(`  scrubbed: identity_users.last_login_at nulled on ${scrubbedLoginTimestamps} row(s)`);
-      console.log(
-        `  site title: ${siteTitleReset.markerRowsDeleted} legacy marker row(s) and ${siteTitleReset.pinRowsDeleted} system pin(s) reset`
-      );
-      console.log(
-        `  blobs:    every asset_blobs.storage_key has a matching, git-tracked file under ${path.join(liveDir, "uploads")}`
-      );
+      reportPublishedSeed({ siteName, liveDbPath, liveStatBefore, seedDbPath, seedSize, removed, skipped, scrubbedLoginTimestamps, siteTitleReset, liveDir });
     } finally {
       db.close();
     }
@@ -483,6 +466,28 @@ export async function seedSite(required) {
 
   assertLiveDbUntouched(liveDbPath, liveStatBefore);
 }
+
+function reportPublishedSeed({ siteName, liveDbPath, liveStatBefore, seedDbPath, seedSize, removed, skipped, scrubbedLoginTimestamps, siteTitleReset, liveDir }) {
+  console.log(`seed-site: site "${siteName}"`);
+  console.log(`  live db:  ${liveDbPath} (${formatMb(liveStatBefore.size)}, untouched)`);
+  console.log(`  seed db:  ${seedDbPath} (${formatMb(seedSize)})`);
+  console.log(
+    `  pruned:   ${Object.entries(removed)
+      .map(([table, count]) => `${table}=${count}`)
+      .join(", ")}`
+  );
+  if (skipped.length > 0) {
+    console.log(`  skipped:  ${skipped.join(", ")} (table(s) not present — nothing to prune)`);
+  }
+  console.log(`  scrubbed: identity_users.last_login_at nulled on ${scrubbedLoginTimestamps} row(s)`);
+  console.log(
+    `  site title: ${siteTitleReset.markerRowsDeleted} legacy marker row(s) and ${siteTitleReset.pinRowsDeleted} system pin(s) reset`
+  );
+  console.log(
+    `  blobs:    every asset_blobs.storage_key has a matching, git-tracked file under ${path.join(liveDir, "uploads")}`
+  );
+}
+
 
 async function main() {
   await seedSite(resolveSeedSitePaths({ argv: process.argv.slice(2) }));

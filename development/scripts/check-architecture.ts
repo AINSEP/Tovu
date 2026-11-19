@@ -731,23 +731,65 @@ function main(): void {
   const priorBaseline: Baseline | null = fs.existsSync(BASELINE_PATH)
     ? (JSON.parse(fs.readFileSync(BASELINE_PATH, "utf8")) as Baseline)
     : null;
-  const warnMissingHubMedians = ({ frozenMedians }: { frozenMedians: NonNullable<Baseline["bidirectionalHubs"]>["medians"] | null }, _options = {}): void => {
-    if (!UPDATE && priorBaseline !== null && frozenMedians === null) {
-      console.warn(
-        `\n  WARNING: baseline predates frozen hub medians — falling back to this run's own medians,\n` +
-        `  which is the pre-2026-08-20 floating-threshold behaviour. Run --update to freeze them.`,
-      );
-    }
-  };
-  const resolveHubThresholds = (_required: Record<string, never>, _options = {}) => {
-    const frozenMedians = priorBaseline?.bidirectionalHubs?.medians ?? null;
-    const useFrozen = !UPDATE && frozenMedians !== null;
-    warnMissingHubMedians({ frozenMedians });
-    return useFrozen
-      ? hubsAtThresholds(hubDegrees, frozenMedians!)
-      : { bidirectionalHubs: freshHubs, hubMembers: freshHubMembers };
-  };
+  const warnMissingHubMedians = createWarnMissingHubMedians(priorBaseline);
+  const resolveHubThresholds = createResolveHubThresholds({ priorBaseline, warnMissingHubMedians, hubDegrees, freshHubs, freshHubMembers });
   const { bidirectionalHubs, hubMembers } = resolveHubThresholds({});
+  const { moduleAdjacency, current, backEdges, backEdgesRuntime, pairs, largestScc, apiSurfaceFiles, deep, sccs, instability }: { moduleAdjacency: Map<string, Set<string>>; current: Baseline; backEdges: { total: number; byTarget: Map<string, number>; }; backEdgesRuntime: { total: number; byTarget: Map<string, number>; }; pairs: string[]; largestScc: number; apiSurfaceFiles: number; deep: { total: number; byModule: Map<string, { edges: number; files: Set<string>; }>; }; sccs: string[][]; instability: { module: string; ca: number; ce: number; instability: number; }[]; } = measureArchitectureGraph({ forwardAll, forwardRuntime, fileCount, propagationCostPct, propagationCostRuntimePct, freshHubs });
+
+  const reportMetricSummary = createReportMetricSummary({ fileCount, moduleAdjacency, current, propagationCostPct, propagationCostRuntimePct, backEdges, backEdgesRuntime, pairs, largestScc, apiSurfaceFiles, deep, bidirectionalHubs });
+  reportMetricSummary({});
+  const reportDetailedMetrics = createDetailedMetricsReporter({ backEdges, backEdgesRuntime, pairs, sccs, deep, instability, hubMembers });
+  reportDetailedMetrics({});
+
+  if (UPDATE) {
+    fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(current, null, 2)}\n`);
+    console.log(`\nBaseline written to ${path.relative(REPO_ROOT, BASELINE_PATH)}.`);
+    return;
+  }
+
+  if (!fs.existsSync(BASELINE_PATH)) {
+    console.error(`\nNo baseline at ${path.relative(REPO_ROOT, BASELINE_PATH)}. Run with --update to create one.`);
+    process.exit(1);
+  }
+
+  const baseline: Baseline = priorBaseline!;
+  const newFeatureEdges = introducedCrossFeatureEdges({ current: current.crossFeatureEdges, baseline: baseline.crossFeatureEdges });
+
+  const evaluateCycles = createEvaluateCycles(pairs, baseline, largestScc);
+  const { introducedPairs, removedPairs, sccVerdict, cyclesRegressed, cyclesImproved, cyclesLabel, cyclesTier, cyclesTradeDetail } = evaluateCycles({});
+
+  const checks: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier }[] = buildChecks({ propagationCostPct, baseline, propagationCostRuntimePct, backEdges, apiSurfaceFiles, bidirectionalHubs });
+
+  const regressed = checks.filter((c) => c.verdict === "regressed");
+  const improved = checks.filter((c) => c.verdict === "improved");
+
+  const applyMetricTiers = createApplyMetricTiers(regressed, cyclesRegressed, cyclesTier);
+  const { blockingRegressed, warnOnlyRegressed, blockingCyclesRegressed, warnOnlyCyclesRegressed } = applyMetricTiers({});
+
+  const reportMetricMoves = createReportMetricMoves({ introducedPairs, sccVerdict, baseline, largestScc, removedPairs, regressed, warnOnlyRegressed, improved });
+  reportMetricMoves({});
+  // TRADE DETECTED: this run moved metrics in both directions. This is easy to miss in the
+  // per-metric lines above — e.g. a barrel-file cleanup that shrinks API surface while raising
+  // propagation cost is a net loss on the metric that actually costs something, but reads as
+  // "3 improved, 1 regressed" if you're skimming. Make that unmissable.
+  const hasTrade = (regressed.length > 0 || cyclesRegressed) && (improved.length > 0 || cyclesImproved);
+  if (hasTrade) {
+    const reportTrade = createReportTrade({ regressed, cyclesRegressed, cyclesLabel, cyclesTradeDetail, improved, cyclesImproved });
+    reportTrade({});
+
+  }
+
+  reportArchitectureVerdict({ blockingRegressed, blockingCyclesRegressed, newFeatureEdges, warnOnlyRegressed, warnOnlyCyclesRegressed, improved, cyclesImproved });
+
+}
+
+function reportArchitectureVerdict({ blockingRegressed, blockingCyclesRegressed, newFeatureEdges, warnOnlyRegressed, warnOnlyCyclesRegressed, improved, cyclesImproved }: { blockingRegressed: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; blockingCyclesRegressed: boolean; newFeatureEdges: string[]; warnOnlyRegressed: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; warnOnlyCyclesRegressed: boolean; improved: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; cyclesImproved: boolean }) {
+  const reportVerdict = createReportVerdict({ blockingRegressed, blockingCyclesRegressed, newFeatureEdges, warnOnlyRegressed, warnOnlyCyclesRegressed, improved, cyclesImproved });
+  reportVerdict({});
+}
+
+
+function measureArchitectureGraph({ forwardAll, forwardRuntime, fileCount, propagationCostPct, propagationCostRuntimePct, freshHubs }: { forwardAll: Map<string, Set<string>>; forwardRuntime: Map<string, Set<string>>; fileCount: number; propagationCostPct: number; propagationCostRuntimePct: number; freshHubs: { count: number; total: number; pct: number; medians: { fanIn: number; fanOut: number; }; } }) {
   const backEdges = backEdgesIntoServer(forwardAll);
   const backEdgesRuntime = backEdgesIntoServer(forwardRuntime);
   const deep = deepImports(forwardAll);
@@ -759,43 +801,12 @@ function main(): void {
   const largestScc = sccs.reduce((max, c) => Math.max(max, c.length), 0);
   const instability = martinInstability(forwardAll);
 
-  const current: Baseline = {
-    crossFeatureEdges: crossFeatureEdges({ forward: forwardAll }),
-    meta: { fileCount, moduleCount: moduleAdjacency.size },
-    propagationCostPct,
-    propagationCostRuntimePct,
-    backEdgesIntoServer: backEdges.total,
-    backEdgesIntoServerRuntimeOnly: backEdgesRuntime.total,
-    moduleCycles: { mutualCycleCount: pairs.length, largestScc, pairs },
-    moduleApiSurfaceFiles: apiSurfaceFiles,
-    deepImportsBypassingIndex: deep.total,
-    // FRESH hubs + fresh medians on purpose: `current` is only ever written by `--update`, and
-    // re-freezing the threshold to this graph is exactly what an update is meant to do.
-    bidirectionalHubs: freshHubs,
-  };
+  const current: Baseline = buildCurrent({ forwardAll, fileCount, moduleAdjacency, propagationCostPct, propagationCostRuntimePct, backEdges, backEdgesRuntime, pairs, largestScc, apiSurfaceFiles, deep, freshHubs });
+  return { moduleAdjacency, current, backEdges, backEdgesRuntime, pairs, largestScc, apiSurfaceFiles, deep, sccs, instability };
+}
 
-  const reportMetricSummary = (_required: Record<string, never>, _options = {}): void => {
-    const scope = INCLUDE_TESTS ? "including tests" : "production files only";
-    console.log(`check:architecture — ${fileCount} files, ${moduleAdjacency.size} modules, ${scope}\n`);
 
-    const rows: { label: string; value: string }[] = [
-      { label: "cross-feature import edges (all-import)", value: `${current.crossFeatureEdges.length}` },
-      { label: "propagation cost (all-import)", value: `${propagationCostPct.toFixed(2)}%` },
-      { label: "propagation cost (runtime-only)", value: `${propagationCostRuntimePct.toFixed(2)}%` },
-      { label: "back-edges into composition root", value: `${backEdges.total}` },
-      { label: "  └ back-edges, runtime-only (informational)", value: `${backEdgesRuntime.total}` },
-      { label: "module cycles (mutual pairs, runtime-only)", value: `${pairs.length}` },
-      { label: "largest strongly-connected component (runtime-only)", value: `${largestScc}` },
-      { label: "module API surface (files exposed)", value: `${apiSurfaceFiles}` },
-      { label: "  └ deep-import edges (informational)", value: `${deep.total}` },
-      { label: "bidirectional hub count", value: `${bidirectionalHubs.pct.toFixed(2)}% (${bidirectionalHubs.count}/${bidirectionalHubs.total})` },
-    ];
-    const labelWidth = Math.max(...rows.map((r) => r.label.length)) + 2;
-    for (const row of rows) console.log(`  ${pad(row.label, labelWidth)}${row.value}`);
-    console.log(`\n  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.`);
-
-  };
-  reportMetricSummary({});
+function createDetailedMetricsReporter({ backEdges, backEdgesRuntime, pairs, sccs, deep, instability, hubMembers }: { backEdges: { total: number; byTarget: Map<string, number>; }; backEdgesRuntime: { total: number; byTarget: Map<string, number>; }; pairs: string[]; sccs: string[][]; deep: { total: number; byModule: Map<string, { edges: number; files: Set<string>; }>; }; instability: { module: string; ca: number; ce: number; instability: number; }[]; hubMembers: { file: string; module: string | null; fanIn: number; fanOut: number; }[] }) {
   const reportDetailedMetrics = (_required: Record<string, never>, _options = {}): void => {
     if (LIST) {
       console.log(`\n--- back-edges into src/server/**, by target file (all-import) ---`);
@@ -832,7 +843,17 @@ function main(): void {
         );
       }
 
-      const reportHubMembership = (_required: Record<string, never>, _options = {}): void => {
+      const reportHubMembership = createReportHubMembership(hubMembers);
+      reportHubMembership({});
+
+    }
+
+  };
+  return reportDetailedMetrics;
+}
+
+function createReportHubMembership(hubMembers: { file: string; module: string | null; fanIn: number; fanOut: number; }[]) {
+  return (_required: Record<string, never>, _options = {}): void => {
         // Membership for "bidirectional hub count" (formerly "core size") — every file above-median in
         // BOTH transitive fan-in and transitive fan-out, all-import graph. Printing this was the whole
         // point of the 2026-08-19 rename: the old name implied `src/core` membership, but nothing about
@@ -855,50 +876,23 @@ function main(): void {
         }
 
       };
-      reportHubMembership({});
+}
 
-    }
+function createApplyMetricTiers(regressed: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[], cyclesRegressed: boolean, cyclesTier: MetricTier) {
+  return (_required: Record<string, never>, _options = {}) => {
+    // ENFORCE_HARD_CONSTRAINT_TIERS is true (today's default, since 2026-08-19). If it were false,
+    // these would be identical to `regressed`/`cyclesRegressed` — every metric blocking, no WARNING tier.
+    const blockingRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "hard") : regressed;
+    const warnOnlyRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "ratchet") : [];
+    const blockingCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "hard" : cyclesRegressed;
+    const warnOnlyCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "ratchet" : false;
 
+    return { blockingRegressed, warnOnlyRegressed, blockingCyclesRegressed, warnOnlyCyclesRegressed };
   };
-  reportDetailedMetrics({});
+}
 
-  if (UPDATE) {
-    fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(current, null, 2)}\n`);
-    console.log(`\nBaseline written to ${path.relative(REPO_ROOT, BASELINE_PATH)}.`);
-    return;
-  }
-
-  if (!fs.existsSync(BASELINE_PATH)) {
-    console.error(`\nNo baseline at ${path.relative(REPO_ROOT, BASELINE_PATH)}. Run with --update to create one.`);
-    process.exit(1);
-  }
-
-  const baseline: Baseline = priorBaseline!;
-  const newFeatureEdges = introducedCrossFeatureEdges({ current: current.crossFeatureEdges, baseline: baseline.crossFeatureEdges });
-
-  const evaluateCycles = (_required: Record<string, never>, _options = {}) => {
-    const introducedPairs = pairs.filter((p) => !baseline.moduleCycles.pairs.includes(p));
-    const removedPairs = baseline.moduleCycles.pairs.filter((p) => !pairs.includes(p));
-    const sccVerdict = compare(largestScc, baseline.moduleCycles.largestScc);
-    const cyclesRegressed = introducedPairs.length > 0 || sccVerdict === "regressed";
-    const cyclesImproved = (removedPairs.length > 0 || sccVerdict === "improved") && !cyclesRegressed;
-
-    const cyclesLabel = "module cycles / SCC (runtime-only)";
-    const cyclesTier = tierOf(cyclesLabel);
-    const cyclesTradeDetail =
-      [
-        introducedPairs.length > 0 ? `+${introducedPairs.length} cycle pair(s)` : null,
-        removedPairs.length > 0 ? `-${removedPairs.length} cycle pair(s)` : null,
-        sccVerdict !== "same" ? `largest SCC ${baseline.moduleCycles.largestScc} → ${largestScc}` : null,
-      ]
-        .filter((s): s is string => s !== null)
-        .join(", ") || "no change";
-
-    return { introducedPairs, removedPairs, sccVerdict, cyclesRegressed, cyclesImproved, cyclesLabel, cyclesTier, cyclesTradeDetail };
-  };
-  const { introducedPairs, removedPairs, sccVerdict, cyclesRegressed, cyclesImproved, cyclesLabel, cyclesTier, cyclesTradeDetail } = evaluateCycles({});
-
-  const checks: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier }[] = [
+function buildChecks({ propagationCostPct, baseline, propagationCostRuntimePct, backEdges, apiSurfaceFiles, bidirectionalHubs }: { propagationCostPct: number; baseline: Baseline; propagationCostRuntimePct: number; backEdges: { total: number; byTarget: Map<string, number>; }; apiSurfaceFiles: number; bidirectionalHubs: { count: number; total: number; pct: number; medians: { fanIn: number; fanOut: number; }; } }) {
+  return [
     { label: "propagation cost (all-import)", verdict: compare(propagationCostPct, baseline.propagationCostPct), current: propagationCostPct, baseline: baseline.propagationCostPct, unit: "pct", tier: tierOf("propagation cost (all-import)") },
     { label: "propagation cost (runtime-only)", verdict: compare(propagationCostRuntimePct, baseline.propagationCostRuntimePct, "propagation cost (runtime-only)"), current: propagationCostRuntimePct, baseline: baseline.propagationCostRuntimePct, unit: "pct", tier: tierOf("propagation cost (runtime-only)") },
     { label: "back-edges into composition root", verdict: compare(backEdges.total, baseline.backEdgesIntoServer), current: backEdges.total, baseline: baseline.backEdgesIntoServer, unit: "count", tier: tierOf("back-edges into composition root") },
@@ -918,23 +912,148 @@ function main(): void {
     // top of this file for why.)
     { label: "bidirectional hub count", verdict: compare(bidirectionalHubs.count, baseline.bidirectionalHubs.count), current: bidirectionalHubs.count, baseline: baseline.bidirectionalHubs.count, unit: "count", tier: tierOf("bidirectional hub count") },
   ];
+}
 
-  const regressed = checks.filter((c) => c.verdict === "regressed");
-  const improved = checks.filter((c) => c.verdict === "improved");
-
-  const applyMetricTiers = (_required: Record<string, never>, _options = {}) => {
-    // ENFORCE_HARD_CONSTRAINT_TIERS is true (today's default, since 2026-08-19). If it were false,
-    // these would be identical to `regressed`/`cyclesRegressed` — every metric blocking, no WARNING tier.
-    const blockingRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "hard") : regressed;
-    const warnOnlyRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "ratchet") : [];
-    const blockingCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "hard" : cyclesRegressed;
-    const warnOnlyCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "ratchet" : false;
-
-    return { blockingRegressed, warnOnlyRegressed, blockingCyclesRegressed, warnOnlyCyclesRegressed };
+function createResolveHubThresholds({ priorBaseline, warnMissingHubMedians, hubDegrees, freshHubs, freshHubMembers }: { priorBaseline: Baseline | null; warnMissingHubMedians: ReturnType<typeof createWarnMissingHubMedians>; hubDegrees: HubDegrees; freshHubs: { count: number; total: number; pct: number; medians: { fanIn: number; fanOut: number; }; }; freshHubMembers: { file: string; module: string | null; fanIn: number; fanOut: number; }[] }) {
+  return (_required: Record<string, never>, _options = {}) => {
+    const frozenMedians = priorBaseline?.bidirectionalHubs?.medians ?? null;
+    const useFrozen = !UPDATE && frozenMedians !== null;
+    warnMissingHubMedians({ frozenMedians });
+    return useFrozen
+      ? hubsAtThresholds(hubDegrees, frozenMedians!)
+      : { bidirectionalHubs: freshHubs, hubMembers: freshHubMembers };
   };
-  const { blockingRegressed, warnOnlyRegressed, blockingCyclesRegressed, warnOnlyCyclesRegressed } = applyMetricTiers({});
+}
 
-  const reportMetricMoves = (_required: Record<string, never>, _options = {}): void => {
+function createWarnMissingHubMedians(priorBaseline: Baseline | null) {
+  return ({ frozenMedians }: { frozenMedians: NonNullable<Baseline["bidirectionalHubs"]>["medians"] | null }, _options = {}): void => {
+    if (!UPDATE && priorBaseline !== null && frozenMedians === null) {
+      console.warn(
+        `\n  WARNING: baseline predates frozen hub medians — falling back to this run's own medians,\n` +
+        `  which is the pre-2026-08-20 floating-threshold behaviour. Run --update to freeze them.`,
+      );
+    }
+  };
+}
+
+function buildCurrent({ forwardAll, fileCount, moduleAdjacency, propagationCostPct, propagationCostRuntimePct, backEdges, backEdgesRuntime, pairs, largestScc, apiSurfaceFiles, deep, freshHubs }: { forwardAll: Map<string, Set<string>>; fileCount: number; moduleAdjacency: Map<string, Set<string>>; propagationCostPct: number; propagationCostRuntimePct: number; backEdges: { total: number; byTarget: Map<string, number>; }; backEdgesRuntime: { total: number; byTarget: Map<string, number>; }; pairs: string[]; largestScc: number; apiSurfaceFiles: number; deep: { total: number; byModule: Map<string, { edges: number; files: Set<string>; }>; }; freshHubs: { count: number; total: number; pct: number; medians: { fanIn: number; fanOut: number; }; } }) {
+  return {
+    crossFeatureEdges: crossFeatureEdges({ forward: forwardAll }),
+    meta: { fileCount, moduleCount: moduleAdjacency.size },
+    propagationCostPct,
+    propagationCostRuntimePct,
+    backEdgesIntoServer: backEdges.total,
+    backEdgesIntoServerRuntimeOnly: backEdgesRuntime.total,
+    moduleCycles: { mutualCycleCount: pairs.length, largestScc, pairs },
+    moduleApiSurfaceFiles: apiSurfaceFiles,
+    deepImportsBypassingIndex: deep.total,
+    // FRESH hubs + fresh medians on purpose: `current` is only ever written by `--update`, and
+    // re-freezing the threshold to this graph is exactly what an update is meant to do.
+    bidirectionalHubs: freshHubs,
+  };
+}
+
+function createReportTrade({ regressed, cyclesRegressed, cyclesLabel, cyclesTradeDetail, improved, cyclesImproved }: { regressed: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; cyclesRegressed: boolean; cyclesLabel: string; cyclesTradeDetail: string; improved: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; cyclesImproved: boolean }) {
+  return (_required: Record<string, never>, _options = {}): void => {
+      const tradeLines: { verdict: "regressed" | "improved"; label: string; detail: string }[] = [
+        ...regressed.map((c) => ({ verdict: "regressed" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
+        ...(cyclesRegressed ? [{ verdict: "regressed" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
+        ...improved.map((c) => ({ verdict: "improved" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
+        ...(cyclesImproved ? [{ verdict: "improved" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
+      ];
+      const tradeLabelWidth = Math.max(...tradeLines.map((l) => l.label.length)) + 2;
+      const bar = "=".repeat(72);
+      console.error(`\n${bar}`);
+      console.error(`  TRADE DETECTED — this run bought improvement on one metric with regression on another`);
+      console.error(bar);
+      for (const line of tradeLines) {
+        const tag = line.verdict === "regressed" ? "regressed:" : "improved: ";
+        console.error(`  ${tag} ${pad(line.label, tradeLabelWidth)}${line.detail}`);
+      }
+      console.error(bar);
+
+    };
+}
+
+function createEvaluateCycles(pairs: string[], baseline: Baseline, largestScc: number) {
+  return (_required: Record<string, never>, _options = {}) => {
+    const introducedPairs = pairs.filter((p) => !baseline.moduleCycles.pairs.includes(p));
+    const removedPairs = baseline.moduleCycles.pairs.filter((p) => !pairs.includes(p));
+    const sccVerdict = compare(largestScc, baseline.moduleCycles.largestScc);
+    const cyclesRegressed = introducedPairs.length > 0 || sccVerdict === "regressed";
+    const cyclesImproved = (removedPairs.length > 0 || sccVerdict === "improved") && !cyclesRegressed;
+
+    const cyclesLabel = "module cycles / SCC (runtime-only)";
+    const cyclesTier = tierOf(cyclesLabel);
+    const cyclesTradeDetail =
+      [
+        introducedPairs.length > 0 ? `+${introducedPairs.length} cycle pair(s)` : null,
+        removedPairs.length > 0 ? `-${removedPairs.length} cycle pair(s)` : null,
+        sccVerdict !== "same" ? `largest SCC ${baseline.moduleCycles.largestScc} → ${largestScc}` : null,
+      ]
+        .filter((s): s is string => s !== null)
+        .join(", ") || "no change";
+
+    return { introducedPairs, removedPairs, sccVerdict, cyclesRegressed, cyclesImproved, cyclesLabel, cyclesTier, cyclesTradeDetail };
+  };
+}
+
+function createReportMetricSummary({ fileCount, moduleAdjacency, current, propagationCostPct, propagationCostRuntimePct, backEdges, backEdgesRuntime, pairs, largestScc, apiSurfaceFiles, deep, bidirectionalHubs }: { fileCount: number; moduleAdjacency: Map<string, Set<string>>; current: Baseline; propagationCostPct: number; propagationCostRuntimePct: number; backEdges: { total: number; byTarget: Map<string, number>; }; backEdgesRuntime: { total: number; byTarget: Map<string, number>; }; pairs: string[]; largestScc: number; apiSurfaceFiles: number; deep: { total: number; byModule: Map<string, { edges: number; files: Set<string>; }>; }; bidirectionalHubs: { count: number; total: number; pct: number; medians: { fanIn: number; fanOut: number; }; } }) {
+  return (_required: Record<string, never>, _options = {}): void => {
+    const scope = INCLUDE_TESTS ? "including tests" : "production files only";
+    console.log(`check:architecture — ${fileCount} files, ${moduleAdjacency.size} modules, ${scope}\n`);
+
+    const rows: { label: string; value: string }[] = [
+      { label: "cross-feature import edges (all-import)", value: `${current.crossFeatureEdges.length}` },
+      { label: "propagation cost (all-import)", value: `${propagationCostPct.toFixed(2)}%` },
+      { label: "propagation cost (runtime-only)", value: `${propagationCostRuntimePct.toFixed(2)}%` },
+      { label: "back-edges into composition root", value: `${backEdges.total}` },
+      { label: "  └ back-edges, runtime-only (informational)", value: `${backEdgesRuntime.total}` },
+      { label: "module cycles (mutual pairs, runtime-only)", value: `${pairs.length}` },
+      { label: "largest strongly-connected component (runtime-only)", value: `${largestScc}` },
+      { label: "module API surface (files exposed)", value: `${apiSurfaceFiles}` },
+      { label: "  └ deep-import edges (informational)", value: `${deep.total}` },
+      { label: "bidirectional hub count", value: `${bidirectionalHubs.pct.toFixed(2)}% (${bidirectionalHubs.count}/${bidirectionalHubs.total})` },
+    ];
+    const labelWidth = Math.max(...rows.map((r) => r.label.length)) + 2;
+    for (const row of rows) console.log(`  ${pad(row.label, labelWidth)}${row.value}`);
+    console.log(`\n  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.`);
+
+  };
+}
+
+function createReportVerdict({ blockingRegressed, blockingCyclesRegressed, newFeatureEdges, warnOnlyRegressed, warnOnlyCyclesRegressed, improved, cyclesImproved }: { blockingRegressed: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; blockingCyclesRegressed: boolean; newFeatureEdges: string[]; warnOnlyRegressed: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; warnOnlyCyclesRegressed: boolean; improved: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; cyclesImproved: boolean }) {
+  return (_required: Record<string, never>, _options = {}): void => {
+    const totalBlocking = blockingRegressed.length + Number(blockingCyclesRegressed) + Number(newFeatureEdges.length > 0);
+
+    if (totalBlocking > 0) {
+      console.error(
+        `\ncheck:architecture — FAILED: ${totalBlocking} metric(s) regressed against ${ENFORCE_HARD_CONSTRAINT_TIERS ? "a hard constraint" : "the baseline"}.`,
+      );
+      console.error(`Either fix the regression or, if genuinely intended, run with --update to move the baseline.`);
+      process.exit(1);
+    }
+
+    if (ENFORCE_HARD_CONSTRAINT_TIERS && (warnOnlyRegressed.length > 0 || warnOnlyCyclesRegressed)) {
+      const warnCount = warnOnlyRegressed.length + Number(warnOnlyCyclesRegressed);
+      console.warn(
+        `\ncheck:architecture — OK: hard constraints hold, but ${warnCount} ratchet metric(s) regressed. Not blocking, but worth fixing before it compounds.`,
+      );
+      return;
+    }
+
+    if (improved.length > 0 || cyclesImproved) {
+      console.log(`\ncheck:architecture — OK, and ahead of baseline. Run with --update to lock in the improvement.`);
+      return;
+    }
+
+    console.log(`\ncheck:architecture — OK: at baseline.`);
+
+  };
+}
+
+function createReportMetricMoves({ introducedPairs, sccVerdict, baseline, largestScc, removedPairs, regressed, warnOnlyRegressed, improved }: { introducedPairs: string[]; sccVerdict: Verdict; baseline: Baseline; largestScc: number; removedPairs: string[]; regressed: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; warnOnlyRegressed: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[]; improved: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier; }[] }) {
+  return (_required: Record<string, never>, _options = {}): void => {
     const reportCycleMoves = (_required: Record<string, never>, _options = {}): void => {
       if (introducedPairs.length > 0) {
         console.error(`\n  module cycles — ${introducedPairs.length} new pair(s) introduced:`);
@@ -965,65 +1084,6 @@ function main(): void {
     }
 
   };
-  reportMetricMoves({});
-  // TRADE DETECTED: this run moved metrics in both directions. This is easy to miss in the
-  // per-metric lines above — e.g. a barrel-file cleanup that shrinks API surface while raising
-  // propagation cost is a net loss on the metric that actually costs something, but reads as
-  // "3 improved, 1 regressed" if you're skimming. Make that unmissable.
-  const hasTrade = (regressed.length > 0 || cyclesRegressed) && (improved.length > 0 || cyclesImproved);
-  if (hasTrade) {
-    const reportTrade = (_required: Record<string, never>, _options = {}): void => {
-      const tradeLines: { verdict: "regressed" | "improved"; label: string; detail: string }[] = [
-        ...regressed.map((c) => ({ verdict: "regressed" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
-        ...(cyclesRegressed ? [{ verdict: "regressed" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
-        ...improved.map((c) => ({ verdict: "improved" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
-        ...(cyclesImproved ? [{ verdict: "improved" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
-      ];
-      const tradeLabelWidth = Math.max(...tradeLines.map((l) => l.label.length)) + 2;
-      const bar = "=".repeat(72);
-      console.error(`\n${bar}`);
-      console.error(`  TRADE DETECTED — this run bought improvement on one metric with regression on another`);
-      console.error(bar);
-      for (const line of tradeLines) {
-        const tag = line.verdict === "regressed" ? "regressed:" : "improved: ";
-        console.error(`  ${tag} ${pad(line.label, tradeLabelWidth)}${line.detail}`);
-      }
-      console.error(bar);
-
-    };
-    reportTrade({});
-
-  }
-
-  const reportVerdict = (_required: Record<string, never>, _options = {}): void => {
-    const totalBlocking = blockingRegressed.length + Number(blockingCyclesRegressed) + Number(newFeatureEdges.length > 0);
-
-    if (totalBlocking > 0) {
-      console.error(
-        `\ncheck:architecture — FAILED: ${totalBlocking} metric(s) regressed against ${ENFORCE_HARD_CONSTRAINT_TIERS ? "a hard constraint" : "the baseline"}.`,
-      );
-      console.error(`Either fix the regression or, if genuinely intended, run with --update to move the baseline.`);
-      process.exit(1);
-    }
-
-    if (ENFORCE_HARD_CONSTRAINT_TIERS && (warnOnlyRegressed.length > 0 || warnOnlyCyclesRegressed)) {
-      const warnCount = warnOnlyRegressed.length + Number(warnOnlyCyclesRegressed);
-      console.warn(
-        `\ncheck:architecture — OK: hard constraints hold, but ${warnCount} ratchet metric(s) regressed. Not blocking, but worth fixing before it compounds.`,
-      );
-      return;
-    }
-
-    if (improved.length > 0 || cyclesImproved) {
-      console.log(`\ncheck:architecture — OK, and ahead of baseline. Run with --update to lock in the improvement.`);
-      return;
-    }
-
-    console.log(`\ncheck:architecture — OK: at baseline.`);
-
-  };
-  reportVerdict({});
-
 }
 
 main();

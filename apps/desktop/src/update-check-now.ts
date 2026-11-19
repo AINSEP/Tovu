@@ -109,14 +109,7 @@ const messageOf = ({ error }: { error: unknown }, _options = {}): string => erro
 export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {}): { checkNow: () => Promise<UpdateCheckOutcome> } {
   let inFlight: Promise<UpdateCheckOutcome> | null = null;
 
-  function report({ outcome }: { outcome: UpdateCheckOutcome }, { errorMessage }: { errorMessage?: string } = {}): UpdateCheckOutcome {
-    const notice = updateCheckNotice({
-      outcome, currentVersion: deps.currentVersion(), isPackaged: deps.isPackaged,
-      automaticUpdates: deps.automaticUpdates(), errorMessage,
-    });
-    if (notice) deps.notify(notice);
-    return outcome;
-  }
+  const report = createUpdateOutcomeReporter(deps);
 
   function reportCheckResult({ result, automatic }: {
     result: Awaited<ReturnType<CheckableUpdater['checkForUpdates']>>; automatic: boolean;
@@ -161,6 +154,17 @@ export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {
       inFlight ??= run().finally(() => { inFlight = null; });
       return inFlight;
     },
+  };
+}
+
+function createUpdateOutcomeReporter(deps: UpdateCheckNowDeps) {
+  return function report({ outcome }: { outcome: UpdateCheckOutcome }, { errorMessage }: { errorMessage?: string } = {}): UpdateCheckOutcome {
+    const notice = updateCheckNotice({
+      outcome, currentVersion: deps.currentVersion(), isPackaged: deps.isPackaged,
+      automaticUpdates: deps.automaticUpdates(), errorMessage,
+    });
+    if (notice) deps.notify(notice);
+    return outcome;
   };
 }
 

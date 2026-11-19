@@ -148,6 +148,28 @@ function main(): void {
   const order = shuffledIndices(all.length, SHUFFLE_SEED);
   const cases = order.map((i, position) => ({ caseNo: position + 1, ...all[i]! }));
 
+  writeDuplicateAnswerKey({ outDir, blind, all, cases });
+
+  const queryBlock = cases.map((c) => `${c.caseNo}. ${c.query}`).join("\n");
+
+  const payload = createPayload({ description, schema, props, cases, queryBlock });
+
+  writeFileSync(join(outDir, "afill-dup-arm-M-shipped.md"), payload("arm M (content_duplicate, THE SHIPPED SCHEMA)", resourceProp));
+  writeFileSync(
+    join(outDir, "afill-dup-arm-N-verb-enum.md"),
+    payload("arm N (content_duplicate, verb-carrying enum)", {
+      type: "string",
+      enum: RESOURCES.map((r) => `duplicate_${r}`),
+      description: resourceProp.description,
+    }),
+  );
+
+  console.log(`shipped description: ${description.split(/\s+/).filter(Boolean).length} words, resource is a free string (no enum) — confirmed against the live catalog`);
+  console.log(`cases: ${cases.length}  (blind negatives ${blind.length}, positives ${POSITIVES.length}, near-misses ${NEAR_MISSES.length}, ambiguous ${AMBIGUOUS.length} reported-not-scored)`);
+  console.log(`wrote payloads + key to ${outDir}`);
+}
+
+function writeDuplicateAnswerKey({ outDir, blind, all, cases }: { outDir: string; blind: Case[]; all: Case[]; cases: { query: string; expect: string | null; bucket: "blind-negative" | "positive" | "near-miss" | "ambiguous"; reallyWants?: string; caseNo: number; }[] }) {
   writeFileSync(
     join(outDir, "afill-duplicate-key.json"),
     JSON.stringify(
@@ -177,13 +199,14 @@ function main(): void {
         affectedCount: POSITIVES.length,
       },
       null,
-      2,
-    ),
+      2
+    )
   );
+}
 
-  const queryBlock = cases.map((c) => `${c.caseNo}. ${c.query}`).join("\n");
 
-  const payload = (arm: string, resourceSchema: Record<string, unknown>) => `# Task — ${arm}
+function createPayload({ description, schema, props, cases, queryBlock }: { description: ReturnType<typeof stripSearchKeywords>; schema: Record<string, unknown>; props: Record<string, Record<string, unknown>>; cases: { query: string; expect: string | null; bucket: "blind-negative" | "positive" | "near-miss" | "ambiguous"; reallyWants?: string; caseNo: number; }[]; queryBlock: string }) {
+  return (arm: string, resourceSchema: Record<string, unknown>) => `# Task — ${arm}
 
 You are the tool-calling model behind a website admin assistant. A site administrator types a request
 in their own words. Your ONLY job is to decide which tool you would call, and with what arguments.
@@ -223,20 +246,6 @@ ${cases.length} <resource-or-NONE>
 
 ${queryBlock}
 `;
-
-  writeFileSync(join(outDir, "afill-dup-arm-M-shipped.md"), payload("arm M (content_duplicate, THE SHIPPED SCHEMA)", resourceProp));
-  writeFileSync(
-    join(outDir, "afill-dup-arm-N-verb-enum.md"),
-    payload("arm N (content_duplicate, verb-carrying enum)", {
-      type: "string",
-      enum: RESOURCES.map((r) => `duplicate_${r}`),
-      description: resourceProp.description,
-    }),
-  );
-
-  console.log(`shipped description: ${description.split(/\s+/).filter(Boolean).length} words, resource is a free string (no enum) — confirmed against the live catalog`);
-  console.log(`cases: ${cases.length}  (blind negatives ${blind.length}, positives ${POSITIVES.length}, near-misses ${NEAR_MISSES.length}, ambiguous ${AMBIGUOUS.length} reported-not-scored)`);
-  console.log(`wrote payloads + key to ${outDir}`);
 }
 
 main();
