@@ -5,9 +5,9 @@ import { formatUserFacingError } from "@jini-ai/core";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import { useAgentFailureCard } from "./AgentFailureCard.hooks";
 
-export function AgentFailureCard(props: ExtEventRenderProps) {
-  const t = useT();
-  const failure = useAgentFailureCard(props, {});
+export function AgentFailureCard({ useAgentFailureCard: useAgentFailureCardHook = useAgentFailureCard, useT: useTHook = useT, ...props }: ExtEventRenderProps & { useAgentFailureCard?: typeof useAgentFailureCard; useT?: typeof useT; }) {
+  const t = useTHook();
+  const failure = useAgentFailureCardHook(props, {});
   const formatted = useMemo(() => failure ? formatUserFacingError({ message: failure.reason,
     action: failure.hint ?? t("Review the saved work above before sending another message. Copy details and report this problem."),
     step: failure.agentId ? `assistant answer (${failure.agentId})` : "assistant answer", cause: failure.details }, TOVU_ERROR_REDACTION_OPTIONS) : null, [failure?.reason, failure?.hint, failure?.agentId, failure?.details, t]);

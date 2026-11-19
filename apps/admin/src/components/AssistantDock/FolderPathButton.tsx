@@ -8,12 +8,13 @@ import { RemixIcon } from "@jini-ai/ui";
  * focus match "+" exactly instead of approximating them.
  */
 export interface FolderPathButtonProps {
+  useT?: typeof useT;
   readonly picking: boolean;
   readonly onPick: () => void;
 }
 
-export function FolderPathButton({ picking, onPick }: FolderPathButtonProps) {
-  const t = useT();
+export function FolderPathButton({ useT: useTHook = useT, picking, onPick }: FolderPathButtonProps) {
+  const t = useTHook();
   const label = t("Choose a folder");
   return (
     <button type="button" className="jini-composer-attach tovu-composer-folder-path" onClick={onPick} disabled={picking}

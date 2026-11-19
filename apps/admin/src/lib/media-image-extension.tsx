@@ -50,13 +50,13 @@ import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
  *    `@tiptap/extension-image` behavior this replaces — only the in-editor admin surface ever
  *    reads this `src`; the public render path never does (D7/ADR-027 §4).
  */
-export function MediaImageNodeView(props: NodeViewProps) {
+export function MediaImageNodeView({ hooks: { useWiredAdminLocale: useWiredAdminLocaleHook = useWiredAdminLocale } = {}, ...props }: NodeViewProps & { hooks?: { useWiredAdminLocale?: typeof useWiredAdminLocale; }; }) {
   const assetId = typeof props.node.attrs.assetId === "string" ? props.node.attrs.assetId : "";
   const transformName = typeof props.node.attrs.transformName === "string" ? props.node.attrs.transformName : "";
   const legacySrc = typeof props.node.attrs.src === "string" ? props.node.attrs.src : "";
   const alt = typeof props.node.attrs.alt === "string" ? props.node.attrs.alt : "";
   const [picking, setPicking] = useState(false);
-  const locale = useWiredAdminLocale();
+  const locale = useWiredAdminLocaleHook();
   const t = createMediaImageTranslator({ locale });
 
   const isRef = assetId.length > 0 && transformName.length > 0;

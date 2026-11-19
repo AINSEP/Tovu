@@ -1293,8 +1293,8 @@ const PANELS: readonly TovuAdminPanel[] = [
 ];
 
 /** Reuse the admin's translated loading copy and existing text-only route loading pattern. */
-function PanelRouteLoading() {
-  const locale = useWiredAdminLocale();
+function PanelRouteLoading({ useWiredAdminLocale: useWiredAdminLocaleHook = useWiredAdminLocale }: { useWiredAdminLocale?: typeof useWiredAdminLocale; }) {
+  const locale = useWiredAdminLocaleHook();
   return <p role="status">{tApp({ locale, key: "Loading Tovu…" })}</p>;
 }
 

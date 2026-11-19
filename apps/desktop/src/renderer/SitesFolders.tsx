@@ -10,25 +10,25 @@ import { reportShellTelemetry } from './product-telemetry.js';
 import { ToolIcon } from './tool-icons.js';
 
 /** Jini supplies dialog lifecycle/accessibility; hooks own all state and preload effects. */
-export function SitesFolders({ useSettings = useSiteFolders, Shell }: {
+export function SitesFolders({ useSiteStorageSettings: useSiteStorageSettingsHook = useSiteStorageSettings, useSettings = useSiteFolders, Shell }: { useSiteStorageSettings?: typeof useSiteStorageSettings;
   useSettings?: typeof useSiteFolders;
   /** See {@link SitesFoldersDialog}'s `Shell`. */
   Shell?: typeof SettingsDialogShell;
 } = {}) {
-  const settings = useSiteStorageSettings({}, { useFolders: useSettings });
+  const settings = useSiteStorageSettingsHook({}, { useFolders: useSettings });
   return <SitesFoldersDialog settings={settings} Shell={Shell} />;
 }
 
 /** Kept outside the dropdown: closing its menu never unmounts a draft or a dialog.
  * `jini-tooltip` tips render through the TooltipLayer in main.tsx. */
-export function SitesFoldersDialog({ settings, showTrigger, Shell = SettingsDialogShell }: {
+export function SitesFoldersDialog({ hooks: { useSitesFoldersDialog: useSitesFoldersDialogHook = useSitesFoldersDialog } = {}, settings, showTrigger, Shell = SettingsDialogShell }: { hooks?: { useSitesFoldersDialog?: typeof useSitesFoldersDialog; };
   settings: ReturnType<typeof useSiteStorageSettings>;
   showTrigger?: boolean;
   /** The dialog frame; defaults to Jini's `SettingsDialogShell`. Injectable because a linked Jini
    *  tree brings its own React copy, whose hooks cannot run inside this app's test renderer. */
   Shell?: typeof SettingsDialogShell;
 }) {
-  const view = useSitesFoldersDialog({ settings }, { showTrigger });
+  const view = useSitesFoldersDialogHook({ settings }, { showTrigger });
   const warning = <SitesFoldersWarning settings={settings} view={view} />;
   return <>
     {view.showTrigger && <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"

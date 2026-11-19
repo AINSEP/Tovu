@@ -1,6 +1,6 @@
 import "../../styles/select.css";
 import { Select as PackageSelect, resolveSelectTriggerLabel as resolvePackageLabel, type SelectOption, type SelectProps as PackageProps } from "@jini-ai/ui/admin-widgets";
-import type { useSelectDropdown } from "./Select.hooks";
+import { useSelectDropdown } from "./Select.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 export type { SelectOption } from "@jini-ai/ui/admin-widgets";
@@ -10,10 +10,8 @@ export type SelectProps = Omit<PackageProps, "useDropdown"> & {
 };
 
 /** Preserve the host's injectable hook props while the package owns rendering and live effects. */
-export function Select({ useDropdown, ...props }: SelectProps) {
-  const useHostDropdown: PackageProps["useDropdown"] = useDropdown
-    ? (required, optional = {}) => useDropdown({ ...required, ...optional })
-    : undefined;
+export function Select({ useDropdown = useSelectDropdown, ...props }: SelectProps) {
+  const useHostDropdown: PackageProps["useDropdown"] = (required, optional = {}) => useDropdown({ ...required, ...optional });
   return <PackageSelect {...props} useDropdown={useHostDropdown} />;
 }
 

@@ -52,6 +52,7 @@ import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.ho
  */
 
 export interface EmbedInsertControlProps {
+  hooks?: { useAdminLocale?: typeof useAdminLocale; };
   editor: EmbedEditor | null;
   /** Injectable seam for the menu/dialog visibility state and the two pinned Form/Menu
    *  `useWidgetAddControl` instances. Defaults to the real {@link useEmbedInsertControl}; a test
@@ -196,9 +197,9 @@ function WidgetShortcutPicker(props: {
  * {@link WidgetShortcutPicker} instances as THEIR dialogs' own base. Omit `agentHandle` and none of
  * this control's own elements, or any dialog it opens, are tagged.
  */
-export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHandle: base, ...props }: EmbedInsertControlProps) {
+export function EmbedInsertControl({ hooks: { useAdminLocale: useAdminLocaleHook = useAdminLocale } = {}, useEmbed = useEmbedInsertControl, agentHandle: base, ...props }: EmbedInsertControlProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const locale = useAdminLocale();
+  const locale = useAdminLocaleHook();
   const t = createEmbedInsertControlTranslator({ locale });
   const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, galleryControl, insertWidget } =
     useEmbed({ editor: props.editor });

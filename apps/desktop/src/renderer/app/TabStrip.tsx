@@ -42,13 +42,14 @@ function ImportTabItem({ importTab }: { importTab: ImportTab }) {
  * The Import tab, when open, sits right after it.
  */
 export function TabStrip({
+  hooks: { useTabStrip: useTabStripHook = useTabStrip } = {},
   projects,
   activeTab,
   onSelectSitesHome,
   onSelectTab,
   onCloseTab,
   importTab,
-}: {
+}: { hooks?: { useTabStrip?: typeof useTabStrip; };
   importTab?: ImportTab | undefined;
   projects: readonly SiteRecord[];
   activeTab: string | null;
@@ -56,7 +57,7 @@ export function TabStrip({
   onSelectTab: (id: string) => void;
   onCloseTab: (id: string) => void;
 }) {
-  const { stripRef, overflow, showArrows, scrollLeft, scrollRight, tabIndex, onKeyDown } = useTabStrip({ activeTab, projects });
+  const { stripRef, overflow, showArrows, scrollLeft, scrollRight, tabIndex, onKeyDown } = useTabStripHook({ activeTab, projects });
   const allSelected = activeTab === null && importTab?.selected !== true;
   return (
     <div className="tabstrip-frame">

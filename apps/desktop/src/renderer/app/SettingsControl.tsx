@@ -19,23 +19,24 @@ const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
  *  without leaving the menu. Closes on selection or on a click/tap outside the dropdown; arrow keys move
  *  between entries (inside the stepper they change its number instead). */
 export function SettingsControl({
+  hooks: { useDismissibleDropdown: useDismissibleDropdownHook = useDismissibleDropdown, useIdleSiteSleep: useIdleSiteSleepHook = useIdleSiteSleep, useLoadedSites: useLoadedSitesHook = useLoadedSites, useMenuKeyboard: useMenuKeyboardHook = useMenuKeyboard, useUpdateCheck: useUpdateCheckHook = useUpdateCheck } = {},
   theme,
   onThemeChange,
   onOpenAppearance,
   useSiteSettings = useSiteStorageSettings,
-}: {
+}: { hooks?: { useDismissibleDropdown?: typeof useDismissibleDropdown; useIdleSiteSleep?: typeof useIdleSiteSleep; useLoadedSites?: typeof useLoadedSites; useMenuKeyboard?: typeof useMenuKeyboard; useUpdateCheck?: typeof useUpdateCheck; };
   theme: ThemePreference;
   onThemeChange: (next: ThemePreference) => void;
   onOpenAppearance: () => void;
   useSiteSettings?: typeof useSiteStorageSettings;
 }) {
-  const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
-  const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboard<HTMLDivElement, HTMLButtonElement>({ open });
+  const { open, setOpen, containerRef } = useDismissibleDropdownHook<HTMLDivElement>();
+  const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboardHook<HTMLDivElement, HTMLButtonElement>({ open });
   const sitesSettings = useSiteSettings({});
-  const updateCheck = useUpdateCheck({ onDone: () => setOpen(false) });
+  const updateCheck = useUpdateCheckHook({ onDone: () => setOpen(false) });
   // Read while the menu is closed too, so the row opens on the saved number, never a flash of the default.
-  const loadedSites = useLoadedSites();
-  const idleSiteSleep = useIdleSiteSleep();
+  const loadedSites = useLoadedSitesHook();
+  const idleSiteSleep = useIdleSiteSleepHook();
   // The menu used to share NavLink's temporary lock. Local sites settings now has a real
   // shared-config owner, so Settings can open without unlocking unfinished section links.
   // That lock is therefore permanently off: the gear passes `disabled: false` below and carries

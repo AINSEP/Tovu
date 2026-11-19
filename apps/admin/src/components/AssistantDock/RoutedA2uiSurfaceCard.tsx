@@ -59,6 +59,7 @@ import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-
  * reaching the canvas), which is why this file just reads `hasError` rather than deriving it itself.
  */
 export interface RoutedA2uiSurfaceCardProps extends A2uiSurfaceCardProps {
+  useT?: typeof useT;
   /** Injectable seam for the routing/dismiss/error-tracking hook. Defaults to the real
    *  {@link useRoutedA2uiSurfaceCard}; a test can pass a fake here to exercise this component's
    *  rendering (inline vs. portal, the dismiss control, refusal handling) without driving the real
@@ -68,10 +69,11 @@ export interface RoutedA2uiSurfaceCardProps extends A2uiSurfaceCardProps {
 }
 
 export function RoutedA2uiSurfaceCard({
+  useT: useTHook = useT,
   useRoutedA2uiSurfaceCardHook = useRoutedA2uiSurfaceCard,
   ...props
 }: RoutedA2uiSurfaceCardProps) {
-  const t = useT();
+  const t = useTHook();
   const { registry, generation, stylesheets } = useContext(AdminChartRegistryContext);
   const { 
     target, 

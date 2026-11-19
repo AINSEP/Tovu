@@ -55,6 +55,7 @@ import { type Translate } from '@jini-ai/core/text';
  */
 
 export interface TemplateSourceModalProps {
+  hooks?: { useCodeWrap?: typeof useCodeWrap; };
   /** The workspace's active theme id — used to build the fetch URL, not for display logic beyond
    *  that (the subtitle below names it for the operator's benefit). */
   readonly themeId: string;
@@ -87,6 +88,7 @@ export interface TemplateSourceModalProps {
 }
 
 export function TemplateSourceModal({
+  hooks: { useCodeWrap: useCodeWrapHook = useCodeWrap } = {},
   themeId,
   themeTier,
   themeApiVersion,
@@ -99,7 +101,7 @@ export function TemplateSourceModal({
 }: TemplateSourceModalProps) {
   const fetchState = useTemplateSourceHook({ themeId, themeTier, themeApiVersion, templateFilename });
   // Wrap on by default, same toggle as the plugin files viewer (owner, 2026-10-10).
-  const { wrap, toggleWrap } = useCodeWrap();
+  const { wrap, toggleWrap } = useCodeWrapHook();
 
   const goToTemplateInEditor = createGoToTemplateInEditor({ themeId, templateFilename, confirmLeave, onClose });
 

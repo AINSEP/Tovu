@@ -102,13 +102,13 @@ function TextConfigFields(props: {
 }
 
 /** `social-links` (SOCIAL_LINKS_REGISTRATION: `{ links: [{platform,url}], max 20 }`). */
-function SocialLinksConfigFields(props: {
+function SocialLinksConfigFields({ hooks: { useSocialLinksConfig: useSocialLinksConfigHook = useSocialLinksConfig } = {}, ...props }: { hooks?: { useSocialLinksConfig?: typeof useSocialLinksConfig; };
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
   agentHandle?: string;
   t: Translate;
 }) {
-  const { links, updateLink, removeLink, addLink } = useSocialLinksConfig({ config: props.config, onChange: props.onChange });
+  const { links, updateLink, removeLink, addLink } = useSocialLinksConfigHook({ config: props.config, onChange: props.onChange });
   const base = props.agentHandle;
   const { t } = props;
 
@@ -341,17 +341,18 @@ type FetchedConfigFieldsProps = {
  * specific collection is chosen — there is no single field list to check boxes against otherwise.
  */
 function RecentEntriesConfigFields({
+  hooks: { useRecentEntriesConfig: useRecentEntriesConfigHook = useRecentEntriesConfig } = {},
   useFetchedOptions: useOptions = useFetchedOptions,
   t,
   ...props
-}: FetchedConfigFieldsProps) {
+}: FetchedConfigFieldsProps & { hooks?: { useRecentEntriesConfig?: typeof useRecentEntriesConfig; }; }) {
   const maxItems = typeof props.config.maxItems === "number" ? props.config.maxItems : 5;
   const base = props.agentHandle;
   const { items: collections, error: collectionsError } = useOptions<AdminContentType>(
     { fetchList: () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection({ key: ct.key }))), key: ["collections", "options"] },
     { errorFallback: t("failed to load collections") },
   );
-  const c = useRecentEntriesConfig({ config: props.config, onChange: props.onChange });
+  const c = useRecentEntriesConfigHook({ config: props.config, onChange: props.onChange });
   const selectedType = findContentType({ collections, key: c.collection });
   const displayableFields = selectedType ? selectedType.fields.filter((f) => COLLECTION_DISPLAYABLE_FIELD_KINDS.has(f.kind)) : [];
   const showFieldsAndFilter = selectedType !== null && displayableFields.length > 0;

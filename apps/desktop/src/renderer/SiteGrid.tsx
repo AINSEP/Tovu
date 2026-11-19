@@ -78,6 +78,7 @@ import { ToolIcon } from './tool-icons.js';
  * them directly — they are exercised through this grid, which is the boundary that owns them.
  */
 export function SiteGrid({
+  hooks: { useSiteListView: useSiteListViewHook = useSiteListView } = {},
   projects,
   onOpen,
   onDelete,
@@ -90,7 +91,7 @@ export function SiteGrid({
   useLocate = useSiteLocate,
   usePreview = useSitePreview,
   useListPrefs = useSiteListPrefs,
-}: {
+}: { hooks?: { useSiteListView?: typeof useSiteListView; };
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
@@ -126,7 +127,7 @@ export function SiteGrid({
   const power = usePower({}, { onSiteUpdated, onStarted: onOpen });
   const locate = useLocate({}, { onLocated: onSiteUpdated });
   const { prefs, onPrefsChange } = useListPrefs();
-  const list = useSiteListView({
+  const list = useSiteListViewHook({
     items: projects.map((project) => ({ id: project.id, name: project.displayName, createdAt: project.createdAt, running: project.status === 'running', project })),
     prefs,
     onPrefsChange,
@@ -597,6 +598,7 @@ function CardActions({
  *   (Open in browser).
  */
 function SiteCardMenu({
+  hooks: { useDismissibleDropdown: useDismissibleDropdownHook = useDismissibleDropdown } = {},
   project,
   status,
   copy,
@@ -605,7 +607,7 @@ function SiteCardMenu({
   onRename,
   onRequestDelete,
   actions,
-}: {
+}: { hooks?: { useDismissibleDropdown?: typeof useDismissibleDropdown; };
   project: SiteRecord;
   status: SiteRecord['status'];
   copy: DeleteActionCopy;
@@ -615,7 +617,7 @@ function SiteCardMenu({
   onRequestDelete: (id: string) => void;
   actions: SiteActions;
 }) {
-  const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
+  const { open, setOpen, containerRef } = useDismissibleDropdownHook<HTMLDivElement>();
   const running = status === 'running';
 
   // Every entry closes the menu first, then acts. See `closeMenuThen`.

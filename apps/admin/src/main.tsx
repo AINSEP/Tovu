@@ -64,8 +64,8 @@ redirectLegacyHashUrl();
 /** Keep one session owner above App so Jini receives the current queue identity before rendering.
  * Boot and login still use App's existing gates. O(1) composition; session I/O stays in its hook.
  */
-function SessionApp() {
-  const session = useAdminSession();
+function SessionApp({ useAdminSession: useAdminSessionHook = useAdminSession }: { useAdminSession?: typeof useAdminSession; }) {
+  const session = useAdminSessionHook();
   const app = <App useSession={() => session} />;
   if (session.checking || !session.user) return app;
   return <CommentQueueScopeProvider scope={createCommentsQueueScope({ principalId: session.user.id })}>

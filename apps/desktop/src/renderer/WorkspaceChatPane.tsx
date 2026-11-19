@@ -19,10 +19,11 @@ interface WorkspaceChatPaneComponents {
 }
 
 export function WorkspaceChatPane({
+  hooks: { useWorkspaceChatPane: useWorkspaceChatPaneHook = useWorkspaceChatPane } = {},
   onClose,
   ports,
   components: { ConversationList: Conversations = ConversationList, ChatPane: Chat = ChatPane } = {},
-}: {
+}: { hooks?: { useWorkspaceChatPane?: typeof useWorkspaceChatPane; };
   onClose: () => void;
   /** `useWorkspaceChatPane`'s hook ports, passed straight through; production passes none. */
   ports?: WorkspaceChatPanePorts;
@@ -48,7 +49,7 @@ export function WorkspaceChatPane({
     setWorkingDirectory,
     composerHandle,
     onDropCapture,
-  } = useWorkspaceChatPane({}, ports);
+  } = useWorkspaceChatPaneHook({}, ports);
 
   return (
     <aside className="runner-chat-pane" aria-label="Runner chat" onDropCapture={onDropCapture}>

@@ -90,24 +90,25 @@ export interface SitesSettingsHooks {
  * prop is a branch).
  */
 export function App({
+  hooks: { useAddSite: useAddSiteHook = useAddSite, useApplySiteRecord: useApplySiteRecordHook = useApplySiteRecord, useFindInPage: useFindInPageHook = useFindInPage, useImportHandoff: useImportHandoffHook = useImportHandoff, useImportWebsite: useImportWebsiteHook = useImportWebsite, useProductScreen: useProductScreenHook = useProductScreen, useProjectMutations: useProjectMutationsHook = useProjectMutations, useRunnerNavigation: useRunnerNavigationHook = useRunnerNavigation, useSiteRescan: useSiteRescanHook = useSiteRescan, useSiteToast: useSiteToastHook = useSiteToast, useStartImported: useStartImportedHook = useStartImported, useTabCloseAsk: useTabCloseAskHook = useTabCloseAsk, useTheme: useThemeHook = useTheme, useZoom: useZoomHook = useZoom } = {},
   useProjects = useSitesPolling,
   useTabs = useProjectTabs,
   useNav = useSectionNav,
   useExpanded = useExpandedMode,
   sitesSettings = {},
-}: {
+}: { hooks?: { useAddSite?: typeof useAddSite; useApplySiteRecord?: typeof useApplySiteRecord; useFindInPage?: typeof useFindInPage; useImportHandoff?: typeof useImportHandoff; useImportWebsite?: typeof useImportWebsite; useProductScreen?: typeof useProductScreen; useProjectMutations?: typeof useProjectMutations; useRunnerNavigation?: typeof useRunnerNavigation; useSiteRescan?: typeof useSiteRescan; useSiteToast?: typeof useSiteToast; useStartImported?: typeof useStartImported; useTabCloseAsk?: typeof useTabCloseAsk; useTheme?: typeof useTheme; useZoom?: typeof useZoom; };
   useProjects?: typeof useSitesPolling;
   useTabs?: typeof useProjectTabs;
   useNav?: typeof useSectionNav;
   useExpanded?: typeof useExpandedMode;
   sitesSettings?: SitesSettingsHooks;
 } = {}) {
-  const [theme, setTheme] = useTheme();
+  const [theme, setTheme] = useThemeHook();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();
-  const { rescanning, rescanError, rescan } = useSiteRescan({ setProjects });
+  const { rescanning, rescanError, rescan } = useSiteRescanHook({ setProjects });
   // A card's Start/Stop resolves with main's refreshed record; this is what puts it on screen
   // rather than leaving the card four seconds behind the poll. See `useApplySiteRecord`.
-  const applySiteRecord = useApplySiteRecord({ setProjects });
+  const applySiteRecord = useApplySiteRecordHook({ setProjects });
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the sites home tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
@@ -131,7 +132,7 @@ export function App({
   const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm, showImportPage } =
     deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating, isImporting });
   const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
-    useProjectMutations({
+    useProjectMutationsHook({
       projects,
       setProjects,
       closeProjectTab,
@@ -139,20 +140,20 @@ export function App({
       stopCreating,
     });
 
-  const siteToast = useSiteToast({ lastCreated });
+  const siteToast = useSiteToastHook({ lastCreated });
   const openImported = createOpenImported({ openProjectTab, stopImporting });
-  const startImported = useStartImported({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
-  const { adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSite({ setProjects }, {
+  const startImported = useStartImportedHook({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
+  const { adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSiteHook({ setProjects }, {
     onAdded: ({ added }, _options = {}) => { siteToast.announceAdded(added); openImported({ id: added.id }); startImported(added); },
   });
-  const liveImport = useImportWebsite({
+  const liveImport = useImportWebsiteHook({
     createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
     openSite: ({ site, adminPage }) => { openImported({ id: site.id }, { adminPage }); startImported(site); },
     onArchiveImported: ({ site }, _options = {}) => { setProjects((current) => mergeAddedSite({ current, added: site })); siteToast.announceImported(site); openImported({ id: site.id }); startImported(site); },
     onFailureWhileClosed: siteToast.showToast,
   });
   const openImportPage = createOpenImportPage({ clearAddError, liveImport, startImporting });
-  useImportHandoff({ busy: liveImport.importing, prefill: liveImport.setAddress, open: openImportPage });
+  useImportHandoffHook({ busy: liveImport.importing, prefill: liveImport.setAddress, open: openImportPage });
 
   const { expanded, toggleExpanded } = useExpanded({ showSiteTab });
   const { onSitesHome, selectedTab, guestTarget, tabNotice } = appPresentation({
@@ -160,17 +161,17 @@ export function App({
   });
   // The visible project tab's guest when one is on screen, else the Projects screen itself — see
   // `use-find-in-page.hooks.ts`'s own header for why the target routing lives there, not here.
-  const find = useFindInPage({ activeGuestId: guestTarget });
+  const find = useFindInPageHook({ activeGuestId: guestTarget });
   // Same routing, for Cmd+Plus / Cmd+- / Cmd+0 — see `use-zoom.hooks.ts`'s own header.
-  const zoom = useZoom({ activeGuestId: guestTarget });
+  const zoom = useZoomHook({ activeGuestId: guestTarget });
   // Expanded mode's whole visible effect. See `expanded-mode.ts` for why this is a plain function
   // rather than three conditions inlined into the JSX below.
   const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
-  useRunnerNavigation({ setActiveId, setActiveTab });
-  const tabClose = useTabCloseAsk({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
+  useRunnerNavigationHook({ setActiveId, setActiveTab });
+  const tabClose = useTabCloseAskHook({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
   const runningCount = countRunningSites({ projects });
   const active = findSection({ id: activeId });
-  useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }) });
+  useProductScreenHook({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }) });
 
   return (
     <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>

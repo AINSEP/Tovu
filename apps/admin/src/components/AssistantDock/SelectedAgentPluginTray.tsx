@@ -38,6 +38,7 @@ export interface SelectedAgentPluginChip {
 }
 
 export interface SelectedAgentPluginTrayProps {
+  useT?: typeof useT;
   readonly chips: readonly SelectedAgentPluginChip[];
   /** {@link import("./hooks/AssistantDock.hooks.js").UseSelectedAgentPlugins.removePluginRef}. */
   readonly onRemove: (pluginRefId: string) => void;
@@ -49,8 +50,8 @@ export interface SelectedAgentPluginTrayProps {
  * Agent Plugin row count today).
  * @overallScore 100
  */
-export function SelectedAgentPluginTray({ chips, onRemove, onSendSkills }: SelectedAgentPluginTrayProps) {
-  const t = useT();
+export function SelectedAgentPluginTray({ useT: useTHook = useT, chips, onRemove, onSendSkills }: SelectedAgentPluginTrayProps) {
+  const t = useTHook();
   // Same "empty tray renders nothing" convention `AttachmentTray` itself uses — an empty
   // `.jini-attachment-tray` is `display: none` in the package's own stylesheet regardless, but
   // returning `null` here also skips the wrapping `.jini-composer-leading` padding Jini's

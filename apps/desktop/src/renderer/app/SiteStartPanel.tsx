@@ -18,12 +18,13 @@ import { useEffect, useRef } from 'react';
  * panel for the webview on its own.
  */
 export function SiteStartPanel({
+  hooks: { useSiteStart: useSiteStartHook = useSiteStart, useWakeOnOpen: useWakeOnOpenHook = useWakeOnOpen } = {},
   project,
   body,
   onStarted,
   onSiteUpdated,
   wakeOnOpen = false,
-}: {
+}: { hooks?: { useSiteStart?: typeof useSiteStart; useWakeOnOpen?: typeof useWakeOnOpen; };
   project: SiteRecord;
   body?: string;
   onStarted?: () => void;
@@ -35,12 +36,12 @@ export function SiteStartPanel({
   /** Only the visible workspace wakes automatically; hidden tabs still report presence. */
   wakeOnOpen?: boolean;
 }) {
-  const { starting: ownStart, error, start } = useSiteStart({ project }, { onSiteUpdated });
+  const { starting: ownStart, error, start } = useSiteStartHook({ project }, { onSiteUpdated });
   // Also true while another path (an import's own start) has the site booting.
   const starting = ownStart || project.status === 'starting';
 
   const handleStart = startThenNotify({ start, onStarted });
-  useWakeOnOpen({ status: project.status, wakeOnOpen, handleStart });
+  useWakeOnOpenHook({ status: project.status, wakeOnOpen, handleStart });
 
   return (
     <div className="workspace__idle">

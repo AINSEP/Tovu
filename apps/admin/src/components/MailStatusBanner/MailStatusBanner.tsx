@@ -13,13 +13,13 @@ import "./mail-status-banner.css";
  * email stays unconfigured on purpose). "Set up email" opens the Email screen's Provider tab (2026-10-22). Logic:
  * `useMailStatusBanner`.
  */
-export function MailStatusBanner(props: {
+export function MailStatusBanner({ useMailStatusBanner: useMailStatusBannerHook = useMailStatusBanner, ...props }: { useMailStatusBanner?: typeof useMailStatusBanner;
   fetchStatus: () => Promise<AdminMailStatus>;
   /** Already translated by the caller: the line, the link to Email, and the × button's name. */
   labels: { text: string; setUp: string; dismiss: string };
   storage?: MailBannerStorage;
 }) {
-  const { visible, dismiss } = useMailStatusBanner({ fetchStatus: props.fetchStatus }, { storage: props.storage });
+  const { visible, dismiss } = useMailStatusBannerHook({ fetchStatus: props.fetchStatus }, { storage: props.storage });
   if (!visible) return null;
   return (
     <div className="mail-status-banner" role="alert">

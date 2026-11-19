@@ -27,6 +27,7 @@ const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
  * brings it back there. A guest that says no stays, half-written form and all.
  */
 export function SiteWorkspaces({
+  useLiveViews: useLiveViewsHook = useLiveViews,
   inSites,
   openSites,
   visibleWorkspaceId,
@@ -36,7 +37,7 @@ export function SiteWorkspaces({
   registerZoomGuest,
   onSiteUpdated,
   adminPages,
-}: {
+}: { useLiveViews?: typeof useLiveViews;
   inSites: boolean;
   openSites: readonly SiteRecord[];
   visibleWorkspaceId: string | null;
@@ -49,7 +50,7 @@ export function SiteWorkspaces({
   /** The admin page each tab was opened on (`useProjectTabs`). */
   adminPages: Readonly<Record<string, SiteAdminPage>>;
 }) {
-  const live = useLiveViews({ openIds: openSites.map((project) => project.id), focusedId: inSites ? visibleWorkspaceId : null });
+  const live = useLiveViewsHook({ openIds: openSites.map((project) => project.id), focusedId: inSites ? visibleWorkspaceId : null });
   // Outside Websites every workspace is `hidden` (workspaceOnScreen), never unmounted: see above.
   return (
     <>
@@ -101,6 +102,7 @@ export function SiteWorkspaces({
  * one mount concern: a released tab renders its bar with no guest (`SiteWorkspaces`' own doc).
  */
 function SiteWorkspace({
+  hooks: { useComposedGuestRef: useComposedGuestRefHook = useComposedGuestRef, useSiteWorkspace: useSiteWorkspaceHook = useSiteWorkspace } = {},
   project,
   hidden,
   live,
@@ -112,7 +114,7 @@ function SiteWorkspace({
   registerZoomGuest,
   onSiteUpdated,
   adminPage,
-}: {
+}: { hooks?: { useComposedGuestRef?: typeof useComposedGuestRef; useSiteWorkspace?: typeof useSiteWorkspace; };
   project: SiteRecord;
   hidden: boolean;
   /** Whether this tab may mount its guest (`useLiveViews`); the tab on screen always may. */
@@ -132,14 +134,14 @@ function SiteWorkspace({
   // Everything this tab remembers and every action its bar takes: which surface it asked for, where
   // its guest is, its history, and Reload that keeps that history. Per tab, never lifted into `App`.
   // `did-fail-load` (`failed`/`stalled`) still comes from `useWebviewLoadFailure`, inside it.
-  const workspace = useSiteWorkspace({ project, hidden }, { adminPage, parked });
+  const workspace = useSiteWorkspaceHook({ project, hidden }, { adminPage, parked });
   // `guestRef` is a CALLBACK ref, not a ref object, and that distinction is the whole of D-03: the
   // hooks' listeners have to attach when the guest actually mounts, and this tab mounts it
   // conditionally (`running && !workspace.failed` below). See `useWebviewLoadFailure`'s own doc.
   // Composed with the find bar's and the zoom feature's own registration so ONE ref does all three
   // — see `useComposedGuestRef`. The live-views probe reads the same node (`useLiveViews`).
   const { guestRef } = workspace;
-  const combinedGuestRef = useComposedGuestRef({ guestRef, registerGuest, projectId: project.id }, { extra: (node) => {
+  const combinedGuestRef = useComposedGuestRefHook({ guestRef, registerGuest, projectId: project.id }, { extra: (node) => {
     registerZoomGuest(project.id, node);
     registerLiveGuest(project.id, node);
   } });

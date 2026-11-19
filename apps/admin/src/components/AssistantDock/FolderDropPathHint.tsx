@@ -9,13 +9,14 @@ import { Icon } from "@jini-ai/ui";
  * When the composer's folder button is showing (`FolderPathButton`), it points there first.
  */
 export interface FolderDropPathHintProps {
+  useT?: typeof useT;
   readonly onDismiss: () => void;
   /** Whether the composer's folder button is available on this machine. */
   readonly canPickFolder?: boolean;
 }
 
-export function FolderDropPathHint({ onDismiss, canPickFolder = false }: FolderDropPathHintProps) {
-  const t = useT();
+export function FolderDropPathHint({ useT: useTHook = useT, onDismiss, canPickFolder = false }: FolderDropPathHintProps) {
+  const t = useTHook();
   return (
     <div className="tovu-folder-drop-notice tovu-folder-drop-notice--hint" role="status">
       <span className="tovu-folder-drop-notice__icon" aria-hidden="true">

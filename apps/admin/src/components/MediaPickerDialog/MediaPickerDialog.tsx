@@ -50,6 +50,7 @@ import { splitOnPlaceholders } from '@jini-ai/core/text';
  */
 
 export interface MediaPickerDialogProps {
+  useJiniMediaPicker?: typeof useJiniMediaPicker;
   onSelect: (item: AdminMedia) => void;
   onCancel: () => void;
   /** Injectable seam for the dialog's data-fetch and Escape-to-cancel hook. Defaults to the real
@@ -144,7 +145,7 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
 }
 
 /** Existing callers keep their CMS callbacks; the mounted admin supplies Jini's promise service. */
-export function MediaPickerDialog(props: MediaPickerDialogProps, _optional: Record<string, never> = {}) {
-  const vm = useJiniMediaPicker(props);
+export function MediaPickerDialog({ useJiniMediaPicker: useJiniMediaPickerHook = useJiniMediaPicker, ...props }: MediaPickerDialogProps, _optional: Record<string, never> = {}) {
+  const vm = useJiniMediaPickerHook(props);
   return vm.enabled ? <>{vm.error && <div role="alert">{vm.error}<button type="button" onClick={vm.onCancel}>Cancel</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
 }

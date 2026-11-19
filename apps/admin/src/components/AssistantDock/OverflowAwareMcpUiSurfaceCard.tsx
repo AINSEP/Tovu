@@ -42,6 +42,7 @@ import { MessageOverflowModal } from "./MessageOverflowModal";
  * starts a fresh session rather than continuing the inline one's.
  */
 export interface OverflowAwareMcpUiSurfaceCardProps extends McpUiSurfaceCardProps {
+  useT?: typeof useT;
   /** Injectable seam for overflow measurement — lets a test force the "Show in modal" button on or
    *  off without depending on `ResizeObserver`/real layout. Defaults to the real
    *  {@link useOverflowDetection}. */
@@ -49,10 +50,11 @@ export interface OverflowAwareMcpUiSurfaceCardProps extends McpUiSurfaceCardProp
 }
 
 export function OverflowAwareMcpUiSurfaceCard({
+  useT: useTHook = useT,
   useOverflowDetectionHook = useOverflowDetection,
   ...surfaceProps
 }: OverflowAwareMcpUiSurfaceCardProps) {
-  const t = useT();
+  const t = useTHook();
   const [expanded, setExpanded] = useState(false);
   const { containerRef, isOverflowing } = useOverflowDetectionHook<HTMLDivElement>();
 

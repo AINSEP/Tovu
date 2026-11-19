@@ -42,8 +42,8 @@ export interface ImportWebsiteProps {
   addDetails: string | null;
 }
 
-function ImportError({ error }: { error: ImportFailure }) {
-  const { copied, copy } = useCopyDetails();
+function ImportError({ useCopyDetails: useCopyDetailsHook = useCopyDetails, error }: { useCopyDetails?: typeof useCopyDetails; error: ImportFailure }) {
+  const { copied, copy } = useCopyDetailsHook();
   return (
     <footer>
       <p className="onboarding__error" role="alert">{error.message}</p>
@@ -72,12 +72,13 @@ export function ImportWebsite({ shown, ...page }: ImportWebsiteProps) {
 
 /** Its own component so the drag state is dropped with the page. */
 function ImportPage({
+  hooks: { useImportDrop: useImportDropHook = useImportDrop } = {},
   onBack, adding, onChooseFolder, onDropFolder, onImportArchive, onRefuse, address, onAddressChange, importing, archiveRun, onCancelImport, onPageOpen, onImportAddress, failure, addError, addDetails,
-}: Omit<ImportWebsiteProps, 'shown'>) {
+}: Omit<ImportWebsiteProps, 'shown'> & { hooks?: { useImportDrop?: typeof useImportDrop; }; }) {
   useEffect(onPageOpen, [onPageOpen]);
   const error = importPageError({ failure, addError, addDetails });
   const busy = adding || importing;
-  const { dragging, dropProps, onPicked } = useImportDrop({ busy, onRefused: onRefuse,
+  const { dragging, dropProps, onPicked } = useImportDropHook({ busy, onRefused: onRefuse,
     onFolder: ({ path: folder }, _options = {}) => void onDropFolder(folder),
     onArchive: ({ path: file }, _options = {}) => void onImportArchive({ file }),
   });

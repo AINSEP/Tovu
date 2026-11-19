@@ -19,6 +19,7 @@ import { SettingsControl } from './SettingsControl.js';
  * whichever site is in view.
  */
 export function TopNav({
+  hooks: { useAppVersion: useAppVersionHook = useAppVersion } = {},
   activeId,
   onSitesHome,
   runningCount,
@@ -27,7 +28,7 @@ export function TopNav({
   onOpenAppearance,
   onSelectSection,
   useSiteSettings,
-}: {
+}: { hooks?: { useAppVersion?: typeof useAppVersion; };
   activeId: RunnerSectionId;
   onSitesHome: boolean;
   runningCount: number;
@@ -37,7 +38,7 @@ export function TopNav({
   onSelectSection: (id: RunnerSectionId) => void;
   useSiteSettings?: typeof useSiteStorageSettings;
 }) {
-  const { version, error } = useAppVersion({});
+  const { version, error } = useAppVersionHook({});
   return (
     <nav className="topnav" aria-label="Tovu sections">
       <span className="topnav__brand" title={error ?? undefined}>

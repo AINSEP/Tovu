@@ -26,6 +26,7 @@ import { useMessageOverflowModal } from "./MessageOverflowModal.hooks";
  * wired up yet) would render one the same way.
  */
 export interface MessageOverflowModalProps {
+  useT?: typeof useT;
   open: boolean;
   /** The dialog's accessible name — read by assistive tech since this content has no visible page
    *  heading of its own inside the dialog. */
@@ -46,6 +47,7 @@ export interface MessageOverflowModalProps {
 }
 
 export function MessageOverflowModal({
+  useT: useTHook = useT,
   open,
   title,
   onClose,
@@ -53,7 +55,7 @@ export function MessageOverflowModal({
   useModal = useMessageOverflowModal,
   agentHandle: handle,
 }: MessageOverflowModalProps) {
-  const t = useT();
+  const t = useTHook();
   const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal({ open, onClose });
 
   return (

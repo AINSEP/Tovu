@@ -12,6 +12,7 @@ import { Icon } from "@jini-ai/ui";
  * column (`DROPPED_PATH_NOT_A_DIRECTORY`, `DROPPED_PATH_NOT_FOUND`, `CUSTOM_ROOT_ENDPOINT_UNREACHABLE`).
  */
 export interface FolderDropErrorProps {
+  useT?: typeof useT;
   /** The path that failed to become the `custom` root. */
   readonly path: string;
   /** Drives the exact message text. */
@@ -34,8 +35,8 @@ function messageForReason(reason: FolderDropErrorProps["reason"]): string {
   return FOLDER_DROP_MESSAGES[reason];
 }
 
-export function FolderDropError({ path, reason, onRetry, onDismiss }: FolderDropErrorProps) {
-  const t = useT();
+export function FolderDropError({ useT: useTHook = useT, path, reason, onRetry, onDismiss }: FolderDropErrorProps) {
+  const t = useTHook();
   return (
     <div className="tovu-folder-drop-notice tovu-folder-drop-notice--error" role="alert">
       <span className="tovu-folder-drop-notice__icon" aria-hidden="true">

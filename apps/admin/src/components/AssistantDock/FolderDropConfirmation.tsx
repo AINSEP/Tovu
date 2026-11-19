@@ -15,6 +15,7 @@ import { Icon } from "@jini-ai/ui";
  * timer fires; there is nothing left for this component to time itself.
  */
 export interface FolderDropConfirmationProps {
+  useT?: typeof useT;
   /** The absolute path just set as the `custom` root. */
   readonly path: string;
   /** All folders staged by this drop; the custom file root still names only `path`. */
@@ -25,8 +26,8 @@ export interface FolderDropConfirmationProps {
   readonly onDismiss: () => void;
 }
 
-export function FolderDropConfirmation({ path, paths, replacedPreviousPath, onDismiss }: FolderDropConfirmationProps) {
-  const t = useT();
+export function FolderDropConfirmation({ useT: useTHook = useT, path, paths, replacedPreviousPath, onDismiss }: FolderDropConfirmationProps) {
+  const t = useTHook();
   return (
     <div className="tovu-folder-drop-notice tovu-folder-drop-notice--confirmation" role="status">
       <span className="tovu-folder-drop-notice__icon" aria-hidden="true">
