@@ -160,8 +160,8 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   TaxonomyToolDeps &
   ThemeToolDeps &
   SetActiveThemeToolDeps &
-  import("../features/theme/tool-registrations.js").PreviewSwitcherToolDeps &
-  import("../features/theme/tool-registrations.js").TrashThemeToolDeps &
+  import("../features/theme/preview-switcher-tools.js").PreviewSwitcherToolDeps &
+  import("../features/theme/trash-theme-tool.js").TrashThemeToolDeps &
   ChangeSetToolDeps &
   WorkspaceToolDeps &
   FormsToolDeps &

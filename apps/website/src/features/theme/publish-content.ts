@@ -21,11 +21,7 @@ import {
 } from "#src/features/publish-content/file-tree-policy";
 import type { FileBlobIndexPort } from "#src/features/publish-content/file-blob-index";
 import type {
-  PackedEntity,
-  PublishContentContributor,
-  PublishContentDeps,
-  PublishContentHandler,
-  SkippedPackEntity,
+  PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, SkippedPackEntity,
 } from "#src/features/publish-content/type-registry";
 
 import { MIGRATION_STAGING_DIR_PREFIX, PUBLISH_PREVIOUS_DIR, PUBLISH_STAGING_DIR } from "./theme-discovery.js";
