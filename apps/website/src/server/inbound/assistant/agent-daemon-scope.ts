@@ -188,15 +188,96 @@ function scopeConfiguration({ siteId, env: suppliedEnv, token }: { siteId: strin
 export async function createSiteScope(
   { siteId, env: suppliedEnv, token }: { siteId: string; env: NodeJS.ProcessEnv; token: string }, optional: SiteScopeOptions = {},
 ): Promise<SiteScope> {
+  const state = createScopeState({ siteId, env: suppliedEnv, token }, optional);
+  try {
+    const constants = scopeBootSettings(state);
+// The supervisor pins the site's workspace. The authenticated bootstrap also checks it, so a
+// daemon cannot silently attach to another workspace's settings, files or attempt authority.
+// Site writes now execute in the server: its bus/drainer delivers their outbox events. There is
+// no enqueue-only outbox or disconnected durable ledger in this process, including memory mode.
+const routeDeps = await createAgentDaemonCoreDeps({ env: state.env, token: state.siteToolToken }, { ...state.optional.coreOptions,
+  onStoreOpened: ({ resource }, _optional = {}) => { state.daemonStore = resource; state.optional.coreOptions?.onStoreOpened?.({ resource }); } });
+    const tracingState = createScopeTracing({ state, routeDeps });
+    await tracingState.lifecycle.rehydrate({}).catch((error: unknown) => {
+  console.error("[agent-daemon] lifecycle.rehydrate() failed", error);
+});
+    const core = createScopeCore({ state, routeDeps }, tracingState);
+    const tools = createScopeTools({ state, core, routeDeps }, () => runs);
+    const prompt = createScopePrompt({ state, constants, core, tools, routeDeps }, () => runs);
+    const runs = createScopeRuns({ state, core, routeDeps });
+    const context: ScopeContext = { state, constants, routeDeps, core, tools, prompt, runs };
+    const onStarted: RunStartHandler = input => onScopeRunStarted(context, input);
+    const app = createScopeApp(context);
+    const routeHost = mountScopeAccessRoutes(context, app, onStarted);
+    mountScopeRunRoutes(context, { app, routeHost, onStarted });
+    mountScopeDiscoveryRoutes(context, app, routeHost);
+
+
+  // `createDiskAttachmentStore` is async (it reconciles `uploadDirectory` against the previous
+  // process on construction — see its own doc), so it cannot be a module-scope `const` the way
+  // `agentExecutor`/`toolExecutor` are. Assigned into the scope-local `attachmentStore` binding
+  // `onStarted` reads, and awaited here — before the host mounts this scope — so no request
+  // can ever reach this process while `attachmentStore` is still unset (`onStarted`'s own doc
+  // explains why that matters).
+  //
+  // `retainAcrossRestarts` is NOT optional for this host, and the reason is specific to how this
+  // process is started. The daemon is a `spawn()` child of `src/index.ts`, which dev runs under
+  // `tsx watch` — so every save anywhere in `apps/website/src` kills and respawns it (see
+  // `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`). Without this option the store empties `uploadDirectory` on each
+  // of those constructions, which means an unrelated source edit silently destroys every chat
+  // attachment a user has staged but not yet sent. That is not a hypothetical: an upload was
+  // observed erased by an API reload ~90 seconds later. The store's default is deliberately the
+  // conservative one for hosts whose process lifetime really does bound an upload's; this host is
+  // not one of them.
+  //
+  // Adoption is authenticated, not blind — a file that changed between processes is rejected by the
+  // same integrity gate `claim()` applies, and anything unaccounted for is swept. Reverting to the
+  // previous behavior is deleting this one option.
+  
+    context.runs.attachmentStore = await createDiskAttachmentStore({
+    uploadDirectory: context.core.ATTACHMENT_UPLOAD_DIRECTORY,
+  }, {
+    retainAcrossRestarts: true,
+    maxBatchBytes: context.constants.ATTACHMENT_MAX_BATCH_BYTES,
+  });
+    mountScopeAttachmentRoutes(context, { app, routeHost, attachmentStore: context.runs.attachmentStore });
+
+
+  if (context.state.optional.probeBridge) await context.state.optional.probeBridge();
+  else {
+void probeMcpBridge({ entry: bridgePreflightEntry({ injection: context.prompt.bridgeInjection }) }, {}).then((result) => {
+  const line = formatBridgePreflightLogLine({ result });
+  if (result.ok) console.log(line);
+  else console.error(line);
+});
+
+  }
+    return scopeFacade(context, app);
+  } catch (error) {
+    return disposeFailedScope(state, error);
+  }
+}
+
+type ScopeState = ReturnType<typeof createScopeState>;
+type ScopeConstants = ReturnType<typeof scopeBootSettings>;
+type ScopeCore = Awaited<ReturnType<typeof createScopeCore>>;
+type ScopeTools = ReturnType<typeof createScopeTools>;
+type ScopePrompt = ReturnType<typeof createScopePrompt>;
+type ScopeRuns = ReturnType<typeof createScopeRuns>;
+type ScopeContext = { state: ScopeState; constants: ScopeConstants; core: ScopeCore; tools: ScopeTools; prompt: ScopePrompt; runs: ScopeRuns; routeDeps: Awaited<ReturnType<typeof createAgentDaemonCoreDeps>> };
+type StartedRunState = NonNullable<ReturnType<typeof createStartedRunState>>;
+
+function createScopeState({ siteId, env: suppliedEnv, token }: Parameters<typeof createSiteScope>[0], optional: SiteScopeOptions) {
+
   const { env, authEnv, daemonUrl, port } = scopeConfiguration({ siteId, env: suppliedEnv, token });
   const toolExecTokenHolder: NodeJS.ProcessEnv = {};
   let disposed = false;
-  let closing: Promise<void> | undefined;
-  let daemonStore: AgentDaemonResource | undefined;
+  const closing = undefined as Promise<void> | undefined;
+  const daemonStore = undefined as AgentDaemonResource | undefined;
   let disposeAiTracing: () => void = () => {};
   const responses = new Set<express.Response>();
   let activeWork = 0;
-  let resolveDrained: (() => void) | undefined;
+  const resolveDrained = undefined as (() => void) | undefined;
   const ownerRetentionTimers = new Set<ReturnType<typeof setTimeout>>();
 const DEFAULT_AGENT_ID = "claude";
 // Adopt the supervisor's private RPC credential before CLI probes or plugin hosts can spawn.
@@ -210,9 +291,818 @@ const resolveAssistantAgentId = createAgentSelectionResolver({ defaultAgentId: D
 // Chrome guidance and tools follow the same `--help` probe that gates `--chrome` in the argv.
 const probeAssistantChrome = createAssistantChromeProbe({ getDef: getAgentDef, resolveAgentLaunch, capabilities: assistantRuntime.state.capabilities,
   ensureAgentCapabilities: input => ensureAgentCapabilities(input, { state: assistantRuntime.state }), env: assistantRuntime.hostEnv });
+  return { siteId, optional, env, authEnv, daemonUrl, port, toolExecTokenHolder, disposed, closing, daemonStore, disposeAiTracing, responses, activeWork, resolveDrained, ownerRetentionTimers, DEFAULT_AGENT_ID, siteToolToken, assistantRuntime, assistantInventory, getAgentDef, resolveAgentLaunch, resolveAssistantAgentId, probeAssistantChrome };
+}
 
 
-try {
+
+
+/**
+ * The agent CLI's permission mode for this daemon process. The rule and its full "why" (no TTY to
+ * answer a prompt; bypass unless `TOVU_RUNTIME_MODE=production`; explicit
+ * local `TOVU_AGENT_PERMISSION_MODE` overrides, hosted always restricted) live in `contracts/core/agent-permission-mode.ts`, shared with
+ * the boot-readiness warning so both always agree on the mode this daemon actually runs in.
+ */
+function resolvePermissionMode(context: ScopeContext): "bypass" | "restricted" {
+  return resolveAgentPermissionMode({ env: context.state.env }, { hostSignals: resolveHostSignals({ env: context.state.env }) });
+}
+
+
+
+/**
+ * Claims `attachmentIds` against `attachmentStore` and resolves the extra `AgentExecutor.run()`
+ * fields the claimed batch contributes (`imagePaths`/`extraAllowedDirs`/`uploadRoot`). Returns
+ * `null` when the run should be aborted instead — this function has already called
+ * `runLifecycle.finish({status: "failed", ...})` and logged why in that case, mirroring the
+ * severity {@link onStarted}'s malformed-`contextRef` branch already gives a failure this early.
+ * A no-op ({} fields) when `attachmentIds` is empty — the common case, no store round trip needed.
+ */
+async function resolveAttachmentRunFields(context: ScopeContext, 
+  { run, attachmentIds, runLifecycle, agentId = context.state.DEFAULT_AGENT_ID }: {
+    run: OnStartedContext["run"]; attachmentIds: readonly string[]; runLifecycle: OnStartedContext["lifecycle"]; agentId?: string;
+  }, _optional = {},
+): Promise<AttachmentRunFields | null> {
+  if (attachmentIds.length === 0) return {};
+
+  if (!context.runs.attachmentStore) {
+    // Structurally unreachable (see `attachmentStore`'s own doc) but fails only this run, not the
+    // process, if it somehow is.
+    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: attachments are not ready yet." }, {});
+    console.error(`[agent-daemon] run ${run.id}: attachment claim requested before the attachment store was ready`);
+    return null;
+  }
+
+  try {
+    // Only `.path` (the opaque capability id) is ever read by `claim()` — it looks up its own
+    // internal registry by that id and re-derives `name`/`kind`/`size` from what `register()`
+    // recorded at upload time, never from a caller-supplied value. The placeholder `name`/`kind`
+    // below satisfy `StoredAttachment`'s shape without asserting anything the store would actually
+    // trust.
+    const refs: StoredAttachment[] = attachmentIds.map((id) => ({ path: id, name: "", kind: "file" }));
+    const originalClaim = await context.runs.attachmentStore.claim({ attachments: refs, runId: run.id });
+    if (originalClaim.batchDirectory === undefined) return {};
+    // Register cleanup before yielding so terminalization during the copy still reaps it.
+    const staging = stageAttachmentClaim({ claim: originalClaim, filesystemRoot: context.routeDeps.siteBinding.dir }, {});
+    context.runs.stagedAttachmentCleanupByRunId.set(run.id, async () => (await staging).cleanup());
+    const claimed = (await staging).claim;
+    const def = context.state.getAgentDef({ id: agentId });
+    const byPath = new Map(claimed.attachments.map(attachment => [attachment.path, attachment]));
+    const prepared = await prepareMessageAttachments({ refs: [...byPath.keys()], read: async ({ ref }) => {
+      const attachment = byPath.get(ref);
+      if (!attachment) throw new Error(`agent attachment was not staged: ${ref}`);
+      const bytes = await readFile(attachment.path);
+      return { name: attachment.name, path: attachment.path, bytes, mimeType: sniffContentType({ bytes }) };
+    } }, { fileAccess: true, imageAccess: agentReceivesImageAttachments({ def }, {}) });
+    // Non-image uploads need an explicit prompt notice as well as site-contained staging; otherwise a
+    // readable .md/video is never named to the agent. Generic delivery now owns that distinction.
+    return { imagePaths: prepared.imagePaths, imageContents: prepared.images, attachmentNotice: prepared.notice,
+      uploadRoot: claimed.batchDirectory };
+
+  } catch (error) {
+    // Fails the run outright rather than silently continuing without the image: the same severity
+    // this handler already gives a malformed `contextRef` above. A user who attached a screenshot
+    // and gets a run that never saw it (already-claimed, expired past `retentionMs`, or an
+    // integrity check failure) would otherwise get a confusing answer about content the agent never
+    // looked at, with nothing explaining why.
+    const message = error instanceof Error ? error.message : String(error);
+    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: an attached file could not be read." }, {});
+    console.error(`[agent-daemon] run ${run.id}: attachment claim failed`, message);
+    return null;
+  }
+}
+
+
+
+function noteFullRunInput(context: ScopeContext, { runId, input }: { runId: string; input: string }, _optional = {}): void {
+    if (context.routeDeps.aiTraceSink?.capture === "full") context.core.tracing.noteRunInput({ runId, input });
+  }
+
+
+
+function createStartedRunState(context: ScopeContext, { request, run, runLifecycle }: { request: OnStartedContext["request"]; run: OnStartedContext["run"]; runLifecycle: OnStartedContext["lifecycle"] }) {
+
+  let prompt: string;
+  let coldStartContext: string | undefined;
+  let principal: Principal;
+  let attachmentIds: readonly string[] = [];
+  let pluginRefIds: readonly string[] = [];
+  let model: string | undefined;
+  let reasoning: string | undefined;
+  let conversationId: string | undefined;
+  let pageContext: RunPageContext | undefined;
+  let durableMessageId: string | undefined;
+  let recoveryMode: "native" | "reconstruction" | undefined;
+  let recoverySessionId: string | undefined;
+  // H1 fix: set once `storedSessionId` is resolved below, read by the stream subscription's
+  // `shouldClearSessionOnFailedResume` check — `null` (unchanged) means this run never attempted a
+  // resume in the first place, so a failed/no-sessionRef end event has nothing stale to clear.
+  let attemptedResumeSessionId: string | null = null;
+  try {
+    // `frontendBindToken` also rides in this envelope but is deliberately not read here —
+    // `createFrontendControl`'s own `resolveBindToken` above owns that field, so there is exactly
+    // one place that decides which tab a run may drive.
+    const decoded = parseRunStartContextRef({ contextRef: request.contextRef });
+    coldStartContext = decoded.coldStartContext;
+    prompt = decoded.prompt;
+    noteFullRunInput(context, { runId: run.id, input: prompt });
+    principal = Object.freeze({ id: decoded.principalId });
+    attachmentIds = decoded.attachmentIds;
+    pluginRefIds = decoded.pluginRefIds;
+    model = decoded.model;
+    reasoning = decoded.reasoning;
+    conversationId = decoded.conversationId;
+    pageContext = decoded.pageContext;
+    durableMessageId = decoded.assistantMessageId;
+    recoveryMode = decoded.recoveryMode;
+    recoverySessionId = decoded.recoverySessionId;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: the request was malformed." }, {});
+    console.error(`[agent-daemon] run ${run.id}: malformed contextRef`, message);
+    return;
+  }
+  // One agent id for the whole run: the session subscription, attachment preparation and the
+  // session binding below must all key by the same agent.
+  // Saved selections can outlive an adapter; resolve once before any per-agent state is read.
+  let agentId = context.state.resolveAssistantAgentId({ agentId: request.agentId });
+  const pluginAbort = new AbortController();
+  const unsubscribePluginCancel = runLifecycle.onCancelRequested({ runId: run.id, listener: () => pluginAbort.abort() });
+  return { context, run, request, runLifecycle, prompt, coldStartContext, principal, attachmentIds, pluginRefIds, model, reasoning, conversationId, pageContext, durableMessageId, recoveryMode, recoverySessionId, attemptedResumeSessionId: attemptedResumeSessionId as string | null, agentId, pluginAbort, unsubscribePluginCancel, startupStage: "custom instructions" };
+}
+
+
+
+
+
+      /** A durable memory attempt reads its site's locator: local memory sessions deliberately
+       * survive only this daemon, while early capture writes at the site owner. Called inside the
+       * existing conversation lock. O(1), one session lookup; no identity comes from wire fields. */
+      async function readPriorSessionId(runState: StartedRunState, _required: Record<string, never>, _options = {}): Promise<string | null> {
+        if (runState.durableMessageId && runState.context.routeDeps.getSessionForAttempt) return runState.context.routeDeps.getSessionForAttempt({ runId: runState.run.id });
+        if (runState.conversationId === undefined) return null;
+        return runState.context.routeDeps.agentSessions.getSessionId({ conversationId: runState.conversationId, agentId: runState.agentId });
+      }
+
+
+
+
+
+      /*
+       * This run's entire session-binding decision, in ONE function so it can be handed to
+       * `conversationStartLock` as a single critical section (Defect 1, 2026-09-11). It reads the
+       * stored id, applies the H2 concurrency gate, refuses the run when starting cold would
+       * silently drop history, mints and persists a fresh id when this is a genuine cold start, and
+       * returns the `AgentExecutor.run()` session fields that decision produces — `null` meaning
+       * "refused, the run is already finished as failed, stop."
+       *
+       * Extracted as its own function originally for complexity (2026-09-03 — this handler's async
+       * continuation was at cyclomatic 11 against this repo's 9 ceiling) so `onStarted`'s own branch
+       * count reflects sequencing, not this decision's own branches. Declared and called right here,
+       * inline, rather than hoisted to module scope: this file's own wiring tests
+       * (`agent-daemon-server.session-resume-wiring.unit.test.ts` and
+       * `agent-daemon-server.session-binding-wiring.unit.test.ts`, which prove ordering by reading
+       * this file's raw SOURCE rather than importing it — see their docs for why) assert that
+       * `routeDeps.agentSessions.getSessionId(`/`liveRunTracker.hasConcurrentLiveRun(`/
+       * `routeDeps.agentSessions.setSessionId(` appear, in this relative order, strictly before
+       * `agentExecutor.run` below; keeping this body here preserves that ordering byte-for-byte.
+       */
+      async function resolveSessionBinding(runState: StartedRunState): Promise<RunSessionBinding | null> {
+        // Resolved AFTER attachments/prompt, same "no ordering dependency either way" reasoning as
+        // the plugin prefix above. Looked up unconditionally (unlike before the H2-context-loss fix
+        // below, which needs to know whether a session exists even when `hasConcurrentLiveRun` will
+        // refuse to use it) — `null` (no conversationId at all, or nothing on record yet) is what
+        // makes `resolveResumeSessionField` a no-op below, so this run starts cold. Since the
+        // Defect 1 fix a cold start is no longer id-less: `resolveHostMintedSessionId` below mints
+        // one and persists it before the CLI is spawned, which is what this comment used to say was
+        // deliberately NOT happening.
+        const priorSessionId = await readPriorSessionId(runState, {}, {});
+        // Recovery is authoritative about native resume (see `resolveStoredSessionId`).
+        const storedSessionId = resolveStoredSessionId({ recoveryMode: runState.recoveryMode, recoverySessionId: runState.recoverySessionId, priorSessionId }, {});
+        // A run the user just stopped is still exiting for a few seconds. Wait for it, so a message
+        // sent right after Stop resumes the session instead of being refused (2026-09-27).
+        if (runState.conversationId !== undefined) {
+          await waitForStoppingRuns({ tracker: runState.context.runs.liveRunTracker, lifecycle: runState.runLifecycle, conversationId: runState.conversationId, runId: runState.run.id }, { timeoutMs: STOPPING_RUN_WAIT_MS });
+        }
+        // The H2 fix: refusing to resume when another run for this conversation is already live
+        // means at most one process ever holds `--resume <id>` for that CLI session at a time,
+        // closing the two-live-`--resume`-processes-on-one-transcript-file hazard even though the
+        // two runs' `end` events can still race each other for the store's last write — see
+        // `Jini packages/daemon/src/session-coordination.ts`'s own module doc for the full reasoning and why an in-process
+        // tracker needs no special handling across a daemon restart.
+        const hasConcurrentLiveRun = runState.conversationId !== undefined && runState.context.runs.liveRunTracker.hasConcurrentLiveRun({ conversationId: runState.conversationId, runId: runState.run.id }, {});
+
+        // H2-context-loss fix: H2 alone silently drops conversation history for a
+        // `carriesOwnMemory` agent — see `wouldForcedColdStartLoseConversationContext`'s own doc for
+        // the full mechanism. The client already sent only the bare latest message trusting this run
+        // to resume; forcing it cold here would answer with none of the conversation `storedSessionId`
+        // proves actually exists. Refuse the run outright (same "fail loud, not silently degrade"
+        // precedent as the attachment-claim-failure branch above) rather than let the CLI answer
+        // blind.
+        if (
+          wouldForcedColdStartLoseConversationContext({
+            storedSessionId,
+            hasConcurrentLiveRun,
+            carriesOwnMemory: agentCarriesOwnMemory({ agentId: runState.agentId }, {}),
+          }, {})
+        ) {
+          await failRunBeforeStart({ lifecycle: runState.runLifecycle, runId: runState.run.id, message: CONCURRENT_RUN_REFUSAL_MESSAGE }, {});
+          console.error(
+            `[agent-daemon] run ${runState.run.id}: refused — conversation "${runState.conversationId}" has a live concurrent run holding agent "${runState.agentId}"'s resumable session, and this agent carries its own memory; starting cold would silently drop conversation history`,
+          );
+          return null;
+        }
+
+        const effectiveResumeSessionId = hasConcurrentLiveRun ? null : storedSessionId;
+        runState.attemptedResumeSessionId = effectiveResumeSessionId;
+
+        /*
+         * Defect 1 fix (2026-09-11). BEHAVIOR CHANGE, stated explicitly: a cold start for a def
+         * that accepts a host-minted session id now spawns the CLI under an id THIS process chose
+         * and wrote down first, instead of letting the CLI choose one and hoping the run survives
+         * long enough to report it back on its terminal `end` event.
+         *
+         * Why the old shape lost conversations: `extractSessionRefFromEndEvent` (the only writer
+         * before this) can only run if an `end` event actually arrives. A run killed by a daemon
+         * respawn, or one that fails in its first few hundred milliseconds, never produces one —
+         * so the conversation stayed unbound even though the CLI had already created a real
+         * session, and the NEXT turn started cold and answered with none of the history.
+         *
+         * The residual risk, disclosed rather than hidden: if the CLI dies before creating its own
+         * session file, the id persisted here names a session that does not exist, and the next
+         * turn's `--resume` fails. That failure is visible (the run ends failed) and self-healing
+         * — `shouldClearSessionOnFailedResume` clears the dead id, so the turn after starts cold.
+         * That is a strictly better failure than the silent, permanent history loss it replaces.
+         */
+        const hostMintedSessionId = resolveHostMintedSessionId({
+          conversationId: runState.conversationId,
+          effectiveResumeSessionId,
+          acceptsHostMintedSessionId: agentAcceptsHostMintedSessionId({ agentId: runState.agentId }, {}),
+          mint: randomUUID,
+        }, {});
+        if (runState.conversationId !== undefined && hostMintedSessionId !== null) {
+          // Awaited, and inside the conversation lock: the whole point is that the binding is
+          // durable BEFORE the CLI is spawned. A failure here is logged and the run continues —
+          // losing resumability for one conversation is the pre-fix behavior, where failing the
+          // run outright would cost the user a turn over a bookkeeping write.
+          const prepared = runState.durableMessageId && runState.context.routeDeps.chatRunLedger.durable
+            ? runState.context.routeDeps.chatRunLedger.durable.captureSession({ runId: runState.run.id, sessionId: hostMintedSessionId, confirmed: false }, {})
+            : runState.context.routeDeps.agentSessions.setSessionId({ conversationId: runState.conversationId, agentId: runState.agentId, sessionId: hostMintedSessionId });
+          await prepared.catch((error: unknown) => {
+            console.error(`[agent-daemon] run ${runState.run.id}: failed to persist minted agent session id at dispatch`, error);
+          });
+        }
+
+        return {
+          agentId: runState.agentId,
+          sessionFields: { ...resolveResumeSessionField({ storedSessionId: effectiveResumeSessionId }, {}), ...resolveNewSessionField({ hostMintedSessionId: hostMintedSessionId }, {}) },
+        };
+      }
+
+
+
+
+
+  /** The server owns pinned guidance and automatic consent, including later tool-triggered
+   * preparation. No controller or plugin lifecycle is constructed in this process. Transport
+   * failure remains optional for automatic guidance, but an explicit pinned pick fails closed. */
+  async function prepareSitePlugins(runState: StartedRunState, _required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string; pluginIds: string[] }> {
+    try { return await runState.context.tools.siteTools.preflight({ runId: runState.run.id, signal: runState.pluginAbort.signal }); }
+    catch (err) {
+      let errorDiagnostic = "[diagnostic unavailable]";
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      console.warn('[agent-plugins] automatic preflight unavailable', errorDiagnostic);
+      return { prefix: runState.pluginRefIds.length ? null : "", refusalPrefix: "", pluginIds: [] };
+    }
+  }
+
+
+
+
+
+  /** A durable attempt must still own its answer when the agent is about to launch: a stop or a
+   * newer attempt may have taken over while this run was preparing. A non-durable run always does. */
+  async function durableAttemptStillOwnsAnswer(runState: StartedRunState): Promise<boolean> {
+    if (!runState.durableMessageId || !runState.context.routeDeps.chatRunLedger.durable) return true;
+    const attempt = await runState.context.routeDeps.chatRunLedger.durable.find({ runId: runState.run.id }, {});
+    return durableAttemptOwnsAnswer({ attempt }, {});
+  }
+
+
+
+
+
+  /** Resolves this run's native-tool grant from one launch snapshot and dispatches the agent CLI.
+   * Declared after the continuation that calls it so the session binding above stays textually
+   * ahead of `agentExecutor.run` (the wiring tests read this file's source in order). */
+  function agentRunOptions(runState: StartedRunState, { sessionBinding, attachmentRunFields, pluginIds }: Parameters<typeof launchAgentRun>[1], { policy, nativeToolAccess, nativeCapabilities, subagentsEnabled, parityEnv, pickedFolder, runtimeLaunch }: { policy: Awaited<ReturnType<typeof resolveRunNativePolicy>>["policy"]; nativeToolAccess: boolean; nativeCapabilities: AssistantCliPermissions["capabilities"]; subagentsEnabled: boolean; parityEnv: Awaited<ReturnType<typeof readLoginShellEnvironment>> | undefined; pickedFolder: ReturnType<typeof getCustomFsRoot>; runtimeLaunch: Awaited<ReturnType<typeof resolveAssistantRuntimeLaunch>> }): Parameters<typeof runState.context.prompt.agentExecutor.run>[1] {
+  return {
+      filesystemRoot: runState.context.routeDeps.siteBinding.dir,
+      permissionMode: policy.permissionMode ?? resolvePermissionMode(runState.context),
+      nativeToolAccess,
+      nativeCapabilities,
+      subagentStartContext: { ids: pluginIds, instructions: 'Before you start, call load_agent_plugin for every parent plugin and follow it. Discover Tovu tools with search_tools, describe before executing, honor approvals, and keep file searches inside the site.' },
+      cliParity: nativeToolAccess,
+      ...(parityEnv ? { env: parityEnv } : {}),
+      // Explicit capability denies are applied by the runtime after this legacy native grant.
+      // Read path denies remain defense in depth for owner-authorized local filesystem access.
+      disallowedTools: resolveAssistantDisallowedTools({ agentId: sessionBinding.agentId, subagentsEnabled, nativeToolAccess }, {}),
+      // Site chat excludes personal hooks and permissions even when personal configuration is on.
+      // Keep the locked settings policy when the owner switches personal configuration off.
+      // See ASSISTANT_SETTING_SOURCES for why these layers are excluded in locked runs.
+      ...(nativeCapabilities.userSettings ? {} : { settingSources: ASSISTANT_SETTING_SOURCES }),
+      // Site runs retain the host's auto-memory/no-system-search policy rather than user hooks; Full CLI cannot omit it.
+      settings: resolveAssistantRunSettings({ homeDir: (runState.context.state.env.HOME ?? runState.context.state.env.USERPROFILE ?? homedir()), fileExists: existsSync }),
+      ...(runState.model !== undefined ? { model: runState.model } : {}),
+      // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
+      // def's own `buildArgs` options, which is where it becomes real argv.
+      ...(runState.reasoning !== undefined ? { reasoning: runState.reasoning } : {}),
+      ...attachmentRunFields,
+      ...(pickedFolder ? { readOnlyExtraDirs: [pickedFolder] } : {}),
+      // Both session fields at once — `resolveResumeSessionField(effectiveResumeSessionId)` for a
+      // resumed turn and `resolveNewSessionField(hostMintedSessionId)` for a cold one. They are
+      // mutually exclusive by construction (`resolveHostMintedSessionId` mints only when there is
+      // nothing to resume), and both are empty objects when they do not apply, so exactly one key
+      // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
+      // id that was persisted and the id handed to the CLI can never drift apart.
+      ...sessionBinding.sessionFields,
+      // Claude in Chrome: `chromeIntegration` (+ its MCP server on the allow-list) for a supporting
+      // runtime, nothing otherwise. Every deny above still applies; see `assistant-runtime-guidance.ts`.
+      ...runtimeLaunch.runOptions,
+    };
+}
+
+
+
+async function launchAgentRun(runState: StartedRunState, 
+    { sessionBinding, attachmentRunFields, pluginIds }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields; pluginIds: readonly string[] }, _optional = {},
+  ): Promise<void> {
+    runState.startupStage = 'native tool policy';
+    const access = await verifyLaunchToolPolicy(runState, { agentId: sessionBinding.agentId });
+    if (!access) return;
+    const { snapshot, plan } = access;
+    const { isOwner, def, policy, nativeCapabilities } = snapshot;
+    warnRunFilesystemLimit( { agentId: sessionBinding.agentId, shell: nativeCapabilities.shell });
+    const chatSettings = recordRunToolSnapshot(runState, { snapshot, plan, agentId: sessionBinding.agentId });
+    await emitNoToolsNotice(runState, { agentId: sessionBinding.agentId, snapshot, bridged: plan.bridged });
+    const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
+    runState.startupStage = 'tool-gap audit subscription';
+    await observeRunToolGaps(runState, { isOwner, agentId: sessionBinding.agentId }, {});
+    // One launch snapshot supplies every dimension; edits affect only subsequent runs.
+    const subagentsEnabled = nativeCapabilities.subagents;
+    // Fresh per-person runtime preferences; a failed read falls back to the registered defaults.
+    runState.startupStage = 'runtime preferences';
+    const runtimeLaunch = await resolveAssistantRuntimeLaunch({ deps: { settingsRepo: runState.context.routeDeps.settingsRepo, getEffective: runState.context.routeDeps.getEffective,
+      settingsReady: runState.context.routeDeps.siteTitleReady, workspaceId: runState.context.routeDeps.workspaceId }, principalId: runState.principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: runState.context.state.getAgentDef, probeChrome: runState.context.state.probeAssistantChrome, claimBrowser: () => claimBrowserForRun({ lease: runState.context.state.optional.browserLease, runId: runState.run.id }) });
+    runState.startupStage = 'shell environment';
+    const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: runState.context.state.env,
+      excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
+    // Owner 2026-10-27: the folder picked with the composer's folder control is readable, never writable.
+    const pickedFolder = getCustomFsRoot({ workspaceId: runState.context.routeDeps.workspaceId, optional: { siteDir: runState.context.routeDeps.siteBinding.dir } });
+    const runGuidance = { ...runtimeLaunch.guidance, chatSettings, ...(pickedFolder ? { pickedFolder } : {}) };
+    runState.startupStage = 'CLI bridge preparation';
+    if (!(await prepareCliLaunch(runState, { def, allowed: nativeCapabilities.userMcp }, {}))) return;
+    if (!(await runToolAccessIsLive(runState))) return;
+    const executeRun = () => runState.context.prompt.agentExecutor.run({
+      runId: runState.run.id,
+      agentId: sessionBinding.agentId,
+      prompt: runState.prompt,
+      // In dev the server starts from the repo root, where CLIs auto-load Codex AGENTS.md
+      // and Claude CLAUDE.md; use the site so the in-app assistant avoids developer bootstrap.
+      // 2026-10-23: the former dev override could widen this boundary to the whole repo.
+      cwd: runState.context.routeDeps.siteBinding.dir,
+    }, agentRunOptions(runState, { sessionBinding, attachmentRunFields, pluginIds }, { policy, nativeToolAccess, nativeCapabilities, subagentsEnabled, parityEnv, pickedFolder, runtimeLaunch }));
+    const runWithCapabilities = () => runState.context.prompt.assistantCliCapabilitiesContext.run(nativeCapabilities,
+      () => runState.context.tools.siteTools.withRun({ runId: runState.run.id, fn: () => executeRun().finally(() => releaseBrowserForRun({ lease: runState.context.state.optional.browserLease, runId: runState.run.id })) }));
+    if (runState.context.state.disposed) {
+      // Cancellation records intent; no executor exists yet to emit the terminal event and
+      // release this run's activity hold after withdrawal during preparation.
+      await runState.runLifecycle.finish({ runId: runState.run.id, status: "cancelled", code: null, signal: null, resumable: false });
+      return;
+    }
+    runState.startupStage = 'CLI execution';
+    await runState.context.prompt.assistantRuntimeGuidanceContext.run(runGuidance,
+      () => runState.context.prompt.assistantNativeToolsContext.run(nativeToolAccess, runWithCapabilities));
+  }
+
+
+
+
+
+  function warnRunFilesystemLimit({ agentId, shell }: { agentId: string; shell: boolean }): void {
+    if (agentId === 'claude' && process.platform === 'win32' && shell) console.warn('[agent-daemon] shell is not folder-limited on this platform');
+  }
+
+
+
+
+
+  async function verifyLaunchToolPolicy(runState: StartedRunState, { agentId }: { agentId: string }) {
+    const snapshot = await resolveRunNativePolicy(runState, { agentId });
+    if (!(await runToolAccessIsLive(runState))) return null;
+    const plan = assistantRunPlan({ snapshot, installed: !!snapshot.def && !!runState.context.state.resolveAgentLaunch({ def: snapshot.def }).launchPath });
+    if (plan.verdict !== 'RUN') {
+      await failRunBeforeStart({ lifecycle: runState.runLifecycle, runId: runState.run.id, message: 'Tool access changed before this answer started. Send your message again to review it.' }, {}); return null;
+    }
+    return { snapshot, plan };
+  }
+
+
+
+
+
+  function recordRunToolSnapshot(runState: StartedRunState, { snapshot, plan, agentId }: {
+    snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; plan: Extract<ReturnType<typeof assistantRunPlan>, { verdict: 'RUN' }>; agentId: string;
+  }) {
+    const tools = runState.context.tools.siteTools.withRun({ runId: runState.run.id, fn: () => runState.context.tools.visibleRegistry.list({}) });
+    const sources = admittedToolSources({ tools });
+    runState.context.core.toolAccessRuns.set(runState.run.id, { runId: runState.run.id, agentId, ...sources, pluginIds: [...new Set([...runState.pluginRefIds, ...sources.pluginIds])] });
+    const facts = assistantRunToolFacts({ agentId, snapshot, plan, tools, ...(runState.model ? { model: runState.model } : {}), ...(runState.reasoning ? { effort: runState.reasoning } : {}) });
+    runState.context.core.chatSettingsByRunId.set(runState.run.id, facts);
+    return facts;
+  }
+
+
+
+
+
+  async function emitNoToolsNotice(runState: StartedRunState, { agentId, snapshot, bridged }: { agentId: string; snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; bridged: boolean }): Promise<void> {
+    const key = `${runState.conversationId ?? runState.run.id}:${agentId}`;
+    if (bridged || runState.context.core.noToolsNotices.has(key)) return;
+    runState.context.core.noToolsNotices.add(key);
+    const name = snapshot.def?.name ?? agentId;
+    await runState.runLifecycle.emit({ runId: runState.run.id, input: { event: 'agent', data: { type: 'status', label: 'no_tools', detail: `${name} can't use tools provided here. It works with its own.` } } });
+  }
+
+
+
+
+
+  /** Fresh host-gated selected-agent grants, shared with the owner consent click. */
+  async function resolveRunNativePolicy(runState: StartedRunState, { agentId }: { agentId: string }, _optional = {}) {
+    return readAssistantRunToolPolicy({ deps: runState.context.routeDeps, principalId: runState.principal.id, agentId, env: runState.context.state.env, getDef: runState.context.state.getAgentDef });
+  }
+
+
+
+
+
+  function runToolPolicyInput(runState: StartedRunState, { agentId }: { agentId: string }) {
+    return { deps: runState.context.routeDeps, principalId: runState.principal.id, agentId, env: runState.context.state.env, getDef: runState.context.state.getAgentDef };
+  }
+
+
+
+
+
+  async function runToolAccessIsLive(runState: StartedRunState): Promise<boolean> {
+    const current = await runState.runLifecycle.get({ runId: runState.run.id });
+    if (current && runState.pluginAbort.signal.aborted && !isTerminalRunState({ state: current.state })) {
+      await runState.runLifecycle.finish({ runId: runState.run.id, status: 'cancelled', code: null, signal: null, resumable: false });
+      return false;
+    }
+    return !runState.context.state.disposed && !runState.pluginAbort.signal.aborted && !runState.context.core.revokedToolRuns.has(runState.run.id) && !!current && !isTerminalRunState({ state: current.state });
+  }
+
+
+
+
+
+  /** Consent precedes session binding, persistent repair, per-run tokens and CLI spawn. */
+  async function prepareRunToolAccess(runState: StartedRunState, { selectedAgentId }: { selectedAgentId: string }): Promise<string | null> {
+    let selected = selectedAgentId;
+    while (await runToolAccessIsLive(runState)) {
+      const decision = await prepareAgentToolChoice(runState, { selected });
+      if (decision === null || decision === true) return decision === true ? selected : null;
+      selected = decision;
+    }
+    return null;
+  }
+
+
+
+
+
+  async function prepareAgentToolChoice(runState: StartedRunState, { selected }: { selected: string }): Promise<string | true | null> {
+    const snapshot = await resolveRunNativePolicy(runState, { agentId: selected });
+    const inventory = await runState.context.state.assistantInventory.listAssistantAgents();
+    const detected = inventory.find(agent => agent.id === selected);
+    const plan = assistantRunPlan({ snapshot, installed: !!snapshot.def && !!runState.context.state.resolveAgentLaunch({ def: snapshot.def }).launchPath,
+      ...(detected?.authStatus ? { auth: detected.authStatus } : {}) });
+    if (plan.verdict === 'RUN') return true;
+    if (plan.verdict === 'SETUP' || !snapshot.def) return prepareUnavailableToolChoice(runState, { selected, snapshot, plan, inventory });
+    const result = await askForRunToolAccess(runState, { snapshot, keys: plan.keys, inventory });
+    if (result.status === 'alternative') return result.agentId;
+    if (result.status === 'allowed') return selected;
+    await runState.runLifecycle.finish({ runId: runState.run.id, status: 'cancelled', code: null, signal: null, resumable: false }); return null;
+  }
+
+
+
+
+
+  async function prepareUnavailableToolChoice(runState: StartedRunState, { selected, snapshot, plan, inventory }: {
+    selected: string; snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; plan: ReturnType<typeof assistantRunPlan>;
+    inventory: Awaited<ReturnType<typeof runState.context.state.assistantInventory.listAssistantAgents>>;
+  }): Promise<string | null> {
+    const name = snapshot.def?.name ?? selected;
+    const message = assistantToolSetupMessage({ name, reason: plan.verdict === 'SETUP' ? plan.reason : 'not_installed',
+      ...(snapshot.lock ? { lock: snapshot.lock } : {}), ...('keys' in plan ? { keys: plan.keys } : {}) });
+    const alternatives = await qualifiedRunAlternatives(runState, { inventory, selectedAgentId: selected, snapshot });
+    if (alternatives.length) {
+      const alternative = await withRunToolAccessCard(runState, { ask: ({ ctx, emitSurface }) => requestAssistantToolAlternative({ name, message,
+        ctx, surfaces: { surfaceExchanges: runState.context.core.surfaceExchanges }, alternatives, isLive: () => runToolAccessIsLive(runState) }, { emitSurface }) });
+      if (alternative) return alternative;
+    }
+    await failRunBeforeStart({ lifecycle: runState.runLifecycle, runId: runState.run.id, message }, {});
+    return null;
+  }
+
+
+
+
+
+  async function askForRunToolAccess(runState: StartedRunState, { snapshot, keys, inventory }: {
+    snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; keys: readonly string[];
+    inventory: Awaited<ReturnType<typeof runState.context.state.assistantInventory.listAssistantAgents>>;
+  }) {
+    const selected = snapshot.def;
+    if (!selected) throw new Error('agent tool access has no selected agent definition');
+    const alternatives = await qualifiedRunAlternatives(runState, { inventory, selectedAgentId: selected.id, snapshot });
+    const assertAccessApprover = async ({ principalId }: { principalId: string }) => {
+      if (principalId !== runState.principal.id || !(await runToolAccessIsLive(runState))) throw new Error('Tool access requires the person in this live chat.');
+      const fresh = await runState.context.routeDeps.readToolConsentSnapshot({ runId: runState.run.id, agentId: selected.id });
+      if (!fresh.allowed) throw new Error('Tool access requires the active owner of this site.');
+    };
+    return withRunToolAccessCard(runState, { ask: ({ ctx, emitSurface }) => requestAssistantToolConsent({ def: selected, keys, workspaceId: runState.context.routeDeps.workspaceId,
+      surfaces: { surfaceExchanges: runState.context.core.surfaceExchanges, assertAccessApprover }, ctx,
+      isLive: () => runToolAccessIsLive(runState),
+      readFresh: () => runState.context.routeDeps.readToolConsentSnapshot({ runId: runState.run.id, agentId: selected.id }),
+      allowSelected: input => runToolAccessIsLive(runState).then(live => live ? runState.context.routeDeps.allowRunTools({ runId: runState.run.id, ...input }) : false),
+    }, { alternatives, emitSurface }) });
+  }
+
+
+
+
+
+  /** Both access and setup cards use the existing principal-bound exchange event stream. */
+  async function withRunToolAccessCard<T>(runState: StartedRunState, { ask }: {
+    ask: (input: { ctx: ToolExecutionContext; emitSurface: SurfaceEmitter }) => Promise<T>;
+  }): Promise<T> {
+    const toolUseId = randomUUID();
+    await runState.runLifecycle.emit({ runId: runState.run.id, input: { event: 'agent', data: { type: 'tool_use', id: toolUseId, name: 'settings_set_value', input: {} } } });
+    try {
+      return await ask({ ctx: { executionId: toolUseId, principal: runState.principal, run: { id: runState.run.id }, input: {}, signal: runState.pluginAbort.signal },
+        emitSurface: async emission => { await runState.runLifecycle.emit({ runId: runState.run.id, input: { event: 'agent', data: { ...emission.payload, type: emission.channel, toolUseId } as RunAgentPayload } }); },
+      });
+    } finally {
+      await runState.runLifecycle.emit({ runId: runState.run.id, input: { event: 'agent', data: { type: 'tool_result', toolUseId, content: 'Tool access request reviewed.' } } });
+    }
+  }
+
+
+
+
+
+  function qualifiedRunAlternatives(runState: StartedRunState, { inventory, selectedAgentId, snapshot }: {
+    inventory: Awaited<ReturnType<typeof runState.context.state.assistantInventory.listAssistantAgents>>; selectedAgentId: string;
+    snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>;
+  }) {
+    // Reuse the launch snapshot for choices; the selected agent is read fresh before dispatch.
+    const alternatives = [];
+    for (const agent of inventory) {
+      if (agent.id === selectedAgentId || !agent.available || agent.authStatus === 'missing') continue;
+      const def = runState.context.state.getAgentDef({ id: agent.id });
+      const effective = resolveAssistantCliPermissions({ isOwner: snapshot.isOwner, env: runState.context.state.env, settings: snapshot.settings, agentId: agent.id }, { hostSignals: resolveHostSignals({ env: runState.context.state.env }) });
+      const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: { nativeToolAccess: effective.enabled, nativeCapabilities: effective.capabilities } });
+      const candidate = { ...snapshot, def, effective, policy, nativeCapabilities: effective.capabilities };
+      if (assistantRunPlan({ snapshot: candidate, installed: true }).verdict === 'RUN') alternatives.push({ agentId: agent.id, name: agent.name });
+    }
+    return alternatives;
+  }
+
+
+
+
+
+  /** Attach the owner's tool-gap audit to this run; subscription errors abort startup. O(1). */
+  async function observeRunToolGaps(runState: StartedRunState, { isOwner, agentId }: { isOwner: boolean; agentId: string }, _optional = {}): Promise<void> {
+    // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
+    if (isOwner) {
+      const gaps = createToolGapCollector({ sink: runState.context.routeDeps.toolAttemptAuditSink,
+        workspaceId: runState.context.routeDeps.workspaceId, principalId: runState.principal.id, site: runState.context.routeDeps.siteBinding.dir,
+        chatId: runState.conversationId ?? runState.run.id, runId: runState.run.id, provider: agentId,
+        redact: text => redactSecretShapes({ text }).text,
+      }, { onError: () => console.error("[tool-gaps] audit write failed") });
+      await runState.runLifecycle.stream({ runId: runState.run.id, onEvent: event => gaps.observe({ event }, {}) });
+    }
+  }
+
+
+
+
+
+  /** Verify/repair CLI bridge registration before emitting its access note. A failed recovery
+   * terminalizes the run and returns false; lifecycle emission errors propagate. O(config bytes). */
+  async function prepareCliLaunch(runState: StartedRunState, { def, allowed }: { def: ReturnType<typeof runState.context.state.getAgentDef>; allowed: boolean }, _optional = {}): Promise<boolean> {
+    if (def?.externalMcpInjection === 'env-passthrough') {
+      try {
+        await ensureJsonAgentInstall({ agentId: def.id, allowed, spec: { command: runState.context.prompt.bridgeInjection.command,
+          args: [...(runState.context.prompt.bridgeInjection.args ?? [])], env: { ...runState.context.prompt.bridgeInjection.env } },
+          ctx: { home: (runState.context.state.env.HOME ?? runState.context.state.env.USERPROFILE ?? homedir()), platform: process.platform, serverName: 'jini' } }, {});
+      } catch (error) {
+        await failRunBeforeStart({ lifecycle: runState.runLifecycle, runId: runState.run.id, message: `${def.name}'s connector could not be installed safely in its personal settings. Choose another available agent for this message.`,
+          startup: { stage: runState.startupStage, error } }, {}); return false;
+      }
+    }
+    if (def?.fullCliAccessNote) await runState.runLifecycle.emit({ runId: runState.run.id, input: {
+      event: 'agent', data: { type: 'status', label: 'full_cli_access', detail: def.fullCliAccessNote },
+    } });
+    return true;
+  }
+
+
+
+function cleanupStartedRun(runState: StartedRunState) {
+    const releaseCleanup = runState.context.core.idlePark.hold({}, {});
+    runState.pluginAbort.abort();
+    runState.unsubscribePluginCancel();
+    runState.context.tools.siteTools.finish({ runId: runState.run.id });
+    runState.context.runs.principalByRunId.delete(runState.run.id);
+    runState.context.core.chatSettingsByRunId.delete(runState.run.id);
+    runState.context.core.toolAccessRuns.delete(runState.run.id);
+    runState.context.core.revokedToolRuns.delete(runState.run.id);
+    runState.context.runs.messageAttachmentRefsByRunId.delete(runState.run.id);
+    runState.context.runs.durableMessageIdsByRunId.delete(runState.run.id);
+    runState.context.runs.runCredentials.revoke({ runId: runState.run.id }, {});
+    runState.context.runs.runActiveContexts.forget({ runId: runState.run.id });
+    // The owner must outlive the run's end (a finished run is still read and replayed), but not the
+    // lifecycle's own terminal record, or this map grows for the daemon's lifetime. Once forgotten,
+    // a still-present run is denied to everyone (`requireRunOwnership` fails closed), never opened.
+    const retention = setTimeout(() => {
+      runState.context.state.ownerRetentionTimers.delete(retention);
+      runState.context.runs.runOwners.forget({ runId: runState.run.id }, {});
+      runState.context.core.cleanupFailures.delete(runState.run.id);
+    }, runState.context.runs.RUN_OWNER_RETENTION_MS).unref();
+    runState.context.state.ownerRetentionTimers.add(retention);
+    if (runState.conversationId !== undefined) runState.context.runs.liveRunTracker.unregister({ conversationId: runState.conversationId, runId: runState.run.id }, {});
+    // Safe to call even for a run that claimed nothing (`AttachmentStore.cleanupRun`'s own
+    // contract) — always wired, not only when `attachmentIds` was non-empty, so a run that failed
+    // before reaching the claim step below still releases anything a *retry* of the same run id
+    // could theoretically have claimed. Best-effort: a cleanup failure must not resurface as a run
+    // failure this late in the run's life, and the store's own `retentionMs`/`pruneExpired` is the
+    // backstop if this never runs at all (process crash, etc.).
+    const cleanupStaged = runState.context.runs.stagedAttachmentCleanupByRunId.get(runState.run.id);
+    runState.context.runs.stagedAttachmentCleanupByRunId.delete(runState.run.id);
+    const stagedCleanup = cleanupStaged?.().catch(() => console.error('[agent-daemon] staged attachment cleanup failed'));
+    const claimedCleanup = runState.context.runs.attachmentStore?.cleanupRun({ runId: runState.run.id }).catch((error: unknown) => {
+      console.error(`[agent-daemon] run ${runState.run.id}: attachment cleanup failed`, error);
+    });
+    void Promise.allSettled([stagedCleanup, claimedCleanup]).finally(releaseCleanup);
+  }
+
+
+
+
+function observeStartedRunSession(runState: StartedRunState, resolvedConversationId: string, event: Parameters<Parameters<OnStartedContext["lifecycle"]["stream"]>[0]["onEvent"]>[0]) {
+      if (event.kind === "error") {
+        console.error(formatRunErrorLogLine({ runId: runState.run.id, payload: event.payload }));
+      }
+      // Terminal-outcome log line (2026-09-06 chat-death investigation). This subscription already
+      // exists, already sees every `end` event, and already has `run.id` in scope — so this is the
+      // cheapest possible place to write down HOW a run ended. Until now nothing did: the daemon
+      // logged a run that `failed to start` (see the `.catch` at the bottom of this function) but
+      // said nothing at all about a run that started fine and then died, which is exactly the case
+      // an operator cannot otherwise diagnose. `@jini-ai/daemon`'s `finish()` emits this `end` event
+      // as the ONLY record of the terminal status, the event log backing it is in-memory
+      // (`createInMemoryEventLog()` above), and the admin client discards the status — so without
+      // this line the exit code exists nowhere durable and nowhere visible.
+      if (event.kind === "end") {
+        const line = formatRunEndLogLine({ runId: runState.run.id, payload: event.payload, agentId: runState.agentId, conversationId: resolvedConversationId, resumeAttempted: runState.attemptedResumeSessionId !== null });
+        if (event.payload.status === "succeeded") console.log(line);
+        else console.error(line);
+      }
+      // Status carries capture-style locators (Codex/opencode) before end. A killed process must
+      // not lose its locator; generation checks also prevent a stale attempt changing the session.
+      const releaseSessionSave = runState.context.core.idlePark.hold({}, {});
+      void runState.context.runs.captureEarlySession({ event, runId: runState.run.id, conversationId: resolvedConversationId, agentId: runState.agentId }, { durableBinding: runState.durableMessageId !== undefined })
+        .catch((error: unknown) => console.error(`[agent-daemon] run ${runState.run.id}: failed to persist agent session id`, error)).finally(releaseSessionSave);
+      if (extractSessionRefFromEndEvent({ event: event }, {}) !== undefined) return;
+      // H1 fix: this run attempted `--resume <attemptedResumeSessionId>` and reached its terminal
+      // `end` event without the CLI ever reconfirming a session id — the stored id is unconfirmed
+      // at best, and per this repo's own daemon-restarted-from-a-different-cwd hazard, frequently
+      // dead. Clear it so the NEXT turn falls back to a cold start instead of retrying the same
+      // dead id forever. See `shouldClearSessionOnFailedResume`'s own doc for the full condition.
+      if (runState.attemptedResumeSessionId !== null && shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: runState.attemptedResumeSessionId }, {})) {
+        const releaseSessionClear = runState.context.core.idlePark.hold({}, {});
+        const cleared = runState.durableMessageId && runState.context.routeDeps.chatRunLedger.durable
+          ? runState.context.routeDeps.chatRunLedger.durable.clearSession({ runId: runState.run.id, sessionId: runState.attemptedResumeSessionId }, {})
+          : runState.context.routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: runState.agentId });
+        void cleared.catch((error: unknown) => {
+          console.error(`[agent-daemon] run ${runState.run.id}: failed to clear dead agent session id`, error);
+        }).finally(releaseSessionClear);
+      }
+    }
+
+
+
+
+async function prepareStartedRun(runState: StartedRunState) {
+      // One generic preparation turns every claimed file into image pixels or a file notice.
+      // Runtime wire adapters decide how to carry those pixels; the CMS adapter owns authorization.
+      runState.startupStage = 'attachment preparation';
+      const attachmentRunFields = await resolveAttachmentRunFields(runState.context, { run: runState.run, attachmentIds: runState.attachmentIds, runLifecycle: runState.runLifecycle, agentId: runState.agentId }, {});
+      if (!attachmentRunFields) return;
+      runState.pluginAbort.signal.throwIfAborted();
+      runState.startupStage = 'Agent Plugin preparation';
+      await runState.context.tools.siteTools.start({ runId: runState.run.id, principalId: runState.principal.id });
+      const pluginPreparation = await prepareSitePlugins(runState, {}, {});
+      if (pluginPreparation.prefix === null) {
+        await failRunBeforeStart({ lifecycle: runState.runLifecycle, runId: runState.run.id, message: "The assistant could not start: a selected Agent Plugin could not be loaded." }, {});
+        return;
+      }
+      const pluginPromptPrefix = pluginPreparation.prefix;
+      // Serialized per conversation (`Jini packages/daemon/src/session-coordination.ts`): `resolveSessionBinding` is a
+      // read-modify-write over `assistant_agent_sessions` with an `await` in the middle, so two
+      // near-simultaneous turns on one conversation could otherwise both observe an empty session
+      // slot and both mint — forking the conversation exactly the way the terminal-event-only write
+      // did. Deliberately does NOT cover `agentExecutor.run` below: holding the lock across a whole
+      // agent run would queue a second tab's turn behind it for minutes with no feedback.
+      runState.startupStage = 'tool access consent';
+      const admitted = runState.context.tools.siteTools.withRun({ runId: runState.run.id, fn: () => admittedToolSources({ tools: runState.context.tools.visibleRegistry.list({}) }) });
+      runState.context.core.toolAccessRuns.set(runState.run.id, { runId: runState.run.id, agentId: runState.agentId, ...admitted, pluginIds: [...new Set([...runState.pluginRefIds, ...admitted.pluginIds])] });
+      const selectedAgent = await prepareRunToolAccess(runState, { selectedAgentId: runState.agentId });
+      if (selectedAgent === null) return;
+      runState.agentId = selectedAgent;
+      const toolAccessRun = runState.context.core.toolAccessRuns.get(runState.run.id);
+      if (!toolAccessRun) throw new Error("agent run has no tool access record after preparation");
+      runState.context.core.toolAccessRuns.set(runState.run.id, { ...toolAccessRun, agentId: runState.agentId });
+      runState.startupStage = 'session binding';
+      const sessionBinding = await runState.context.runs.conversationStartLock.run({ conversationId: runState.conversationId, critical: () => resolveSessionBinding(runState) }, {});
+      if (sessionBinding === null) return;
+      // The browser cannot know whether the daemon still has a native session to resume.
+      runState.prompt = selectRunHistoryPrompt({ prompt: runState.prompt, coldStartContext: runState.coldStartContext, resumeSessionId: sessionBinding.sessionFields.resumeSessionId,
+        carriesOwnMemory: agentCarriesOwnMemory({ agentId: sessionBinding.agentId }, {}) }, {});
+      // Select history before decorating it, so cold starts retain the same page, attachment and
+      // plugin instructions as resumes.
+      // `<<SUBAGENT_DISPATCH>>` is AGENTS.md's own documented marker (Mandatory Startup section,
+      // detection priority 1) for "skip the whole AI-Dev-Shop startup ceremony — this is a
+      // dispatched subagent receiving a task prompt, not an interactive human session." Without it,
+      // every chat-pane run re-runs the full dev-tooling bootstrap (reads AGENTS.md, prints the
+      // startup banner, offers to install slash commands) before touching the user's actual request
+      // — confirmed live, burning real turns on a product-facing feature that has nothing to do with
+      // this repo's own AI-Dev-Shop pipeline.
+      // The admin screen this message was sent from goes AFTER the marker (the marker only works as
+      // the prompt's first line) and directly before the operator's words, so "this page" has
+      // something to refer to — see `run-page-context.ts`. `""` (no context) leaves the prompt as is.
+      runState.prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix({ basePrompt: runState.prompt, pluginPromptPrefix: buildPageContextPromptBlock({ context: runState.pageContext }) })}`;
+      runState.prompt += attachmentRunFields.attachmentNotice ?? "";
+      // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
+      // prepended BEFORE the plugin prefix. Off by default; a no-op unless a probe sets
+      // `TOVU_CAPABILITY_MANIFEST_ARM` for this process.
+      runState.prompt = assemblePromptWithPluginPrefix({ basePrompt: runState.prompt, pluginPromptPrefix: buildCapabilityManifestPrefix({ arm: resolveCapabilityManifestArm(runState.context.state.env) }) });
+      // What this boot REFUSED to admit from external MCP servers, in the one channel a model does
+      // not have to go looking for. Not a tool, deliberately: a model that does not know it is
+      // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
+      // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
+      runState.prompt = assemblePromptWithPluginPrefix({ basePrompt: runState.prompt, pluginPromptPrefix: pluginPreparation.refusalPrefix });
+      runState.prompt = assemblePromptWithPluginPrefix({ basePrompt: runState.prompt, pluginPromptPrefix });
+      if (!(await durableAttemptStillOwnsAnswer(runState))) {
+        await failRunBeforeStart({ lifecycle: runState.runLifecycle, runId: runState.run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
+      }
+      runState.startupStage = 'CLI launch';
+      await launchAgentRun(runState, { sessionBinding, attachmentRunFields, pluginIds: pluginPreparation.pluginIds }, {});
+    }
+
+
+
+/** Resolve discovery authority from a still-live per-run credential, never a wire principal. */
+function resolveDiscoveryCaller(context: ScopeContext, req: express.Request) {
+  const token = bearerTokenFromHeader({ header: req.get("authorization") });
+  return token ? context.runs.runCredentials.resolveCaller({ token }) : undefined;
+}
+
+
+/** Delivers authorized screenshot pixels through the existing live-input path. Reads do not claim
+ * uploads: an unsupported runtime or an ending run must leave the whole turn available for the
+ * idle attachment claim. Non-image files wait for idle delivery, which also grants directory access.
+ * @complexity O(b) time/space in attachment bytes, bounded by the existing upload limits.
+ */
+async function deliverRunUserMessage(context: ScopeContext, 
+  { runId, text, id, attachmentIds = [] }: RunMessageRequest, _optional = {},
+): Promise<UserMessageDelivery> {
+  if (attachmentIds.length === 0) return context.prompt.agentExecutor.sendUserMessage({ runId, text, id });
+  const principal = context.runs.principalByRunId.get(runId);
+  if (principal === undefined) return "not-running";
+  const prepared = await prepareByokMessageAttachments({
+    refs: attachmentIds, principalId: principal.id, uploadDirectory: context.core.ATTACHMENT_UPLOAD_DIRECTORY,
+  }, {});
+  if (prepared.notice !== "") return "unsupported";
+  return context.prompt.agentExecutor.sendUserMessage({ runId, text, id, attachmentIds }, { imageContents: prepared.images });
+}
+
+function scopeBootSettings(state: ScopeState) {
+
 /**
  * Total bytes one composer turn's staged attachments may sum to (`createDiskAttachmentStore`'s
  * `maxBatchBytes`, `@jini-ai/http-kit`'s own default is 20 MB). Kept at twice
@@ -232,24 +1122,14 @@ const ATTACHMENT_MAX_BATCH_BYTES = TOVU_MAX_UPLOAD_BYTES * 2;
  * scope like `ATTACHMENT_UPLOAD_DIRECTORY` (below), rather than per-call inside `systemOverlay()`:
  * this is a boot-time operator choice, not a per-run condition.
  */
-const bashProhibitionEnabled = resolveBashProhibitionEnabled(env);
-
-/**
- * The agent CLI's permission mode for this daemon process. The rule and its full "why" (no TTY to
- * answer a prompt; bypass unless `TOVU_RUNTIME_MODE=production`; explicit
- * local `TOVU_AGENT_PERMISSION_MODE` overrides, hosted always restricted) live in `contracts/core/agent-permission-mode.ts`, shared with
- * the boot-readiness warning so both always agree on the mode this daemon actually runs in.
- */
-function resolvePermissionMode(): "bypass" | "restricted" {
-  return resolveAgentPermissionMode({ env: env }, { hostSignals: resolveHostSignals({ env: env }) });
+const bashProhibitionEnabled = resolveBashProhibitionEnabled(state.env);
+  return { ATTACHMENT_MAX_BATCH_BYTES, bashProhibitionEnabled };
 }
 
-// The supervisor pins the site's workspace. The authenticated bootstrap also checks it, so a
-// daemon cannot silently attach to another workspace's settings, files or attempt authority.
-// Site writes now execute in the server: its bus/drainer delivers their outbox events. There is
-// no enqueue-only outbox or disconnected durable ledger in this process, including memory mode.
-const routeDeps = await createAgentDaemonCoreDeps({ env, token: siteToolToken }, { ...optional.coreOptions,
-  onStoreOpened: ({ resource }, _optional = {}) => { daemonStore = resource; optional.coreOptions?.onStoreOpened?.({ resource }); } });
+
+function createScopeTracing(context: Parameters<typeof createScopeCore>[0]) {
+
+
 // Provider plugins stay at the site owner (including project settings/migrations). Forward process
 // diagnostics with their daemon attribution; a fatal drain never disposes the server's providers.
 // Process error handlers belong to the entry; this scope retains its own tracker and trace sink.
@@ -273,19 +1153,22 @@ const routeDeps = await createAgentDaemonCoreDeps({ env, token: siteToolToken },
  * directly, not this const, so their statement slice stays evaluable on its own (see
  * `__tests__/helpers/daemon-tool-surface.ts`).
  */
-const ATTACHMENT_UPLOAD_DIRECTORY = routeDeps.siteStoragePaths.chatAttachmentsDir;
+const ATTACHMENT_UPLOAD_DIRECTORY = context.routeDeps.siteStoragePaths.chatAttachmentsDir;
 
 // The in-memory log bounds itself (a run's payloads are compacted 15 min after its `end`; at most
 // 1000 runs are held), and the durable transcript is `ai_chat_messages.events_json`. Dropping a run's
 // events when the lifecycle evicts its record gives both the same lifetime (memory cause 2, 2026-10-21).
 const eventLog = createInMemoryEventLog({});
 // Assistant runs → AI trace when a trace provider or analytics AI capability is configured.
-const tracing = traceRunLifecycle({ lifecycle: createRunLifecycle({ eventLog }, { dropEventsOnEviction: true }), sink: routeDeps.aiTraceSink });
-disposeAiTracing = tracing.dispose;
+const tracing = traceRunLifecycle({ lifecycle: createRunLifecycle({ eventLog: eventLog }, { dropEventsOnEviction: true }), sink: context.routeDeps.aiTraceSink });
+context.state.disposeAiTracing = tracing.dispose;
 const lifecycle = tracing.lifecycle;
-await lifecycle.rehydrate({}).catch((error: unknown) => {
-  console.error("[agent-daemon] lifecycle.rehydrate() failed", error);
-});
+ return { ATTACHMENT_UPLOAD_DIRECTORY, eventLog, tracing, lifecycle };
+}
+
+function createScopeCore(context: { state: ScopeState; routeDeps: Awaited<ReturnType<typeof createAgentDaemonCoreDeps>> }, tracingState: { ATTACHMENT_UPLOAD_DIRECTORY: string; eventLog: ReturnType<typeof createInMemoryEventLog>; tracing: ReturnType<typeof traceRunLifecycle>; lifecycle: RunLifecycle }) {
+ const { ATTACHMENT_UPLOAD_DIRECTORY, eventLog, tracing, lifecycle } = tracingState;
+
 
 /**
  * The parked-call store backing the single-call MCP-UI return path (ADR-055 Decision 1).
@@ -296,19 +1179,8 @@ await lifecycle.rehydrate({}).catch((error: unknown) => {
  * not fail loudly — every delivery would 409 while the agent sat blocked until its TTL expired.
  */
 const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-const processActivity = optional.idlePark ?? createAgentDaemonIdlePark({ isBusy: () => surfaceExchanges.size() > 0, exit: () => {} }, { env });
-const idlePark = { ...processActivity,
-  hold(_required: Record<string, never>, _optional = {}) {
-    const release = processActivity.hold({}, {});
-    activeWork++;
-    let released = false;
-    return () => {
-      if (released) return;
-      released = true; release(); activeWork--;
-      if (activeWork === 0) resolveDrained?.();
-    };
-  },
-};
+const processActivity = context.state.optional.idlePark ?? createAgentDaemonIdlePark({ isBusy: () => surfaceExchanges.size() > 0, exit: () => {} }, { env: context.state.env });
+const idlePark = createScopeActivity(context.state, processActivity);
 
 // Site registrations, attachment tools, plugin guidance and federation have one owner: the
 // server's BYOK composition. Only browser-tab capabilities have executable registrations here.
@@ -317,18 +1189,16 @@ const toolAccessRuns = new Map<string, ToolAccessRun>();
 const revokedToolRuns = new Set<string>();
 const cleanupFailures = new Set<string>();
 const noToolsNotices = new Set<string>();
+  return { ATTACHMENT_UPLOAD_DIRECTORY, eventLog, tracing, lifecycle, surfaceExchanges, processActivity, idlePark, chatSettingsByRunId, toolAccessRuns, revokedToolRuns, cleanupFailures, noToolsNotices };
+}
+
+
+function createScopeTools(context: { state: ScopeState; core: ScopeCore; routeDeps: Awaited<ReturnType<typeof createAgentDaemonCoreDeps>> }, getRuns: () => ScopeRuns) {
+
 const registry = createToolRegistry({});
 registry.register(createChatSettingsGetRegistration({ readSnapshot: ({ runId, principalId }) =>
-  !revokedToolRuns.has(runId) && principalByRunId.get(runId)?.id === principalId ? chatSettingsByRunId.get(runId) : undefined }));
-const siteTools = createDaemonSiteTools({
-  baseUrl: env.TOVU_SITE_CALLBACK_ORIGIN ?? env.TOVU_SITE_LISTENER_ORIGIN ?? "",
-  token: siteToolToken, localRegistry: registry,
-  audit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
-  contextFor: ({ runId }) => ({
-    conversationId: liveRunTracker.conversationIdForRun({ runId }, {}),
-    attachmentRefs: messageAttachmentRefsByRunId.get(runId) ?? [],
-  }),
-});
+  !context.core.revokedToolRuns.has(runId) && getRuns().principalByRunId.get(runId)?.id === principalId ? context.core.chatSettingsByRunId.get(runId) : undefined }));
+const siteTools = createScopeSiteTools(context, registry, getRuns);
 const visibleRegistry = siteTools.registry;
 
 /**
@@ -355,7 +1225,590 @@ const lostFrontendBindings = createLostFrontendBindings();
  * gates and the manifest `apps/admin` executes are the same array — the two cannot drift into a
  * state where an agent is offered a verb the page/chat pane does not implement, or vice versa.
  */
-const frontendControl = createFrontendControl({
+const frontendControl = createScopeFrontend(context.routeDeps, lostFrontendBindings);
+// `withPageNavigateErrorRewrap` (Tovu-side, `assistant/rewrap-page-navigate-error.ts`) rewraps ONLY
+// `page.navigate`'s registration so its "not a published page" refusal (`@jini-ai/agentic`'s
+// `page-executor.ts:414`) cannot be misread as this codebase's own, unrelated
+// `PostRecord.status === "published"` CMS-content concept — see that module's own header for the
+// full rationale. Every other registration passes through unchanged.
+// `withReadOnlyFrontendCapabilities` marks page.find_elements and admin.capture_screenshot read-only,
+// so the read-only delegated-tool gateway runs them (see `frontend-control-capabilities.ts`).
+for (const registration of withPageNavigateErrorRewrap({ registrations: withReadOnlyFrontendCapabilities({ registrations: frontendControl.toolRegistrations }) })) {
+  // Page clicks carry arbitrary UI effects; apply the same reviewed host policy as WebMCP.
+  // Every frontend registration needs a classification, including local chat operations.
+  // The server's human chat-card exchange owns page approval for every transport. The browser
+  // bridge has no second dialog gate, so an opaque click asks exactly once, including on AG-UI.
+  const bound = lostFrontendBindings.wrap({ registration });
+  registry.register(applyToolApprovalPolicy({ registration: bound, surfaces: { surfaceExchanges: context.core.surfaceExchanges } },
+    pageApprovalOptions({ toolId: registration.descriptor.id, execute: (...args) => toolExecutor.execute(...args) })));
+}
+// Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`
+// and mints them only AFTER authorization resolves, so an unknown tool id or a throwing
+// authorization leaves no trace at all, and everything else is lost on restart. The decorator
+// appends a `requested` row before delegating, which is the only ordering under which those cases
+// are recorded. Audit is observation — a sink failure can never change a tool call's outcome.
+// See `Jini packages/daemon/src/core/tool-audit.ts`.
+// The retained root chooses this same site's content-kernel sink once (or the bounded local
+// memory sink). Reuse that connection: a second openContentDb here used to open/migrate a second
+// content.db solely for audit. Site tool audit runs at the server owner; this sink observes local
+// frontend calls and discovery without constructing site handlers or a second site composition.
+const auditSink = context.routeDeps.toolAttemptAuditSink;
+// Local UI effects retain their approved gating/audit stack. Site effects use the server's
+// complete stack; the outer descriptor gate verifies read-only authority before either route.
+const localToolExecutor = createAssistantToolExecutor({ registry: registry, surfaceExchanges: context.core.surfaceExchanges,
+  toolAttemptAudit: { sink: auditSink, workspaceId: context.routeDeps.workspaceId } }, {});
+const toolExecutor = withReadOnlyToolConstraint({ inner: createRoutingToolExecutor({
+  local: localToolExecutor, remote: siteTools.remote,
+  isLocal: ({ toolId }) => registry.has({ toolId }),
+}, { acquireActivity: () => context.core.idlePark.hold({}, {}) }), deps: { registry: siteTools.registry } });
+  return { registry, siteTools, visibleRegistry, lostFrontendBindings, frontendControl, auditSink, localToolExecutor, toolExecutor };
+}
+
+
+function createScopePrompt(context: { state: ScopeState; constants: ScopeConstants; core: ScopeCore; tools: ScopeTools; routeDeps: Awaited<ReturnType<typeof createAgentDaemonCoreDeps>> }, getRuns: () => ScopeRuns) {
+
+
+/**
+ * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
+ * `custom-instructions.ts`'s module doc for why this is a refreshable cache rather than a direct
+ * ledger read: `PromptAugmenter.systemOverlay()` below is called synchronously, and the cross-process
+ * cache the ledger's own `getEffective` keeps would otherwise go stale forever after this process's
+ * first read. `onStarted` calls `.refresh()` before every run; `assistantPromptAugmenter.
+ * systemOverlay()` reads the result synchronously.
+ */
+const customInstructionsCache = createCustomInstructionsCache(
+  {
+    settingsRepo: context.routeDeps.settingsRepo,
+    settingsReady: context.routeDeps.settingsUiTabsReady,
+    getEffective: context.routeDeps.getEffective,
+    instructionsNamespace: context.routeDeps.instructionsNamespace,
+  },
+  { workspaceId: context.routeDeps.workspaceId },
+);
+
+// Scope the fresh site setting to its launch, rather than sharing the last chat's grant across
+// concurrent runs. The synchronous Jini prompt seam reads the same value as the CLI deny list.
+const assistantCliCapabilitiesContext = new AsyncLocalStorage<AssistantCliPermissions["capabilities"]>();
+const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
+// Same per-launch scoping for the person's runtime preferences (`assistant-runtime-guidance.ts`).
+const assistantRuntimeGuidanceContext = new AsyncLocalStorage<AssistantRuntimeGuidanceInput>();
+
+/**
+ * Live-tested 2026-07-30: given a bare natural-language admin request with a matching registered
+ * tool (a DB health check, user creation, role listing, form creation), the spawned CLI reliably
+ * used its own native Bash/curl instead of `search_tools`/`execute_delegated_tool` — in the worst
+ * case, self-authenticating as the seeded site owner via the raw admin login route rather than
+ * going through the tool catalog's authorization/risk-classification/audit-log system. The BM25
+ * tool-catalog backend itself is not the problem (confirmed healthy via direct query); nothing
+ * upstream of it ever told the CLI these tools exist and should be preferred. This overlay is that
+ * missing instruction — see `ADS-memory/reports/architecture/ai-workflow-testing-findings.md`.
+ */
+const assistantPromptAugmenter: PromptAugmenter = createScopePromptAugmenter(context, { assistantCliCapabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext, customInstructionsCache });
+
+// Each run's bridge gets its own credential, resolved back to that run's principal; see
+// `Jini packages/daemon/src/run-credentials.ts`. A closure because `runCredentials` is declared further down.
+const bridgeInjection = createScopeBridgeInjection(context, getRuns);
+const agentExecutor = createAgentExecutor({
+  lifecycle: context.core.lifecycle,
+}, {
+  // The same registry and launch resolver `assistant/agents.ts` lists the Local CLI picker from.
+  // `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an
+  // older copy; left to its defaults the executor would look agents up there, so a CLI the picker
+  // shows (e.g. one added in a newer agent-runtime) would fail to start with an unknown agent id.
+  getAgentDef: context.state.getAgentDef,
+  resolveAgentLaunch: context.state.resolveAgentLaunch,
+  runtimeState: context.state.assistantRuntime.state,
+  hostEnv: context.state.assistantRuntime.hostEnv,
+  onCleanupFailure: ({ runId }) => { context.core.cleanupFailures.add(runId); console.error('[agent-daemon] CLI cleanup failed'); },
+  ...executorDefinitionPolicies({ runtime: context.state.assistantRuntime }),
+  mcpJsonInjection: bridgeInjection,
+  promptAugmenter: assistantPromptAugmenter,
+  // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —
+  // see `CreateAgentExecutorOptions.claudeConfigDirIsolationEnabled`'s own doc (Jini) for the full
+  // reasoning. Short version: `@jini-ai/daemon`'s Finding-1 fix (2026-09-07) staged an isolated,
+  // mkdtemp'd `CLAUDE_CONFIG_DIR` for every spawned `claude` run to stop it reading the operator's
+  // real `~/.claude` (skills, plugins, memory index, a 40-tool personal grant). On macOS that
+  // isolated dir reports `loggedIn: false` — Claude Code keys its Keychain entry to
+  // `CLAUDE_CONFIG_DIR` — and this assistant's default Local CLI runtime supplies no
+  // `credentialEnv` (no `ANTHROPIC_API_KEY`/`CLAUDE_CODE_OAUTH_TOKEN`; the operator has declined
+  // `claude setup-token`), so an isolated child always ran unauthenticated and every Local CLI run
+  // failed with "Not logged in · Please run /login". Leaving this flag off knowingly REOPENS that
+  // personal-config leak so the default runtime can log in at all — the tool-restriction gate below
+  // (`ASSISTANT_DISALLOWED_TOOLS`) is a separate mechanism and stays fully enforced either way,
+  // except the owner's Task opt-in (see
+  // its own test, `__tests__/agent-executor.test.ts`'s "still applies disallowedTools ... when
+  // CLAUDE_CONFIG_DIR isolation is left at its default" in the daemon package). Flip this back to
+  // `true` once a host-provisioned `credentialEnv` exists for this runtime (outranks Keychain login
+  // in Claude Code's own auth precedence, so an isolated child would still authenticate).
+  claudeConfigDirIsolationEnabled: false,
+});
+  return { customInstructionsCache, assistantCliCapabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext, assistantPromptAugmenter, bridgeInjection, agentExecutor };
+}
+
+
+function createScopeRuns(context: { state: ScopeState; core: ScopeCore; routeDeps: Awaited<ReturnType<typeof createAgentDaemonCoreDeps>> }) {
+
+
+// Initialize needs no callback credential; probe the real launch without minting a run token.
+// The run-scoped startup tool fetch is left out of it — see bridge-preflight-entry.ts.
+
+/** Populated by `onStarted`, read by `resolveDelegatedPrincipal` — see module doc. Deleted on
+ * terminal transition on purpose: the exempt `/api/delegated-tool-calls` route's remaining defence
+ * is that a `runId` only resolves while its run is in flight (`Jini packages/daemon/src/run-credentials.ts`). */
+const principalByRunId = new Map<string, Principal>();
+/** Accepted-message refs decoded by `onStarted`, keyed by the SAME lifecycle id used by claim()
+ * and delegated tools. `lifecycle.get()` returns public RunStatus without contextRef; parsing it
+ * there silently hid every attachment. Keep this binding for the tracked principal's lifetime. */
+const messageAttachmentRefsByRunId = new Map<string, readonly string[]>();
+/** The durable guard must still identify a chat attempt after its persisted row is deleted or
+ * advanced. Public RunStatus has no contextRef, so retain the decoded message id until terminal. */
+const durableMessageIdsByRunId = new Map<string, string>();
+/** Per-run bridge credentials. Valid only while `principalByRunId` tracks the run, so they share its
+ * lifetime; `revoke` on terminal only keeps the map small. See `Jini packages/daemon/src/run-credentials.ts`. */
+const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => context.state.disposed || context.core.revokedToolRuns.has(runId) ? undefined : principalByRunId.get(runId)?.id }, {});
+
+/**
+ * Assigned once, inside `start()`, before `app.listen()` ever binds the port — `onStarted` cannot
+ * be invoked by a real request until then, so every call site below sees this populated. Typed
+ * `| undefined` anyway (not asserted non-null) because `onStarted`'s own contract is "never throw
+ * synchronously past the point a run is already durably started" — a theoretically-unreachable
+ * `undefined` here should still fail the one run it affects, not crash the process.
+ */
+const attachmentStore = undefined as AttachmentStore | undefined;
+// Only copies handed to a CLI live here; the store retains its own promotion/read-back records.
+const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
+
+
+
+/** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
+ * stay known. See `Jini packages/daemon/src/run-credentials.ts` for why the two maps are not redundant. */
+const runOwners = createRunOwnerRegistry({}, {});
+/** Each live run's admin screen, recorded at run start and forgotten at run end — what `GET /api/active`
+ * (`@jini-ai/mcp`'s `get_active_context`) answers from. See `run-active-context.ts`. */
+const runActiveContexts = createRunActiveContextStore();
+/** `@jini-ai/daemon`'s `DEFAULT_TERMINAL_RETENTION_MS` (24 h, not exported), which `lifecycle` (above)
+ *  runs with: how long a terminal run stays readable, and so how long its owner must stay known. */
+const RUN_OWNER_RETENTION_MS = 24 * 60 * 60 * 1000;
+
+/** H2 fix — see `Jini packages/daemon/src/session-coordination.ts`'s own doc. One instance for this process's whole
+ * lifetime, registered/unregistered per run inside `onStarted` below. */
+const liveRunTracker = createLiveRunTracker({}, {});
+
+/** Defect 1 fix (2026-09-11) — see `Jini packages/daemon/src/session-coordination.ts`'s own doc. One instance for this
+ * process's whole lifetime; `onStarted` runs its read-decide-write session-binding section through
+ * it so two near-simultaneous turns on one conversation cannot both mint a session. */
+const conversationStartLock = createConversationStartLock({}, {});
+
+const captureEarlySession = createEarlySessionCapture({ sessions: context.routeDeps.agentSessions, durable: context.routeDeps.chatRunLedger.durable, readStart: readProcessStart }, {});
+ return { principalByRunId, messageAttachmentRefsByRunId, durableMessageIdsByRunId, runCredentials, attachmentStore, stagedAttachmentCleanupByRunId, runOwners, runActiveContexts, RUN_OWNER_RETENTION_MS, liveRunTracker, conversationStartLock, captureEarlySession };
+}
+
+
+function onScopeRunStarted(context: ScopeContext, { request, run: startedRun, lifecycle: runLifecycle }: OnStartedContext): void {
+  const run = Object.freeze({ ...startedRun });
+  // Every CLI run is busy, including headless/Aider runs with no conversationId. Terminal waits
+  // release malformed starts too; preparation and cleanup below retain their own work holds.
+  const releaseRun = releasingBrowserToo({ release: context.core.idlePark.hold({}, {}), lease: context.state.optional.browserLease, runId: run.id });
+  void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
+    console.error(`[agent-daemon] run ${run.id}: could not wait for completion before releasing activity:`,
+      describeErrorForLog({ err: error }));
+  }).finally(releaseRun);
+  const runState = createStartedRunState(context, { request, run, runLifecycle });
+  if (!runState) return;
+  const identity = Object.freeze({ siteId: context.state.siteId, runId: run.id, principal: runState.principal });
+  context.runs.principalByRunId.set(identity.runId, identity.principal);
+  context.core.toolAccessRuns.set(run.id, { runId: run.id, agentId: runState.agentId, pluginIds: runState.pluginRefIds });
+  context.runs.messageAttachmentRefsByRunId.set(run.id, runState.attachmentIds);
+  if (runState.durableMessageId !== undefined) context.runs.durableMessageIdsByRunId.set(run.id, runState.durableMessageId);
+  context.runs.runOwners.record({ runId: run.id, principalId: runState.principal.id }, {});
+  // Durable admin turns settle in the API, which can observe daemon death and recovery. Only
+  // standalone daemon runs report here, so a recovery attempt never becomes another logical run.
+  if (runState.durableMessageId === undefined) {
+    void context.routeDeps.tracker.capture({ name: "assistant_run_started", userId: runState.principal.id }, { properties: { chatSurface: "daemon", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
+    void runLifecycle.stream({ runId: run.id, onEvent: event => {
+      if (event.kind === "end") void context.routeDeps.tracker.capture({ name: "assistant_run_finished", userId: runState.principal.id }, { properties: { chatSurface: "daemon", logicalRunId: run.id, ...(event.payload.status ? { outcome: event.payload.status } : {}), eventId: `assistant-finish:${run.id}` } });
+    } });
+  }
+
+  // H2 fix (`Jini packages/daemon/src/session-coordination.ts`): registered synchronously, in this same
+  // never-`await`-ed-yet prefix, so a second `onStarted` call for the same conversation — however
+  // close together the two requests arrive — is guaranteed to observe this run as already live.
+  // A no-op when `conversationId` is absent, matching the stream subscription below: there is
+  // nothing to key concurrency by for a daemon client other than the admin chat pane.
+  if (runState.conversationId !== undefined) context.runs.liveRunTracker.register({ conversationId: runState.conversationId, runId: run.id }, {});
+  if (runState.pageContext !== undefined) context.runs.runActiveContexts.record({ runId: run.id, pageContext: runState.pageContext });
+  void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
+    console.error(`[agent-daemon] run ${run.id}: could not wait for completion before cleaning up:`,
+      describeErrorForLog({ err: error }));
+  }).finally(() => cleanupStartedRun(runState));
+
+  // Session-resume capture (Gap 5, `RunEndPayload.sessionRef` — `@jini-ai/protocol`'s doc on that
+  // field): watches this run's own event stream for its terminal `end` event and persists whatever
+  // agent-CLI session id it reports, so the NEXT turn in this conversation can resume it instead of
+  // spawning cold (`agent-session-resume.ts`). A no-op subscription when `conversationId` is absent
+  // — any daemon client other than the admin chat pane, today — since there is nowhere to key the
+  // stored id by. Subscribed here, before `agentExecutor.run()` is ever called below, so a run that
+  // fails immediately after spawn still has its `end` event observed (`stream()`'s own contract:
+  // subscribe-before-replay never loses an event to timing).
+  if (runState.conversationId !== undefined) {
+    const resolvedConversationId = runState.conversationId;
+    void runLifecycle.stream({ runId: run.id, onEvent: (event) => observeStartedRunSession(runState, resolvedConversationId, event) });
+  }
+
+  // Bind this run to the tab that started it, so `page.*` calls have an addressee. A run has
+  // exactly one originating surface, which is what makes the routing unambiguous with several
+  // admin tabs open — there is no heuristic that could pick a window nobody is watching.
+  //
+  // A failed bind never fails the run (see `onBindError` above): the agent simply cannot drive the
+  // page and says so on each attempt, where killing an otherwise-working session over one optional
+  // channel would turn a degraded run into no run at all. The facade also releases the binding on
+  // terminal, so a long-lived tab does not accumulate bindings for runs that ended.
+  context.tools.frontendControl.bindOnStarted({ request, run, lifecycle: runLifecycle });
+
+  // Refresh the custom-instructions cache before starting the agent, not concurrently with it: this
+  // is the one point in a run's lifecycle before `systemOverlay()` is called (synchronously, inside
+  // `run()`'s own argv-building step) where an `await` is still possible. Sequencing here — rather
+  // than racing the refresh against `run()` and hoping the internal timing works out — makes the
+  // guarantee independent of `@jini-ai/daemon`'s internal ordering. `refresh()` never rejects (see
+  // `custom-instructions.ts`), so this adds no new failure path before `run()` is even reached.
+  const releasePreparation = context.core.idlePark.hold({}, {});
+  // Static stage names identify the failing preparation boundary without copying the request.
+  runState.startupStage = 'custom instructions';
+  void context.prompt.customInstructionsCache
+    .refresh()
+    .then(() => prepareStartedRun(runState))
+    // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
+    // every failure path before it rejects — this catch only guards against an unhandled rejection.
+    // (The attachment-claim failure branch above finishes the run itself and returns before ever
+    // reaching `run()`, so it does not rely on this catch for that.)
+    .catch((error: unknown) => {
+      console.error(`[agent-daemon] run ${run.id} failed to start`, error);
+      // A startup rejection must terminalize its attempt so its slot and credentials release.
+      void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt.",
+        startup: { stage: runState.startupStage, error } }, {});
+    }).finally(releasePreparation);
+}
+
+function createScopePrincipalResolver(context: ScopeContext) {
+
+
+/** Fails closed: an untracked `runId` throws rather than fabricating a principal — see
+ * `apps/website/src/server/runtime/composition/modules/assistant.ts`'s identical guard for the full rationale.
+ *
+ * A `requireReadOnly` request (the wire flag `@jini-ai/mcp`'s `execute_readonly_delegated_tool`
+ * sets, and which `@jini-ai/http-kit` hands to this host-owned resolver verbatim) resolves to an
+ * ATTENUATED principal instead of the tracked one. That is what carries the constraint past this
+ * route and into the execution itself, where `withReadOnlyToolConstraint` enforces it on every
+ * dispatch rather than only on the id the caller named — the route's own check answers for that one
+ * id, and a decorator can dispatch another. See `read-only-tool-constraint.ts`. */
+const resolvePrincipal = ({ request }: { readonly request: DelegatedToolExecuteRequest }): Principal => {
+  const principal = context.runs.principalByRunId.get(request.runId);
+  if (!principal) throw new Error(`no principal is tracked for run "${request.runId}"`);
+  return request.requireReadOnly === true ? constrainPrincipalToReadOnlyTools(principal) : principal;
+};
+ return resolvePrincipal;
+}
+
+
+function createScopeApp(context: ScopeContext) {
+
+
+const app = express();
+app.use((_req, res, next) => {
+  if (context.state.disposed) { res.status(503).json({ error: "site scope is closed" }); return; }
+  context.state.responses.add(res); res.once("close", () => context.state.responses.delete(res));
+  next();
+});
+app.use(context.core.idlePark.middleware);
+registerAgentPluginEvents({ app: app, lifecycle: context.core.lifecycle, principalFor: ({ runId }) => context.runs.principalByRunId.get(runId)?.id }, { env: context.state.authEnv });
+
+// Only this POST uses Jini's credential-bound claim authorization instead of the proxy/owner gates.
+// Authenticate before parsing; the handler re-resolves the live credential and checks the URL run.
+// Mount before requireRunOwnership: no proxy principal header or retained owner record is needed.
+app.post("/api/runs/:runId/messages/claim", createDaemonAuthMiddleware({
+  authorizationHeaderName: "authorization",
+  authorize: ({ request }) => {
+    const token = bearerTokenFromHeader({ header: request.headers.authorization });
+    const caller = token ? context.runs.runCredentials.resolveCaller({ token }) : undefined;
+    return caller ? { allowed: true } : { allowed: false, status: 401,
+      body: { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } } };
+  },
+}), express.json({ limit: "1kb" })); // The only valid body is `{ via }`.
+mountJiniRoutes({ app: app, routes: messageRelayRoutes({ agentExecutor: context.prompt.agentExecutor, runScopedCallers: context.runs.runCredentials }) });
+
+// Before every other route's `express.json()` — an unauthenticated caller's body is never parsed. See this
+// file's module doc and `apps/website/src/assistant/daemon-access.ts` for the fail-closed contract. No exemptions: the spawned
+// bridge now presents JINI_DAEMON_TOKEN on delegated calls too. BYOK dispatches in process, and
+// the proxy does not expose the delegated route (`apps/website/src/assistant/daemon-access.ts`'s DELEGATED_TOOL_CALLS_PATH).
+// `runScopedCallers`: each run's bridge presents its own per-run credential, which reaches only the
+// bridge's routes and stands for that run's principal, never one the caller asserts
+// (`Jini packages/daemon/src/run-credentials.ts`). The proxy token alone still carries a proxy-asserted principal.
+app.use(requireAgentDaemonToken({ env: context.state.authEnv, runScopedCallers: context.runs.runCredentials }, {}));
+// Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
+// admin viewport, posted back to `/api/frontend-sessions/:id/responses`
+// (`frontend-session-bridge.ts`'s `respond()`), routinely exceeds it even after
+// `agent-screenshot.ts`'s own quality/size retries — a silent 413 would look like a capture bug
+// rather than the transport limit it actually is. Raised, not removed: this still bounds the worst
+// case for every route mounted below (all of them, since this is `app.use` with no path), and every
+// caller reaching them is already past `requireAgentDaemonToken` above, so this is not a new
+// unauthenticated attack surface, only a larger authenticated one.
+app.use(express.json({ limit: "6mb" }));
+ return app;
+}
+
+
+function mountScopeAccessRoutes(context: ScopeContext, app: express.Express, onStarted: RunStartHandler) {
+
+registerToolAccessLoweringRoute({ app: app, lower: change => stopRunsForToolAccessChange({ runs: [...context.core.toolAccessRuns.values()], change,
+  revoke: ({ runId }) => { context.core.revokedToolRuns.add(runId); context.runs.runCredentials.revoke({ runId }); },
+  cancel: async ({ runId }) => { await context.core.lifecycle.cancel({ runId }); },
+  waitForCleanup: async ({ runId }) => {
+    await context.core.lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(8_000) });
+    if (context.core.cleanupFailures.has(runId)) throw new Error('CLI cleanup failed');
+  },
+  notice: async ({ runId, message }) => {
+    await Promise.all([
+      context.core.lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'status', label: 'tool_access_changed', detail: message } } }),
+      context.core.lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'text_delta', delta: `\n\n${message}` } } }),
+    ]);
+  },
+}) });
+// Re-resolve each bridge credential after parsing; neither a proxy identity nor a previous
+// caller's snapshot can supply an unscoped catalog. Native async context survives all awaits.
+app.use(["/api/tools", "/api/components", DELEGATED_TOOL_CALLS_PATH], (req, res, next) => {
+  const caller = resolveDiscoveryCaller(context, req);
+  if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
+  try { context.tools.siteTools.withRun({ runId: caller.runId, fn: () => next() }); }
+  catch (error) { next(error); }
+});
+// Re-resolve the bearer after parsing, so even a credential that expired while parsing fails
+// closed. Run credentials must match body.runId before any delegated handler or tool can execute;
+// proxy credentials retain their existing authority.
+app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: context.state.authEnv, runScopedCallers: context.runs.runCredentials, validateDelegatedRunId: true }, {}));
+const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => context.state.port, env: context.state.env,
+  // These are the environment names the previously imported http-kit origin guard read.
+  // Preserve that deployed contract when supplying the now-explicit origin configuration.
+  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024 }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
+
+// Per-run authorization, mounted between the bearer gate and the run routes it protects. The gate
+// above proves the caller is Tovu's proxy; these two prove *which admin* the proxy is speaking for,
+// which is the question neither the gate nor the proxy's own session check can answer. Both must
+// precede `runRoutes`: the middleware so it runs first, and the list handler so it shadows
+// http-kit's unscoped `runListRoute` under Express's first-match-wins routing. See
+// `Jini packages/daemon/src/run-credentials.ts` for the ownership model and the 404-not-403 rationale.
+app.use("/api/runs/:runId", requireRunOwnership({ registry: context.runs.runOwners, lifecycle: context.core.lifecycle }, {}));
+app.get("/api/runs", createOwnedRunListHandler({ lifecycle: context.core.lifecycle, registry: context.runs.runOwners }, {}));
+
+registerCredentialRunIntake({ app: app }, {});
+if (context.routeDeps.chatRunLedger.durable) registerDurableRunStartRoute({ app: app, lifecycle: context.core.lifecycle, onStarted: onStarted, store: context.routeDeps.chatRunLedger.durable }, {});
+ return routeHost;
+}
+
+
+function mountScopeRunRoutes(context: ScopeContext, { app, routeHost, onStarted }: { app: express.Express; routeHost: ReturnType<typeof daemonRouteHost>; onStarted: RunStartHandler }) {
+
+
+mountJiniRoutes({ app: app, routes: runRoutes({ deps: { lifecycle: context.core.lifecycle, onStarted: onStarted,
+  deliverUserMessage: (input) => context.prompt.agentExecutor.sendUserMessage(input),
+  deliverUserMessageWithAttachments: (input) => deliverRunUserMessage(context, input, {}),
+}, host: routeHost }) });
+// `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
+// default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
+// gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
+// bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
+mountJiniRoutes({ app: app, routes: agentRoutes({ deps: { listAgents: context.state.assistantInventory.listAssistantAgents, rescanAgents: context.state.assistantInventory.rescanAssistantAgents }, host: routeHost }) });
+// `GET /api/active` — the one route `jini-mcp` calls (`get_active_context`) that this daemon never
+// served, so it answered 404. Behind the bearer gate above like every route but the delegated one.
+registerRunActiveContextRoute({ app, store: context.runs.runActiveContexts });
+// `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
+// gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
+// omitting it silently disables the gateway rather than silently widening it.
+// `delegatedToolErrorDisclosure()` supplies both error-disclosure options: `isModelSafeToolFailure`
+// lets a failure `withRedactedToolFailures` already redacted (it carries an `ERR-…` id) reach the
+// model as `422 Error <ID>: <reason>`, and `describeInternalError` gives every other failure http-kit
+// would answer with a bare `500 INTERNAL_ERROR` (unknown tool id, timed-out, cancelled, a throwing
+// `resolvePrincipal`) the same redacted `Error <ID>: <reason>` text.
+// Built as a variable, not an inline literal: `describeInternalError` is newer than the published
+// @jini-ai/http-kit 0.3.7 types, and a non-literal argument is not excess-property-checked, so this
+// compiles against both. Against 0.3.7 at runtime the option is inert (bare 500s return) until
+// Tovu's http-kit range is bumped to the release that ships it.
+const delegatedToolRouteDeps = {
+  lifecycle: context.core.lifecycle,
+  toolExecutor: context.tools.toolExecutor,
+  resolvePrincipal: createScopePrincipalResolver(context),
+  toolRegistry: context.tools.siteTools.registry, toolFamilies: context.tools.siteTools.families,
+  ...delegatedToolErrorDisclosure({}, {}),
+  // Static jobs live at the site server. Read once through its normal permission gate after a
+  // lost delegated response; the five-second deadline cannot extend or repeat the publish.
+  recoverInterruptedTool: async ({ principal, runId, toolId, result }: {
+    principal: import("@jini-ai/core").Principal; runId: string; toolId: string; result: import("@jini-ai/daemon").ToolExecutionResult;
+  }) => {
+    if (toolId !== "deployment_execute_static_publish") return undefined;
+    try {
+      const checked = await context.tools.toolExecutor.execute({ principal, run: { id: runId }, toolId: "deployment_get_static_publish_status", input: { executionId: result.executionId } }, { signal: AbortSignal.timeout(5_000) });
+      const output = checked.output as { status?: unknown; message?: unknown } | null;
+      if (checked.status === "completed" && output?.status && typeof output.message === "string") return output.message;
+    } catch { /* A failed status read cannot prove whether the publish started. */ }
+    return publishJobRecoveryMessage({ statusToolId: "deployment_get_static_publish_status" });
+  },
+};
+registerDurableToolGuard({ app: app, ledger: context.routeDeps.chatRunLedger,
+  isRegistered: ({ toolId }) => context.tools.siteTools.registry.has({ toolId }),
+  isReadOnly: ({ toolId }) => checkReadOnlyTool({ toolId, registry: context.tools.siteTools.registry, messages: defaultDaemonMessages.readOnly }, {}) === null,
+  async messageIdForAttempt({ runId }) {
+    return context.runs.durableMessageIdsByRunId.get(runId) ?? null;
+  },
+}, {});
+mountJiniRoutes({ app: app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });
+// The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
+// content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
+// for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape
+// (ADR-053 Decision 3), which no wired tool currently uses — `content_post_delete` was the only
+// tool that ever took it, and it moved to the exchange shape above.
+// Same non-exemption reasoning as `frontendControl.httpExtension` just below: the
+// browser reaches this through Tovu's session-authenticated proxy, which attaches the bearer token
+// like every other forwarded route, so no `exemptPaths` entry is needed or wanted. See
+// `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
+// `ToolExecutor`/`SurfaceExchangeStore` an exchange delivery actually needs) and
+// `apps/website/src/server/runtime/composition/modules/assistant.ts` for the proxy half.
+registerMcpUiToolCallsRoute({ app, deps: { toolExecutor: context.tools.toolExecutor, surfaceExchanges: context.core.surfaceExchanges, scheduler: nodeIntervalScheduler } });
+// A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/
+// `functionResponse`/`error` re-entering the process that holds the exchange it answers. Unlike
+// the MCP-UI route above, this never touches `toolExecutor` at all (there is no tool-call shape to
+// fall back to for A2UI) — see `a2ui-actions-route.ts`'s own module doc. Same non-exemption
+// reasoning: reached only through Tovu's session-authenticated proxy, which attaches the bearer
+// token like every other forwarded route.
+registerA2uiActionsRoute({ app, deps: { surfaceExchanges: context.core.surfaceExchanges } });
+// The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
+// admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
+// `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`
+// subprocess that holds no token), these two are reached by the browser through Tovu's own
+// session-authenticated proxy, which attaches the bearer like every other forwarded route. See
+// `apps/website/src/server/runtime/composition/modules/assistant.ts`.
+mountJiniRoutes({ app: app, routes: context.tools.frontendControl.routes({ host: routeHost }) });
+// Runless WebMCP uses the same policy/exchange/audit stack as a daemon run. The proxy supplies
+// the authenticated principal; the bind token and tab id constrain the effect to its own screen.
+mountJiniRoutes({ app: app, routes: frontendRequestRoutes({ path: "/api/frontend-sessions/request", control: context.tools.frontendControl, host: routeHost,
+  executor: context.tools.toolExecutor, capabilityIds: FRONTEND_CONTROL_CAPABILITIES.filter(entry => entry.id.startsWith("page.")).map(entry => entry.id),
+  resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: context.routeDeps.workspaceId }),
+}) });
+}
+
+
+function mountScopeDiscoveryRoutes(context: ScopeContext, app: express.Express, routeHost: ReturnType<typeof daemonRouteHost>) {
+
+
+  // Discovery is scoped by each run's credential; the server refreshes its own plugin/settings
+  // state before returning descriptors. The native FTS owner is released with the final run.
+  mountJiniRoutes({ app: app, routes: toolCatalogRoutes({ deps: { catalog: context.tools.siteTools.catalog }, host: routeHost }) });
+  app.use("/api/components", (req, res, next) => {
+    const caller = resolveDiscoveryCaller(context, req);
+    if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
+    void context.tools.siteTools.refreshComponents({ runId: caller.runId }).then(() => {
+      context.tools.siteTools.withRun({ runId: caller.runId, fn: () => next() });
+    }).catch(() => {
+      res.status(503).json({ error: "component catalog is unavailable", code: "COMPONENT_CATALOG_UNAVAILABLE" });
+    });
+  });
+  mountJiniRoutes({ app: app, routes: componentCatalogRoutes({ deps: { catalog: context.tools.siteTools.components }, host: routeHost }) });
+}
+
+
+function mountScopeAttachmentRoutes(context: ScopeContext, { app, routeHost, attachmentStore }: { app: express.Express; routeHost: ReturnType<typeof daemonRouteHost>; attachmentStore: AttachmentStore }) {
+
+  // Server-side attachment tools consult the sole live owner, including uploads made after boot.
+  // The adapter adds its own full-daemon-token gate; run credentials cannot access this route.
+  registerDaemonAttachmentLookup({ app: app, store: attachmentStore, host: routeHost, mountRoutes: ({ routes }) => mountJiniRoutes({ app: app, routes }) }, { env: context.state.authEnv });
+  // Registered ahead of `express.json()` in spirit (see `attachments.ts`'s own "mount before any
+  // global body parser" note) even though call order here is necessarily after it (`express.json()`
+  // is synchronous module-scope code above; this file's own body-parser-skip behavior for a
+  // non-JSON `content-type` is what actually protects the upload route — see
+  // `apps/website/src/server/runtime/composition/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
+  // `application/octet-stream` POST survives `express.json()` regardless of registration order).
+  const attachmentDeps: AttachmentsHttpDeps = { store: attachmentStore,
+      acquireActivity: () => context.core.idlePark.hold({}, {}),
+      // The trusted-downstream-of-the-bearer-gate header `forwardAttachmentUpload`
+      // (`server/runtime/composition/modules/assistant.ts`) now stamps from the uploading admin's
+      // OWN session — see that function's doc. This is what `chat_list_pending_attachments`
+      // (`list-pending-chat-attachments.ts`) scopes its listing by.
+      resolveOwnerId: ({ request }) => request.headers.get(RUN_PRINCIPAL_HEADER) ?? undefined,
+      // Without this, `@jini-ai/http-kit`'s own default (20 MB) silently undercuts
+      // `TOVU_MAX_UPLOAD_BYTES` for the one media path that reaches it (a chat attachment promoted
+      // to the library, `promote-chat-attachment.ts`) — this route's hard, streaming-enforced byte
+      // cap, not just the client's own pre-check (`AssistantDock.hooks.tsx`'s
+      // `useAttachmentUploader`, which must independently match this so a rejection surfaces before
+      // the bytes are ever sent, not just after).
+      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES };
+  mountJiniRoutes({ app: app, routes: attachmentUploadRoutes({ deps: attachmentDeps, host: routeHost }) }, { rawBody: true });
+  mountJiniRoutes({ app: app, routes: attachmentCleanupRoutes({ deps: attachmentDeps, host: routeHost }) });
+}
+
+
+function scopeFacade(context: ScopeContext, app: express.Express): SiteScope {
+
+  return { app: app, lifecycle: context.core.lifecycle, hasExchanges: () => context.core.surfaceExchanges.size() > 0,
+    dispose(_required: Record<string, never>, _optional = {}): Promise<void> {
+      if (context.state.closing) return context.state.closing;
+      context.state.disposed = true; // Fence intake and live run credentials before the first await.
+      context.state.closing = (async () => {
+        const runs = await context.core.lifecycle.list({});
+        for (const run of runs) context.runs.runCredentials.revoke({ runId: run.id }, {});
+        const drains = runs.filter(run => !isTerminalRunState({ state: run.state })).map(async run => {
+          await context.core.lifecycle.cancel({ runId: run.id });
+          await context.core.lifecycle.waitForTerminal({ runId: run.id }, { signal: AbortSignal.timeout(5_000) });
+        });
+        await awaitBootWorkWithinBound({ work: drains }, { timeoutMs: 5_000 });
+        // Terminal callbacks own session saves and attachment cleanup beyond the run's end.
+        const drained = context.state.activeWork === 0 ? Promise.resolve() : new Promise<void>(resolve => { context.state.resolveDrained = resolve; });
+        // Keep the retained client alive until accepted preparation/cleanup really settles.
+        // The inherited IPC deadline bounds callers; timing out must not close beneath live work.
+        await drained;
+        for (const response of context.state.responses) response.end();
+        context.state.responses.clear();
+        for (const timer of context.state.ownerRetentionTimers) clearTimeout(timer);
+        context.state.ownerRetentionTimers.clear();
+        if (!context.state.optional.idlePark) context.core.processActivity.stop({}, {});
+        context.state.disposeAiTracing();
+        try { await context.state.assistantInventory.dispose({}); }
+        finally { await context.state.daemonStore?.close(); }
+      })();
+      return context.state.closing;
+    },
+  };
+}
+
+
+async function disposeFailedScope(state: ScopeState, error: unknown): Promise<never> {
+
+  state.disposeAiTracing();
+  await state.assistantInventory.dispose({}).catch((cleanupError: unknown) => {
+    console.error("[agent-daemon] Could not dispose the agent inventory after startup failed:",
+      describeErrorForLog({ err: cleanupError }));
+  });
+  await state.daemonStore?.close().catch((cleanupError: unknown) => {
+    console.error("[agent-daemon] Could not close the daemon store after startup failed:",
+      describeErrorForLog({ err: cleanupError }));
+  });
+  throw error;
+}
+
+function createScopeActivity(state: ScopeState, processActivity: ReturnType<typeof createAgentDaemonIdlePark>) {
+  return { ...processActivity,
+  hold(_required: Record<string, never>, _optional = {}) {
+    const release = processActivity.hold({}, {});
+    state.activeWork++;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true; release(); state.activeWork--;
+      if (state.activeWork === 0) state.resolveDrained?.();
+    };
+  },
+};
+}
+
+function createScopeFrontend(routeDeps: Awaited<ReturnType<typeof createAgentDaemonCoreDeps>>, lostFrontendBindings: ReturnType<typeof createLostFrontendBindings>) {
+  return createFrontendControl({
   capabilities: FRONTEND_CONTROL_CAPABILITIES,
   setTimer: nodeSessionTimer,
   session: { resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: routeDeps.workspaceId }) },
@@ -397,86 +1850,30 @@ const frontendControl = createFrontendControl({
     lostFrontendBindings.noteBindError(context);
   },
 });
-// `withPageNavigateErrorRewrap` (Tovu-side, `assistant/rewrap-page-navigate-error.ts`) rewraps ONLY
-// `page.navigate`'s registration so its "not a published page" refusal (`@jini-ai/agentic`'s
-// `page-executor.ts:414`) cannot be misread as this codebase's own, unrelated
-// `PostRecord.status === "published"` CMS-content concept — see that module's own header for the
-// full rationale. Every other registration passes through unchanged.
-// `withReadOnlyFrontendCapabilities` marks page.find_elements and admin.capture_screenshot read-only,
-// so the read-only delegated-tool gateway runs them (see `frontend-control-capabilities.ts`).
-for (const registration of withPageNavigateErrorRewrap({ registrations: withReadOnlyFrontendCapabilities({ registrations: frontendControl.toolRegistrations }) })) {
-  // Page clicks carry arbitrary UI effects; apply the same reviewed host policy as WebMCP.
-  // Every frontend registration needs a classification, including local chat operations.
-  // The server's human chat-card exchange owns page approval for every transport. The browser
-  // bridge has no second dialog gate, so an opaque click asks exactly once, including on AG-UI.
-  const bound = lostFrontendBindings.wrap({ registration });
-  registry.register(applyToolApprovalPolicy({ registration: bound, surfaces: { surfaceExchanges } },
-    pageApprovalOptions({ toolId: registration.descriptor.id, execute: (...args) => toolExecutor.execute(...args) })));
 }
-// Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`
-// and mints them only AFTER authorization resolves, so an unknown tool id or a throwing
-// authorization leaves no trace at all, and everything else is lost on restart. The decorator
-// appends a `requested` row before delegating, which is the only ordering under which those cases
-// are recorded. Audit is observation — a sink failure can never change a tool call's outcome.
-// See `Jini packages/daemon/src/core/tool-audit.ts`.
-// The retained root chooses this same site's content-kernel sink once (or the bounded local
-// memory sink). Reuse that connection: a second openContentDb here used to open/migrate a second
-// content.db solely for audit. Site tool audit runs at the server owner; this sink observes local
-// frontend calls and discovery without constructing site handlers or a second site composition.
-const auditSink = routeDeps.toolAttemptAuditSink;
-// Local UI effects retain their approved gating/audit stack. Site effects use the server's
-// complete stack; the outer descriptor gate verifies read-only authority before either route.
-const localToolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges,
-  toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId } }, {});
-const toolExecutor = withReadOnlyToolConstraint({ inner: createRoutingToolExecutor({
-  local: localToolExecutor, remote: siteTools.remote,
-  isLocal: ({ toolId }) => registry.has({ toolId }),
-}, { acquireActivity: () => idlePark.hold({}, {}) }), deps: { registry: siteTools.registry } });
 
-/**
- * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
- * `custom-instructions.ts`'s module doc for why this is a refreshable cache rather than a direct
- * ledger read: `PromptAugmenter.systemOverlay()` below is called synchronously, and the cross-process
- * cache the ledger's own `getEffective` keeps would otherwise go stale forever after this process's
- * first read. `onStarted` calls `.refresh()` before every run; `assistantPromptAugmenter.
- * systemOverlay()` reads the result synchronously.
- */
-const customInstructionsCache = createCustomInstructionsCache(
-  {
-    settingsRepo: routeDeps.settingsRepo,
-    settingsReady: routeDeps.settingsUiTabsReady,
-    getEffective: routeDeps.getEffective,
-    instructionsNamespace: routeDeps.instructionsNamespace,
-  },
-  { workspaceId: routeDeps.workspaceId },
-);
+function createScopeSiteTools(context: Parameters<typeof createScopeTools>[0], registry: ReturnType<typeof createToolRegistry>, getRuns: () => ScopeRuns) {
+  return createDaemonSiteTools({
+  baseUrl: context.state.env.TOVU_SITE_CALLBACK_ORIGIN ?? context.state.env.TOVU_SITE_LISTENER_ORIGIN ?? "",
+  token: context.state.siteToolToken, localRegistry: registry,
+  audit: { sink: context.routeDeps.toolAttemptAuditSink, workspaceId: context.routeDeps.workspaceId },
+  contextFor: ({ runId }) => ({
+    conversationId: getRuns().liveRunTracker.conversationIdForRun({ runId }, {}),
+    attachmentRefs: getRuns().messageAttachmentRefsByRunId.get(runId) ?? [],
+  }),
+});
+}
 
-// Scope the fresh site setting to its launch, rather than sharing the last chat's grant across
-// concurrent runs. The synchronous Jini prompt seam reads the same value as the CLI deny list.
-const assistantCliCapabilitiesContext = new AsyncLocalStorage<AssistantCliPermissions["capabilities"]>();
-const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
-// Same per-launch scoping for the person's runtime preferences (`assistant-runtime-guidance.ts`).
-const assistantRuntimeGuidanceContext = new AsyncLocalStorage<AssistantRuntimeGuidanceInput>();
-
-/**
- * Live-tested 2026-07-30: given a bare natural-language admin request with a matching registered
- * tool (a DB health check, user creation, role listing, form creation), the spawned CLI reliably
- * used its own native Bash/curl instead of `search_tools`/`execute_delegated_tool` — in the worst
- * case, self-authenticating as the seeded site owner via the raw admin login route rather than
- * going through the tool catalog's authorization/risk-classification/audit-log system. The BM25
- * tool-catalog backend itself is not the problem (confirmed healthy via direct query); nothing
- * upstream of it ever told the CLI these tools exist and should be preferred. This overlay is that
- * missing instruction — see `ADS-memory/reports/architecture/ai-workflow-testing-findings.md`.
- */
-const assistantPromptAugmenter: PromptAugmenter = {
+function createScopePromptAugmenter(context: Parameters<typeof createScopePrompt>[0], { assistantCliCapabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext, customInstructionsCache }: { assistantCliCapabilitiesContext: AsyncLocalStorage<AssistantCliPermissions["capabilities"]>; assistantNativeToolsContext: AsyncLocalStorage<boolean>; assistantRuntimeGuidanceContext: AsyncLocalStorage<AssistantRuntimeGuidanceInput>; customInstructionsCache: ReturnType<typeof createCustomInstructionsCache> }): PromptAugmenter {
+  return {
   contextKinds: () => [],
   augmentUserRequest: ({ basePrompt }) => basePrompt,
   systemOverlay: ({ agentId }) => {
-    const def = getAgentDef({ id: agentId });
+    const def = context.state.getAgentDef({ id: agentId });
     // Base overlay text lives in `assistant-system-overlay.ts` now — see that file's own doc for
     // why this had to move (direct unit-testability without booting this whole daemon process) and
     // `bashProhibitionEnabled`'s doc above for the one thing about it that is conditional.
-    const baseOverlay = buildBaseSystemOverlay({ bashProhibitionEnabled }, {
+    const baseOverlay = buildBaseSystemOverlay({ bashProhibitionEnabled: context.constants.bashProhibitionEnabled }, {
       nativeToolAccess: assistantNativeToolsContext.getStore() === true,
       // Mirrors Jini's `supportsMessageRelay` (agent-executor/message-relay.ts), which the package
       // does not export: MCP-bridged defs relay, native stream-json input (Claude) always wins and
@@ -495,15 +1892,15 @@ const assistantPromptAugmenter: PromptAugmenter = {
     return customOverlay === null ? baseOverlay : `${baseOverlay}\n\n${customOverlay}`;
   },
 };
+}
 
-// Each run's bridge gets its own credential, resolved back to that run's principal; see
-// `Jini packages/daemon/src/run-credentials.ts`. A closure because `runCredentials` is declared further down.
-const bridgeInjection = {
+function createScopeBridgeInjection(context: Parameters<typeof createScopePrompt>[0], getRuns: () => ScopeRuns) {
+  return {
   toolApprovalOwner: "host" as const,
-  ...resolveMcpJsonInjection({ daemonUrl: daemonUrl, mintRunCredential: (runId) => runCredentials.mint({ runId: runId }, {}) }, { runtime: {
-    execPath: process.execPath, electronVersion: process.versions.electron, env,
+  ...resolveMcpJsonInjection({ daemonUrl: context.state.daemonUrl, mintRunCredential: (runId) => getRuns().runCredentials.mint({ runId: runId }, {}) }, { runtime: {
+    execPath: process.execPath, electronVersion: process.versions.electron, env: context.state.env,
   } }),
-  diagnosticToolIds: () => registry.list({}).map(tool => tool.id),
+  diagnosticToolIds: () => context.tools.registry.list({}).map(tool => tool.id),
   // Resolve at launch inside the live site scope: concurrent runs must not share a delete grant,
   // and diagnostic IDs must never publish schemas for tools this run cannot discover.
   /** Put theme file tools first within Jini's bounded startup publication (64 tools / 256 KiB of
@@ -511,7 +1908,7 @@ const bridgeInjection = {
    * Only reorder admitted IDs; the catalog and executor still own visibility and authorization.
    * @complexity O(n) time/space for n visible tools and four fixed priority IDs. No I/O. */
   startupToolIds: (_required: { readonly runId: string }, _optional = {}) => {
-    const toolIds = visibleRegistry.list({}).map(tool => tool.id);
+    const toolIds = context.tools.visibleRegistry.list({}).map(tool => tool.id);
     const themeFileTools = ["theme_list_files", "theme_read_file", "theme_edit_file", "theme_write_file"];
     return [
       ...themeFileTools.filter(id => toolIds.includes(id)),
@@ -519,1152 +1916,4 @@ const bridgeInjection = {
     ];
   },
 };
-const agentExecutor = createAgentExecutor({
-  lifecycle,
-}, {
-  // The same registry and launch resolver `assistant/agents.ts` lists the Local CLI picker from.
-  // `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an
-  // older copy; left to its defaults the executor would look agents up there, so a CLI the picker
-  // shows (e.g. one added in a newer agent-runtime) would fail to start with an unknown agent id.
-  getAgentDef,
-  resolveAgentLaunch,
-  runtimeState: assistantRuntime.state,
-  hostEnv: assistantRuntime.hostEnv,
-  onCleanupFailure: ({ runId }) => { cleanupFailures.add(runId); console.error('[agent-daemon] CLI cleanup failed'); },
-  ...executorDefinitionPolicies({ runtime: assistantRuntime }),
-  mcpJsonInjection: bridgeInjection,
-  promptAugmenter: assistantPromptAugmenter,
-  // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —
-  // see `CreateAgentExecutorOptions.claudeConfigDirIsolationEnabled`'s own doc (Jini) for the full
-  // reasoning. Short version: `@jini-ai/daemon`'s Finding-1 fix (2026-09-07) staged an isolated,
-  // mkdtemp'd `CLAUDE_CONFIG_DIR` for every spawned `claude` run to stop it reading the operator's
-  // real `~/.claude` (skills, plugins, memory index, a 40-tool personal grant). On macOS that
-  // isolated dir reports `loggedIn: false` — Claude Code keys its Keychain entry to
-  // `CLAUDE_CONFIG_DIR` — and this assistant's default Local CLI runtime supplies no
-  // `credentialEnv` (no `ANTHROPIC_API_KEY`/`CLAUDE_CODE_OAUTH_TOKEN`; the operator has declined
-  // `claude setup-token`), so an isolated child always ran unauthenticated and every Local CLI run
-  // failed with "Not logged in · Please run /login". Leaving this flag off knowingly REOPENS that
-  // personal-config leak so the default runtime can log in at all — the tool-restriction gate below
-  // (`ASSISTANT_DISALLOWED_TOOLS`) is a separate mechanism and stays fully enforced either way,
-  // except the owner's Task opt-in (see
-  // its own test, `__tests__/agent-executor.test.ts`'s "still applies disallowedTools ... when
-  // CLAUDE_CONFIG_DIR isolation is left at its default" in the daemon package). Flip this back to
-  // `true` once a host-provisioned `credentialEnv` exists for this runtime (outranks Keychain login
-  // in Claude Code's own auth precedence, so an isolated child would still authenticate).
-  claudeConfigDirIsolationEnabled: false,
-});
-
-// Initialize needs no callback credential; probe the real launch without minting a run token.
-// The run-scoped startup tool fetch is left out of it — see bridge-preflight-entry.ts.
-
-/** Populated by `onStarted`, read by `resolveDelegatedPrincipal` — see module doc. Deleted on
- * terminal transition on purpose: the exempt `/api/delegated-tool-calls` route's remaining defence
- * is that a `runId` only resolves while its run is in flight (`Jini packages/daemon/src/run-credentials.ts`). */
-const principalByRunId = new Map<string, Principal>();
-/** Accepted-message refs decoded by `onStarted`, keyed by the SAME lifecycle id used by claim()
- * and delegated tools. `lifecycle.get()` returns public RunStatus without contextRef; parsing it
- * there silently hid every attachment. Keep this binding for the tracked principal's lifetime. */
-const messageAttachmentRefsByRunId = new Map<string, readonly string[]>();
-/** The durable guard must still identify a chat attempt after its persisted row is deleted or
- * advanced. Public RunStatus has no contextRef, so retain the decoded message id until terminal. */
-const durableMessageIdsByRunId = new Map<string, string>();
-/** Per-run bridge credentials. Valid only while `principalByRunId` tracks the run, so they share its
- * lifetime; `revoke` on terminal only keeps the map small. See `Jini packages/daemon/src/run-credentials.ts`. */
-const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => disposed || revokedToolRuns.has(runId) ? undefined : principalByRunId.get(runId)?.id }, {});
-
-/**
- * Assigned once, inside `start()`, before `app.listen()` ever binds the port — `onStarted` cannot
- * be invoked by a real request until then, so every call site below sees this populated. Typed
- * `| undefined` anyway (not asserted non-null) because `onStarted`'s own contract is "never throw
- * synchronously past the point a run is already durably started" — a theoretically-unreachable
- * `undefined` here should still fail the one run it affects, not crash the process.
- */
-let attachmentStore: AttachmentStore | undefined;
-// Only copies handed to a CLI live here; the store retains its own promotion/read-back records.
-const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
-
-
-
-/** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
- * stay known. See `Jini packages/daemon/src/run-credentials.ts` for why the two maps are not redundant. */
-const runOwners = createRunOwnerRegistry({}, {});
-/** Each live run's admin screen, recorded at run start and forgotten at run end — what `GET /api/active`
- * (`@jini-ai/mcp`'s `get_active_context`) answers from. See `run-active-context.ts`. */
-const runActiveContexts = createRunActiveContextStore();
-/** `@jini-ai/daemon`'s `DEFAULT_TERMINAL_RETENTION_MS` (24 h, not exported), which `lifecycle` (above)
- *  runs with: how long a terminal run stays readable, and so how long its owner must stay known. */
-const RUN_OWNER_RETENTION_MS = 24 * 60 * 60 * 1000;
-
-/** H2 fix — see `Jini packages/daemon/src/session-coordination.ts`'s own doc. One instance for this process's whole
- * lifetime, registered/unregistered per run inside `onStarted` below. */
-const liveRunTracker = createLiveRunTracker({}, {});
-
-/** Defect 1 fix (2026-09-11) — see `Jini packages/daemon/src/session-coordination.ts`'s own doc. One instance for this
- * process's whole lifetime; `onStarted` runs its read-decide-write session-binding section through
- * it so two near-simultaneous turns on one conversation cannot both mint a session. */
-const conversationStartLock = createConversationStartLock({}, {});
-
-/**
- * Claims `attachmentIds` against `attachmentStore` and resolves the extra `AgentExecutor.run()`
- * fields the claimed batch contributes (`imagePaths`/`extraAllowedDirs`/`uploadRoot`). Returns
- * `null` when the run should be aborted instead — this function has already called
- * `runLifecycle.finish({status: "failed", ...})` and logged why in that case, mirroring the
- * severity {@link onStarted}'s malformed-`contextRef` branch already gives a failure this early.
- * A no-op ({} fields) when `attachmentIds` is empty — the common case, no store round trip needed.
- */
-async function resolveAttachmentRunFields(
-  { run, attachmentIds, runLifecycle, agentId = DEFAULT_AGENT_ID }: {
-    run: OnStartedContext["run"]; attachmentIds: readonly string[]; runLifecycle: OnStartedContext["lifecycle"]; agentId?: string;
-  }, _optional = {},
-): Promise<AttachmentRunFields | null> {
-  if (attachmentIds.length === 0) return {};
-
-  if (!attachmentStore) {
-    // Structurally unreachable (see `attachmentStore`'s own doc) but fails only this run, not the
-    // process, if it somehow is.
-    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: attachments are not ready yet." }, {});
-    console.error(`[agent-daemon] run ${run.id}: attachment claim requested before the attachment store was ready`);
-    return null;
-  }
-
-  try {
-    // Only `.path` (the opaque capability id) is ever read by `claim()` — it looks up its own
-    // internal registry by that id and re-derives `name`/`kind`/`size` from what `register()`
-    // recorded at upload time, never from a caller-supplied value. The placeholder `name`/`kind`
-    // below satisfy `StoredAttachment`'s shape without asserting anything the store would actually
-    // trust.
-    const refs: StoredAttachment[] = attachmentIds.map((id) => ({ path: id, name: "", kind: "file" }));
-    const originalClaim = await attachmentStore.claim({ attachments: refs, runId: run.id });
-    if (originalClaim.batchDirectory === undefined) return {};
-    // Register cleanup before yielding so terminalization during the copy still reaps it.
-    const staging = stageAttachmentClaim({ claim: originalClaim, filesystemRoot: routeDeps.siteBinding.dir }, {});
-    stagedAttachmentCleanupByRunId.set(run.id, async () => (await staging).cleanup());
-    const claimed = (await staging).claim;
-    const def = getAgentDef({ id: agentId });
-    const byPath = new Map(claimed.attachments.map(attachment => [attachment.path, attachment]));
-    const prepared = await prepareMessageAttachments({ refs: [...byPath.keys()], read: async ({ ref }) => {
-      const attachment = byPath.get(ref);
-      if (!attachment) throw new Error(`agent attachment was not staged: ${ref}`);
-      const bytes = await readFile(attachment.path);
-      return { name: attachment.name, path: attachment.path, bytes, mimeType: sniffContentType({ bytes }) };
-    } }, { fileAccess: true, imageAccess: agentReceivesImageAttachments({ def }, {}) });
-    // Non-image uploads need an explicit prompt notice as well as site-contained staging; otherwise a
-    // readable .md/video is never named to the agent. Generic delivery now owns that distinction.
-    return { imagePaths: prepared.imagePaths, imageContents: prepared.images, attachmentNotice: prepared.notice,
-      uploadRoot: claimed.batchDirectory };
-
-  } catch (error) {
-    // Fails the run outright rather than silently continuing without the image: the same severity
-    // this handler already gives a malformed `contextRef` above. A user who attached a screenshot
-    // and gets a run that never saw it (already-claimed, expired past `retentionMs`, or an
-    // integrity check failure) would otherwise get a confusing answer about content the agent never
-    // looked at, with nothing explaining why.
-    const message = error instanceof Error ? error.message : String(error);
-    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: an attached file could not be read." }, {});
-    console.error(`[agent-daemon] run ${run.id}: attachment claim failed`, message);
-    return null;
-  }
-}
-
-const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agentSessions, durable: routeDeps.chatRunLedger.durable, readStart: readProcessStart }, {});
-
-const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLifecycle }) => {
-  const run = Object.freeze({ ...startedRun });
-  // Every CLI run is busy, including headless/Aider runs with no conversationId. Terminal waits
-  // release malformed starts too; preparation and cleanup below retain their own work holds.
-  const releaseRun = releasingBrowserToo({ release: idlePark.hold({}, {}), lease: optional.browserLease, runId: run.id });
-  void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
-    console.error(`[agent-daemon] run ${run.id}: could not wait for completion before releasing activity:`,
-      describeErrorForLog({ err: error }));
-  }).finally(releaseRun);
-  function noteFullRunInput({ runId, input }: { runId: string; input: string }, _optional = {}): void {
-    if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId, input });
-  }
-  let prompt: string;
-  let coldStartContext: string | undefined;
-  let principal: Principal;
-  let attachmentIds: readonly string[] = [];
-  let pluginRefIds: readonly string[] = [];
-  let model: string | undefined;
-  let reasoning: string | undefined;
-  let conversationId: string | undefined;
-  let pageContext: RunPageContext | undefined;
-  let durableMessageId: string | undefined;
-  let recoveryMode: "native" | "reconstruction" | undefined;
-  let recoverySessionId: string | undefined;
-  // H1 fix: set once `storedSessionId` is resolved below, read by the stream subscription's
-  // `shouldClearSessionOnFailedResume` check — `null` (unchanged) means this run never attempted a
-  // resume in the first place, so a failed/no-sessionRef end event has nothing stale to clear.
-  let attemptedResumeSessionId: string | null = null;
-  try {
-    // `frontendBindToken` also rides in this envelope but is deliberately not read here —
-    // `createFrontendControl`'s own `resolveBindToken` above owns that field, so there is exactly
-    // one place that decides which tab a run may drive.
-    const decoded = parseRunStartContextRef({ contextRef: request.contextRef });
-    coldStartContext = decoded.coldStartContext;
-    prompt = decoded.prompt;
-    noteFullRunInput({ runId: run.id, input: prompt });
-    principal = Object.freeze({ id: decoded.principalId });
-    attachmentIds = decoded.attachmentIds;
-    pluginRefIds = decoded.pluginRefIds;
-    model = decoded.model;
-    reasoning = decoded.reasoning;
-    conversationId = decoded.conversationId;
-    pageContext = decoded.pageContext;
-    durableMessageId = decoded.assistantMessageId;
-    recoveryMode = decoded.recoveryMode;
-    recoverySessionId = decoded.recoverySessionId;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: the request was malformed." }, {});
-    console.error(`[agent-daemon] run ${run.id}: malformed contextRef`, message);
-    return;
-  }
-
-  // One agent id for the whole run: the session subscription, attachment preparation and the
-  // session binding below must all key by the same agent.
-  // Saved selections can outlive an adapter; resolve once before any per-agent state is read.
-  let agentId = resolveAssistantAgentId({ agentId: request.agentId });
-  const pluginAbort = new AbortController();
-  const unsubscribePluginCancel = runLifecycle.onCancelRequested({ runId: run.id, listener: () => pluginAbort.abort() });
-  const identity = Object.freeze({ siteId, runId: run.id, principal });
-  principalByRunId.set(identity.runId, identity.principal);
-  toolAccessRuns.set(run.id, { runId: run.id, agentId, pluginIds: pluginRefIds });
-  messageAttachmentRefsByRunId.set(run.id, attachmentIds);
-  if (durableMessageId !== undefined) durableMessageIdsByRunId.set(run.id, durableMessageId);
-  runOwners.record({ runId: run.id, principalId: principal.id }, {});
-  // Durable admin turns settle in the API, which can observe daemon death and recovery. Only
-  // standalone daemon runs report here, so a recovery attempt never becomes another logical run.
-  if (durableMessageId === undefined) {
-    void routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "daemon", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
-    void runLifecycle.stream({ runId: run.id, onEvent: event => {
-      if (event.kind === "end") void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "daemon", logicalRunId: run.id, ...(event.payload.status ? { outcome: event.payload.status } : {}), eventId: `assistant-finish:${run.id}` } });
-    } });
-  }
-
-  // H2 fix (`Jini packages/daemon/src/session-coordination.ts`): registered synchronously, in this same
-  // never-`await`-ed-yet prefix, so a second `onStarted` call for the same conversation — however
-  // close together the two requests arrive — is guaranteed to observe this run as already live.
-  // A no-op when `conversationId` is absent, matching the stream subscription below: there is
-  // nothing to key concurrency by for a daemon client other than the admin chat pane.
-  if (conversationId !== undefined) liveRunTracker.register({ conversationId: conversationId, runId: run.id }, {});
-  if (pageContext !== undefined) runActiveContexts.record({ runId: run.id, pageContext });
-  void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
-    console.error(`[agent-daemon] run ${run.id}: could not wait for completion before cleaning up:`,
-      describeErrorForLog({ err: error }));
-  }).finally(() => {
-    const releaseCleanup = idlePark.hold({}, {});
-    pluginAbort.abort();
-    unsubscribePluginCancel();
-    siteTools.finish({ runId: run.id });
-    principalByRunId.delete(run.id);
-    chatSettingsByRunId.delete(run.id);
-    toolAccessRuns.delete(run.id);
-    revokedToolRuns.delete(run.id);
-    messageAttachmentRefsByRunId.delete(run.id);
-    durableMessageIdsByRunId.delete(run.id);
-    runCredentials.revoke({ runId: run.id }, {});
-    runActiveContexts.forget({ runId: run.id });
-    // The owner must outlive the run's end (a finished run is still read and replayed), but not the
-    // lifecycle's own terminal record, or this map grows for the daemon's lifetime. Once forgotten,
-    // a still-present run is denied to everyone (`requireRunOwnership` fails closed), never opened.
-    const retention = setTimeout(() => {
-      ownerRetentionTimers.delete(retention);
-      runOwners.forget({ runId: run.id }, {});
-      cleanupFailures.delete(run.id);
-    }, RUN_OWNER_RETENTION_MS).unref();
-    ownerRetentionTimers.add(retention);
-    if (conversationId !== undefined) liveRunTracker.unregister({ conversationId: conversationId, runId: run.id }, {});
-    // Safe to call even for a run that claimed nothing (`AttachmentStore.cleanupRun`'s own
-    // contract) — always wired, not only when `attachmentIds` was non-empty, so a run that failed
-    // before reaching the claim step below still releases anything a *retry* of the same run id
-    // could theoretically have claimed. Best-effort: a cleanup failure must not resurface as a run
-    // failure this late in the run's life, and the store's own `retentionMs`/`pruneExpired` is the
-    // backstop if this never runs at all (process crash, etc.).
-    const cleanupStaged = stagedAttachmentCleanupByRunId.get(run.id);
-    stagedAttachmentCleanupByRunId.delete(run.id);
-    const stagedCleanup = cleanupStaged?.().catch(() => console.error('[agent-daemon] staged attachment cleanup failed'));
-    const claimedCleanup = attachmentStore?.cleanupRun({ runId: run.id }).catch((error: unknown) => {
-      console.error(`[agent-daemon] run ${run.id}: attachment cleanup failed`, error);
-    });
-    void Promise.allSettled([stagedCleanup, claimedCleanup]).finally(releaseCleanup);
-  });
-
-  // Session-resume capture (Gap 5, `RunEndPayload.sessionRef` — `@jini-ai/protocol`'s doc on that
-  // field): watches this run's own event stream for its terminal `end` event and persists whatever
-  // agent-CLI session id it reports, so the NEXT turn in this conversation can resume it instead of
-  // spawning cold (`agent-session-resume.ts`). A no-op subscription when `conversationId` is absent
-  // — any daemon client other than the admin chat pane, today — since there is nowhere to key the
-  // stored id by. Subscribed here, before `agentExecutor.run()` is ever called below, so a run that
-  // fails immediately after spawn still has its `end` event observed (`stream()`'s own contract:
-  // subscribe-before-replay never loses an event to timing).
-  if (conversationId !== undefined) {
-    const resolvedConversationId = conversationId;
-    void runLifecycle.stream({ runId: run.id, onEvent: (event) => {
-      if (event.kind === "error") {
-        console.error(formatRunErrorLogLine({ runId: run.id, payload: event.payload }));
-      }
-      // Terminal-outcome log line (2026-09-06 chat-death investigation). This subscription already
-      // exists, already sees every `end` event, and already has `run.id` in scope — so this is the
-      // cheapest possible place to write down HOW a run ended. Until now nothing did: the daemon
-      // logged a run that `failed to start` (see the `.catch` at the bottom of this function) but
-      // said nothing at all about a run that started fine and then died, which is exactly the case
-      // an operator cannot otherwise diagnose. `@jini-ai/daemon`'s `finish()` emits this `end` event
-      // as the ONLY record of the terminal status, the event log backing it is in-memory
-      // (`createInMemoryEventLog()` above), and the admin client discards the status — so without
-      // this line the exit code exists nowhere durable and nowhere visible.
-      if (event.kind === "end") {
-        const line = formatRunEndLogLine({ runId: run.id, payload: event.payload, agentId: agentId, conversationId: resolvedConversationId, resumeAttempted: attemptedResumeSessionId !== null });
-        if (event.payload.status === "succeeded") console.log(line);
-        else console.error(line);
-      }
-      // Status carries capture-style locators (Codex/opencode) before end. A killed process must
-      // not lose its locator; generation checks also prevent a stale attempt changing the session.
-      const releaseSessionSave = idlePark.hold({}, {});
-      void captureEarlySession({ event, runId: run.id, conversationId: resolvedConversationId, agentId: agentId }, { durableBinding: durableMessageId !== undefined })
-        .catch((error: unknown) => console.error(`[agent-daemon] run ${run.id}: failed to persist agent session id`, error)).finally(releaseSessionSave);
-      if (extractSessionRefFromEndEvent({ event: event }, {}) !== undefined) return;
-      // H1 fix: this run attempted `--resume <attemptedResumeSessionId>` and reached its terminal
-      // `end` event without the CLI ever reconfirming a session id — the stored id is unconfirmed
-      // at best, and per this repo's own daemon-restarted-from-a-different-cwd hazard, frequently
-      // dead. Clear it so the NEXT turn falls back to a cold start instead of retrying the same
-      // dead id forever. See `shouldClearSessionOnFailedResume`'s own doc for the full condition.
-      if (attemptedResumeSessionId !== null && shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: attemptedResumeSessionId }, {})) {
-        const releaseSessionClear = idlePark.hold({}, {});
-        const cleared = durableMessageId && routeDeps.chatRunLedger.durable
-          ? routeDeps.chatRunLedger.durable.clearSession({ runId: run.id, sessionId: attemptedResumeSessionId }, {})
-          : routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: agentId });
-        void cleared.catch((error: unknown) => {
-          console.error(`[agent-daemon] run ${run.id}: failed to clear dead agent session id`, error);
-        }).finally(releaseSessionClear);
-      }
-    } });
-  }
-
-  // Bind this run to the tab that started it, so `page.*` calls have an addressee. A run has
-  // exactly one originating surface, which is what makes the routing unambiguous with several
-  // admin tabs open — there is no heuristic that could pick a window nobody is watching.
-  //
-  // A failed bind never fails the run (see `onBindError` above): the agent simply cannot drive the
-  // page and says so on each attempt, where killing an otherwise-working session over one optional
-  // channel would turn a degraded run into no run at all. The facade also releases the binding on
-  // terminal, so a long-lived tab does not accumulate bindings for runs that ended.
-  frontendControl.bindOnStarted({ request, run, lifecycle: runLifecycle });
-
-  // Refresh the custom-instructions cache before starting the agent, not concurrently with it: this
-  // is the one point in a run's lifecycle before `systemOverlay()` is called (synchronously, inside
-  // `run()`'s own argv-building step) where an `await` is still possible. Sequencing here — rather
-  // than racing the refresh against `run()` and hoping the internal timing works out — makes the
-  // guarantee independent of `@jini-ai/daemon`'s internal ordering. `refresh()` never rejects (see
-  // `custom-instructions.ts`), so this adds no new failure path before `run()` is even reached.
-  const releasePreparation = idlePark.hold({}, {});
-  // Static stage names identify the failing preparation boundary without copying the request.
-  let startupStage = 'custom instructions';
-  void customInstructionsCache
-    .refresh()
-    .then(async () => {
-      // One generic preparation turns every claimed file into image pixels or a file notice.
-      // Runtime wire adapters decide how to carry those pixels; the CMS adapter owns authorization.
-      startupStage = 'attachment preparation';
-      const attachmentRunFields = await resolveAttachmentRunFields({ run, attachmentIds, runLifecycle, agentId }, {});
-      if (!attachmentRunFields) return;
-      pluginAbort.signal.throwIfAborted();
-      startupStage = 'Agent Plugin preparation';
-      await siteTools.start({ runId: run.id, principalId: principal.id });
-      const pluginPreparation = await prepareSitePlugins({}, {});
-      if (pluginPreparation.prefix === null) {
-        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: a selected Agent Plugin could not be loaded." }, {});
-        return;
-      }
-      const pluginPromptPrefix = pluginPreparation.prefix;
-
-      /** A durable memory attempt reads its site's locator: local memory sessions deliberately
-       * survive only this daemon, while early capture writes at the site owner. Called inside the
-       * existing conversation lock. O(1), one session lookup; no identity comes from wire fields. */
-      async function readPriorSessionId(_required: Record<string, never>, _options = {}): Promise<string | null> {
-        if (durableMessageId && routeDeps.getSessionForAttempt) return routeDeps.getSessionForAttempt({ runId: run.id });
-        if (conversationId === undefined) return null;
-        return routeDeps.agentSessions.getSessionId({ conversationId, agentId });
-      }
-
-      /*
-       * This run's entire session-binding decision, in ONE function so it can be handed to
-       * `conversationStartLock` as a single critical section (Defect 1, 2026-09-11). It reads the
-       * stored id, applies the H2 concurrency gate, refuses the run when starting cold would
-       * silently drop history, mints and persists a fresh id when this is a genuine cold start, and
-       * returns the `AgentExecutor.run()` session fields that decision produces — `null` meaning
-       * "refused, the run is already finished as failed, stop."
-       *
-       * Extracted as its own function originally for complexity (2026-09-03 — this handler's async
-       * continuation was at cyclomatic 11 against this repo's 9 ceiling) so `onStarted`'s own branch
-       * count reflects sequencing, not this decision's own branches. Declared and called right here,
-       * inline, rather than hoisted to module scope: this file's own wiring tests
-       * (`agent-daemon-server.session-resume-wiring.unit.test.ts` and
-       * `agent-daemon-server.session-binding-wiring.unit.test.ts`, which prove ordering by reading
-       * this file's raw SOURCE rather than importing it — see their docs for why) assert that
-       * `routeDeps.agentSessions.getSessionId(`/`liveRunTracker.hasConcurrentLiveRun(`/
-       * `routeDeps.agentSessions.setSessionId(` appear, in this relative order, strictly before
-       * `agentExecutor.run` below; keeping this body here preserves that ordering byte-for-byte.
-       */
-      async function resolveSessionBinding(): Promise<RunSessionBinding | null> {
-        // Resolved AFTER attachments/prompt, same "no ordering dependency either way" reasoning as
-        // the plugin prefix above. Looked up unconditionally (unlike before the H2-context-loss fix
-        // below, which needs to know whether a session exists even when `hasConcurrentLiveRun` will
-        // refuse to use it) — `null` (no conversationId at all, or nothing on record yet) is what
-        // makes `resolveResumeSessionField` a no-op below, so this run starts cold. Since the
-        // Defect 1 fix a cold start is no longer id-less: `resolveHostMintedSessionId` below mints
-        // one and persists it before the CLI is spawned, which is what this comment used to say was
-        // deliberately NOT happening.
-        const priorSessionId = await readPriorSessionId({}, {});
-        // Recovery is authoritative about native resume (see `resolveStoredSessionId`).
-        const storedSessionId = resolveStoredSessionId({ recoveryMode, recoverySessionId, priorSessionId }, {});
-        // A run the user just stopped is still exiting for a few seconds. Wait for it, so a message
-        // sent right after Stop resumes the session instead of being refused (2026-09-27).
-        if (conversationId !== undefined) {
-          await waitForStoppingRuns({ tracker: liveRunTracker, lifecycle: runLifecycle, conversationId, runId: run.id }, { timeoutMs: STOPPING_RUN_WAIT_MS });
-        }
-        // The H2 fix: refusing to resume when another run for this conversation is already live
-        // means at most one process ever holds `--resume <id>` for that CLI session at a time,
-        // closing the two-live-`--resume`-processes-on-one-transcript-file hazard even though the
-        // two runs' `end` events can still race each other for the store's last write — see
-        // `Jini packages/daemon/src/session-coordination.ts`'s own module doc for the full reasoning and why an in-process
-        // tracker needs no special handling across a daemon restart.
-        const hasConcurrentLiveRun = conversationId !== undefined && liveRunTracker.hasConcurrentLiveRun({ conversationId: conversationId, runId: run.id }, {});
-
-        // H2-context-loss fix: H2 alone silently drops conversation history for a
-        // `carriesOwnMemory` agent — see `wouldForcedColdStartLoseConversationContext`'s own doc for
-        // the full mechanism. The client already sent only the bare latest message trusting this run
-        // to resume; forcing it cold here would answer with none of the conversation `storedSessionId`
-        // proves actually exists. Refuse the run outright (same "fail loud, not silently degrade"
-        // precedent as the attachment-claim-failure branch above) rather than let the CLI answer
-        // blind.
-        if (
-          wouldForcedColdStartLoseConversationContext({
-            storedSessionId,
-            hasConcurrentLiveRun,
-            carriesOwnMemory: agentCarriesOwnMemory({ agentId: agentId }, {}),
-          }, {})
-        ) {
-          await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: CONCURRENT_RUN_REFUSAL_MESSAGE }, {});
-          console.error(
-            `[agent-daemon] run ${run.id}: refused — conversation "${conversationId}" has a live concurrent run holding agent "${agentId}"'s resumable session, and this agent carries its own memory; starting cold would silently drop conversation history`,
-          );
-          return null;
-        }
-
-        const effectiveResumeSessionId = hasConcurrentLiveRun ? null : storedSessionId;
-        attemptedResumeSessionId = effectiveResumeSessionId;
-
-        /*
-         * Defect 1 fix (2026-09-11). BEHAVIOR CHANGE, stated explicitly: a cold start for a def
-         * that accepts a host-minted session id now spawns the CLI under an id THIS process chose
-         * and wrote down first, instead of letting the CLI choose one and hoping the run survives
-         * long enough to report it back on its terminal `end` event.
-         *
-         * Why the old shape lost conversations: `extractSessionRefFromEndEvent` (the only writer
-         * before this) can only run if an `end` event actually arrives. A run killed by a daemon
-         * respawn, or one that fails in its first few hundred milliseconds, never produces one —
-         * so the conversation stayed unbound even though the CLI had already created a real
-         * session, and the NEXT turn started cold and answered with none of the history.
-         *
-         * The residual risk, disclosed rather than hidden: if the CLI dies before creating its own
-         * session file, the id persisted here names a session that does not exist, and the next
-         * turn's `--resume` fails. That failure is visible (the run ends failed) and self-healing
-         * — `shouldClearSessionOnFailedResume` clears the dead id, so the turn after starts cold.
-         * That is a strictly better failure than the silent, permanent history loss it replaces.
-         */
-        const hostMintedSessionId = resolveHostMintedSessionId({
-          conversationId,
-          effectiveResumeSessionId,
-          acceptsHostMintedSessionId: agentAcceptsHostMintedSessionId({ agentId: agentId }, {}),
-          mint: randomUUID,
-        }, {});
-        if (conversationId !== undefined && hostMintedSessionId !== null) {
-          // Awaited, and inside the conversation lock: the whole point is that the binding is
-          // durable BEFORE the CLI is spawned. A failure here is logged and the run continues —
-          // losing resumability for one conversation is the pre-fix behavior, where failing the
-          // run outright would cost the user a turn over a bookkeeping write.
-          const prepared = durableMessageId && routeDeps.chatRunLedger.durable
-            ? routeDeps.chatRunLedger.durable.captureSession({ runId: run.id, sessionId: hostMintedSessionId, confirmed: false }, {})
-            : routeDeps.agentSessions.setSessionId({ conversationId, agentId, sessionId: hostMintedSessionId });
-          await prepared.catch((error: unknown) => {
-            console.error(`[agent-daemon] run ${run.id}: failed to persist minted agent session id at dispatch`, error);
-          });
-        }
-
-        return {
-          agentId,
-          sessionFields: { ...resolveResumeSessionField({ storedSessionId: effectiveResumeSessionId }, {}), ...resolveNewSessionField({ hostMintedSessionId: hostMintedSessionId }, {}) },
-        };
-      }
-      // Serialized per conversation (`Jini packages/daemon/src/session-coordination.ts`): `resolveSessionBinding` is a
-      // read-modify-write over `assistant_agent_sessions` with an `await` in the middle, so two
-      // near-simultaneous turns on one conversation could otherwise both observe an empty session
-      // slot and both mint — forking the conversation exactly the way the terminal-event-only write
-      // did. Deliberately does NOT cover `agentExecutor.run` below: holding the lock across a whole
-      // agent run would queue a second tab's turn behind it for minutes with no feedback.
-      startupStage = 'tool access consent';
-      const admitted = siteTools.withRun({ runId: run.id, fn: () => admittedToolSources({ tools: visibleRegistry.list({}) }) });
-      toolAccessRuns.set(run.id, { runId: run.id, agentId, ...admitted, pluginIds: [...new Set([...pluginRefIds, ...admitted.pluginIds])] });
-      const selectedAgent = await prepareRunToolAccess({ selectedAgentId: agentId });
-      if (selectedAgent === null) return;
-      agentId = selectedAgent;
-      const toolAccessRun = toolAccessRuns.get(run.id);
-      if (!toolAccessRun) throw new Error("agent run has no tool access record after preparation");
-      toolAccessRuns.set(run.id, { ...toolAccessRun, agentId });
-      startupStage = 'session binding';
-      const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});
-      if (sessionBinding === null) return;
-      // The browser cannot know whether the daemon still has a native session to resume.
-      prompt = selectRunHistoryPrompt({ prompt, coldStartContext, resumeSessionId: sessionBinding.sessionFields.resumeSessionId,
-        carriesOwnMemory: agentCarriesOwnMemory({ agentId: sessionBinding.agentId }, {}) }, {});
-      // Select history before decorating it, so cold starts retain the same page, attachment and
-      // plugin instructions as resumes.
-      // `<<SUBAGENT_DISPATCH>>` is AGENTS.md's own documented marker (Mandatory Startup section,
-      // detection priority 1) for "skip the whole AI-Dev-Shop startup ceremony — this is a
-      // dispatched subagent receiving a task prompt, not an interactive human session." Without it,
-      // every chat-pane run re-runs the full dev-tooling bootstrap (reads AGENTS.md, prints the
-      // startup banner, offers to install slash commands) before touching the user's actual request
-      // — confirmed live, burning real turns on a product-facing feature that has nothing to do with
-      // this repo's own AI-Dev-Shop pipeline.
-      // The admin screen this message was sent from goes AFTER the marker (the marker only works as
-      // the prompt's first line) and directly before the operator's words, so "this page" has
-      // something to refer to — see `run-page-context.ts`. `""` (no context) leaves the prompt as is.
-      prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock({ context: pageContext }) })}`;
-      prompt += attachmentRunFields.attachmentNotice ?? "";
-      // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
-      // prepended BEFORE the plugin prefix. Off by default; a no-op unless a probe sets
-      // `TOVU_CAPABILITY_MANIFEST_ARM` for this process.
-      prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildCapabilityManifestPrefix({ arm: resolveCapabilityManifestArm(env) }) });
-      // What this boot REFUSED to admit from external MCP servers, in the one channel a model does
-      // not have to go looking for. Not a tool, deliberately: a model that does not know it is
-      // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
-      // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
-      prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: pluginPreparation.refusalPrefix });
-      prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix });
-      if (!(await durableAttemptStillOwnsAnswer())) {
-        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
-      }
-      startupStage = 'CLI launch';
-      await launchAgentRun({ sessionBinding, attachmentRunFields, pluginIds: pluginPreparation.pluginIds }, {});
-    })
-    // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
-    // every failure path before it rejects — this catch only guards against an unhandled rejection.
-    // (The attachment-claim failure branch above finishes the run itself and returns before ever
-    // reaching `run()`, so it does not rely on this catch for that.)
-    .catch((error: unknown) => {
-      console.error(`[agent-daemon] run ${run.id} failed to start`, error);
-      // A startup rejection must terminalize its attempt so its slot and credentials release.
-      void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt.",
-        startup: { stage: startupStage, error } }, {});
-    }).finally(releasePreparation);
-
-  /** The server owns pinned guidance and automatic consent, including later tool-triggered
-   * preparation. No controller or plugin lifecycle is constructed in this process. Transport
-   * failure remains optional for automatic guidance, but an explicit pinned pick fails closed. */
-  async function prepareSitePlugins(_required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string; pluginIds: string[] }> {
-    try { return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal }); }
-    catch (err) {
-      let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-      console.warn('[agent-plugins] automatic preflight unavailable', errorDiagnostic);
-      return { prefix: pluginRefIds.length ? null : "", refusalPrefix: "", pluginIds: [] };
-    }
-  }
-
-  /** A durable attempt must still own its answer when the agent is about to launch: a stop or a
-   * newer attempt may have taken over while this run was preparing. A non-durable run always does. */
-  async function durableAttemptStillOwnsAnswer(): Promise<boolean> {
-    if (!durableMessageId || !routeDeps.chatRunLedger.durable) return true;
-    const attempt = await routeDeps.chatRunLedger.durable.find({ runId: run.id }, {});
-    return durableAttemptOwnsAnswer({ attempt }, {});
-  }
-
-  /** Resolves this run's native-tool grant from one launch snapshot and dispatches the agent CLI.
-   * Declared after the continuation that calls it so the session binding above stays textually
-   * ahead of `agentExecutor.run` (the wiring tests read this file's source in order). */
-  async function launchAgentRun(
-    { sessionBinding, attachmentRunFields, pluginIds }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields; pluginIds: readonly string[] }, _optional = {},
-  ): Promise<void> {
-    startupStage = 'native tool policy';
-    const access = await verifyLaunchToolPolicy({ agentId: sessionBinding.agentId });
-    if (!access) return;
-    const { snapshot, plan } = access;
-    const { isOwner, def, policy, nativeCapabilities } = snapshot;
-    warnRunFilesystemLimit({ agentId: sessionBinding.agentId, shell: nativeCapabilities.shell });
-    const chatSettings = recordRunToolSnapshot({ snapshot, plan, agentId: sessionBinding.agentId });
-    await emitNoToolsNotice({ agentId: sessionBinding.agentId, snapshot, bridged: plan.bridged });
-    const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
-    startupStage = 'tool-gap audit subscription';
-    await observeRunToolGaps({ isOwner, agentId: sessionBinding.agentId }, {});
-    // One launch snapshot supplies every dimension; edits affect only subsequent runs.
-    const subagentsEnabled = nativeCapabilities.subagents;
-    // Fresh per-person runtime preferences; a failed read falls back to the registered defaults.
-    startupStage = 'runtime preferences';
-    const runtimeLaunch = await resolveAssistantRuntimeLaunch({ deps: { settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
-      settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: getAgentDef, probeChrome: probeAssistantChrome, claimBrowser: () => claimBrowserForRun({ lease: optional.browserLease, runId: run.id }) });
-    startupStage = 'shell environment';
-    const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: env,
-      excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
-    // Owner 2026-10-27: the folder picked with the composer's folder control is readable, never writable.
-    const pickedFolder = getCustomFsRoot({ workspaceId: routeDeps.workspaceId, optional: { siteDir: routeDeps.siteBinding.dir } });
-    const runGuidance = { ...runtimeLaunch.guidance, chatSettings, ...(pickedFolder ? { pickedFolder } : {}) };
-    startupStage = 'CLI bridge preparation';
-    if (!(await prepareCliLaunch({ def, allowed: nativeCapabilities.userMcp }, {}))) return;
-    if (!(await runToolAccessIsLive())) return;
-    const executeRun = () => agentExecutor.run({
-      runId: run.id,
-      agentId: sessionBinding.agentId,
-      prompt,
-      // In dev the server starts from the repo root, where CLIs auto-load Codex AGENTS.md
-      // and Claude CLAUDE.md; use the site so the in-app assistant avoids developer bootstrap.
-      // 2026-10-23: the former dev override could widen this boundary to the whole repo.
-      cwd: routeDeps.siteBinding.dir,
-    }, {
-      filesystemRoot: routeDeps.siteBinding.dir,
-      permissionMode: policy.permissionMode ?? resolvePermissionMode(),
-      nativeToolAccess,
-      nativeCapabilities,
-      subagentStartContext: { ids: pluginIds, instructions: 'Before you start, call load_agent_plugin for every parent plugin and follow it. Discover Tovu tools with search_tools, describe before executing, honor approvals, and keep file searches inside the site.' },
-      cliParity: nativeToolAccess,
-      ...(parityEnv ? { env: parityEnv } : {}),
-      // Explicit capability denies are applied by the runtime after this legacy native grant.
-      // Read path denies remain defense in depth for owner-authorized local filesystem access.
-      disallowedTools: resolveAssistantDisallowedTools({ agentId: sessionBinding.agentId, subagentsEnabled, nativeToolAccess }, {}),
-      // Site chat excludes personal hooks and permissions even when personal configuration is on.
-      // Keep the locked settings policy when the owner switches personal configuration off.
-      // See ASSISTANT_SETTING_SOURCES for why these layers are excluded in locked runs.
-      ...(nativeCapabilities.userSettings ? {} : { settingSources: ASSISTANT_SETTING_SOURCES }),
-      // Site runs retain the host's auto-memory/no-system-search policy rather than user hooks; Full CLI cannot omit it.
-      settings: resolveAssistantRunSettings({ homeDir: (env.HOME ?? env.USERPROFILE ?? homedir()), fileExists: existsSync }),
-      ...(model !== undefined ? { model } : {}),
-      // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
-      // def's own `buildArgs` options, which is where it becomes real argv.
-      ...(reasoning !== undefined ? { reasoning } : {}),
-      ...attachmentRunFields,
-      ...(pickedFolder ? { readOnlyExtraDirs: [pickedFolder] } : {}),
-      // Both session fields at once — `resolveResumeSessionField(effectiveResumeSessionId)` for a
-      // resumed turn and `resolveNewSessionField(hostMintedSessionId)` for a cold one. They are
-      // mutually exclusive by construction (`resolveHostMintedSessionId` mints only when there is
-      // nothing to resume), and both are empty objects when they do not apply, so exactly one key
-      // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
-      // id that was persisted and the id handed to the CLI can never drift apart.
-      ...sessionBinding.sessionFields,
-      // Claude in Chrome: `chromeIntegration` (+ its MCP server on the allow-list) for a supporting
-      // runtime, nothing otherwise. Every deny above still applies; see `assistant-runtime-guidance.ts`.
-      ...runtimeLaunch.runOptions,
-    });
-    const runWithCapabilities = () => assistantCliCapabilitiesContext.run(nativeCapabilities,
-      () => siteTools.withRun({ runId: run.id, fn: () => executeRun().finally(() => releaseBrowserForRun({ lease: optional.browserLease, runId: run.id })) }));
-    if (disposed) {
-      // Cancellation records intent; no executor exists yet to emit the terminal event and
-      // release this run's activity hold after withdrawal during preparation.
-      await runLifecycle.finish({ runId: run.id, status: "cancelled", code: null, signal: null, resumable: false });
-      return;
-    }
-    startupStage = 'CLI execution';
-    await assistantRuntimeGuidanceContext.run(runGuidance,
-      () => assistantNativeToolsContext.run(nativeToolAccess, runWithCapabilities));
-  }
-
-  function warnRunFilesystemLimit({ agentId, shell }: { agentId: string; shell: boolean }): void {
-    if (agentId === 'claude' && process.platform === 'win32' && shell) console.warn('[agent-daemon] shell is not folder-limited on this platform');
-  }
-
-  async function verifyLaunchToolPolicy({ agentId }: { agentId: string }) {
-    const snapshot = await resolveRunNativePolicy({ agentId });
-    if (!(await runToolAccessIsLive())) return null;
-    const plan = assistantRunPlan({ snapshot, installed: !!snapshot.def && !!resolveAgentLaunch({ def: snapshot.def }).launchPath });
-    if (plan.verdict !== 'RUN') {
-      await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: 'Tool access changed before this answer started. Send your message again to review it.' }, {}); return null;
-    }
-    return { snapshot, plan };
-  }
-
-  function recordRunToolSnapshot({ snapshot, plan, agentId }: {
-    snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; plan: Extract<ReturnType<typeof assistantRunPlan>, { verdict: 'RUN' }>; agentId: string;
-  }) {
-    const tools = siteTools.withRun({ runId: run.id, fn: () => visibleRegistry.list({}) });
-    const sources = admittedToolSources({ tools });
-    toolAccessRuns.set(run.id, { runId: run.id, agentId, ...sources, pluginIds: [...new Set([...pluginRefIds, ...sources.pluginIds])] });
-    const facts = assistantRunToolFacts({ agentId, snapshot, plan, tools, ...(model ? { model } : {}), ...(reasoning ? { effort: reasoning } : {}) });
-    chatSettingsByRunId.set(run.id, facts);
-    return facts;
-  }
-
-  async function emitNoToolsNotice({ agentId, snapshot, bridged }: { agentId: string; snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; bridged: boolean }): Promise<void> {
-    const key = `${conversationId ?? run.id}:${agentId}`;
-    if (bridged || noToolsNotices.has(key)) return;
-    noToolsNotices.add(key);
-    const name = snapshot.def?.name ?? agentId;
-    await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'status', label: 'no_tools', detail: `${name} can't use tools provided here. It works with its own.` } } });
-  }
-
-  /** Fresh host-gated selected-agent grants, shared with the owner consent click. */
-  async function resolveRunNativePolicy({ agentId }: { agentId: string }, _optional = {}) {
-    return readAssistantRunToolPolicy({ deps: routeDeps, principalId: principal.id, agentId, env, getDef: getAgentDef });
-  }
-
-  function runToolPolicyInput({ agentId }: { agentId: string }) {
-    return { deps: routeDeps, principalId: principal.id, agentId, env, getDef: getAgentDef };
-  }
-
-  async function runToolAccessIsLive(): Promise<boolean> {
-    const current = await runLifecycle.get({ runId: run.id });
-    if (current && pluginAbort.signal.aborted && !isTerminalRunState({ state: current.state })) {
-      await runLifecycle.finish({ runId: run.id, status: 'cancelled', code: null, signal: null, resumable: false });
-      return false;
-    }
-    return !disposed && !pluginAbort.signal.aborted && !revokedToolRuns.has(run.id) && !!current && !isTerminalRunState({ state: current.state });
-  }
-
-  /** Consent precedes session binding, persistent repair, per-run tokens and CLI spawn. */
-  async function prepareRunToolAccess({ selectedAgentId }: { selectedAgentId: string }): Promise<string | null> {
-    let selected = selectedAgentId;
-    while (await runToolAccessIsLive()) {
-      const decision = await prepareAgentToolChoice({ selected });
-      if (decision === null || decision === true) return decision === true ? selected : null;
-      selected = decision;
-    }
-    return null;
-  }
-
-  async function prepareAgentToolChoice({ selected }: { selected: string }): Promise<string | true | null> {
-    const snapshot = await resolveRunNativePolicy({ agentId: selected });
-    const inventory = await assistantInventory.listAssistantAgents();
-    const detected = inventory.find(agent => agent.id === selected);
-    const plan = assistantRunPlan({ snapshot, installed: !!snapshot.def && !!resolveAgentLaunch({ def: snapshot.def }).launchPath,
-      ...(detected?.authStatus ? { auth: detected.authStatus } : {}) });
-    if (plan.verdict === 'RUN') return true;
-    if (plan.verdict === 'SETUP' || !snapshot.def) return prepareUnavailableToolChoice({ selected, snapshot, plan, inventory });
-    const result = await askForRunToolAccess({ snapshot, keys: plan.keys, inventory });
-    if (result.status === 'alternative') return result.agentId;
-    if (result.status === 'allowed') return selected;
-    await runLifecycle.finish({ runId: run.id, status: 'cancelled', code: null, signal: null, resumable: false }); return null;
-  }
-
-  async function prepareUnavailableToolChoice({ selected, snapshot, plan, inventory }: {
-    selected: string; snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; plan: ReturnType<typeof assistantRunPlan>;
-    inventory: Awaited<ReturnType<typeof assistantInventory.listAssistantAgents>>;
-  }): Promise<string | null> {
-    const name = snapshot.def?.name ?? selected;
-    const message = assistantToolSetupMessage({ name, reason: plan.verdict === 'SETUP' ? plan.reason : 'not_installed',
-      ...(snapshot.lock ? { lock: snapshot.lock } : {}), ...('keys' in plan ? { keys: plan.keys } : {}) });
-    const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected, snapshot });
-    if (alternatives.length) {
-      const alternative = await withRunToolAccessCard({ ask: ({ ctx, emitSurface }) => requestAssistantToolAlternative({ name, message,
-        ctx, surfaces: { surfaceExchanges }, alternatives, isLive: runToolAccessIsLive }, { emitSurface }) });
-      if (alternative) return alternative;
-    }
-    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message }, {});
-    return null;
-  }
-
-  async function askForRunToolAccess({ snapshot, keys, inventory }: {
-    snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; keys: readonly string[];
-    inventory: Awaited<ReturnType<typeof assistantInventory.listAssistantAgents>>;
-  }) {
-    const selected = snapshot.def;
-    if (!selected) throw new Error('agent tool access has no selected agent definition');
-    const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected.id, snapshot });
-    const assertAccessApprover = async ({ principalId }: { principalId: string }) => {
-      if (principalId !== principal.id || !(await runToolAccessIsLive())) throw new Error('Tool access requires the person in this live chat.');
-      const fresh = await routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: selected.id });
-      if (!fresh.allowed) throw new Error('Tool access requires the active owner of this site.');
-    };
-    return withRunToolAccessCard({ ask: ({ ctx, emitSurface }) => requestAssistantToolConsent({ def: selected, keys, workspaceId: routeDeps.workspaceId,
-      surfaces: { surfaceExchanges, assertAccessApprover }, ctx,
-      isLive: runToolAccessIsLive,
-      readFresh: () => routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: selected.id }),
-      allowSelected: input => runToolAccessIsLive().then(live => live ? routeDeps.allowRunTools({ runId: run.id, ...input }) : false),
-    }, { alternatives, emitSurface }) });
-  }
-
-  /** Both access and setup cards use the existing principal-bound exchange event stream. */
-  async function withRunToolAccessCard<T>({ ask }: {
-    ask: (input: { ctx: ToolExecutionContext; emitSurface: SurfaceEmitter }) => Promise<T>;
-  }): Promise<T> {
-    const toolUseId = randomUUID();
-    await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'tool_use', id: toolUseId, name: 'settings_set_value', input: {} } } });
-    try {
-      return await ask({ ctx: { executionId: toolUseId, principal, run: { id: run.id }, input: {}, signal: pluginAbort.signal },
-        emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { ...emission.payload, type: emission.channel, toolUseId } as RunAgentPayload } }); },
-      });
-    } finally {
-      await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'tool_result', toolUseId, content: 'Tool access request reviewed.' } } });
-    }
-  }
-
-  function qualifiedRunAlternatives({ inventory, selectedAgentId, snapshot }: {
-    inventory: Awaited<ReturnType<typeof assistantInventory.listAssistantAgents>>; selectedAgentId: string;
-    snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>;
-  }) {
-    // Reuse the launch snapshot for choices; the selected agent is read fresh before dispatch.
-    const alternatives = [];
-    for (const agent of inventory) {
-      if (agent.id === selectedAgentId || !agent.available || agent.authStatus === 'missing') continue;
-      const def = getAgentDef({ id: agent.id });
-      const effective = resolveAssistantCliPermissions({ isOwner: snapshot.isOwner, env, settings: snapshot.settings, agentId: agent.id }, { hostSignals: resolveHostSignals({ env }) });
-      const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: { nativeToolAccess: effective.enabled, nativeCapabilities: effective.capabilities } });
-      const candidate = { ...snapshot, def, effective, policy, nativeCapabilities: effective.capabilities };
-      if (assistantRunPlan({ snapshot: candidate, installed: true }).verdict === 'RUN') alternatives.push({ agentId: agent.id, name: agent.name });
-    }
-    return alternatives;
-  }
-
-  /** Attach the owner's tool-gap audit to this run; subscription errors abort startup. O(1). */
-  async function observeRunToolGaps({ isOwner, agentId }: { isOwner: boolean; agentId: string }, _optional = {}): Promise<void> {
-    // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
-    if (isOwner) {
-      const gaps = createToolGapCollector({ sink: routeDeps.toolAttemptAuditSink,
-        workspaceId: routeDeps.workspaceId, principalId: principal.id, site: routeDeps.siteBinding.dir,
-        chatId: conversationId ?? run.id, runId: run.id, provider: agentId,
-        redact: text => redactSecretShapes({ text }).text,
-      }, { onError: () => console.error("[tool-gaps] audit write failed") });
-      await runLifecycle.stream({ runId: run.id, onEvent: event => gaps.observe({ event }, {}) });
-    }
-  }
-
-  /** Verify/repair CLI bridge registration before emitting its access note. A failed recovery
-   * terminalizes the run and returns false; lifecycle emission errors propagate. O(config bytes). */
-  async function prepareCliLaunch({ def, allowed }: { def: ReturnType<typeof getAgentDef>; allowed: boolean }, _optional = {}): Promise<boolean> {
-    if (def?.externalMcpInjection === 'env-passthrough') {
-      try {
-        await ensureJsonAgentInstall({ agentId: def.id, allowed, spec: { command: bridgeInjection.command,
-          args: [...(bridgeInjection.args ?? [])], env: { ...bridgeInjection.env } },
-          ctx: { home: (env.HOME ?? env.USERPROFILE ?? homedir()), platform: process.platform, serverName: 'jini' } }, {});
-      } catch (error) {
-        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: `${def.name}'s connector could not be installed safely in its personal settings. Choose another available agent for this message.`,
-          startup: { stage: startupStage, error } }, {}); return false;
-      }
-    }
-    if (def?.fullCliAccessNote) await runLifecycle.emit({ runId: run.id, input: {
-      event: 'agent', data: { type: 'status', label: 'full_cli_access', detail: def.fullCliAccessNote },
-    } });
-    return true;
-  }
-};
-
-/** Fails closed: an untracked `runId` throws rather than fabricating a principal — see
- * `apps/website/src/server/runtime/composition/modules/assistant.ts`'s identical guard for the full rationale.
- *
- * A `requireReadOnly` request (the wire flag `@jini-ai/mcp`'s `execute_readonly_delegated_tool`
- * sets, and which `@jini-ai/http-kit` hands to this host-owned resolver verbatim) resolves to an
- * ATTENUATED principal instead of the tracked one. That is what carries the constraint past this
- * route and into the execution itself, where `withReadOnlyToolConstraint` enforces it on every
- * dispatch rather than only on the id the caller named — the route's own check answers for that one
- * id, and a decorator can dispatch another. See `read-only-tool-constraint.ts`. */
-const resolvePrincipal = ({ request }: { readonly request: DelegatedToolExecuteRequest }): Principal => {
-  const principal = principalByRunId.get(request.runId);
-  if (!principal) throw new Error(`no principal is tracked for run "${request.runId}"`);
-  return request.requireReadOnly === true ? constrainPrincipalToReadOnlyTools(principal) : principal;
-};
-
-/** Resolve discovery authority from a still-live per-run credential, never a wire principal. */
-function resolveDiscoveryCaller(req: express.Request) {
-  const token = bearerTokenFromHeader({ header: req.get("authorization") });
-  return token ? runCredentials.resolveCaller({ token }) : undefined;
-}
-
-const app = express();
-app.use((_req, res, next) => {
-  if (disposed) { res.status(503).json({ error: "site scope is closed" }); return; }
-  responses.add(res); res.once("close", () => responses.delete(res));
-  next();
-});
-app.use(idlePark.middleware);
-registerAgentPluginEvents({ app, lifecycle, principalFor: ({ runId }) => principalByRunId.get(runId)?.id }, { env: authEnv });
-
-// Only this POST uses Jini's credential-bound claim authorization instead of the proxy/owner gates.
-// Authenticate before parsing; the handler re-resolves the live credential and checks the URL run.
-// Mount before requireRunOwnership: no proxy principal header or retained owner record is needed.
-app.post("/api/runs/:runId/messages/claim", createDaemonAuthMiddleware({
-  authorizationHeaderName: "authorization",
-  authorize: ({ request }) => {
-    const token = bearerTokenFromHeader({ header: request.headers.authorization });
-    const caller = token ? runCredentials.resolveCaller({ token }) : undefined;
-    return caller ? { allowed: true } : { allowed: false, status: 401,
-      body: { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } } };
-  },
-}), express.json({ limit: "1kb" })); // The only valid body is `{ via }`.
-mountJiniRoutes({ app, routes: messageRelayRoutes({ agentExecutor, runScopedCallers: runCredentials }) });
-
-// Before every other route's `express.json()` — an unauthenticated caller's body is never parsed. See this
-// file's module doc and `apps/website/src/assistant/daemon-access.ts` for the fail-closed contract. No exemptions: the spawned
-// bridge now presents JINI_DAEMON_TOKEN on delegated calls too. BYOK dispatches in process, and
-// the proxy does not expose the delegated route (`apps/website/src/assistant/daemon-access.ts`'s DELEGATED_TOOL_CALLS_PATH).
-// `runScopedCallers`: each run's bridge presents its own per-run credential, which reaches only the
-// bridge's routes and stands for that run's principal, never one the caller asserts
-// (`Jini packages/daemon/src/run-credentials.ts`). The proxy token alone still carries a proxy-asserted principal.
-app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));
-// Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
-// admin viewport, posted back to `/api/frontend-sessions/:id/responses`
-// (`frontend-session-bridge.ts`'s `respond()`), routinely exceeds it even after
-// `agent-screenshot.ts`'s own quality/size retries — a silent 413 would look like a capture bug
-// rather than the transport limit it actually is. Raised, not removed: this still bounds the worst
-// case for every route mounted below (all of them, since this is `app.use` with no path), and every
-// caller reaching them is already past `requireAgentDaemonToken` above, so this is not a new
-// unauthenticated attack surface, only a larger authenticated one.
-app.use(express.json({ limit: "6mb" }));
-registerToolAccessLoweringRoute({ app, lower: change => stopRunsForToolAccessChange({ runs: [...toolAccessRuns.values()], change,
-  revoke: ({ runId }) => { revokedToolRuns.add(runId); runCredentials.revoke({ runId }); },
-  cancel: async ({ runId }) => { await lifecycle.cancel({ runId }); },
-  waitForCleanup: async ({ runId }) => {
-    await lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(8_000) });
-    if (cleanupFailures.has(runId)) throw new Error('CLI cleanup failed');
-  },
-  notice: async ({ runId, message }) => {
-    await Promise.all([
-      lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'status', label: 'tool_access_changed', detail: message } } }),
-      lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'text_delta', delta: `\n\n${message}` } } }),
-    ]);
-  },
-}) });
-// Re-resolve each bridge credential after parsing; neither a proxy identity nor a previous
-// caller's snapshot can supply an unscoped catalog. Native async context survives all awaits.
-app.use(["/api/tools", "/api/components", DELEGATED_TOOL_CALLS_PATH], (req, res, next) => {
-  const caller = resolveDiscoveryCaller(req);
-  if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
-  try { siteTools.withRun({ runId: caller.runId, fn: () => next() }); }
-  catch (error) { next(error); }
-});
-// Re-resolve the bearer after parsing, so even a credential that expired while parsing fails
-// closed. Run credentials must match body.runId before any delegated handler or tool can execute;
-// proxy credentials retain their existing authority.
-app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));
-const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => port, env,
-  // These are the environment names the previously imported http-kit origin guard read.
-  // Preserve that deployed contract when supplying the now-explicit origin configuration.
-  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024 }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
-
-// Per-run authorization, mounted between the bearer gate and the run routes it protects. The gate
-// above proves the caller is Tovu's proxy; these two prove *which admin* the proxy is speaking for,
-// which is the question neither the gate nor the proxy's own session check can answer. Both must
-// precede `runRoutes`: the middleware so it runs first, and the list handler so it shadows
-// http-kit's unscoped `runListRoute` under Express's first-match-wins routing. See
-// `Jini packages/daemon/src/run-credentials.ts` for the ownership model and the 404-not-403 rationale.
-app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));
-app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));
-
-registerCredentialRunIntake({ app }, {});
-if (routeDeps.chatRunLedger.durable) registerDurableRunStartRoute({ app, lifecycle, onStarted, store: routeDeps.chatRunLedger.durable }, {});
-/** Delivers authorized screenshot pixels through the existing live-input path. Reads do not claim
- * uploads: an unsupported runtime or an ending run must leave the whole turn available for the
- * idle attachment claim. Non-image files wait for idle delivery, which also grants directory access.
- * @complexity O(b) time/space in attachment bytes, bounded by the existing upload limits.
- */
-async function deliverRunUserMessage(
-  { runId, text, id, attachmentIds = [] }: RunMessageRequest, _optional = {},
-): Promise<UserMessageDelivery> {
-  if (attachmentIds.length === 0) return agentExecutor.sendUserMessage({ runId, text, id });
-  const principal = principalByRunId.get(runId);
-  if (principal === undefined) return "not-running";
-  const prepared = await prepareByokMessageAttachments({
-    refs: attachmentIds, principalId: principal.id, uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY,
-  }, {});
-  if (prepared.notice !== "") return "unsupported";
-  return agentExecutor.sendUserMessage({ runId, text, id, attachmentIds }, { imageContents: prepared.images });
-}
-
-mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted,
-  deliverUserMessage: (input) => agentExecutor.sendUserMessage(input),
-  deliverUserMessageWithAttachments: (input) => deliverRunUserMessage(input, {}),
-}, host: routeHost }) });
-// `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
-// default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
-// gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
-// bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
-mountJiniRoutes({ app, routes: agentRoutes({ deps: { listAgents: assistantInventory.listAssistantAgents, rescanAgents: assistantInventory.rescanAssistantAgents }, host: routeHost }) });
-// `GET /api/active` — the one route `jini-mcp` calls (`get_active_context`) that this daemon never
-// served, so it answered 404. Behind the bearer gate above like every route but the delegated one.
-registerRunActiveContextRoute({ app, store: runActiveContexts });
-// `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
-// gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
-// omitting it silently disables the gateway rather than silently widening it.
-// `delegatedToolErrorDisclosure()` supplies both error-disclosure options: `isModelSafeToolFailure`
-// lets a failure `withRedactedToolFailures` already redacted (it carries an `ERR-…` id) reach the
-// model as `422 Error <ID>: <reason>`, and `describeInternalError` gives every other failure http-kit
-// would answer with a bare `500 INTERNAL_ERROR` (unknown tool id, timed-out, cancelled, a throwing
-// `resolvePrincipal`) the same redacted `Error <ID>: <reason>` text.
-// Built as a variable, not an inline literal: `describeInternalError` is newer than the published
-// @jini-ai/http-kit 0.3.7 types, and a non-literal argument is not excess-property-checked, so this
-// compiles against both. Against 0.3.7 at runtime the option is inert (bare 500s return) until
-// Tovu's http-kit range is bumped to the release that ships it.
-const delegatedToolRouteDeps = {
-  lifecycle,
-  toolExecutor,
-  resolvePrincipal,
-  toolRegistry: siteTools.registry, toolFamilies: siteTools.families,
-  ...delegatedToolErrorDisclosure({}, {}),
-  // Static jobs live at the site server. Read once through its normal permission gate after a
-  // lost delegated response; the five-second deadline cannot extend or repeat the publish.
-  recoverInterruptedTool: async ({ principal, runId, toolId, result }: {
-    principal: import("@jini-ai/core").Principal; runId: string; toolId: string; result: import("@jini-ai/daemon").ToolExecutionResult;
-  }) => {
-    if (toolId !== "deployment_execute_static_publish") return undefined;
-    try {
-      const checked = await toolExecutor.execute({ principal, run: { id: runId }, toolId: "deployment_get_static_publish_status", input: { executionId: result.executionId } }, { signal: AbortSignal.timeout(5_000) });
-      const output = checked.output as { status?: unknown; message?: unknown } | null;
-      if (checked.status === "completed" && output?.status && typeof output.message === "string") return output.message;
-    } catch { /* A failed status read cannot prove whether the publish started. */ }
-    return publishJobRecoveryMessage({ statusToolId: "deployment_get_static_publish_status" });
-  },
-};
-registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
-  isRegistered: ({ toolId }) => siteTools.registry.has({ toolId }),
-  isReadOnly: ({ toolId }) => checkReadOnlyTool({ toolId, registry: siteTools.registry, messages: defaultDaemonMessages.readOnly }, {}) === null,
-  async messageIdForAttempt({ runId }) {
-    return durableMessageIdsByRunId.get(runId) ?? null;
-  },
-}, {});
-mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });
-// The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
-// content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
-// for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape
-// (ADR-053 Decision 3), which no wired tool currently uses — `content_post_delete` was the only
-// tool that ever took it, and it moved to the exchange shape above.
-// Same non-exemption reasoning as `frontendControl.httpExtension` just below: the
-// browser reaches this through Tovu's session-authenticated proxy, which attaches the bearer token
-// like every other forwarded route, so no `exemptPaths` entry is needed or wanted. See
-// `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
-// `ToolExecutor`/`SurfaceExchangeStore` an exchange delivery actually needs) and
-// `apps/website/src/server/runtime/composition/modules/assistant.ts` for the proxy half.
-registerMcpUiToolCallsRoute({ app, deps: { toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler } });
-// A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/
-// `functionResponse`/`error` re-entering the process that holds the exchange it answers. Unlike
-// the MCP-UI route above, this never touches `toolExecutor` at all (there is no tool-call shape to
-// fall back to for A2UI) — see `a2ui-actions-route.ts`'s own module doc. Same non-exemption
-// reasoning: reached only through Tovu's session-authenticated proxy, which attaches the bearer
-// token like every other forwarded route.
-registerA2uiActionsRoute({ app, deps: { surfaceExchanges } });
-// The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
-// admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
-// `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`
-// subprocess that holds no token), these two are reached by the browser through Tovu's own
-// session-authenticated proxy, which attaches the bearer like every other forwarded route. See
-// `apps/website/src/server/runtime/composition/modules/assistant.ts`.
-mountJiniRoutes({ app, routes: frontendControl.routes({ host: routeHost }) });
-// Runless WebMCP uses the same policy/exchange/audit stack as a daemon run. The proxy supplies
-// the authenticated principal; the bind token and tab id constrain the effect to its own screen.
-mountJiniRoutes({ app, routes: frontendRequestRoutes({ path: "/api/frontend-sessions/request", control: frontendControl, host: routeHost,
-  executor: toolExecutor, capabilityIds: FRONTEND_CONTROL_CAPABILITIES.filter(entry => entry.id.startsWith("page.")).map(entry => entry.id),
-  resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: routeDeps.workspaceId }),
-}) });
-
-  // Discovery is scoped by each run's credential; the server refreshes its own plugin/settings
-  // state before returning descriptors. The native FTS owner is released with the final run.
-  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: siteTools.catalog }, host: routeHost }) });
-  app.use("/api/components", (req, res, next) => {
-    const caller = resolveDiscoveryCaller(req);
-    if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
-    void siteTools.refreshComponents({ runId: caller.runId }).then(() => {
-      siteTools.withRun({ runId: caller.runId, fn: () => next() });
-    }).catch(() => {
-      res.status(503).json({ error: "component catalog is unavailable", code: "COMPONENT_CATALOG_UNAVAILABLE" });
-    });
-  });
-  mountJiniRoutes({ app, routes: componentCatalogRoutes({ deps: { catalog: siteTools.components }, host: routeHost }) });
-
-  // `createDiskAttachmentStore` is async (it reconciles `uploadDirectory` against the previous
-  // process on construction — see its own doc), so it cannot be a module-scope `const` the way
-  // `agentExecutor`/`toolExecutor` are. Assigned into the scope-local `attachmentStore` binding
-  // `onStarted` reads, and awaited here — before the host mounts this scope — so no request
-  // can ever reach this process while `attachmentStore` is still unset (`onStarted`'s own doc
-  // explains why that matters).
-  //
-  // `retainAcrossRestarts` is NOT optional for this host, and the reason is specific to how this
-  // process is started. The daemon is a `spawn()` child of `src/index.ts`, which dev runs under
-  // `tsx watch` — so every save anywhere in `apps/website/src` kills and respawns it (see
-  // `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`). Without this option the store empties `uploadDirectory` on each
-  // of those constructions, which means an unrelated source edit silently destroys every chat
-  // attachment a user has staged but not yet sent. That is not a hypothetical: an upload was
-  // observed erased by an API reload ~90 seconds later. The store's default is deliberately the
-  // conservative one for hosts whose process lifetime really does bound an upload's; this host is
-  // not one of them.
-  //
-  // Adoption is authenticated, not blind — a file that changed between processes is rejected by the
-  // same integrity gate `claim()` applies, and anything unaccounted for is swept. Reverting to the
-  // previous behavior is deleting this one option.
-  attachmentStore = await createDiskAttachmentStore({
-    uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY,
-  }, {
-    retainAcrossRestarts: true,
-    maxBatchBytes: ATTACHMENT_MAX_BATCH_BYTES,
-  });
-  // Server-side attachment tools consult the sole live owner, including uploads made after boot.
-  // The adapter adds its own full-daemon-token gate; run credentials cannot access this route.
-  registerDaemonAttachmentLookup({ app, store: attachmentStore, host: routeHost, mountRoutes: ({ routes }) => mountJiniRoutes({ app, routes }) }, { env: authEnv });
-  // Registered ahead of `express.json()` in spirit (see `attachments.ts`'s own "mount before any
-  // global body parser" note) even though call order here is necessarily after it (`express.json()`
-  // is synchronous module-scope code above; this file's own body-parser-skip behavior for a
-  // non-JSON `content-type` is what actually protects the upload route — see
-  // `apps/website/src/server/runtime/composition/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
-  // `application/octet-stream` POST survives `express.json()` regardless of registration order).
-  const attachmentDeps: AttachmentsHttpDeps = { store: attachmentStore,
-      acquireActivity: () => idlePark.hold({}, {}),
-      // The trusted-downstream-of-the-bearer-gate header `forwardAttachmentUpload`
-      // (`server/runtime/composition/modules/assistant.ts`) now stamps from the uploading admin's
-      // OWN session — see that function's doc. This is what `chat_list_pending_attachments`
-      // (`list-pending-chat-attachments.ts`) scopes its listing by.
-      resolveOwnerId: ({ request }) => request.headers.get(RUN_PRINCIPAL_HEADER) ?? undefined,
-      // Without this, `@jini-ai/http-kit`'s own default (20 MB) silently undercuts
-      // `TOVU_MAX_UPLOAD_BYTES` for the one media path that reaches it (a chat attachment promoted
-      // to the library, `promote-chat-attachment.ts`) — this route's hard, streaming-enforced byte
-      // cap, not just the client's own pre-check (`AssistantDock.hooks.tsx`'s
-      // `useAttachmentUploader`, which must independently match this so a rejection surfaces before
-      // the bytes are ever sent, not just after).
-      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES };
-  mountJiniRoutes({ app, routes: attachmentUploadRoutes({ deps: attachmentDeps, host: routeHost }) }, { rawBody: true });
-  mountJiniRoutes({ app, routes: attachmentCleanupRoutes({ deps: attachmentDeps, host: routeHost }) });
-
-  if (optional.probeBridge) await optional.probeBridge();
-  else {
-void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }) }, {}).then((result) => {
-  const line = formatBridgePreflightLogLine({ result });
-  if (result.ok) console.log(line);
-  else console.error(line);
-});
-
-  }
-  return { app, lifecycle, hasExchanges: () => surfaceExchanges.size() > 0,
-    dispose(_required: Record<string, never>, _optional = {}): Promise<void> {
-      if (closing) return closing;
-      disposed = true; // Fence intake and live run credentials before the first await.
-      closing = (async () => {
-        const runs = await lifecycle.list({});
-        for (const run of runs) runCredentials.revoke({ runId: run.id }, {});
-        const drains = runs.filter(run => !isTerminalRunState({ state: run.state })).map(async run => {
-          await lifecycle.cancel({ runId: run.id });
-          await lifecycle.waitForTerminal({ runId: run.id }, { signal: AbortSignal.timeout(5_000) });
-        });
-        await awaitBootWorkWithinBound({ work: drains }, { timeoutMs: 5_000 });
-        // Terminal callbacks own session saves and attachment cleanup beyond the run's end.
-        const drained = activeWork === 0 ? Promise.resolve() : new Promise<void>(resolve => { resolveDrained = resolve; });
-        // Keep the retained client alive until accepted preparation/cleanup really settles.
-        // The inherited IPC deadline bounds callers; timing out must not close beneath live work.
-        await drained;
-        for (const response of responses) response.end();
-        responses.clear();
-        for (const timer of ownerRetentionTimers) clearTimeout(timer);
-        ownerRetentionTimers.clear();
-        if (!optional.idlePark) processActivity.stop({}, {});
-        disposeAiTracing();
-        try { await assistantInventory.dispose({}); }
-        finally { await daemonStore?.close(); }
-      })();
-      return closing;
-    },
-  };
-} catch (error) {
-  disposeAiTracing();
-  await assistantInventory.dispose({}).catch((cleanupError: unknown) => {
-    console.error("[agent-daemon] Could not dispose the agent inventory after startup failed:",
-      describeErrorForLog({ err: cleanupError }));
-  });
-  await daemonStore?.close().catch((cleanupError: unknown) => {
-    console.error("[agent-daemon] Could not close the daemon store after startup failed:",
-      describeErrorForLog({ err: cleanupError }));
-  });
-  throw error;
-}
 }

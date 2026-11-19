@@ -26,27 +26,8 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
 }, optional: { requireAcknowledgment?: boolean; scope?: "user" | "workspace" } = {}): void {
   const { app, deps, path } = required;
   const routeDeps = { ...deps, settingsReady: deps.settingsUiTabsReady };
-  async function parseGrantUpdate({ body }: { body: Record<string, unknown> | null }, _optional = {}) {
-    if (!body || Array.isArray(body) || typeof body.enabled !== "boolean") rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
-    const settings = required.parse({ body });
-    const previous = await required.read();
-    const needsAcknowledgment = optional.requireAcknowledgment !== false && settings.enabled && !previous.enabled;
-    if (needsAcknowledgment && body.riskAcknowledged !== true) rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
-    return { settings, previous, needsAcknowledgment };
-  }
-  async function persistGrant({ input, settings, previous, needsAcknowledgment, body }: {
-    input: { namespace: string; scope: "user" | "workspace"; principalId?: string; workspaceId: string; authWorkspaceId: string; callerPrincipalId: string };
-    settings: T; previous: T; needsAcknowledgment: boolean; body: Record<string, unknown>;
-  }) {
-      if (needsAcknowledgment) await set({ deps: toWriteServiceDeps(routeDeps), input: {
-        ...input, key: "riskAcknowledgment", value: { riskAcknowledged: true, acknowledgedAt: deps.clock.nowIso(), grant: required.value({ settings }) },
-      } });
-      const prepared = await required.prepareWrite?.({ body, settings, previous });
-      const result = await set({ deps: toWriteServiceDeps(routeDeps), input: { ...input, key: required.key, value: prepared?.value ?? required.value({ settings }) } },
-        prepared ? { expectedRevisionSeq: prepared.revisionSeq } : {});
-      const savedSettings = await required.afterWrite?.({ settings, previous, body });
-    return { ...result, settings: savedSettings ?? settings };
-  }
+  const parseGrantUpdate = createGrantUpdateParser(required, optional);
+  const persistGrant = createGrantPersister(required, routeDeps);
   mountSettingsJsonRoute({ app, deps: routeDeps, method: "get", path,
     handle: async ({ principal }) => {
       // The dock is available to every authenticated administrator, including those without
@@ -71,4 +52,32 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
       return { ...(required.projectRead?.({ settings: savedSettings, isOwner: true }) ?? savedSettings), canEdit: true, revisionSeq: result.revisionSeq };
     },
   });
+}
+
+function createGrantUpdateParser<T extends { enabled: boolean }>(required: Parameters<typeof registerAssistantOwnerGrantRoutes<T>>[0], optional: Parameters<typeof registerAssistantOwnerGrantRoutes<T>>[1] = {}) {
+  return async function parseGrantUpdate({ body }: { body: Record<string, unknown> | null }, _optional = {}) {
+    if (!body || Array.isArray(body) || typeof body.enabled !== "boolean") rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
+    const settings = required.parse({ body });
+    const previous = await required.read();
+    const needsAcknowledgment = optional.requireAcknowledgment !== false && settings.enabled && !previous.enabled;
+    if (needsAcknowledgment && body.riskAcknowledged !== true) rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
+    return { settings, previous, needsAcknowledgment };
+  };
+}
+
+function createGrantPersister<T extends { enabled: boolean }>(required: Parameters<typeof registerAssistantOwnerGrantRoutes<T>>[0], routeDeps: AssistantOwnerGrantDeps) {
+  const { deps } = required;
+  return async function persistGrant({ input, settings, previous, needsAcknowledgment, body }: {
+    input: { namespace: string; scope: "user" | "workspace"; principalId?: string; workspaceId: string; authWorkspaceId: string; callerPrincipalId: string };
+    settings: T; previous: T; needsAcknowledgment: boolean; body: Record<string, unknown>;
+  }) {
+      if (needsAcknowledgment) await set({ deps: toWriteServiceDeps(routeDeps), input: {
+        ...input, key: "riskAcknowledgment", value: { riskAcknowledged: true, acknowledgedAt: deps.clock.nowIso(), grant: required.value({ settings }) },
+      } });
+      const prepared = await required.prepareWrite?.({ body, settings, previous });
+      const result = await set({ deps: toWriteServiceDeps(routeDeps), input: { ...input, key: required.key, value: prepared?.value ?? required.value({ settings }) } },
+        prepared ? { expectedRevisionSeq: prepared.revisionSeq } : {});
+      const savedSettings = await required.afterWrite?.({ settings, previous, body });
+    return { ...result, settings: savedSettings ?? settings };
+  };
 }

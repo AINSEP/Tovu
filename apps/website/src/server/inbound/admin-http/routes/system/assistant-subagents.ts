@@ -25,27 +25,8 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
     canEdit: ({ isOwner }) => isOwner && !isHostedAssistantRuntime({ env: process.env }, { hostSignals: resolveHostSignals({ env: process.env }) }),
     // An env lock keeps canEdit (the owner's stored choice still saves) but must say why every
     // switch reads OFF; without a reason the dock showed clickable switches that snapped back.
-    projectRead: ({ settings, isOwner }) => {
-      const envLock = fullCliEnvLock({ env: process.env });
-      const hostSignals = resolveHostSignals({ env: process.env });
-      const permissions = resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals });
-      let availability: { unavailableReason?: string };
-      if (isHostedAssistantRuntime({ env: process.env }, { hostSignals })) availability = { unavailableReason: "Not available on hosted sites" };
-      else if (!isOwner) availability = { unavailableReason: "Only the owner can change agent permissions." };
-      else if (envLock) availability = { unavailableReason: `Turned off on this computer by ${envLock}.` };
-      else availability = {};
-      return { ...permissions, agents: AGENT_DEFS.map(({ id, name, externalMcpInjection }) => ({ id, name, inheritedRunKey: (externalMcpInjection === "opencode-env-content" || externalMcpInjection === "mimo-env-content") || externalMcpInjection === "env-passthrough", writesPersonalConfig: externalMcpInjection === "env-passthrough" })), ...availability, permissionMode: resolveAgentPermissionMode({ env: process.env }, { hostSignals }) };
-    },
-    parse: ({ body }, _optional = {}) => {
-      const overrides = body.capabilities;
-      const malformed = overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides));
-      const unknownCapability = !malformed && overrides !== undefined && Object.entries(overrides).some(([key, value]) => !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key) || typeof value !== "boolean");
-      if (malformed || unknownCapability) {
-        rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "Unknown capability or non-boolean value." });
-      }
-      return assistantCliPermissions({ enabled: body.enabled as boolean,
-        ...(overrides ? { capabilities: overrides as Partial<Record<AssistantCliCapability, boolean>> } : {}) });
-    },
+    projectRead: projectAssistantCliPermissions,
+    parse: parseAssistantCliPermissions,
     prepareWrite: async ({ body, settings, previous }) => {
       if (body.agentId !== undefined && (typeof body.agentId !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(body.agentId))) {
         rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "Choose a valid agent." });
@@ -70,3 +51,26 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
     value: ({ settings }, _optional = {}) => ({ enabled: settings.enabled, capabilities: { ...settings.capabilities } }),
   }, { requireAcknowledgment: false, scope: "user" });
 }
+
+function projectAssistantCliPermissions({ settings, isOwner }: Parameters<NonNullable<Parameters<typeof registerAssistantOwnerGrantRoutes<ReturnType<typeof assistantCliPermissions>>>[0]["projectRead"]>>[0]): ReturnType<NonNullable<Parameters<typeof registerAssistantOwnerGrantRoutes<ReturnType<typeof assistantCliPermissions>>>[0]["projectRead"]>> {
+      const envLock = fullCliEnvLock({ env: process.env });
+      const hostSignals = resolveHostSignals({ env: process.env });
+      const permissions = resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals });
+      let availability: { unavailableReason?: string };
+      if (isHostedAssistantRuntime({ env: process.env }, { hostSignals })) availability = { unavailableReason: "Not available on hosted sites" };
+      else if (!isOwner) availability = { unavailableReason: "Only the owner can change agent permissions." };
+      else if (envLock) availability = { unavailableReason: `Turned off on this computer by ${envLock}.` };
+      else availability = {};
+      return { ...permissions, agents: AGENT_DEFS.map(({ id, name, externalMcpInjection }) => ({ id, name, inheritedRunKey: (externalMcpInjection === "opencode-env-content" || externalMcpInjection === "mimo-env-content") || externalMcpInjection === "env-passthrough", writesPersonalConfig: externalMcpInjection === "env-passthrough" })), ...availability, permissionMode: resolveAgentPermissionMode({ env: process.env }, { hostSignals }) };
+    }
+
+function parseAssistantCliPermissions({ body }: Parameters<NonNullable<Parameters<typeof registerAssistantOwnerGrantRoutes<ReturnType<typeof assistantCliPermissions>>>[0]["parse"]>>[0], _optional: Parameters<NonNullable<Parameters<typeof registerAssistantOwnerGrantRoutes<ReturnType<typeof assistantCliPermissions>>>[0]["parse"]>>[1] = {}): ReturnType<NonNullable<Parameters<typeof registerAssistantOwnerGrantRoutes<ReturnType<typeof assistantCliPermissions>>>[0]["parse"]>> {
+      const overrides = body.capabilities;
+      const malformed = overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides));
+      const unknownCapability = !malformed && overrides !== undefined && Object.entries(overrides).some(([key, value]) => !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key) || typeof value !== "boolean");
+      if (malformed || unknownCapability) {
+        rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "Unknown capability or non-boolean value." });
+      }
+      return assistantCliPermissions({ enabled: body.enabled as boolean,
+        ...(overrides ? { capabilities: overrides as Partial<Record<AssistantCliCapability, boolean>> } : {}) });
+    }

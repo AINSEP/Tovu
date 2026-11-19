@@ -380,6 +380,27 @@ export function installFirstPartyToolContributors(
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
+  installStatusAndAgentTools(contributions, () => findPublishCandidate);
+  const bundledPluginsRoot = installResourceTools(contributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts });
+  installPublishingAndPluginTools(contributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate: () => findPublishCandidate });
+  installWebReadTools(contributions, { createHttpClient, observability });
+  contributions.contributors.register({ contribution: contributeSourceControlTools() });
+  contributions.contributors.register({ contribution: contributeStaticPublishTools() });
+  contributions.contributors.register({ contribution: {
+    domain: "credential-copy", risk: credentialCopyDerivedRisk,
+    build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces, saveNew: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces }).create }),
+  } });
+  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
+  const committedRoot = resolveCommittedConfigRoot();
+  // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
+  // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
+  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
+  installCredentialSaveTools(contributions);
+  installWorkspaceToolContributors(contributions);
+}
+
+function installStatusAndAgentTools(contributions: AssistantToolContributions, getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>) {
+
   toolSearchKeywords({}, { sources: bundledContributionSources });
   contributions.contentTargetInputs = bindContentTargetInputs;
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
@@ -413,7 +434,7 @@ export function installFirstPartyToolContributors(
   // header for why the two halves use different wiring seams.
   contributions.contributors.register({ contribution: contributeIdentityPolicyListPermissionsTools() });
   contributions.contributors.register({ contribution: contributeSitesListTools() });
-  contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? findPublishCandidate }, surfaces) } });
+  contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }, surfaces) } });
   contributions.contributors.register({ contribution: contributeThemeSetPagePublishedTools() });
   contributions.contributors.register({ contribution: contributeAgentPluginSearchTools() });
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
@@ -426,6 +447,10 @@ export function installFirstPartyToolContributors(
         externalMcpOAuth: deps.externalMcpOAuth, apiConnections: deps.apiConnections }),
     }, surfaces);
   } } });
+}
+
+function installResourceTools(contributions: AssistantToolContributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts }: { deployOpsRegistry?: DeployOpsRegistry; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; readExternalMcpToolNames?: NonNullable<Parameters<typeof installFirstPartyToolContributors>[1]>["readExternalMcpToolNames"]; readAdmissions: ExternalMcpOperations["admissions"]; mediaVideoPorts: MediaVideoToolPorts }) {
+
   // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
   // reached through `plugins_uninstall` (`contributePluginsTools()` below, family: "agent-plugin") —
@@ -480,6 +505,11 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
   contributions.contributors.register({ contribution: contributeEmailTemplatesTools() });
+  return bundledPluginsRoot;
+}
+
+function installPublishingAndPluginTools(contributions: AssistantToolContributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate }: { readInstallAttachment: InstallAttachmentReader; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination> }) {
+
   const plugins = contributePluginsTools();
   contributions.contributors.register({ contribution: { ...plugins, build: (deps, surfaces) => plugins.build({ ...deps,
     pluginHost: deps.pluginHost ?? createTovuPluginHost({ deps: { ...deps,
@@ -510,7 +540,7 @@ export function installFirstPartyToolContributors(
   // Publish dialog — see that feature's `tool-registrations.ts` header.
   // Pull planning/execution also use this domain. Inject the HTTP importer's complete projection
   // so registered content types see the same ports through either entry point.
-  contributions.contributors.register({ contribution: contributePublishContentTools({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? findPublishCandidate }) }) });
+  contributions.contributors.register({ contribution: contributePublishContentTools({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }) }) });
   // Those tools count and publish whatever the publish-content TYPE registry holds, and the agent
   // daemon never runs `createApp()` (whose publish-content module is the other caller). Without
   // this line the daemon's registry is empty and every publish answer is "nothing to publish".
@@ -534,6 +564,10 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeSiteGuideTools({}) });
   contributions.contributors.register({ contribution: contributeAssistantHistoryTools({}, {}) });
   contributions.contributors.register({ contribution: contributeSitesTools() });
+}
+
+function installWebReadTools(contributions: AssistantToolContributions, { createHttpClient, observability }: { createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort }) {
+
   // `web_fetch_page` (2026-10-08): reads any PUBLIC page for every assistant path (daemon CLIs and
   // BYOK alike), through its own guarded client — every redirect hop is re-checked for private addresses.
   const publicBrowserPool = createRenderBrowserPool({
@@ -584,17 +618,10 @@ export function installFirstPartyToolContributors(
       saveCaptureFilesFor: (routeDeps) => (request) => createCaptureFileWriter({ rootDir: captureRootFor({ siteDir: routeDeps.siteBinding.dir }) })(request),
     },
   ) });
-  contributions.contributors.register({ contribution: contributeSourceControlTools() });
-  contributions.contributors.register({ contribution: contributeStaticPublishTools() });
-  contributions.contributors.register({ contribution: {
-    domain: "credential-copy", risk: credentialCopyDerivedRisk,
-    build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces, saveNew: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces }).create }),
-  } });
-  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
-  const committedRoot = resolveCommittedConfigRoot();
-  // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
-  // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
-  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
+}
+
+function installCredentialSaveTools(contributions: AssistantToolContributions) {
+
   // One save registration routes metadata to existing domain owners; each keeps its own permission.
   contributions.contributors.register({ contribution: {
     domain: "credential-save", risk: credentialSaveDerivedRisk,
@@ -628,6 +655,10 @@ export function installFirstPartyToolContributors(
       });
     },
   } });
+}
+
+function installWorkspaceToolContributors(contributions: AssistantToolContributions) {
+
   contributions.contributors.register({ contribution: {
     domain: "project-keys", risk: projectKeysRisk,
     build: (deps, surfaces) => buildProjectKeyRegistrations({ keys: deps.projectKeys, surfaces, restart: devRestartPortFromEnv(),

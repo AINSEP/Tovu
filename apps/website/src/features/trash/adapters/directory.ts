@@ -186,8 +186,21 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
   return {
     entityType: deps.entityType,
 
-    async hide(required): Promise<TrashMarkerResult> {
-      const location = await locate(required);
+    async hide(required) {
+      return hideDirectory(await locate(required), optional);
+    },
+
+    async unhide(required) {
+      return unhideDirectory(await locate(required), optional);
+    },
+
+    async purge(required) {
+      return purgeDirectory(await locate(required), deps, required);
+    },
+  };
+}
+
+async function hideDirectory(location: DirectoryTrashLocation, optional: { readonly rename?: typeof rename }): Promise<TrashMarkerResult> {
       if (await exists({ path: location.parkedDir })) {
         return { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: await parkedCount({ parkedDir: location.parkedDir }) };
       }
@@ -210,10 +223,9 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
         throw error;
       }
       return { ok: true, version: null };
-    },
+    }
 
-    async unhide(required): Promise<TrashMarkerResult> {
-      const location = await locate(required);
+async function unhideDirectory(location: DirectoryTrashLocation, optional: { readonly rename?: typeof rename }): Promise<TrashMarkerResult> {
       if (!(await exists({ path: location.parkedDir }))) return { ok: false, reason: "not-found" };
       const parkedNames = await readdir(location.parkedDir);
       if (parkedNames.length === 0) return { ok: false, reason: "not-found" };
@@ -232,10 +244,9 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
       }
       await removeEmptyDir({ path: location.parkedDir });
       return { ok: true, version: null };
-    },
+    }
 
-    async purge(required): Promise<TrashPurgeOutcome> {
-      const location = await locate(required);
+async function purgeDirectory(location: DirectoryTrashLocation, deps: DirectoryTrashAdapterDeps, required: Parameters<TrashAdapter["purge"]>[0]): Promise<TrashPurgeOutcome> {
       if (!(await exists({ path: location.parkedDir }))) return "already-gone";
       const purgingDir = `${location.parkedDir}.purging-${randomUUID()}`;
       await rename(location.parkedDir, purgingDir);
@@ -248,6 +259,4 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
       await makeTreeWritable({ path: purgingDir });
       await rm(purgingDir, { recursive: true, force: true });
       return "purged";
-    },
-  };
-}
+    }

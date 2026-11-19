@@ -186,27 +186,8 @@ export function createSearchContextResolver(
     return installId;
   };
 
-  const credentialsFor = async (provider: SearchProvider): Promise<Record<string, string> | null> => {
-    if (provider.credentialKeys.length === 0) return {};
-    const label = searchCredentialLabel({ providerLabel: provider.label });
-    let saved: SearchVaultCredential | null;
-    try {
-      saved = await required.resolveCredential({ label });
-    } catch (error) {
-      log(`[site-search] the "${label}" credential could not be read (${errorText({ error })})`);
-      return null;
-    }
-    if (saved === null) return null;
-    const picked = pickCredentials(provider, saved);
-    if (typeof picked === "string") {
-      log(`[site-search] ${picked}`);
-      return null;
-    }
-    return picked;
-  };
+  const credentialsFor = (provider: SearchProvider) => searchCredentialsFor(required, provider, log);
 
-  // Plugins whose provider was found disabled; only the transition is logged, not every call.
-  const revoked = new Set<string>();
   /**
    * A plugin's provider is usable only while the plugin is STILL active. Boot loading checked
    * activation once; the registry caches the provider for the process lifetime, so without this
@@ -214,17 +195,7 @@ export function createSearchContextResolver(
    * Every provider call (query, write, reconcile, drop) resolves its context here first, so a
    * disabled plugin's provider is revoked at its very next use, and restored if it is re-enabled.
    */
-  const pluginStillActive = async ({ pluginId }: { pluginId: string | undefined }, _optional = {}): Promise<boolean> => {
-    if (pluginId === undefined) return true;
-    const active = await required.isPluginActive({ pluginId }).catch((error: unknown) => {
-      log(`[site-search] the activation of plugin '${pluginId}' could not be read (${errorText({ error })}); its search provider is not used`);
-      return false;
-    });
-    if (active === revoked.has(pluginId)) log(`[site-search] plugin '${pluginId}' is ${active ? "active again; its search provider is restored" : "no longer active; its search provider is revoked"}`);
-    if (active) revoked.delete(pluginId);
-    else revoked.add(pluginId);
-    return active;
-  };
+  const pluginStillActive = createPluginActivityCheck(required, log);
 
   return async ({ target, workspaceId }) => {
     const registered = registry.get({ id: target.providerId });
@@ -460,5 +431,42 @@ export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Rec
       await writeSetting({ workspaceId, callerPrincipalId: principalId, providerId });
     },
     now,
+  };
+}
+
+async function searchCredentialsFor(required: Parameters<typeof createSearchContextResolver>[0], provider: SearchProvider, log: Parameters<typeof createSearchContextResolver>[0]["log"]): Promise<Record<string, string> | null> {
+
+    if (provider.credentialKeys.length === 0) return {};
+    const label = searchCredentialLabel({ providerLabel: provider.label });
+    let saved: SearchVaultCredential | null;
+    try {
+      saved = await required.resolveCredential({ label });
+    } catch (error) {
+      log(`[site-search] the "${label}" credential could not be read (${errorText({ error })})`);
+      return null;
+    }
+    if (saved === null) return null;
+    const picked = pickCredentials(provider, saved);
+    if (typeof picked === "string") {
+      log(`[site-search] ${picked}`);
+      return null;
+    }
+    return picked;
+  
+}
+
+function createPluginActivityCheck(required: Parameters<typeof createSearchContextResolver>[0], log: Parameters<typeof createSearchContextResolver>[0]["log"]) {
+  // Plugins whose provider was found disabled; only the transition is logged, not every call.
+  const revoked = new Set<string>();
+  return async ({ pluginId }: { pluginId: string | undefined }, _optional = {}): Promise<boolean> => {
+    if (pluginId === undefined) return true;
+    const active = await required.isPluginActive({ pluginId }).catch((error: unknown) => {
+      log(`[site-search] the activation of plugin '${pluginId}' could not be read (${errorText({ error })}); its search provider is not used`);
+      return false;
+    });
+    if (active === revoked.has(pluginId)) log(`[site-search] plugin '${pluginId}' is ${active ? "active again; its search provider is restored" : "no longer active; its search provider is revoked"}`);
+    if (active) revoked.delete(pluginId);
+    else revoked.add(pluginId);
+    return active;
   };
 }

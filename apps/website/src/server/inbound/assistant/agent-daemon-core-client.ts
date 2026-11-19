@@ -32,11 +32,34 @@ export interface DaemonCoreClient {
  * @example const site = createDaemonCoreClient({ baseUrl, token });
  */
 export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; token: string }, options: { fetch?: typeof fetch } = {}): DaemonCoreClient {
+
   const endpoint = new URL("/internal/agent-daemon-core", baseUrl);
   if (!["http:", "https:"].includes(endpoint.protocol) || !["127.0.0.1", "localhost", "[::1]"].includes(endpoint.hostname) || !token) {
     throw new DaemonCoreError({ reason: "the daemon needs its site's authenticated loopback listener" });
   }
+  const transport = createDaemonCoreTransport(endpoint, token, options);
+  const { call } = transport;
+  const durable = createDaemonDurableStore(call);
+  const telemetry = createDaemonTelemetry(transport.transmit);
+  const { send, flush } = telemetry;
+  const tracker = createDaemonTracker(send);
+  const readEffective = createDaemonSettingsReader(call);
+  return { bootstrap: async () => daemonCoreSnapshot.parse(await call({ operation: "bootstrap", input: {} })), durable,
+    getEffective: readEffective, tracker, flush, close: async () => { telemetry.stop(); await flush(); },
+    readToolConsentSnapshot: async (input: DaemonCliConsentTarget, _options = {}) => daemonToolConsentSnapshot.parse(await call({ operation: "cliConsentSnapshot", input })),
+    allowRunTools: async (input: DaemonCliConsentAllow, _options = {}) => z.boolean().parse(await call({ operation: "cliConsentAllow", input: { ...input, keys: [...input.keys] } })),
+    getSessionForAttempt: async (input: { runId: string }, _options = {}) => z.string().nullable().parse(await call({ operation: "sessionForAttempt", input })),
+    trace: ({ capture }: { capture: AiContentCapture }, _options = {}): AiTraceSink => {
+      transport.setCapture(capture);
+      return { get capture() { return transport.capture; },
+        record: (event: AiTraceEvent) => send({ operation: "telemetryTrace", input: event }), flush };
+    },
+  };
+}
+
+function createDaemonCoreTransport(endpoint: URL, token: string, options: { fetch?: typeof fetch }) {
   let traceCapture: AiContentCapture = "metadata";
+
   /** One owner call, never retrying an uncertain write. The envelope distinguishes null from refusal. */
   async function call(request: DaemonCoreRequest): Promise<unknown> { return transmit({ body: JSON.stringify(request) }); }
   /** Send an already serialized host envelope without retaining a second object graph. */
@@ -52,7 +75,11 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     if (envelope.traceCapture !== undefined) traceCapture = envelope.traceCapture;
     return envelope.value;
   }
-  const durable: DaemonDurableRunStore = {
+  return { call, transmit, get capture() { return traceCapture; }, setCapture(capture: AiContentCapture) { traceCapture = capture; } };
+}
+
+function createDaemonDurableStore(call: ReturnType<typeof createDaemonCoreTransport>["call"]): DaemonDurableRunStore {
+  return {
     find: async input => {
       const value = await call({ operation: "find", input });
       if (value === null) return null;
@@ -67,6 +94,10 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     guardTool: async input => z.enum(["allowed", "unknown", "stale"]).parse(await call({ operation: "guardTool", input })),
     completeTool: async input => { await call({ operation: "completeTool", input }); },
   };
+}
+
+function createDaemonTelemetry(transmit: ReturnType<typeof createDaemonCoreTransport>["transmit"]) {
+
   let tail: Promise<void> = Promise.resolve();
   let queued = 0;
   let queuedBytes = 0;
@@ -87,17 +118,6 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
       console.warn("[agent-daemon] telemetry delivery failed");
     }).finally(() => { queued--; queuedBytes -= bytes; });
   }
-  const tracker: Tracker = { ...createTracker({}),
-    capture: (input: { name: string; userId: string }, optional: { properties?: Readonly<Record<string, string | number | boolean>> } = {}) => {
-      send({ operation: "telemetryCapture", input: { ...input, ...optional } });
-    },
-    error: (input: Parameters<ReturnType<typeof createTracker>["error"]>[0], optional: Parameters<ReturnType<typeof createTracker>["error"]>[1] = {}) => {
-      const error = redactedError({ error: input.error }, { exactSecrets: optional.context?.exactSecrets });
-      send({ operation: "telemetryError", input: { name: error.name, message: error.message, stack: error.stack,
-        operation: optional.context?.operation ?? optional.context?.route ?? "daemon", level: optional.context?.level,
-        attributes: { ...optional.context?.attributes, process: "daemon" } } });
-    },
-  };
   /** Drain this client's accepted events and the trace sink; never dispose server provider leases. */
   async function flush(): Promise<void> {
     let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -109,22 +129,29 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     try { await Promise.race([drain, expired]); }
     finally { clearTimeout(deadline); }
   }
+  return { send, flush, stop() { stopped = true; } };
+}
+
+function createDaemonTracker(send: ReturnType<typeof createDaemonTelemetry>["send"]): Tracker {
+  return { ...createTracker({}),
+    capture: (input: { name: string; userId: string }, optional: { properties?: Readonly<Record<string, string | number | boolean>> } = {}) => {
+      send({ operation: "telemetryCapture", input: { ...input, ...optional } });
+    },
+    error: (input: Parameters<ReturnType<typeof createTracker>["error"]>[0], optional: Parameters<ReturnType<typeof createTracker>["error"]>[1] = {}) => {
+      const error = redactedError({ error: input.error }, { exactSecrets: optional.context?.exactSecrets });
+      send({ operation: "telemetryError", input: { name: error.name, message: error.message, stack: error.stack,
+        operation: optional.context?.operation ?? optional.context?.route ?? "daemon", level: optional.context?.level,
+        attributes: { ...optional.context?.attributes, process: "daemon" } } });
+    },
+  };
+}
+
+function createDaemonSettingsReader(call: ReturnType<typeof createDaemonCoreTransport>["call"]): typeof getEffective {
   // The repo stays on this side of the RPC; only the setting coordinate crosses it.
-  const readEffective: typeof getEffective = async ({ deps: _deps, ...input }) => {
+  return async ({ deps: _deps, ...input }) => {
     const value = await call({ operation: "getEffective", input: input as Extract<DaemonCoreRequest, { operation: "getEffective" }>["input"] });
     if (value === null) return null;
     z.object({ value: z.unknown(), sourceLayer: z.string() }).parse(value);
     return value as Awaited<ReturnType<typeof getEffective>>;
-  };
-  return { bootstrap: async () => daemonCoreSnapshot.parse(await call({ operation: "bootstrap", input: {} })), durable,
-    getEffective: readEffective, tracker, flush, close: async () => { stopped = true; await flush(); },
-    readToolConsentSnapshot: async (input: DaemonCliConsentTarget, _options = {}) => daemonToolConsentSnapshot.parse(await call({ operation: "cliConsentSnapshot", input })),
-    allowRunTools: async (input: DaemonCliConsentAllow, _options = {}) => z.boolean().parse(await call({ operation: "cliConsentAllow", input: { ...input, keys: [...input.keys] } })),
-    getSessionForAttempt: async (input: { runId: string }, _options = {}) => z.string().nullable().parse(await call({ operation: "sessionForAttempt", input })),
-    trace: ({ capture }: { capture: AiContentCapture }, _options = {}): AiTraceSink => {
-      traceCapture = capture;
-      return { get capture() { return traceCapture; },
-        record: (event: AiTraceEvent) => send({ operation: "telemetryTrace", input: event }), flush };
-    },
   };
 }

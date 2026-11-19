@@ -65,31 +65,7 @@ export function deviceAad({ workspaceId, serverId }: { workspaceId: UUID; server
 export function createSqlDeviceAuthorizationStore(deps: SqlDeviceAuthorizationStoreDeps, _optional: Record<string, never> = {}): DeviceAuthorizationStore {
   const { kernel } = deps;
   return {
-    async put(serverId, authorization) {
-      const sealed = await deps.sealer.seal({
-        plaintext: authorization.deviceCode,
-        key: await deps.keyring.activeKey(),
-        aad: deviceAad({ workspaceId: deps.workspaceId, serverId }),
-      });
-      const row: Insertable<OauthDeviceAuthorizationsTable> = {
-        workspace_id: deps.workspaceId,
-        server_id: serverId,
-        user_code: authorization.userCode,
-        verification_uri: authorization.verificationUri,
-        verification_uri_complete: authorization.verificationUriComplete,
-        interval_seconds: authorization.intervalSeconds,
-        expires_at: authorization.expiresAt,
-        ...sealedColumnValues(sealed),
-        created_at: readNowIso({ clock: deps.clock }),
-      };
-      await kernel.run((db) =>
-        db
-          .insertInto("oauth_device_authorizations")
-          .values(row)
-          .onConflict((oc) => oc.columns(["workspace_id", "server_id"]).doUpdateSet(row))
-          .execute()
-      );
-    },
+    put: createDeviceAuthorizationWriter(deps, kernel),
 
     async get(serverId) {
       const row: Selectable<OauthDeviceAuthorizationsTable> | undefined = await kernel.run((db) =>
@@ -119,4 +95,32 @@ export function createSqlDeviceAuthorizationStore(deps: SqlDeviceAuthorizationSt
       );
     },
   };
+}
+
+function createDeviceAuthorizationWriter(deps: SqlDeviceAuthorizationStoreDeps, kernel: ContentKernel): DeviceAuthorizationStore["put"] {
+  return async function put(serverId, authorization) {
+      const sealed = await deps.sealer.seal({
+        plaintext: authorization.deviceCode,
+        key: await deps.keyring.activeKey(),
+        aad: deviceAad({ workspaceId: deps.workspaceId, serverId }),
+      });
+      const row: Insertable<OauthDeviceAuthorizationsTable> = {
+        workspace_id: deps.workspaceId,
+        server_id: serverId,
+        user_code: authorization.userCode,
+        verification_uri: authorization.verificationUri,
+        verification_uri_complete: authorization.verificationUriComplete,
+        interval_seconds: authorization.intervalSeconds,
+        expires_at: authorization.expiresAt,
+        ...sealedColumnValues(sealed),
+        created_at: readNowIso({ clock: deps.clock }),
+      };
+      await kernel.run((db) =>
+        db
+          .insertInto("oauth_device_authorizations")
+          .values(row)
+          .onConflict((oc) => oc.columns(["workspace_id", "server_id"]).doUpdateSet(row))
+          .execute()
+      );
+    };
 }

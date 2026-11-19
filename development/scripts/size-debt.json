@@ -829,13 +829,6 @@
     },
     {
       "file": "apps/website/src/features/theme/publish-content.ts",
-      "function": "buildHandler#1.apply#1",
-      "line": 702,
-      "rule": "max-lines-per-function",
-      "value": 98
-    },
-    {
-      "file": "apps/website/src/features/theme/publish-content.ts",
       "function": "<file>",
       "line": 814,
       "rule": "max-lines",
@@ -856,39 +849,11 @@
       "value": 190
     },
     {
-      "file": "apps/website/src/platform/site-dir/local-site-supervisor.ts",
-      "function": "createLocalSiteSupervisor#1",
-      "line": 62,
-      "rule": "max-lines-per-function",
-      "value": 218
-    },
-    {
       "file": "apps/website/src/server/inbound/admin-http/dev-auth.ts",
       "function": "registerAuthRoutes#1",
       "line": 584,
       "rule": "max-lines-per-function",
       "value": 183
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/pages/update.ts",
-      "function": "registerAdminPageUpdateRoute#1",
-      "line": 130,
-      "rule": "max-lines-per-function",
-      "value": 91
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/pages/update.ts",
-      "function": "registerAdminPageUpdateRoute#1.<anonymous>#1",
-      "line": 134,
-      "rule": "max-lines-per-function",
-      "value": 85
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts",
-      "function": "registerPublishContentDestinationRoutes#1",
-      "line": 128,
-      "rule": "max-lines-per-function",
-      "value": 133
     },
     {
       "file": "apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts",
@@ -926,46 +891,11 @@
       "value": 597
     },
     {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts",
-      "function": "createDaemonCoreClient#1",
-      "line": 34,
-      "rule": "max-lines-per-function",
-      "value": 87
-    },
-    {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
-      "function": "createSiteScope#1",
-      "line": 187,
-      "rule": "max-lines-per-function",
-      "value": 828
-    },
-    {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
-      "function": "createSiteScope#1.onStarted#1",
-      "line": 670,
-      "rule": "max-lines-per-function",
-      "value": 440
-    },
-    {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
-      "function": "createSiteScope#1.onStarted#1.<anonymous>#4",
-      "line": 864,
-      "rule": "max-lines-per-function",
-      "value": 84
-    },
-    {
       "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
       "function": "<file>",
       "line": 989,
       "rule": "max-lines",
       "value": 945
-    },
-    {
-      "file": "apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts",
-      "function": "createDaemonSiteTools#1",
-      "line": 34,
-      "rule": "max-lines-per-function",
-      "value": 111
     },
     {
       "file": "apps/website/src/server/runtime/composition/deps.ts",
@@ -1015,20 +945,6 @@
       "line": 661,
       "rule": "max-lines-per-function",
       "value": 105
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/provider-plugins.ts",
-      "function": "bootProviderPlugins#1",
-      "line": 332,
-      "rule": "max-lines-per-function",
-      "value": 147
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/tool-catalog-manifest.ts",
-      "function": "installFirstPartyToolContributors#1",
-      "line": 347,
-      "rule": "max-lines-per-function",
-      "value": 252
     }
   ]
 }

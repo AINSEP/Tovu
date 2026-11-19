@@ -31,7 +31,19 @@ import type { TrashEntityType, TrashEntry, TrashRegistry } from "@jini-ai/cms/tr
  */
 export function buildTrashRegistry(): TrashRegistry {
   return new Map<TrashEntityType, TrashEntry>([
-    [
+    createEmailTemplateTrashEntry(),
+    createMemberTrashEntry(),
+    createFormTrashEntry(),
+    createFormSubmissionTrashEntry(),
+    createWidgetTrashEntry(),
+    createMenuTrashEntry(),
+    createTermTrashEntry(),
+    createTaxonomyTrashEntry(),
+  ]);
+}
+
+function createEmailTemplateTrashEntry(): [TrashEntityType, TrashEntry] {
+  return [
       "email-template",
       {
         entityType: "email-template",
@@ -51,8 +63,11 @@ export function buildTrashRegistry(): TrashRegistry {
           { table: "post_search_document", parentIdColumn: "post_id" },
         ],
       },
-    ],
-    [
+    ];
+}
+
+function createMemberTrashEntry(): [TrashEntityType, TrashEntry] {
+  return [
       "member",
       {
         entityType: "member",
@@ -76,8 +91,11 @@ export function buildTrashRegistry(): TrashRegistry {
         ],
         // member_revisions is an append-only audit ledger, not an account's disposable child.
       },
-    ],
-    [
+    ];
+}
+
+function createFormTrashEntry(): [TrashEntityType, TrashEntry] {
+  return [
       "form",
       {
         entityType: "form",
@@ -95,8 +113,11 @@ export function buildTrashRegistry(): TrashRegistry {
         // this exact case as its example; it was missing here (RED-first regression test).
         purgeFirst: [{ table: "form_submissions", parentIdColumn: "form_definition_id", idColumn: "id", entityType: "form_submission" }],
       },
-    ],
-    [
+    ];
+}
+
+function createFormSubmissionTrashEntry(): [TrashEntityType, TrashEntry] {
+  return [
       "form_submission",
       {
         entityType: "form_submission",
@@ -116,8 +137,11 @@ export function buildTrashRegistry(): TrashRegistry {
           join: { table: "form_definitions", on: ["form_definitions.id", "form_submissions.form_definition_id"] },
         },
       },
-    ],
-    [
+    ];
+}
+
+function createWidgetTrashEntry(): [TrashEntityType, TrashEntry] {
+  return [
       "widget",
       {
         entityType: "widget",
@@ -141,8 +165,11 @@ export function buildTrashRegistry(): TrashRegistry {
           { table: "entry_revisions", parentIdColumn: "entry_id" },
         ],
       },
-    ],
-    [
+    ];
+}
+
+function createMenuTrashEntry(): [TrashEntityType, TrashEntry] {
+  return [
       "menu",
       {
         entityType: "menu",
@@ -165,8 +192,11 @@ export function buildTrashRegistry(): TrashRegistry {
         // rather than refusing. No `entityType`: bindings are not a `TRASHABLE` kind of their own.
         purgeFirst: [{ table: "nav_location_bindings", parentIdColumn: "menu_id" }],
       },
-    ],
-    [
+    ];
+}
+
+function createTermTrashEntry(): [TrashEntityType, TrashEntry] {
+  return [
       "term",
       {
         entityType: "term",
@@ -201,8 +231,11 @@ export function buildTrashRegistry(): TrashRegistry {
           parentMarker: { kind: "status", column: "status", trashed: "trash", restoreFallback: "active" },
         },
       },
-    ],
-    [
+    ];
+}
+
+function createTaxonomyTrashEntry(): [TrashEntityType, TrashEntry] {
+  return [
       "taxonomy",
       {
         entityType: "taxonomy",
@@ -228,6 +261,5 @@ export function buildTrashRegistry(): TrashRegistry {
           { table: "terms", parentIdColumn: "taxonomy_id", idColumn: "id", entityType: "term" },
         ],
       },
-    ],
-  ]);
+    ];
 }

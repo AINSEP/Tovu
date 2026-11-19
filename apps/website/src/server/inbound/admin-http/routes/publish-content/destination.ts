@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import type { Express } from "express";
+import type { Express, RequestHandler, Response } from "express";
 
 import { normalizePeerBaseUrl } from "#src/features/publish-content/peer-url";
 import {
@@ -132,9 +132,19 @@ export function registerPublishContentDestinationRoutes(
 
   /** Mount-path 404 plus the `publish_content.apply` gate — connecting authorises future writes to
    *  a live site, so it is gated as a write, not as a read. */
-  const guard = async (
+  const guard = createDestinationGuard(deps);
+
+  app.get(base, createDestinationReadHandler({ deps, own, guard }));
+
+  app.post(`${base}/connect`, createDestinationConnectHandler({ deps, own, guard }));
+
+  app.post(`${base}/disconnect`, createDestinationDisconnectHandler({ deps, own, guard }));
+}
+
+function createDestinationGuard(deps: PublishContentRouteDeps) {
+  return async (
     req: { params: Record<string, string | undefined> },
-    res: Parameters<Parameters<typeof app.post>[1]>[1]
+    res: Response
   ): Promise<boolean> => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -147,8 +157,10 @@ export function registerPublishContentDestinationRoutes(
       workspaceId: deps.workspaceId,
     } });
   };
+}
 
-  app.get(base, async (req, res) => {
+function createDestinationReadHandler({ deps, own, guard }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps; guard: ReturnType<typeof createDestinationGuard> }): RequestHandler {
+  return async (req, res) => {
     try {
       if (!(await guard(req, res))) return;
       const site = await connectedSite(deps);
@@ -180,9 +192,11 @@ export function registerPublishContentDestinationRoutes(
     } catch (err) {
       respondWithError({ res, err });
     }
-  });
+  };
+}
 
-  app.post(`${base}/connect`, async (req, res) => {
+function createDestinationConnectHandler({ deps, own, guard }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps; guard: ReturnType<typeof createDestinationGuard> }): RequestHandler {
+  return async (req, res) => {
     try {
       if (!(await guard(req, res))) return;
 
@@ -212,23 +226,7 @@ export function registerPublishContentDestinationRoutes(
         return;
       }
 
-      const trustDeps = {
-        httpClient: deps.publishContentPeerHttpClient,
-        keyring: deps.siteAssistantSecretKeyring,
-        provisioning: own.provisioning,
-        clock: deps.clock,
-        workspaceId: deps.workspaceId,
-      };
-      const { site, grant } = await connectAndRecordDestination({
-        deps: {
-          repo: deps.publishContentPeerRepo,
-          clock: deps.clock,
-          idGen: deps.idGen,
-          connectGrant: (input, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input }),
-          reverseGrant: () => disconnectDestination({ deps: trustDeps }),
-        },
-        input: { workspaceId: deps.workspaceId, baseUrl: normalized.baseUrl, entityTypes },
-      });
+      const { site, grant } = await connectPublishDestination({ deps, own, baseUrl: normalized.baseUrl, entityTypes });
 
       const view: PublishDestinationView = {
         connected: true,
@@ -241,9 +239,11 @@ export function registerPublishContentDestinationRoutes(
     } catch (err) {
       respondWithError({ res, err });
     }
-  });
+  };
+}
 
-  app.post(`${base}/disconnect`, async (req, res) => {
+function createDestinationDisconnectHandler({ deps, own, guard }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps; guard: ReturnType<typeof createDestinationGuard> }): RequestHandler {
+  return async (req, res) => {
     try {
       if (!(await guard(req, res))) return;
       const removed = await disconnectAndForgetDestination({
@@ -273,5 +273,25 @@ export function registerPublishContentDestinationRoutes(
     } catch (err) {
       respondWithError({ res, err });
     }
-  });
+  };
+}
+
+function connectPublishDestination({ deps, own, baseUrl, entityTypes }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps; baseUrl: string; entityTypes: string[] }) {
+      const trustDeps = {
+        httpClient: deps.publishContentPeerHttpClient,
+        keyring: deps.siteAssistantSecretKeyring,
+        provisioning: own.provisioning,
+        clock: deps.clock,
+        workspaceId: deps.workspaceId,
+      };
+      return connectAndRecordDestination({
+        deps: {
+          repo: deps.publishContentPeerRepo,
+          clock: deps.clock,
+          idGen: deps.idGen,
+          connectGrant: (input, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input }),
+          reverseGrant: () => disconnectDestination({ deps: trustDeps }),
+        },
+        input: { workspaceId: deps.workspaceId, baseUrl, entityTypes },
+      });
 }

@@ -348,6 +348,51 @@ async function listKnownSlots({ runtime }: { runtime: BootProviderPluginsRequire
  * @complexity O(p) settings reads plus one load and one bounded initialization per configured provider.
  */
 export async function bootProviderPlugins(required: BootProviderPluginsRequired, optional: BootProviderPluginsOptional = {}): Promise<ProviderPluginPorts> {
+  const prelude = createProviderPluginPrelude(required, optional);
+  const slots = await listKnownSlots({ runtime: required.runtime });
+  const state = createProviderPluginState(required, optional, { ...prelude, slots });
+
+  const leases = new Map<ProviderContract, unknown[]>();
+  for (const slot of state.slots.filter(isTelemetrySlot)) {
+    if (slot.contract === "observability" || slot.contract === "product_analytics") state.delivery.register({ providerId: `${slot.pluginId}/${slot.id}` });
+    leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe: state.testProbe })]);
+  }
+  await Promise.all([...new Set(state.slots.map(slot => slot.pluginId))].map(pluginId => reapply(state, { pluginId })));
+  // Declared collection choices remain visible even when their first initialization failed.
+  state.formCollectionRegistry = formRegistryFor({ slots: state.slots, testProbe: state.testProbe });
+  const product = await bootProductTelemetryFromEnv({ env: state.optional.env, processRole: state.required.processRole }, { warn: state.warn, ...state.optional.productTelemetry });
+  const { shutdownGenerations, siteTracker, ...ports } = composePorts({ leases, consent: state.required.consent, consentRevision: state.required.consentRevision, site: state.required.site, warn: state.warn, product });
+  state.tracker = ports.tracker;
+  // Boot settles before a tracker exists. Flush only through the healthy, consenting facade;
+  // local diagnostics remain authoritative when analytics itself failed to initialize.
+  for (const event of state.initializations) void state.tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
+  state.initializations.length = 0;
+  let disposal: Promise<void> | undefined;
+  return { ...ports, formCollectionProviders: () => state.formCollectionRegistry,
+    paymentProviders: () => state.slots.flatMap(slot => {
+      if (slot.contract !== "payments" || !slot.lease?.isCurrent({})) return [];
+      const item = leasedProviderItem({ pluginId: slot.pluginId, lease: slot.lease });
+      return "problem" in item ? [] : [item];
+    }),
+    telemetryStatus: () => state.delivery.read({}).map(status => ({ ...status,
+      ...(state.slots.some(slot => slot.contract === 'observability' && `${slot.pluginId}/${slot.id}` === status.providerId) ? { exportEnabled: state.exportEnabled } : {}),
+    })),
+    observabilityEnabled: () => state.slots.some(slot => slot.contract === "observability" && slot.lease?.isCurrent({}) === true),
+    sendTelemetryTest: ({ error }) => state.testProbe.send({ tracker: siteTracker ?? ports.tracker, error, userId: `site:${state.required.site.siteId}` }),
+    reapply: input => reapply(state, input), appliesAt: ({ pluginId }) => state.applied.get(pluginId) ?? "now",
+    async dispose() {
+      state.closed = true;
+      // A concurrent fatal flush must await the same drain already started by store teardown.
+      disposal ??= Promise.all(state.queues.values()).then(async () => {
+        await Promise.all([shutdownGenerations(), state.host.dispose({}), product?.dispose()]);
+      });
+      await disposal;
+    } };
+}
+
+function createProviderPluginPrelude(required: BootProviderPluginsRequired, optional: BootProviderPluginsOptional) {
+
+
   const release = required.release ?? processBuildRelease({});
   const exportEnabled = resolveTovuObservabilityExport({ env: optional.env });
   // Factory options are host-owned; analytics and AI tracing retain their existing policies.
@@ -357,7 +402,12 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const delivery = createTelemetryDeliveryMonitor({ warn });
   const testProbe = createTelemetryTestProbe({});
   const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
-  const slots = await listKnownSlots({ runtime: required.runtime });
+  return { release, exportEnabled, exportOptions, warn, delivery, testProbe, timeoutMs };
+}
+
+function createProviderPluginState(required: BootProviderPluginsRequired, optional: BootProviderPluginsOptional, setup: ReturnType<typeof createProviderPluginPrelude> & { slots: ProviderSlot[] }) {
+  const { release, exportEnabled, exportOptions, warn, delivery, testProbe, timeoutMs, slots } = setup;
+
   let formCollectionRegistry = createFormCollectionRegistry({});
   const loaded = new Set<string>();
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {
@@ -366,42 +416,49 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   });
   const queues = new Map<string, Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>>();
   const applied = new Map<string, "now" | "restart" | "failed">();
-  let tracker: Tracker | undefined;
+  const tracker = undefined as Tracker | undefined;
   const initializations: import('@jini-ai/core/contracts/observability').ProductEvent[] = [];
-  function initialization({ slot, outcome, reasonClass }: { slot: ProviderSlot; outcome: 'success' | 'failure' | 'noop'; reasonClass: 'ready' | 'not_configured' | 'initialization_failed' }): void {
-    slot.initializationObserved = true;
-    const event = { name: 'provider_initialized', userId: `site:${required.site.siteId}`,
-      properties: { contract: slot.contract, providerId: slot.id, outcome, reasonClass } };
-    if (tracker) void tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
-    else initializations.push(event);
-  }
   let closed = false;
+  return { required, optional, release, exportEnabled, exportOptions, warn, delivery, testProbe, timeoutMs, slots, formCollectionRegistry, loaded, host, queues, applied, tracker, initializations, closed };
+}
+
+type ProviderPluginState = Awaited<ReturnType<typeof createProviderPluginState>>;
+
+  function initialization(state: ProviderPluginState, { slot, outcome, reasonClass }: { slot: ProviderSlot; outcome: 'success' | 'failure' | 'noop'; reasonClass: 'ready' | 'not_configured' | 'initialization_failed' }): void {
+    slot.initializationObserved = true;
+    const event = { name: 'provider_initialized', userId: `site:${state.required.site.siteId}`,
+      properties: { contract: slot.contract, providerId: slot.id, outcome, reasonClass } };
+    if (state.tracker) void state.tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
+    else state.initializations.push(event);
+  }
+
   /** Extracted from replaceSlot to keep its complexity down: true when the saved config is unchanged. */
-  function noteUnchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
+  function noteUnchangedSlot(state: ProviderPluginState, { slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
     if (!unchangedSlot({ slot, signature })) return false;
-    if (!slot.initializationObserved) initialization({ slot, outcome: 'noop', reasonClass: 'not_configured' });
+    if (!slot.initializationObserved) initialization(state, { slot, outcome: 'noop', reasonClass: 'not_configured' });
     return true;
   }
-  async function replaceSlot({ slot, saved }: { slot: ProviderSlot; saved: ProviderPluginConfig | null }, _optional = {}): Promise<void> {
+
+  async function replaceSlot(state: ProviderPluginState, { slot, saved }: { slot: ProviderSlot; saved: ProviderPluginConfig | null }, _optional = {}): Promise<void> {
     const input = providerInputOf({ declaration: slot.declaration, saved });
     const signature = input === undefined ? undefined : JSON.stringify(input);
-    if (noteUnchangedSlot({ slot, signature })) return;
+    if (noteUnchangedSlot(state, { slot, signature })) return;
     const old = slot.lease;
     // Reconfiguration/revocation drops queued exports before SDK shutdown can flush the old key.
     slot.retirement.abort();
     const retirement = new AbortController();
     slot.retirement = retirement;
     try {
-      const lease = input ? await host.initialize({ contract: slot.contract, id: slot.id,
+      const lease = input ? await state.host.initialize({ contract: slot.contract, id: slot.id,
         // Host environment is only a default: a card's saved environment (Sentry) wins, and a blank one
         // is already dropped by providerInputOf. Release stays host-owned; no card declares it.
-        input: { environment: required.site.environment, ...input, serviceName: required.serviceName, release,
-          attribution: attributionFor({ contract: slot.contract, site: required.site }, { release }) } }, {
+        input: { environment: state.required.site.environment, ...input, serviceName: state.required.serviceName, release: state.release,
+          attribution: attributionFor({ contract: slot.contract, site: state.required.site }, { release: state.release }) } }, {
         factoryOptions: {
-          ...exportOptions(slot.contract),
+          ...state.exportOptions(slot.contract),
           signal: retirement.signal,
-          reportTelemetry: (report: ProviderTelemetryReport) => delivery.report({ providerId: `${slot.pluginId}/${slot.id}`, report }),
-          info: optional.info ?? ((message: string) => console.info(message)),
+          reportTelemetry: (report: ProviderTelemetryReport) => state.delivery.report({ providerId: `${slot.pluginId}/${slot.id}`, report }),
+          info: state.optional.info ?? ((message: string) => console.info(message)),
         },
       }) : undefined;
       if (input && !lease) throw new Error("ProviderUnavailable");
@@ -414,110 +471,81 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
       throw error;
     } finally { await old?.dispose({}); }
   }
+
   /** Success reflects the complete plugin, since a later failure retires every earlier lease.
    * @complexity O(s * f) for s slots with f declared settings; O(s) pending observations. */
-  async function applySlots({ selected, saved }: { selected: ProviderSlot[]; saved: ProviderPluginConfig | null }): Promise<void> {
+  async function applySlots(state: ProviderPluginState, { selected, saved }: { selected: ProviderSlot[]; saved: ProviderPluginConfig | null }): Promise<void> {
     const changed: ProviderSlot[] = [];
     for (const slot of selected) {
       const input = providerInputOf({ declaration: slot.declaration, saved });
       if (!unchangedSlot({ slot, signature: input === undefined ? undefined : JSON.stringify(input) })) changed.push(slot);
-      await replaceSlot({ slot, saved });
+      await replaceSlot(state, { slot, saved });
     }
-    for (const slot of changed) initialization({ slot, outcome: slot.lease ? 'success' : 'noop', reasonClass: slot.lease ? 'ready' : 'not_configured' });
+    for (const slot of changed) noteSlotInitialization(state, slot);
   }
+
   /** Reuse a current registration, otherwise admit the configured plugin through the runtime owner.
    * @throws Error when admission fails; apply owns retiring all of the plugin's leases.
    * @complexity O(s * f + r) for selected slots, fields and registered contributions; one bounded load.
    */
-  async function ensureLoaded({ pluginId, selected, saved }: { pluginId: string; selected: readonly ProviderSlot[]; saved: ProviderPluginConfig | null }, _optional = {}): Promise<void> {
+  async function ensureLoaded(state: ProviderPluginState, { pluginId, selected, saved }: { pluginId: string; selected: readonly ProviderSlot[]; saved: ProviderPluginConfig | null }, _optional = {}): Promise<void> {
     if (!selected.some(slot => providerInputOf({ declaration: slot.declaration, saved }))) return;
-    if (loaded.has(pluginId) && required.runtime.providerContributions.list({}).some(snapshot => snapshot.pluginId === pluginId)) return;
-    const admitted = await required.runtime.loadProviderPlugins({ pluginIds: [pluginId] }, { timeoutMs });
+    if (state.loaded.has(pluginId) && state.required.runtime.providerContributions.list({}).some(snapshot => snapshot.pluginId === pluginId)) return;
+    const admitted = await state.required.runtime.loadProviderPlugins({ pluginIds: [pluginId] }, { timeoutMs: state.timeoutMs });
     if (!admitted.includes(pluginId)) throw new Error("ProviderUnavailable");
-    loaded.add(pluginId);
+    state.loaded.add(pluginId);
   }
+
   /** Re-read only on a newly enabled plugin; stateless collection declarations join the existing host.
    * @complexity O(p + s) manifest metadata once per new plugin, with no per-request reads. */
-  async function selectSlots({ pluginId }: { pluginId: string }): Promise<ProviderSlot[]> {
-    let selected = slots.filter(slot => slot.pluginId === pluginId);
+  async function selectSlots(state: ProviderPluginState, { pluginId }: { pluginId: string }): Promise<ProviderSlot[]> {
+    let selected = state.slots.filter(slot => slot.pluginId === pluginId);
     if (selected.length === 0) {
       // The runtime already applies enabled-plugin changes here. Collection providers are stateless,
       // so admit their new declarations through the same loader and host rather than requiring reboot.
-      const plugin = (await required.runtime.listProviderPlugins({})).find(item => item.pluginId === pluginId);
+      const plugin = (await state.required.runtime.listProviderPlugins({})).find(item => item.pluginId === pluginId);
       selected = (plugin?.providers ?? []).filter(declaration => declaration.contract === 'form_collection').map(declaration => ({
         pluginId, contract: 'form_collection' as const, id: declaration.id, declaration, retirement: new AbortController(),
       }));
-      slots.push(...selected);
+      state.slots.push(...selected);
     }
     return selected;
   }
+
   /** Apply one saved snapshot, retiring every selected lease on failure and logging only its class.
    * @returns Live-apply timing; missing slots and closed hosts require restart; initialization/admission failures carry safe guidance.
    * @complexity O(s * f + r) slot settings/registrations plus bounded provider load and initialization.
    */
-  async function apply({ pluginId }: { pluginId: string }, _optional = {}): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult> {
-    if (closed) return "restart";
+  async function apply(state: ProviderPluginState, { pluginId }: { pluginId: string }, _optional = {}): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult> {
+    if (state.closed) return "restart";
     let selected: ProviderSlot[] = [];
     try {
-      selected = await selectSlots({ pluginId });
+      selected = await selectSlots(state, { pluginId });
       if (selected.length === 0) return "restart";
-      const saved = await required.config.read({ pluginId });
+      const saved = await state.required.config.read({ pluginId });
       const restartBrowser = selected.some(slot => browserNeedsRestart({ slot, saved }));
-      await ensureLoaded({ pluginId, selected, saved });
-      await applySlots({ selected, saved });
-      if (selected.some(slot => slot.contract === "form_collection")) formCollectionRegistry = formRegistryFor({ slots, testProbe });
+      await ensureLoaded(state, { pluginId, selected, saved });
+      await applySlots(state, { selected, saved });
+      if (selected.some(slot => slot.contract === "form_collection")) state.formCollectionRegistry = formRegistryFor({ slots: state.slots, testProbe: state.testProbe });
       return restartBrowser ? 'restart' : 'now';
     } catch (error) {
-      for (const slot of selected) initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
+      for (const slot of selected) initialization(state, { slot, outcome: 'failure', reasonClass: 'initialization_failed' });
       const retired = selected.map(slot => { slot.retirement.abort(); const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
       await Promise.all(retired.map(lease => lease?.dispose({})));
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
       // Names are allowlisted too: custom Error.name values can themselves contain credentials.
-      warn(`provider plugin '${pluginId}' did not initialize: ${error instanceof Error ? describeTelemetryFailure({ error }).errorClass : typeof error}`);
+      state.warn(`provider plugin '${pluginId}' did not initialize: ${error instanceof Error ? describeTelemetryFailure({ error }).errorClass : typeof error}`);
       return { appliesAt: "failed", ...(pluginProviderStartupGuidance({ error })
         ?? { reason: "The provider could not initialize.", action: "Check the plugin settings and installation, then save again." }) };
     }
   }
-  function reapply(input: { pluginId: string }): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult> {
-    const next = (queues.get(input.pluginId) ?? Promise.resolve("now" as const)).then(() => apply(input));
-    const recorded = next.then(result => { applied.set(input.pluginId, typeof result === "string" ? result : result.appliesAt); return result; });
-    queues.set(input.pluginId, recorded);
+
+  function reapply(state: ProviderPluginState, input: { pluginId: string }): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult> {
+    const next = (state.queues.get(input.pluginId) ?? Promise.resolve("now" as const)).then(() => apply(state, input));
+    const recorded = next.then(result => { state.applied.set(input.pluginId, typeof result === "string" ? result : result.appliesAt); return result; });
+    state.queues.set(input.pluginId, recorded);
     return recorded;
   }
-  const leases = new Map<ProviderContract, unknown[]>();
-  for (const slot of slots.filter(isTelemetrySlot)) {
-    if (slot.contract === "observability" || slot.contract === "product_analytics") delivery.register({ providerId: `${slot.pluginId}/${slot.id}` });
-    leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe })]);
-  }
-  await Promise.all([...new Set(slots.map(slot => slot.pluginId))].map(pluginId => reapply({ pluginId })));
-  // Declared collection choices remain visible even when their first initialization failed.
-  formCollectionRegistry = formRegistryFor({ slots, testProbe });
-  const product = await bootProductTelemetryFromEnv({ env: optional.env, processRole: required.processRole }, { warn, ...optional.productTelemetry });
-  const { shutdownGenerations, siteTracker, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site, warn, product });
-  tracker = ports.tracker;
-  // Boot settles before a tracker exists. Flush only through the healthy, consenting facade;
-  // local diagnostics remain authoritative when analytics itself failed to initialize.
-  for (const event of initializations) void tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
-  initializations.length = 0;
-  let disposal: Promise<void> | undefined;
-  return { ...ports, formCollectionProviders: () => formCollectionRegistry,
-    paymentProviders: () => slots.flatMap(slot => {
-      if (slot.contract !== "payments" || !slot.lease?.isCurrent({})) return [];
-      const item = leasedProviderItem({ pluginId: slot.pluginId, lease: slot.lease });
-      return "problem" in item ? [] : [item];
-    }),
-    telemetryStatus: () => delivery.read({}).map(status => ({ ...status,
-      ...(slots.some(slot => slot.contract === 'observability' && `${slot.pluginId}/${slot.id}` === status.providerId) ? { exportEnabled } : {}),
-    })),
-    observabilityEnabled: () => slots.some(slot => slot.contract === "observability" && slot.lease?.isCurrent({}) === true),
-    sendTelemetryTest: ({ error }) => testProbe.send({ tracker: siteTracker ?? ports.tracker, error, userId: `site:${required.site.siteId}` }),
-    reapply, appliesAt: ({ pluginId }) => applied.get(pluginId) ?? "now",
-    async dispose() {
-      closed = true;
-      // A concurrent fatal flush must await the same drain already started by store teardown.
-      disposal ??= Promise.all(queues.values()).then(async () => {
-        await Promise.all([shutdownGenerations(), host.dispose({}), product?.dispose()]);
-      });
-      await disposal;
-    } };
+function noteSlotInitialization(state: ProviderPluginState, slot: ProviderSlot): void {
+  initialization(state, { slot, outcome: slot.lease ? 'success' : 'noop', reasonClass: slot.lease ? 'ready' : 'not_configured' });
 }

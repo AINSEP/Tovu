@@ -119,16 +119,14 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps
       return;
     }
 
-    // Full pre-transition activation row, captured in captureInverse and reused verbatim by
-    // rollback — mirrors `apps/website/src/server/inbound/admin-http/routes/posts/update.ts`'s `priorPost` shape exactly (ADR API/Event
-    // Contract Summary: this route is thin, `executeCommand`-wrapped, same as that one).
-    let priorActivation: PluginActivationRecord | null = null;
+
 
     try {
       const principal = getAuthedPrincipal(res);
       const discovery = await deps.discoverPlugins();
       const site = discovery.find((r) => r.id === pluginId && r.source === "site");
 
+      const activation = createPluginActivationMutation(deps, { pluginId, enabled, discovery, site });
       const { result, changeSetId } = await executeCommand({
         deps: {
           clock: deps.clock,
@@ -145,10 +143,35 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps
           // No `idempotencyKey`: an enable/disable is a target-state write, so the gateway can never
           // raise `DuplicateCommandError` for this route and there is no `DUPLICATE_COMMAND` arm to map.
         },
-        mutation: {
+        mutation: activation.mutation,
+      });
+
+      await stopPluginAnswers({ deps, pluginId, enabled: result.activation.enabled });
+
+      // `setPluginEnabled` throws `PluginNotFoundError` for an id absent from this same `discovery`
+      // snapshot, so reaching this line means the record is in it.
+      const record = discovery.find((r) => r.id === pluginId) as PluginDiscoveryRecord;
+      // The gateway has committed; retries that keep the same state do not count.
+      if ((activation.priorActivation()?.enabled ?? false) !== result.activation.enabled) void deps.tracker.capture({ name: "plugin_toggled", userId: principal.id }, { properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "admin" } });
+      res.json({
+        plugin: toAdminPluginResponse({ discovery: record, activation: result.activation }),
+        changeSetId,
+      });
+    } catch (err) {
+      sendSetPluginEnabledError({ res, err });
+    }
+  });
+};
+
+function createPluginActivationMutation(deps: PluginsRouteDeps, { pluginId, enabled, discovery, site }: { pluginId: string; enabled: boolean; discovery: Awaited<ReturnType<PluginsRouteDeps["discoverPlugins"]>>; site: PluginDiscoveryRecord | undefined }) {
+    // Full pre-transition activation row, captured in captureInverse and reused verbatim by
+    // rollback — mirrors `apps/website/src/server/inbound/admin-http/routes/posts/update.ts`'s `priorPost` shape exactly (ADR API/Event
+    // Contract Summary: this route is thin, `executeCommand`-wrapped, same as that one).
+  let priorActivation: PluginActivationRecord | null = null;
+  return { priorActivation: () => priorActivation, mutation: {
           entityType: "plugin-activation",
           entityId: pluginId,
-          operation: "update",
+          operation: "update" as const,
           captureInverse: async () => {
             priorActivation = await deps.pluginActivationRepo.getActivation({
               workspaceId: deps.workspaceId,
@@ -176,22 +199,5 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps
             });
           },
           rollback: () => rollbackPluginActivation(deps, { workspaceId: deps.workspaceId, pluginId, priorActivation }),
-        },
-      });
-
-      await stopPluginAnswers({ deps, pluginId, enabled: result.activation.enabled });
-
-      // `setPluginEnabled` throws `PluginNotFoundError` for an id absent from this same `discovery`
-      // snapshot, so reaching this line means the record is in it.
-      const record = discovery.find((r) => r.id === pluginId) as PluginDiscoveryRecord;
-      // The gateway has committed; retries that keep the same state do not count.
-      if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) void deps.tracker.capture({ name: "plugin_toggled", userId: principal.id }, { properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "admin" } });
-      res.json({
-        plugin: toAdminPluginResponse({ discovery: record, activation: result.activation }),
-        changeSetId,
-      });
-    } catch (err) {
-      sendSetPluginEnabledError({ res, err });
-    }
-  });
-};
+        } };
+}
