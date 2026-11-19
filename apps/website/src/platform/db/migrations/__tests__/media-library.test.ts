@@ -13,7 +13,7 @@ for (const adapter of eachDialect({ tables: ['media'], make: kernel => kernel })
   test(`[${adapter.name}] Library migration defaults legacy rows to media and retains document metadata`, async () => {
     const kernel = adapter.make();
     try {
-      const columns = await listColumns(kernel, 'media');
+      const columns = await listColumns({ kernel, table: 'media' });
       for (const name of ['kind', 'original_filename']) {
         if (columns.some(column => column.name === name)) await kernel.execute(sql`ALTER TABLE media DROP COLUMN ${sql.ref(name)}`);
       }

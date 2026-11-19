@@ -26,7 +26,7 @@ const LEGACY_CHAT_TABLES = ["ai_chats", "ai_chat_messages", "assistant_agent_ses
 async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Promise<void> {
   if (kernel.dialect !== "sqlite") return;
   for (const table of LEGACY_CHAT_TABLES) {
-    if (!(await tableExists(kernel, table))) continue;
+    if (!(await tableExists({ kernel, table }))) continue;
     const [row] = await kernel.query<{ n: number }>(sql`SELECT count(*) AS n FROM ${sql.table(table)}`);
     if (Number(row?.n ?? 0) > 0) {
       context.note(`kept legacy chat table ${table}: it has rows`);

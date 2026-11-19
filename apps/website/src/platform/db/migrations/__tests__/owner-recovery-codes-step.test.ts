@@ -15,7 +15,7 @@ for (const adapter of eachDialect({ tables: ['owner_recovery_codes'], make: kern
     assert.ok(step, 'recovery schema must be registered in the content history');
     const options = { ledgerTable: 'recovery_test_migrations' };
     assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, [step.id]);
-    assert.deepEqual((await listColumns(kernel, 'owner_recovery_codes')).map(column => column.name).sort(),
+    assert.deepEqual((await listColumns({ kernel, table: 'owner_recovery_codes' })).map(column => column.name).sort(),
       ['workspace_id', 'principal_id', 'code_hash'].sort());
     await kernel.execute(sql`INSERT INTO owner_recovery_codes VALUES ('a', 'owner', 'hash')`);
     await assert.rejects(kernel.execute(sql`INSERT INTO owner_recovery_codes VALUES ('a', 'owner', 'hash')`));

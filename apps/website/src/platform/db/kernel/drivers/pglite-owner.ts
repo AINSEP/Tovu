@@ -13,7 +13,7 @@ export { PGLITE_SOCKET_FILE } from "@jini-ai/db/core";
 export { assertSocketPathFits, ensurePrivateDir, PgliteOwnerLockedError, runningPgliteOwner, type PgliteOwner } from "@jini-ai/db/pglite";
 
 export const OWNER_LOCK_FILE = "tovu-owner.pid";
-export const PGLITE_LOW_MEMORY_START_PARAMS: readonly string[] = pgliteLowMemoryStartParams(PGlite);
+export const PGLITE_LOW_MEMORY_START_PARAMS: readonly string[] = pgliteLowMemoryStartParams({ pglite: PGlite });
 
 /** Keep Tovu's home and /tmp socket namespaces unchanged. */
 export function defaultPgliteSocketDir({ dataDir }: { dataDir: string }, { home }: { home?: string } = {}): string {

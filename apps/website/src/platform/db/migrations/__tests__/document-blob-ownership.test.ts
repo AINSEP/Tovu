@@ -21,7 +21,7 @@ const insertBlob = (kernel: KyselyKernel<unknown>, id: string, workspace = 'site
 
 /** Column shape plus its declared default, so a fresh head database matches an upgraded one. */
 async function ownershipColumn(kernel: KyselyKernel<unknown>) {
-  const column = (await listColumns(kernel, 'asset_blobs')).find(entry => entry.name === 'document_owned');
+  const column = (await listColumns({ kernel, table: 'asset_blobs' })).find(entry => entry.name === 'document_owned');
   const [declared] = await kernel.query<{ value: string | null }>(kernel.dialect === 'sqlite'
     ? sql`SELECT dflt_value AS value FROM pragma_table_info('asset_blobs') WHERE name = 'document_owned'`
     : sql`SELECT column_default AS value FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'asset_blobs' AND column_name = 'document_owned'`);

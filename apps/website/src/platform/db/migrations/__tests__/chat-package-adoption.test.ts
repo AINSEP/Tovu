@@ -80,7 +80,7 @@ function assertIdleIndex(db: Database.Database): void {
 
 async function readBoth(db: Database.Database) {
   const kernel = chatKernel({ store: db });
-  assert.equal(kernel, sqliteKernel<ChatDatabase>(db), "host and package must resolve the exact same memoized kernel");
+  assert.equal(kernel, sqliteKernel<ChatDatabase>({ source: db }), "host and package must resolve the exact same memoized kernel");
   for (const [scope, id] of [[USER, "user-chat"], [GUEST, "guest-chat"]] as const) {
     const original = beforeAdoption(kernel, scope);
     const adopted = createChatHistoryStore({ kernel: kernel, scope: scope });
@@ -139,7 +139,7 @@ test("constructing and reading the package adapter alone leaves checkpointed mai
     db = seed(file, true); db.close(); db = undefined;
     const initial = readFileSync(file);
     db = new Database(file, { readonly: true, fileMustExist: true });
-    const history = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>(db), scope: USER, clock: { nowMs: () => Date.now() } });
+    const history = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>({ source: db }), scope: USER, clock: { nowMs: () => Date.now() } });
     assert.equal((await history.list())[0]?.id, "user-chat");
     assert.equal((await history.messages({ conversationId: "user-chat" }))[0]?.createdAt, T0 + 1);
     await history.pageConversations({}); await history.pageMessages({ conversationId: "user-chat" });

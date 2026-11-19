@@ -17,7 +17,7 @@ export const CORE_COMMERCE_ARCHIVE_TABLES = CORE_COMMERCE_TABLES_IN_DROP_ORDER.m
 async function existingTables(kernel: KyselyKernel<unknown>): Promise<string[]> {
   const existing: string[] = [];
   for (const table of CORE_COMMERCE_TABLES_IN_DROP_ORDER) {
-    if (await tableExists(kernel, table)) existing.push(table);
+    if (await tableExists({ kernel, table })) existing.push(table);
   }
   return existing;
 }
@@ -49,7 +49,7 @@ async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Pro
   if (!await hasRows(kernel, existing)) return;
   for (const table of existing) {
     const archive = `${ARCHIVE_PREFIX}${table}`;
-    if (await tableExists(kernel, archive)) {
+    if (await tableExists({ kernel, table: archive })) {
       throw new Error(`${ARCHIVE_LEGACY_COMMERCE_ID}: archive ${archive} already exists; nothing renamed. Keep both table sets and take a database backup before resolving this archive-name collision.`);
     }
   }

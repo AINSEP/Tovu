@@ -29,18 +29,18 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     try {
       assert.ok(step, "0011 must be registered");
       await runMigrations({ kernel, steps: previous });
-      for (const name of RETIRED_TABLES) assert.ok((await listTables(kernel)).includes(name));
+      for (const name of RETIRED_TABLES) assert.ok((await listTables({ kernel })).includes(name));
       await kernel.execute(sql`CREATE TABLE p_store__products (id text PRIMARY KEY, title text NOT NULL)`);
       await kernel.execute(sql`CREATE INDEX p_store__products_title ON p_store__products(title)`);
       await kernel.execute(sql`INSERT INTO p_store__products VALUES ('retained', 'plugin product')`);
-      const before = await readSchemaShape(kernel, { exclude: RETIRED_TABLES });
+      const before = await readSchemaShape({ kernel }, { exclude: RETIRED_TABLES });
       assert.deepEqual((await runMigrations({ kernel, steps: [...previous, step] })).applied, [step.id]);
-      assert.deepEqual((await listTables(kernel)).filter(name => RETIRED_TABLES.includes(name)), []);
-      assert.deepEqual(await readSchemaShape(kernel, { exclude: RETIRED_TABLES }), before);
+      assert.deepEqual((await listTables({ kernel })).filter(name => RETIRED_TABLES.includes(name)), []);
+      assert.deepEqual(await readSchemaShape({ kernel }, { exclude: RETIRED_TABLES }), before);
       assert.deepEqual(await kernel.query(sql`SELECT * FROM p_store__products`), [{ id: "retained", title: "plugin product" }]);
       assert.deepEqual((await runMigrations({ kernel, steps: [...previous, step] })).applied, []);
       await kernel.transaction(() => step.up(kernel, { note: () => {} }));
-      assert.deepEqual(await readSchemaShape(kernel, { exclude: RETIRED_TABLES }), before);
+      assert.deepEqual(await readSchemaShape({ kernel }, { exclude: RETIRED_TABLES }), before);
     } finally { await kernel.close(); }
   });
 
@@ -48,7 +48,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     const kernel = open();
     try {
       await migrateContentDatabase({ kernel });
-      const tables = await listTables(kernel);
+      const tables = await listTables({ kernel });
       assert.deepEqual(tables.filter(name => RETIRED_TABLES.includes(name)), []);
       for (const name of ["newsletter_campaigns", "newsletter_campaign_revisions"]) assert.ok(tables.includes(name));
     } finally { await kernel.close(); }
@@ -65,7 +65,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       await kernel.execute(sql`CREATE TABLE p_store__orders (id text PRIMARY KEY)`);
       await kernel.execute(sql`INSERT INTO p_store__orders VALUES ('retained')`);
       await runMigrations({ kernel, steps: [] });
-      const before = await readSchemaShape(kernel);
+      const before = await readSchemaShape({ kernel });
       const execute = kernel.execute.bind(kernel);
       const statements: string[] = [];
       kernel.execute = async statement => {
@@ -78,12 +78,12 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         return true;
       });
       assert.deepEqual(statements.filter(statement => /^DROP TABLE/i.test(statement)), [], "refusal must precede every DROP, not merely roll it back");
-      assert.deepEqual(await readSchemaShape(kernel), before);
+      assert.deepEqual(await readSchemaShape({ kernel }), before);
       for (const [index, table] of RETIRED_TABLES.entries()) {
         assert.equal(Number((await kernel.query<{ n: number }>(sql`SELECT count(*) AS n FROM ${sql.table(table)}`))[0].n), index + 1);
       }
       assert.deepEqual(await kernel.query(sql`SELECT * FROM p_store__orders`), [{ id: "retained" }]);
-      assert.equal((await listTables(kernel)).includes("tovu_migrations"), false, "the failed first step rolls back ledger creation too");
+      assert.equal((await listTables({ kernel })).includes("tovu_migrations"), false, "the failed first step rolls back ledger creation too");
     } finally { await kernel.close(); }
   });
 
@@ -92,9 +92,9 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     try {
       for (const table of RETIRED_TABLES) await kernel.execute(sql`CREATE TABLE ${sql.table(table)} (id text PRIMARY KEY)`);
       await kernel.execute(sql`INSERT INTO commerce_products VALUES ('retained')`);
-      const before = await readSchemaShape(kernel);
+      const before = await readSchemaShape({ kernel });
       await assert.rejects(kernel.transaction(() => step.up(kernel, { note: () => {} })), /commerce_products: 1/);
-      assert.deepEqual(await readSchemaShape(kernel), before);
+      assert.deepEqual(await readSchemaShape({ kernel }), before);
       assert.deepEqual(await kernel.query(sql`SELECT * FROM commerce_products`), [{ id: "retained" }]);
     } finally { await kernel.close(); }
   });
@@ -103,10 +103,10 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     const kernel = open();
     try {
       await kernel.transaction(() => step.up(kernel, { note: () => {} }));
-      assert.deepEqual(await listTables(kernel), []);
+      assert.deepEqual(await listTables({ kernel }), []);
       await kernel.execute(sql`CREATE TABLE commerce_prices (id text PRIMARY KEY)`);
       await kernel.transaction(() => step.up(kernel, { note: () => {} }));
-      assert.deepEqual(await listTables(kernel), []);
+      assert.deepEqual(await listTables({ kernel }), []);
     } finally { await kernel.close(); }
   });
 
@@ -130,7 +130,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       }
       kernel.query = query;
       assert.deepEqual(statements.filter(statement => /^DROP TABLE/i.test(statement)), []);
-      assert.deepEqual(await listTables(kernel), ["commerce_products"]);
+      assert.deepEqual(await listTables({ kernel }), ["commerce_products"]);
     } finally { await kernel.close(); }
   });
 }

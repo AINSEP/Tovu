@@ -21,7 +21,7 @@ for (const adapter of eachDialect({ tables: ["members"], make: kernel => kernel 
         VALUES ('cutoff-legacy', 'ws', 'legacy@example.test', 'active', '2026-01-01', '2026-01-02', 7)`);
       const options = { ledgerTable: "cutoff_contract_migrations" };
       assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, [ID]);
-      const column = (await listColumns(kernel, "members")).find(column => column.name === "credentials_revoked_at");
+      const column = (await listColumns({ kernel, table: "members" })).find(column => column.name === "credentials_revoked_at");
       assert.equal(column?.notNull, false);
       assert.equal(column?.type.toLowerCase(), "text");
       assert.deepEqual(await kernel.query(sql`SELECT email, status, updated_at, version, credentials_revoked_at

@@ -49,7 +49,7 @@ function openChatConnection({ filePath }: { filePath: string }, { open = openNat
 export async function openSiteChatDb({ filePath }: { filePath: string }, options: ChatDbOpenOptions = {}): Promise<NativeSqliteDatabase> {
   const sqlite = openChatConnection({ filePath }, options);
   try {
-    await migrateChatDatabase({ kernel: sqliteKernel<unknown>(sqlite) });
+    await migrateChatDatabase({ kernel: sqliteKernel<unknown>({ source: sqlite }) });
   } catch (err) {
     sqlite.close();
     throw err;

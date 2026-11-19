@@ -132,7 +132,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
     // Defer FKs while both sides change, then validate before commit through the kernel owner.
     await sqliteForeignKeyCheckedTransaction({ kernel: fresh, onViolation: () => new Error("Invalid imported references"), work: async () => {
       for (const table of [...SHARE_TABLES, ...portablePluginTables, "setting_values_workspace"]) {
-        const columns = await listColumns(fresh, table);
+        const columns = await listColumns({ kernel: fresh, table });
         if (!columns.some(column => column.name === "workspace_id")) continue;
         if ((await fresh.query(sql`SELECT 1 FROM ${sql.table(table)} WHERE workspace_id <> ${workspace.id} LIMIT 1`)).length) throw new Error("Portable row belongs to a missing workspace");
         // Identifiers come exclusively from the trusted core allowlist and bundled declarations.

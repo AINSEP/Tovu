@@ -21,7 +21,7 @@ const steps = CONTENT_MIGRATIONS.filter(step => [ARCHIVE_ID, "0011_drop_empty_co
 
 /** Verify restored archives still contain the original data, index and enforced FK. */
 async function assertRetained(kernel: KyselyKernel<unknown>): Promise<void> {
-  const tables = await listTables(kernel);
+  const tables = await listTables({ kernel });
   for (const name of TABLES) {
     assert.ok(tables.includes(`_archive_0011_${name}`));
     assert.equal(tables.includes(name), false);

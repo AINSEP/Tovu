@@ -223,7 +223,7 @@ async function finishMcp({ kernel }: { kernel: KyselyKernel<unknown> }): Promise
       pragma_foreign_key_list(m.name) fk WHERE m.type='table' AND fk."table"='external_mcp_servers'
       AND m.name <> 'external_mcp_tool_approvals'`);
     if (unknownChildren.length) throw new Error("secrets vault: unsupported MCP child table; preserve before rebuilding");
-    const approvals = await tableExists(kernel, "external_mcp_tool_approvals");
+    const approvals = await tableExists({ kernel, table: "external_mcp_tool_approvals" });
     for (const statement of MCP_VAULT_SQLITE_STATEMENTS) {
       if (!approvals && statement.includes("_vault_mcp_approvals")) continue;
       await kernel.execute(sql.raw(statement));
@@ -259,7 +259,7 @@ async function finishMcp({ kernel }: { kernel: KyselyKernel<unknown> }): Promise
  */
 async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Promise<void> {
   const affected = [...SOURCES.map(source => source.table), "external_mcp_servers", "oauth_pending_authorizations", "tovu_migrations"];
-  if (await tableExists(kernel, "external_mcp_tool_approvals")) affected.push("external_mcp_tool_approvals");
+  if (await tableExists({ kernel, table: "external_mcp_tool_approvals" })) affected.push("external_mcp_tool_approvals");
   if (kernel.dialect === "postgres") {
     // Backups are restore artifacts, never ordinary transfer/export input. A pre-existing backup
     // refuses re-entry rather than overwriting the only old ciphertext or ledger available.

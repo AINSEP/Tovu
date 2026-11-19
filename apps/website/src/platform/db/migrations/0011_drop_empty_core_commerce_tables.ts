@@ -180,7 +180,7 @@ export const CORE_COMMERCE_TABLES_IN_DROP_ORDER = [
 async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   const existing: string[] = [];
   for (const table of CORE_COMMERCE_TABLES_IN_DROP_ORDER) {
-    if (await tableExists(kernel, table)) existing.push(table);
+    if (await tableExists({ kernel, table })) existing.push(table);
   }
   if (kernel.dialect === "postgres" && existing.length > 0) {
     // Advisory migration locks do not exclude ordinary writers between COUNT and DROP.

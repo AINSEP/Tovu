@@ -17,9 +17,9 @@ for (const adapter of eachDialect({ tables: ['owner_mfa_factors', 'owner_mfa_pen
     assert.ok(step, 'owner MFA schema must be registered in the content history');
     const options = { ledgerTable: 'mfa_test_migrations' };
     assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, [step.id]);
-    assert.deepEqual((await listColumns(kernel, 'owner_mfa_factors')).map(column => column.name).sort(),
+    assert.deepEqual((await listColumns({ kernel, table: 'owner_mfa_factors' })).map(column => column.name).sort(),
       ['workspace_id', 'principal_id', 'sealed_secret', 'last_step'].sort());
-    assert.deepEqual((await listColumns(kernel, 'owner_mfa_pending')).map(column => column.name).sort(),
+    assert.deepEqual((await listColumns({ kernel, table: 'owner_mfa_pending' })).map(column => column.name).sort(),
       ['workspace_id', 'principal_id', 'purpose', 'token_hash', 'expires_at', 'attempts', 'sealed_secret'].sort());
     await kernel.execute(sql`INSERT INTO owner_mfa_factors VALUES ('a', 'owner', 'sealed', 100)`);
     await assert.rejects(kernel.execute(sql`INSERT INTO owner_mfa_factors VALUES ('a', 'owner', 'other', 101)`));

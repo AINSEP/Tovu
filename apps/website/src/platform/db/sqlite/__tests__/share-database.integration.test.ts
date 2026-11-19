@@ -423,7 +423,7 @@ async function pluginTarget(t: TestContext) {
 
 test("plugin tables: present portable tables are built with only their policy columns; private names are always reported", async t => {
   const target = await pluginTarget(t);
-  const before = new Set(await listTables(target));
+  const before = new Set(await listTables({ kernel: target }));
   const modules = [
     fixtureModule([
       { name: "notes", columns: NOTES_COLUMNS, portability: { kind: "portable", columns: ["id", "body"] } },
@@ -436,8 +436,8 @@ test("plugin tables: present portable tables are built with only their policy co
   const present = new Set(["p_fixture__notes", "p_fixture__secrets", "p_fixture__plain"]);
   const result = await prepareSharePluginTables({ target, present, modules });
   assert.deepEqual(result, { portable: new Set(["p_fixture__notes"]), private: new Set(["p_fixture__secrets", "p_privateonly__audit"]) });
-  assert.deepEqual((await listTables(target)).filter(name => !before.has(name) && name.startsWith("p_")), ["p_fixture__notes"]);
-  assert.deepEqual((await listColumns(target, "p_fixture__notes")).map(column => column.name), ["id", "body"]);
+  assert.deepEqual((await listTables({ kernel: target })).filter(name => !before.has(name) && name.startsWith("p_")), ["p_fixture__notes"]);
+  assert.deepEqual((await listColumns({ kernel: target, table: "p_fixture__notes" })).map(column => column.name), ["id", "body"]);
 });
 
 test("plugin tables: a portable policy naming an undeclared column refuses with UNSUPPORTED_SCHEMA", async t => {

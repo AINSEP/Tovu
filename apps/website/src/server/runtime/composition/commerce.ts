@@ -102,7 +102,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   let closed = false;
   let storageReady = false;
   let catalogReady = false;
-  const storageProbe = Promise.all([tableExists(required.kernel, 'commerce_payments'), tableExists(required.kernel, 'commerce_products')])
+  const storageProbe = Promise.all([tableExists({ kernel: required.kernel, table: 'commerce_payments' }), tableExists({ kernel: required.kernel, table: 'commerce_products' })])
     .then(([payments, products]) => { storageReady = payments; catalogReady = products; });
   const poolProblem = required.kernel.transport === 'node-postgres' && (kernelSessionPoolMax({ kernel: required.kernel }) ?? 2) < 2
     ? 'Checkout is paused because payment settlement requires a PostgreSQL pool with at least 2 connections.' : null;
@@ -315,7 +315,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
             capabilities: { refunds: provider.capabilities.refunds, tokenization: false, recurring: false,
               confirmation: provider.capabilities.confirmation, currencies: provider.capabilities.currencies, webhooks: true } })) } }),
         ...buildCommerceResolutionRegistrations({ workspaceId: required.workspaceId, authorize, askHuman, operator, targetFor: async ({ orderId }) => {
-          if (!await tableExists(required.kernel, 'commerce_order_payments')) return null;
+          if (!await tableExists({ kernel: required.kernel, table: 'commerce_order_payments' })) return null;
           const row = await orderPayments.findByOrder({ workspaceId: required.workspaceId, orderId });
           if (!row?.paymentId || row.workspaceId !== required.workspaceId || row.siteId !== required.siteId) return null;
           return { paymentId: row.paymentId, amount: row.amount, scope: { workspaceId: row.workspaceId, siteId: row.siteId,

@@ -257,8 +257,8 @@ export async function openProjectStore(
     },
     inventory: async () => {
       // One picker open × at most 50 metadata rows. Never select ciphertext for owner discovery.
-      const credentialType = jsonText(kernel.dialect, sql.ref("meta"), ["credentialType"]);
-      const credentialFormat = jsonText(kernel.dialect, sql.ref("meta"), ["credentialFormat"]);
+      const credentialType = jsonText({ dialect: kernel.dialect, column: sql.ref("meta"), path: ["credentialType"] });
+      const credentialFormat = jsonText({ dialect: kernel.dialect, column: sql.ref("meta"), path: ["credentialFormat"] });
       const rows = await kernel.query<{ id: string; kind: VaultRecord["kind"]; label: string; credential_type: string | null; credential_format: string | null }>(sql`SELECT id, kind, label, ${credentialType} AS credential_type, ${credentialFormat} AS credential_format FROM secrets_vault WHERE workspace_id='project' AND owner_key='tovu' AND principal_id IS NULL AND (kind IN ('vendor','custom','source-control') OR (kind='api-connection' AND (id LIKE 'plugin-state:%:provider.config' OR ${credentialFormat}='oauth-token-set'))) ORDER BY id LIMIT 51`);
       if (rows.length > 50) throw new Error("Shared Keys has more than 50 entries. Narrow the saved keys in Shared Keys before opening this picker.");
       return rows.map((row): VaultRecord => ({ workspaceId: PROJECT_WORKSPACE_ID, id: row.id, kind: row.kind, label: row.label,

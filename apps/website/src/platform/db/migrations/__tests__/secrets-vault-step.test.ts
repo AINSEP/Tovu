@@ -34,7 +34,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         snapshots.set(table, await kernel.query<Row>(sql`SELECT * FROM ${sql.table(table)}`));
       }
       const devices = await kernel.query(sql`SELECT * FROM oauth_device_authorizations`);
-      const deviceShape = await listColumns(kernel, "oauth_device_authorizations");
+      const deviceShape = await listColumns({ kernel, table: "oauth_device_authorizations" });
       const notes: string[] = [];
       await kernel.transaction(() => vaultStep.up(kernel, { note: note => notes.push(note) }));
       const rows = await kernel.query<Row>(sql`SELECT * FROM secrets_vault`);
@@ -99,10 +99,10 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       assert.deepEqual(mcp, { ...plain, env_secret_id: env.id, oauth_secret_id: auth.id });
       assert.deepEqual(await kernel.query(sql`SELECT * FROM external_mcp_tool_approvals`), snapshots.get("external_mcp_tool_approvals"));
       assert.deepEqual(await kernel.query(sql`SELECT * FROM oauth_device_authorizations`), devices);
-      assert.deepEqual(await listColumns(kernel, "oauth_device_authorizations"), deviceShape);
-      const tables = await listTables(kernel);
+      assert.deepEqual(await listColumns({ kernel, table: "oauth_device_authorizations" }), deviceShape);
+      const tables = await listTables({ kernel });
       for (const table of [...folded, "oauth_pending_authorizations"]) assert.equal(tables.includes(table), false);
-      for (const column of await listColumns(kernel, "external_mcp_servers")) {
+      for (const column of await listColumns({ kernel, table: "external_mcp_servers" })) {
         assert.equal(column.name.includes("sealed_"), false);
         assert.equal(column.name.includes("aad_version"), false);
       }
@@ -169,7 +169,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
   test(`${dialect}: omitted insert fails coverage before DROP and rolls back all schema/data/ledger changes`, async () => {
     const { kernel } = await vaultFixture(dialect);
     try {
-      const before = await readSchemaShape(kernel);
+      const before = await readSchemaShape({ kernel });
       const ledger = await kernel.query(sql`SELECT * FROM tovu_migrations`);
       const source = await kernel.query(sql`SELECT * FROM custom_credential_sets`);
       const execute = kernel.execute.bind(kernel);
@@ -184,10 +184,10 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       await assert.rejects(runMigrations({ kernel, steps: [...previous, vaultStep] }), /coverage mismatch/);
       assert.equal(omitted, true);
       assert.equal(dropCalled, false);
-      assert.deepEqual(await readSchemaShape(kernel), before);
+      assert.deepEqual(await readSchemaShape({ kernel }), before);
       assert.deepEqual(await kernel.query(sql`SELECT * FROM tovu_migrations`), ledger);
       assert.deepEqual(await kernel.query(sql`SELECT * FROM custom_credential_sets`), source);
-      assert.equal((await listTables(kernel)).some(table => table.startsWith("_vault_backup_")), false);
+      assert.equal((await listTables({ kernel })).some(table => table.startsWith("_vault_backup_")), false);
     } finally { await kernel.close(); }
   });
 
@@ -233,7 +233,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       await assert.rejects(kernel.execute(sql`DELETE FROM secrets_vault WHERE id=${env.id}`));
       await kernel.execute(sql`UPDATE external_mcp_servers SET env_secret_id=NULL`);
       await kernel.execute(sql`DELETE FROM secrets_vault WHERE id=${env.id}`);
-      const names = [...(await listIndexes(kernel, "secrets_vault")).keys()];
+      const names = [...(await listIndexes({ kernel, table: "secrets_vault" })).keys()];
       for (const name of ["secrets_vault_scope", "secrets_vault_principal", "secrets_vault_singleton", "secrets_vault_personal",
         "secrets_vault_media", "secrets_vault_default", "secrets_vault_group_label", "secrets_vault_label"]) assert.ok(names.includes(name), name);
       await kernel.execute(sql`DELETE FROM principals WHERE id='p'`);
@@ -252,7 +252,7 @@ test("SQLite ordinary transfer excludes the vault and all restore artifacts whil
     await kernel.execute(sql`INSERT INTO _vault_backup_tovu_migrations VALUES ('restore-only')`);
     await kernel.execute(sql`CREATE TABLE p_demo__articles (id text PRIMARY KEY, title text)`);
     await kernel.execute(sql`INSERT INTO p_demo__articles VALUES ('live','Visible content')`);
-    const source = openSqliteSnapshotSource({ bytes: sqliteConnectionOf({ kernel })!.serialize() }, { open: data => openSqliteSnapshot({ data }) });
+    const source = openSqliteSnapshotSource({ bytes: sqliteConnectionOf({ kernel })!.serialize(), open: data => openSqliteSnapshot({ data }) });
     try {
       const plan = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
       assert.equal(plan.tables.some(table => table.name === "secrets_vault"), false);
@@ -270,10 +270,10 @@ test("SQLite refuses to rebuild an MCP parent with unknown plugin children rathe
     await kernel.execute(sql`CREATE TABLE p_demo__mcp_links (id text PRIMARY KEY, workspace_id text, server_id text,
       FOREIGN KEY(workspace_id,server_id) REFERENCES external_mcp_servers(workspace_id,server_id) ON DELETE CASCADE)`);
     await kernel.execute(sql`INSERT INTO p_demo__mcp_links VALUES ('link','ws','server')`);
-    const before = await readSchemaShape(kernel);
+    const before = await readSchemaShape({ kernel });
     await assert.rejects(kernel.transaction(() => vaultStep.up(kernel, { note: () => {} })), /unsupported MCP child/);
-    assert.deepEqual(await readSchemaShape(kernel), before);
+    assert.deepEqual(await readSchemaShape({ kernel }), before);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM p_demo__mcp_links`), [{ id: "link", workspace_id: "ws", server_id: "server" }]);
-    assert.equal((await listTables(kernel)).includes("secrets_vault"), false);
+    assert.equal((await listTables({ kernel })).includes("secrets_vault"), false);
   } finally { await kernel.close(); }
 });

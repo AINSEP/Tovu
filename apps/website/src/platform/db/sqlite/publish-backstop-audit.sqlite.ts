@@ -6,7 +6,7 @@ import type { BackstopAuditPort, BackstopAuditRecord, BackstopGap } from "#src/f
 /** Optional, staged schema: absent storage keeps the feature closed, without crashing boot. */
 export function createBackstopAuditSqlitePort({ kernel }: { kernel: ContentKernel }, _optional: Record<string, never> = {}): BackstopAuditPort {
   return {
-    ready: async () => tableExists(kernel, "publish_backstop_log"),
+    ready: async () => tableExists({ kernel, table: "publish_backstop_log" }),
     save: async ({ record }) => {
       await kernel.execute(sql`INSERT INTO publish_backstop_log
         (id, workspace_id, direction, actor_id, destination, reason, at, items_json, gap_labels_json, result, run_id, details_json, inverses_json)

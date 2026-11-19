@@ -29,7 +29,7 @@ export function createKeyAttachments({ kernel }: { kernel: KyselyKernel<unknown>
       if (!siteId) return null;
       // The `worksFor` array lives in JSON the dialect helpers cannot search, so match it here: the rows are
       // this one site's attachments, which `keysFor` also caps at 100.
-      const credentialType = jsonText(kernel.dialect, sql.ref("v.meta"), ["credentialType"]);
+      const credentialType = jsonText({ dialect: kernel.dialect, column: sql.ref("v.meta"), path: ["credentialType"] });
       const candidates = await kernel.query<{ key_id: string; label: string; meta: string | Record<string, unknown> }>(sql`SELECT a.key_id, v.label, v.meta FROM secrets_vault v JOIN site_key_attachments a ON a.key_id=v.id AND a.site_id=${siteId} WHERE v.workspace_id='project' AND (v.kind='custom' OR (v.kind='vendor' AND ${credentialType}='custom')) ORDER BY a.key_id LIMIT 101`);
       if (candidates.length > 100) throw new Error("This site uses more than 100 saved keys. Remove unused site grants in Shared Keys before continuing.");
       const rows = candidates.filter(row => row.label === label || worksForOf(row.meta).includes(label));

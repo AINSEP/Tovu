@@ -15,7 +15,7 @@ const COLUMNS = ["publish_at", "featured_media_id"] as const;
 for (const adapter of eachDialect({ tables: ["posts"], make: kernel => kernel })) {
   test(`[${adapter.name}] posts schedule/featured-image migration leaves legacy rows NULL and applies once`, async () => {
     const kernel = adapter.make();
-    const present = async () => (await listColumns(kernel, "posts")).filter(column => (COLUMNS as readonly string[]).includes(column.name));
+    const present = async () => (await listColumns({ kernel, table: "posts" })).filter(column => (COLUMNS as readonly string[]).includes(column.name));
     for (const column of await present()) await kernel.execute(sql`ALTER TABLE posts DROP COLUMN ${sql.raw(column.name)}`);
     await kernel.execute(sql`INSERT INTO posts (id, workspace_id, title, slug, body_json, status, updated_at, version)
       VALUES ('legacy', 'ws', 'Legacy', 'legacy', '{}', 'published', 'now', 1)`);

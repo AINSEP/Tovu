@@ -52,7 +52,7 @@ test("fresh synchronous content databases match every declared table's columns a
   const sync = openContentDb(":memory:");
   const asyncDb = openSqliteContentConnection({ filePath: ":memory:" });
   try {
-    const actual = await readSchemaShape(sqliteKernel<unknown>(sync), { exclude: BOOKKEEPING });
+    const actual = await readSchemaShape({ kernel: sqliteKernel<unknown>(sync) }, { exclude: BOOKKEEPING });
     for (const { table } of collectCoreTables()) {
       const declared = getTableConfig(table);
       const columns = sync.$client.prepare("SELECT name FROM pragma_table_info(?) ORDER BY name")
@@ -62,7 +62,7 @@ test("fresh synchronous content databases match every declared table's columns a
     }
     const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>(asyncDb) });
     assert.ok(report.applied.includes("0036_publish_history_config_jsonb"));
-    assert.deepEqual(actual, await readSchemaShape(sqliteKernel<unknown>(asyncDb), { exclude: BOOKKEEPING }));
+    assert.deepEqual(actual, await readSchemaShape({ kernel: sqliteKernel<unknown>(asyncDb) }, { exclude: BOOKKEEPING }));
     // 0036 only converts Postgres: both SQLite paths retain nullable config text and the kind default.
     for (const db of [sync, asyncDb]) {
       const columns = db.$client.prepare("PRAGMA table_info(publish_history)").all() as Array<{ name: string; type: string; notnull: number; dflt_value: string | null }>;

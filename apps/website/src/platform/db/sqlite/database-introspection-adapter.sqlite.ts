@@ -192,7 +192,7 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
 
   private async migrationsTableExists(): Promise<boolean> {
     try {
-      return await tableExists(this.kernel, this.migrationsTable());
+      return await tableExists({ kernel: this.kernel, table: this.migrationsTable() });
     } catch {
       return false;
     }
@@ -259,7 +259,7 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
   /** All dialects: the step ids recorded in `tovu_migrations`; empty when it is missing or unreadable. */
   private async readLedgerIds(): Promise<Set<string>> {
     try {
-      if (!(await tableExists(this.kernel, LEDGER_TABLE))) return new Set();
+      if (!(await tableExists({ kernel: this.kernel, table: LEDGER_TABLE }))) return new Set();
       const rows = await this.kernel.query<{ id: string }>(sql`SELECT id FROM ${sql.table(LEDGER_TABLE)}`);
       return new Set(rows.map((row) => row.id));
     } catch {

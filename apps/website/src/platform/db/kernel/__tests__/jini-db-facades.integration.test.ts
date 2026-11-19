@@ -27,7 +27,7 @@ test("same-file locking crosses from a Tovu shim into a direct Jini kernel", asy
     a.pragma("journal_mode = WAL");
     a.exec("CREATE TABLE probe (value TEXT NOT NULL)");
     const ka = sqliteKernel(a);
-    const kb = jiniSqliteKernel(b);
+    const kb = jiniSqliteKernel({ source: b });
     await ka.transaction(async () => {
       await ka.execute(sql`INSERT INTO probe VALUES ('nested probe')`);
       await assert.rejects(kb.transaction(async () => {}), /another connection to the same database file/);
