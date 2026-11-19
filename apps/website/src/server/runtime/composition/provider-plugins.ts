@@ -221,12 +221,7 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
     const live = port?.[name];
     if (!lease?.isCurrent({}) || !port || typeof live !== "function") return noop[name]?.(...args);
     if (name === 'browserAnalytics') {
-      const surface = (args[0] as { surface: string }).surface;
-      const cached = browserCache.get(surface);
-      if (cached?.lease === lease) return cached.contribution;
-      const contribution = live.apply(port, args);
-      browserCache.set(surface, { lease, contribution });
-      return contribution;
+      return cachedBrowserAnalytics({ lease, port, live, args, browserCache });
     }
     const result = live.apply(port, args);
     testProbe.accepted({ providerId: `${slot.pluginId}/${slot.id}`, method: name, input: args[0], supportsMetric: port.supportsMetric === true });
@@ -243,6 +238,18 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
     get: () => slot.lease?.isCurrent({}) ? (slot.lease.port as AiTraceSink).capture : "metadata",
   });
   return gated;
+}
+
+function cachedBrowserAnalytics({ lease, port, live, args, browserCache }: {
+  lease: NonNullable<ProviderSlot["lease"]>; port: Record<string, unknown>; live: Function;
+  args: unknown[]; browserCache: Map<string, { lease: unknown; contribution: unknown }>;
+}): unknown {
+  const surface = (args[0] as { surface: string }).surface;
+  const cached = browserCache.get(surface);
+  if (cached?.lease === lease) return cached.contribution;
+  const contribution = live.apply(port, args);
+  browserCache.set(surface, { lease, contribution });
+  return contribution;
 }
 
 /** The current plugin's cookie-consent contribution. Each plugin's assets live under its own id, so two

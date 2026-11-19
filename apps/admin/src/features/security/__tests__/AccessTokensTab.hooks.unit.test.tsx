@@ -2,9 +2,11 @@ import { renderHook } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import { useMergedSecretsOrder } from "../AccessTokensTab.hooks";
-import { accessTokenProviderInfo, otherCredentialStoreInfo } from "../rules";
+import { accessTokenProviderInfo } from "../access-token-providers";
+import { otherCredentialStoreInfo } from "../other-credential-stores";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
-import type { AccessTokenKind, AccessTokenRow } from "../rules";
+import type { AccessTokenKind } from "../rules";
+import type { AccessTokenRow } from "../access-token-rows";
 import type { AccessTokenAddFormState, AccessTokenExistingRowState, AccessTokenProviderGroupState, AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
 

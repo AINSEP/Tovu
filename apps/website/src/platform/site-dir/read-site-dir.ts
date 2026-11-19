@@ -117,10 +117,14 @@ function validateMeta({ parsed }: { parsed: unknown }, _optional = {}): SiteMeta
       throw new SiteDirInvalidError({ message: `.site-meta.json.${field} must be a non-empty string` });
     }
   }
+  validateMetaSchemaVersion(meta);
+  return parsed as SiteMetaJson;
+}
+
+function validateMetaSchemaVersion(meta: Record<string, unknown>): void {
   if (typeof meta.schemaVersion !== "number" || !Number.isSafeInteger(meta.schemaVersion) || meta.schemaVersion < 0) {
     throw new SiteDirInvalidError({ message: ".site-meta.json.schemaVersion must be a non-negative integer" });
   }
-  return parsed as SiteMetaJson;
 }
 
 /** A site directory's display name, read live. See {@link createLiveSiteDisplayName}. */

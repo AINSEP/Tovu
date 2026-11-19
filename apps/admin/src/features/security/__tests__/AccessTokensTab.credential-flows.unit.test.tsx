@@ -4,15 +4,12 @@ import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { AccessTokensTab } from "../AccessTokensTab";
-import {
-  accessTokenExistingRowReadyToSave,
-  accessTokenProviderInfo,
-  accessTokenRowProviderInfo,
-  accessTokenRowReadyToSave,
-  otherCredentialStoreInfo,
-} from "../rules";
+import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave } from "../access-token-forms";
+import { accessTokenProviderInfo, accessTokenRowProviderInfo } from "../access-token-providers";
+import { otherCredentialStoreInfo } from "../other-credential-stores";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
-import type { AccessTokenKind, AccessTokenRow } from "../rules";
+import type { AccessTokenKind } from "../rules";
+import type { AccessTokenRow } from "../access-token-rows";
 import type {
   AccessTokenAddFormState,
   AccessTokenExistingRowState,

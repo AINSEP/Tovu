@@ -11,7 +11,7 @@ import { useAccessTokens } from "../hooks/use-access-tokens.hooks";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
 import { useCopyKeys } from "../hooks/use-copy-keys.hooks";
-import { accessTokenProviderInfo, accessTokenProviders } from "../rules";
+import { accessTokenProviderInfo, accessTokenProviders } from "../access-token-providers";
 
 /**
  * @file Regression coverage for the owner-reported bug: this page's search box was filling itself

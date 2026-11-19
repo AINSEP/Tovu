@@ -127,6 +127,38 @@ function createNewsletterCampaignDescription(deps: NewsletterDeliveryToolDeps, t
     };
 }
 
+function transitionConfirmedCampaign(deps: NewsletterDeliveryToolDeps, toolId: string, { ctx, campaignId, existing, scheduledAt }: Exclude<Prepared, { refusal: unknown }> & { ctx: Parameters<ToolHandler>[0] }) {
+  return deps.newsletterCampaignRepo.transaction({ fn: async () => {
+    const current = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
+    // Pipeline transitions do not always increment version; compare the complete snapshot as well.
+    if (JSON.stringify(current) !== JSON.stringify(existing)) throw new ToolInputError({ message: "NEWSLETTER_STALE_CONFIRMATION: The campaign changed while the card was open. Review it and request a new confirmation." });
+    if (ctx.signal.aborted) return { abandoned: true as const };
+    if (scheduledAt !== null) return scheduleCampaign({ deps: { campaignRepo: deps.newsletterCampaignRepo, listRepo: deps.newsletterListRepo, clock: deps.clock, ids: deps.idGen }, input: { workspaceId: deps.workspaceId, id: campaignId, actorId: ctx.principal.id, scheduledAt } });
+    if (toolId === "newsletter_resume_campaign") {
+      await requireMassLaunchReady(deps);
+      if (ctx.signal.aborted) return { abandoned: true as const };
+      return resumeCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
+    }
+    return authorizeSend({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
+  } });
+}
+
+async function fanOutNewsletterCampaign(deps: NewsletterDeliveryToolDeps, campaignId: string, campaign: CampaignRecord) {
+  // The campaign status has committed, so a later fan-out failure must not imply no launch occurred.
+  try {
+    await freezeAudience({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId, listId: campaign.listId } });
+    await claimBatch({ deps: toNewsletterSendPipelineDeps(deps) });
+    // An empty audience emits no batch event, so the subscriber cannot complete it for us.
+    await completeIfDrained({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.error("[newsletter] delivery fan-out failed after launch; inspect the send log before retrying", errorDiagnostic);
+    return processingAttentionResult({ campaignId, status: campaign.status });
+  }
+  return { confirmed: true, started: true, campaignId, status: campaign.status, delivered: false, mailDeliveryAvailable: true };
+}
+
 function createNewsletterCampaignRun(deps: NewsletterDeliveryToolDeps, toolId: string): Parameters<typeof approvalToolHandler<Prepared>>[0]['run'] {
   return async ({ ctx, prepared }) => {
       if ("refusal" in prepared) return prepared.refusal;
@@ -136,36 +168,12 @@ function createNewsletterCampaignRun(deps: NewsletterDeliveryToolDeps, toolId: s
       if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
       const currentMailOff = mailOffResult(deps);
       if (currentMailOff) return currentMailOff;
-      const transition = await deps.newsletterCampaignRepo.transaction({ fn: async () => {
-        const current = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
-        // Pipeline transitions do not always increment version; compare the complete snapshot as well.
-        if (JSON.stringify(current) !== JSON.stringify(existing)) throw new ToolInputError({ message: "NEWSLETTER_STALE_CONFIRMATION: The campaign changed while the card was open. Review it and request a new confirmation." });
-        if (ctx.signal.aborted) return { abandoned: true as const };
-        if (scheduledAt !== null) return scheduleCampaign({ deps: { campaignRepo: deps.newsletterCampaignRepo, listRepo: deps.newsletterListRepo, clock: deps.clock, ids: deps.idGen }, input: { workspaceId: deps.workspaceId, id: campaignId, actorId: ctx.principal.id, scheduledAt } });
-        if (toolId === "newsletter_resume_campaign") {
-          await requireMassLaunchReady(deps);
-          if (ctx.signal.aborted) return { abandoned: true as const };
-          return resumeCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
-        }
-        return authorizeSend({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
-      } });
+      const transition = await transitionConfirmedCampaign(deps, toolId, { ctx, campaignId, existing, scheduledAt });
       if ("abandoned" in transition) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
       const { campaign } = transition;
       if (scheduledAt !== null) return { confirmed: true, scheduled: true, campaignId, status: campaign.status, scheduledAt: campaign.scheduledAt, delivered: false, mailDeliveryAvailable: true, note: "The issue's scheduled date was saved. Automatic delivery at that time is not wired; launch it with newsletter_send_campaign when due." };
       if ("requeueFailed" in transition && transition.requeueFailed) return processingAttentionResult({ campaignId, status: campaign.status });
-      // The campaign status has committed, so a later fan-out failure must not imply no launch occurred.
-      try {
-        await freezeAudience({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId, listId: campaign.listId } });
-        await claimBatch({ deps: toNewsletterSendPipelineDeps(deps) });
-        // An empty audience emits no batch event, so the subscriber cannot complete it for us.
-        await completeIfDrained({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
-      } catch (err) {
-        let errorDiagnostic = "[diagnostic unavailable]";
-        try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
-        console.error("[newsletter] delivery fan-out failed after launch; inspect the send log before retrying", errorDiagnostic);
-        return processingAttentionResult({ campaignId, status: campaign.status });
-      }
-      return { confirmed: true, started: true, campaignId, status: campaign.status, delivered: false, mailDeliveryAvailable: true };
+      return fanOutNewsletterCampaign(deps, campaignId, campaign);
     };
 }
 

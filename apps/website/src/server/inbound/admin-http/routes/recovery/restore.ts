@@ -59,6 +59,12 @@ function sendInternalError({ res, err }: { res: import("express").Response; err:
 }
 
 export function registerAdminRecoveryRestoreRoutes({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
+  registerRecoveryRestorePlanRoute({ app, deps });
+  registerRecoveryRestoreConfirmRoute({ app, deps });
+  registerRecoveryRestoreExecuteRoute({ app, deps });
+}
+
+function registerRecoveryRestorePlanRoute({ app, deps }: { app: Express; deps: RouteDeps }): void {
   app.post("/api/admin/v1/recovery/restore/plan", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -83,18 +89,7 @@ export function registerAdminRecoveryRestoreRoutes({ app, deps }: { app: Express
                   deps: deps.gatedMutations.gatewayDeps,
                   principalId: input.principalId,
                   principalKind: input.principalKind,
-                  hooks: buildRestoreHooks({
-                    workspaceId: deps.workspaceId,
-                    actorId: principal.id,
-                    restorePointId: input.restorePointId,
-                    clock: deps.clock,
-                    idGen: deps.idGen,
-                    restorePointsRepo: deps.restorePointsRepo,
-                    databaseLedgerRepo: deps.databaseLedgerRepo,
-                    dbOps: deps.dbOps,
-                    migrationRunsRepo: deps.migrationRunsRepo,
-                    siteStatus: deps.siteStatusRepo,
-                  }) as never,
+                  hooks: restoreHooksFor(deps, principal.id, input.restorePointId) as never,
                 }) }, {}
               ),
           },
@@ -111,6 +106,9 @@ export function registerAdminRecoveryRestoreRoutes({ app, deps }: { app: Express
       sendInternalError({ res, err });
     }
   });
+}
+
+function registerRecoveryRestoreConfirmRoute({ app, deps }: { app: Express; deps: RouteDeps }): void {
 
   app.post("/api/admin/v1/recovery/restore/confirm", async (req, res) => {
     try {
@@ -157,46 +155,15 @@ export function registerAdminRecoveryRestoreRoutes({ app, deps }: { app: Express
       sendInternalError({ res, err });
     }
   });
+}
+
+function registerRecoveryRestoreExecuteRoute({ app, deps }: { app: Express; deps: RouteDeps }): void {
 
   app.post("/api/admin/v1/recovery/restore/execute", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
 
-      // Audit finding AUD-001 (2026-07-16, external audit TM-20260716-full-session-001):
-      // executeRestore acquires the shared cross-domain operation lock strictly before
-      // gatewayExecute() runs -- that ordering exists for mutation-failure/lock-leak safety, not
-      // authorization, so an unauthorized-but-authenticated caller could still reach and briefly
-      // hold the lock before the gateway's own authorize() rejected them, contending with a
-      // concurrent authorized restore. Authorize inline, before any lock acquisition; the
-      // gateway's fresh authorize() re-check at execute time (CIC U-001) remains the authoritative
-      // check and is unchanged by this.
-      //
-      // Routed through `authorizeForHooks` (not a hardcoded `deps.authorize` workspace-scoped
-      // call) with `scopeKind: "instance"` -- `backup.restore`'s real scope, per
-      // `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` doc comment -- so this pre-check
-      // agrees with what `execute()`'s own internal check will decide. A hardcoded workspace-scoped
-      // check here would let a workspace-scoped-but-not-instance-authorized caller pass this gate,
-      // briefly hold the lock, and only then be rejected deeper inside `execute()` -- reopening the
-      // very race AUD-001 closed, one layer up.
-      const authResult = await authorizeForHooks(
-        { deps: deps.gatedMutations.gatewayDeps,
-        hooks: buildConfirmOnlyHooks({
-          domain: RESTORE_PERMISSION,
-          readPermission: "backup.read",
-          mutatePermission: RESTORE_PERMISSION,
-          scopeId: deps.workspaceId,
-          scopeKind: "instance",
-        }),
-        required: { principalId: principal.id, permission: RESTORE_PERMISSION } }
-      );
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'backup.restore' (${authResult.reason})`,
-          code: "NOT_AUTHORIZED",
-          details: { permission: RESTORE_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      if (!(await authorizeRestoreExecution(deps, principal.id, res))) return;
 
       const { confirmationToken, restorePointId } = req.body ?? {};
       if (typeof confirmationToken !== "string" || typeof restorePointId !== "string") {
@@ -204,18 +171,7 @@ export function registerAdminRecoveryRestoreRoutes({ app, deps }: { app: Express
         return;
       }
 
-      const hooks = buildRestoreHooks({
-        workspaceId: deps.workspaceId,
-        actorId: principal.id,
-        restorePointId,
-        clock: deps.clock,
-        idGen: deps.idGen,
-        restorePointsRepo: deps.restorePointsRepo,
-        databaseLedgerRepo: deps.databaseLedgerRepo,
-        dbOps: deps.dbOps,
-        migrationRunsRepo: deps.migrationRunsRepo,
-        siteStatus: deps.siteStatusRepo,
-      });
+      const hooks = restoreHooksFor(deps, principal.id, restorePointId);
 
       const result = await executeRestore({
         deps: {
@@ -246,4 +202,59 @@ export function registerAdminRecoveryRestoreRoutes({ app, deps }: { app: Express
       sendInternalError({ res, err });
     }
   });
+}
+
+
+function restoreHooksFor(deps: RouteDeps, actorId: string, restorePointId: string) {
+  return buildRestoreHooks({
+        workspaceId: deps.workspaceId,
+        actorId,
+        restorePointId,
+        clock: deps.clock,
+        idGen: deps.idGen,
+        restorePointsRepo: deps.restorePointsRepo,
+        databaseLedgerRepo: deps.databaseLedgerRepo,
+        dbOps: deps.dbOps,
+        migrationRunsRepo: deps.migrationRunsRepo,
+        siteStatus: deps.siteStatusRepo,
+      });
+}
+
+async function authorizeRestoreExecution(deps: RouteDeps, principalId: string, res: import("express").Response): Promise<boolean> {
+  // Audit finding AUD-001 (2026-07-16, external audit TM-20260716-full-session-001):
+  // executeRestore acquires the shared cross-domain operation lock strictly before
+  // gatewayExecute() runs -- that ordering exists for mutation-failure/lock-leak safety, not
+  // authorization, so an unauthorized-but-authenticated caller could still reach and briefly
+  // hold the lock before the gateway's own authorize() rejected them, contending with a
+  // concurrent authorized restore. Authorize inline, before any lock acquisition; the
+  // gateway's fresh authorize() re-check at execute time (CIC U-001) remains the authoritative
+  // check and is unchanged by this.
+  //
+  // Routed through `authorizeForHooks` (not a hardcoded `deps.authorize` workspace-scoped
+  // call) with `scopeKind: "instance"` -- `backup.restore`'s real scope, per
+  // `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` doc comment -- so this pre-check
+  // agrees with what `execute()`'s own internal check will decide. A hardcoded workspace-scoped
+  // check here would let a workspace-scoped-but-not-instance-authorized caller pass this gate,
+  // briefly hold the lock, and only then be rejected deeper inside `execute()` -- reopening the
+  // very race AUD-001 closed, one layer up.
+  const authResult = await authorizeForHooks(
+    { deps: deps.gatedMutations.gatewayDeps,
+    hooks: buildConfirmOnlyHooks({
+      domain: RESTORE_PERMISSION,
+      readPermission: "backup.read",
+      mutatePermission: RESTORE_PERMISSION,
+      scopeId: deps.workspaceId,
+      scopeKind: "instance",
+    }),
+    required: { principalId: principalId, permission: RESTORE_PERMISSION } }
+  );
+  if (!authResult.allowed) {
+    res.status(403).json({
+      error: `principal '${principalId}' is not authorized for 'backup.restore' (${authResult.reason})`,
+      code: "NOT_AUTHORIZED",
+      details: { permission: RESTORE_PERMISSION, reason: authResult.reason },
+    });
+    return false;
+  }
+  return true;
 }

@@ -391,6 +391,17 @@ function createCurrentSiteCheck(assertLocal: () => void, catalog: () => SitesWor
   };
 }
 
+async function readPeerOwner(kernel: ReturnType<typeof openSqliteFileKernel<ContentDatabase>>, workspaceId: string) {
+  // Users are site-local: never reuse the caller's principal or infer ownership from username/email.
+  const owners = await kernel.query<{ principal_id: string }>(sql`SELECT DISTINCT u.principal_id
+    FROM identity_users u JOIN principal_roles pr ON pr.principal_id=u.principal_id AND pr.workspace_id=u.workspace_id
+    JOIN roles r ON r.id=pr.role_id AND r.workspace_id=pr.workspace_id
+    WHERE u.workspace_id=${workspaceId} AND r.name='owner' LIMIT 2`);
+  const owner = owners[0];
+  if (owners.length !== 1 || !owner) throw new ToolInputError({ message: 'The target site must have exactly one owner to read it.' });
+  return owner;
+}
+
 function createPeerReadOpener(openContent: typeof openSqliteFileKernel, openChat: typeof openNativeSqlite, now: () => number) {
   /** Open and compose one read-only peer; failed provisional opens close all acquired handles.
    * @complexity O(t + f) for t registrations and f theme files, plus bounded schema/owner reads. */
@@ -407,13 +418,7 @@ function createPeerReadOpener(openContent: typeof openSqliteFileKernel, openChat
       if (schema.status === 'behind' || pendingMigrations.items.length > 0) throw new ToolInputError({ message: `Open ${source.name} in Tovu once to upgrade it.` });
       if (schema.status !== 'in-sync') throw new ToolInputError({ message: 'This site has an unsupported database schema. Open it in Tovu first.' });
       const workspaceId = (await resolveWorkspace({ kernel })).id;
-      // Users are site-local: never reuse the caller's principal or infer ownership from username/email.
-      const owners = await kernel.query<{ principal_id: string }>(sql`SELECT DISTINCT u.principal_id
-        FROM identity_users u JOIN principal_roles pr ON pr.principal_id=u.principal_id AND pr.workspace_id=u.workspace_id
-        JOIN roles r ON r.id=pr.role_id AND r.workspace_id=pr.workspace_id
-        WHERE u.workspace_id=${workspaceId} AND r.name='owner' LIMIT 2`);
-      const owner = owners[0];
-      if (owners.length !== 1 || !owner) throw new ToolInputError({ message: 'The target site must have exactly one owner to read it.' });
+      const owner = await readPeerOwner(kernel, workspaceId);
       if (!fs.existsSync(paths.chatDbPath)) throw new ToolInputError({ message: "This site's chat database is missing. Open the site in Tovu first." });
       const chatOptions = { readonly: true, fileMustExist: true, timeout: 5000 };
       chat = openChat(paths.chatDbPath, chatOptions);

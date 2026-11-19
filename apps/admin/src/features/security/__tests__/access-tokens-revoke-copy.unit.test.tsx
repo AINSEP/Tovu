@@ -2,7 +2,7 @@ import { render } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import { AccessTokensTab } from "../AccessTokensTab";
-import { accessTokenProviderInfo } from "../rules";
+import { accessTokenProviderInfo } from "../access-token-providers";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokensController, AccessTokenExistingRowState, AccessTokenProviderGroupState } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";

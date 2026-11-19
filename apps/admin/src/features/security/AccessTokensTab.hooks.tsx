@@ -1,15 +1,9 @@
 import { useMemo, type ForwardedRef, type RefObject } from "react";
 
-import {
-  accessTokenProviderMatchesQuery,
-  customCredentialReadyToSave,
-  isValidHttpUrl,
-  otherCredentialMatchesQuery,
-  sortAccessTokenGroups,
-  type AccessTokenGroupSortInput,
-  type AccessTokenRow,
-  type OtherCredentialStoreInfo,
-} from "./rules";
+import { accessTokenProviderMatchesQuery, type AccessTokenRow } from "./access-token-rows";
+import { customCredentialReadyToSave, isValidHttpUrl } from "./custom-credential-forms";
+import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./other-credential-stores";
+import { sortAccessTokenGroups, type AccessTokenGroupSortInput } from "./rules";
 import type { AccessTokensController, AccessTokenProviderGroupState } from "./hooks/use-access-tokens.hooks";
 import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 

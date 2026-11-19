@@ -159,13 +159,17 @@ export async function importSubscriptions(required: {
       });
       created.push(subscription);
     } catch (err) {
-      if (err instanceof NewsletterSubscriberNotFoundError) {
-        failed.push({ index, code: "NEWSLETTER_SUBSCRIBER_NOT_FOUND", message: err.message });
-      } else {
-        failed.push({ index, code: "INTERNAL_ERROR", message: (err as Error).message });
-      }
+      failed.push(subscriptionImportFailure(err, index));
     }
   }
 
   return { created, failed };
+}
+
+function subscriptionImportFailure(err: unknown, index: number): { index: number; code: string; message: string } {
+  if (err instanceof NewsletterSubscriberNotFoundError) {
+    return { index, code: "NEWSLETTER_SUBSCRIBER_NOT_FOUND", message: err.message };
+  } else {
+    return { index, code: "INTERNAL_ERROR", message: (err as Error).message };
+  }
 }

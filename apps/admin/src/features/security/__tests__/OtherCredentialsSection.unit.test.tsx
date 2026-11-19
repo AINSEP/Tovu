@@ -4,7 +4,7 @@ import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 
 import { OtherCredentialEntry } from "../OtherCredentialsSection";
 import type { OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
-import { otherCredentialStoreInfo, type OtherCredentialStoreInfo } from "../rules";
+import { otherCredentialStoreInfo, type OtherCredentialStoreInfo } from "../other-credential-stores";
 
 /**
  * @file `OtherCredentialEntry` — Tier 2's one top-level row component (`AccessTokensTab.hooks.tsx`'s

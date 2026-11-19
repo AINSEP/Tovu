@@ -1,5 +1,5 @@
 import type { AdminSourceControlProviderDescriptor } from "@/features/source-control/api/source-control-api.types";
-import { accessTokenProviders } from "../rules";
+import { accessTokenProviders } from "../access-token-providers";
 import { PUBLISH_TARGETS } from "../../deployment/__tests__/publish-targets.fixture";
 
 /**

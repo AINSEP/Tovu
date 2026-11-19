@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 
-import type { OtherCredentialStoreInfo } from "./rules";
+import type { OtherCredentialStoreInfo } from "./other-credential-stores";
 
 import { interpolate, localeEntry, createDictionaryTranslator } from '@jini-ai/core/text';
 /** Feature-specific Security copy. Shared chrome such as Save and Cancel falls back to COMMON_I18N. */
