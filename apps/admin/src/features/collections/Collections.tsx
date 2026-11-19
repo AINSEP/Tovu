@@ -60,8 +60,6 @@ export interface CollectionsProps {
    * nothing and behave exactly as before. See `PostsProps.usePostsHook` for the full rationale.
    */
   useCollectionsHook?: typeof useWiredCollections;
-  /** The component's view-state hook, injectable like the controller hook above. */
-  useCollectionsViewHook?: typeof useCollectionsView;
 }
 
 /** The three modals `Collections` can have open at once (mutually exclusive in practice, but not
@@ -116,11 +114,11 @@ function CollectionsDialogs(props: {
   );
 }
 
-export function Collections({ useCollectionsHook = useWiredCollections, useCollectionsViewHook = useCollectionsView, dialogHooks }: CollectionsProps = {}) {
+export function Collections({ useCollectionsHook = useWiredCollections, dialogHooks }: CollectionsProps = {}) {
   const {
     types, error, showNewDialog, setShowNewDialog, pendingLifecycle, setPendingLifecycle, editingFieldsFor, setEditingFieldsFor, actionError, load, runLifecycle,
     copiedKey, copyFallback, copyEmbedCode, t, locale,
-  } = useCollectionsViewHook({ useCollectionsHook });
+  } = useCollectionsHook();
 
   if (error && !types) return <div className="notice error">{error}</div>;
   if (!types) return <div className="notice">{t({ key: "Loading content types…" })}</div>;
@@ -168,34 +166,6 @@ export function Collections({ useCollectionsHook = useWiredCollections, useColle
       />
     </div>
   );
-}
-
-function useCollectionsView(
-  { useCollectionsHook }:
-    { useCollectionsHook: NonNullable<CollectionsProps["useCollectionsHook"]> }
-) {
-  const {
-    types,
-    error,
-    showNewDialog,
-    setShowNewDialog,
-    pendingLifecycle,
-    setPendingLifecycle,
-    editingFieldsFor,
-    setEditingFieldsFor,
-    actionError,
-    load,
-    runLifecycle,
-    copiedKey,
-    copyFallback,
-    copyEmbedCode,
-    t,
-    locale,
-  } = useCollectionsHook();
-  return {
-    types, error, showNewDialog, setShowNewDialog, pendingLifecycle, setPendingLifecycle, editingFieldsFor, setEditingFieldsFor, actionError, load, runLifecycle,
-    copiedKey, copyFallback, copyEmbedCode, t, locale,
-  };
 }
 
 function renderCollectionsTable(

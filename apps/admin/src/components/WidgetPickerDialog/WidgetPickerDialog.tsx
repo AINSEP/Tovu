@@ -83,8 +83,6 @@ export interface WidgetPickerDialogProps {
    *  component's rendering without the real `listWidgets` fetch or `document`-level Escape
    *  listener. */
   useDialog?: typeof useWiredWidgetPickerDialog;
-  /** The dialog's view-state hook, injectable like `useDialog`. */
-  useWidgetPickerViewHook?: typeof useWidgetPickerView;
   /** This dialog's own base handle — see this file's "Agent handles" doc for the full scheme. Omit
    *  to leave it untagged. */
   agentHandle?: string;
@@ -92,11 +90,11 @@ export interface WidgetPickerDialogProps {
   presentation?: "dialog" | "inline";
 }
 
-export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, useWidgetPickerViewHook = useWidgetPickerView, agentHandle: base, ...props }: WidgetPickerDialogProps) {
+export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, agentHandle: base, ...props }: WidgetPickerDialogProps) {
   const {
     instances, loadError, selectedExistingId, setSelectedExistingId, newTitle, setNewTitle, newConfig, setNewConfig, error, existingSelectId, newTitleInputId,
     newTitleInputRef, typeLabel, hasExisting, submitUseExisting, submitCreateNew, t,
-  } = useWidgetPickerViewHook({ useDialog, props });
+  } = useDialog(props);
   // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
   if (hasExisting && !instances) throw new Error("widget picker has existing widgets but no instances");
 
@@ -125,35 +123,6 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, use
       {content}
     </Dialog>
   );
-}
-
-function useWidgetPickerView(
-  { useDialog, props }:
-    { useDialog: NonNullable<WidgetPickerDialogProps["useDialog"]>; props: Omit<WidgetPickerDialogProps, "useDialog" | "agentHandle"> }
-) {
-  const {
-    instances,
-    loadError,
-    selectedExistingId,
-    setSelectedExistingId,
-    newTitle,
-    setNewTitle,
-    newConfig,
-    setNewConfig,
-    error,
-    existingSelectId,
-    newTitleInputId,
-    newTitleInputRef,
-    typeLabel,
-    hasExisting,
-    submitUseExisting,
-    submitCreateNew,
-    t,
-  } = useDialog(props);
-  return {
-    instances, loadError, selectedExistingId, setSelectedExistingId, newTitle, setNewTitle, newConfig, setNewConfig, error, existingSelectId, newTitleInputId,
-    newTitleInputRef, typeLabel, hasExisting, submitUseExisting, submitCreateNew, t,
-  };
 }
 
 function renderWidgetPickerFooter(
