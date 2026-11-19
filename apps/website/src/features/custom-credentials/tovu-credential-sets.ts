@@ -38,7 +38,8 @@ export const tovuCredentialSetHost: CredentialSetStoreHost<CustomCredentialCateg
     storageError: () => new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) }),
   scopes: credentialScopes,
   createTarget: credentialCreateTarget,
-  isUniqueViolation,
+  // The integrations host port is positional; core's isUniqueViolation takes { err } (args-jini-core-mcp).
+  isUniqueViolation: (err) => isUniqueViolation({ err }),
   isCreateConflict: (error): error is Error => error instanceof ProjectKeyCreateConflictError,
   token: {
     normalize: ({ value }) => normalizeCredentialToken({ value }),
