@@ -238,76 +238,13 @@ export function Dashboard({ useDashboardHook = useWiredDashboard, usePublishToLi
 
   return (
     <div className="page dashboard-page">
-      <div className="page-header">
-        <div className="page-header-text">
-          <p className="page-kicker">{t("Overview")}</p>
-          <h1 className="page-title">{t("Dashboard")}</h1>
-          <p className="page-description">{t("Everything happening on this site at a glance.")}</p>
-        </div>
-        <div className="page-actions dash-header-actions">
-          {/* Orange/`.btn-primary`, left of "View site" on one row (owner 2026-10-06; it used to sit
-              stacked under it) — a deliberate, meaningful action, not a nav link. See
-              `PublishContentDialog.tsx` for why the dialog it opens exists and why its own Confirm
-              is a stub. */}
-          {canPublish ? (
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => requestPublish({})}
-              {...agentHandle({ handle: "dashboard-publish-content" }, {
-                role: "button",
-                label: "Publish all content to the live site",
-              })}
-            >
-              {t("Publish All")}
-            </button>
-          ) : null}
-          <a
-            className="btn-secondary"
-            href={siteUrl({ path: "/" })}
-            target="_blank"
-            rel="noreferrer"
-            {...agentHandle({ handle: "dashboard-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
-          >
-            {t("View site ↗")}
-          </a>
-        </div>
-      </div>
+      {renderDashboardHeader({ t, canPublish })}
 
       {showSiteKeyBanner ? <SiteKeyWarningBanner message={siteKeyBannerMessage} /> : null}
       {showDefaultPasswordBanner ? <DefaultPasswordBanner onDismiss={dismissDefaultPasswordBanner} t={t} /> : null}
 
       <div className="dash-top">
-        <div className="dash-stats">
-          <Stat
-            href="/admin/posts"
-            label={t("Posts")}
-            state={posts}
-            meta={postsStatMeta({ published, t })}
-            agentHandleId="dashboard-stat-posts"
-          />
-          <Stat
-            href="/admin/pages"
-            label={t("Pages")}
-            state={pages}
-            meta={pagesStatMeta({ drafts, t })}
-            agentHandleId="dashboard-stat-pages"
-          />
-          <Stat
-            href="/admin/media"
-            label={t("Media")}
-            state={media}
-            meta={t("items in the library")}
-            agentHandleId="dashboard-stat-media"
-          />
-          <Stat
-            href="/admin/comments"
-            label={t("Comments")}
-            state={comments}
-            meta={commentsStatMeta({ pendingCount: comments.value, t })}
-            agentHandleId="dashboard-stat-comments"
-          />
-        </div>
+        {renderDashboardStats({ t, posts, published, pages, drafts, media, comments })}
         <div className="dash-panel">
           <div className="dash-panel-head">
             <h2 className="dash-panel-title">{t("Appearance")}</h2>
@@ -323,6 +260,88 @@ export function Dashboard({ useDashboardHook = useWiredDashboard, usePublishToLi
 
       <div className="dash-panels">
         <RecentActivityPanel recent={recent} postsError={posts.error} pagesError={pages.error} t={t} />
+      </div>
+    </div>
+  );
+}
+
+function renderDashboardStats(
+  { t, posts, published, pages, drafts, media, comments }:
+    Pick<ReturnType<NonNullable<DashboardProps["useDashboardHook"]>>, "t" | "posts" | "published" | "pages" | "drafts" | "media" | "comments">
+) {
+  return (
+    <div className="dash-stats">
+      <Stat
+        href="/admin/posts"
+        label={t("Posts")}
+        state={posts}
+        meta={postsStatMeta({ published, t })}
+        agentHandleId="dashboard-stat-posts"
+      />
+      <Stat
+        href="/admin/pages"
+        label={t("Pages")}
+        state={pages}
+        meta={pagesStatMeta({ drafts, t })}
+        agentHandleId="dashboard-stat-pages"
+      />
+      <Stat
+        href="/admin/media"
+        label={t("Media")}
+        state={media}
+        meta={t("items in the library")}
+        agentHandleId="dashboard-stat-media"
+      />
+      <Stat
+        href="/admin/comments"
+        label={t("Comments")}
+        state={comments}
+        meta={commentsStatMeta({ pendingCount: comments.value, t })}
+        agentHandleId="dashboard-stat-comments"
+      />
+    </div>
+  );
+}
+
+function renderDashboardHeader(
+  { t, canPublish }:
+    Pick<ReturnType<NonNullable<DashboardProps["useDashboardHook"]>>, "t"> &
+    { canPublish: ReturnType<NonNullable<DashboardProps["usePublishToLiveAvailableHook"]>> }
+) {
+  return (
+    <div className="page-header">
+      <div className="page-header-text">
+        <p className="page-kicker">{t("Overview")}</p>
+        <h1 className="page-title">{t("Dashboard")}</h1>
+        <p className="page-description">{t("Everything happening on this site at a glance.")}</p>
+      </div>
+      <div className="page-actions dash-header-actions">
+        {/* Orange/`.btn-primary`, left of "View site" on one row (owner 2026-10-06; it used to sit
+            stacked under it) — a deliberate, meaningful action, not a nav link. See
+            `PublishContentDialog.tsx` for why the dialog it opens exists and why its own Confirm
+            is a stub. */}
+        {canPublish ? (
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => requestPublish({})}
+            {...agentHandle({ handle: "dashboard-publish-content" }, {
+              role: "button",
+              label: "Publish all content to the live site",
+            })}
+          >
+            {t("Publish All")}
+          </button>
+        ) : null}
+        <a
+          className="btn-secondary"
+          href={siteUrl({ path: "/" })}
+          target="_blank"
+          rel="noreferrer"
+          {...agentHandle({ handle: "dashboard-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
+        >
+          {t("View site ↗")}
+        </a>
       </div>
     </div>
   );

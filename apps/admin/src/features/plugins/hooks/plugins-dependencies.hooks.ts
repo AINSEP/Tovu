@@ -49,11 +49,89 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
   /** Every plugin currently in the fake's store, in list order. */
   readonly plugins: AdminPlugin[];
 } {
+  return createFakePluginsStore({ options });
+}
+
+function createFakePluginsStore(
+  { options }:
+    { options: NonNullable<Parameters<typeof createFakePluginsPort>[0]> }
+): ReturnType<typeof createFakePluginsPort> {
   const plugins = [...(options.plugins ?? [])];
   const trashedPluginIds = new Set<string>();
 
   return {
     plugins,
+    ...createFakePluginLifecycle({ options, plugins, trashedPluginIds }),
+    ...createFakePluginReads({ options }),
+
+    async saveProviderSettings({ id, values }, _optional = {}) {
+      const card = await this.getProviderSettings({ id });
+      if (Object.entries(values).some(([name]) => !card.fields.some((field) => field.name === name))) {
+        throw new ApiError({ message: "values must map declared setting names to text", status: 400 }, { code: "PROVIDER_SETTINGS_INVALID" });
+      }
+      // Like the server: a blank secret is kept only while every public field is unchanged (a blank
+      // public field means its declared default, so filling in that default is no change).
+      const effective = ({ field, value }: { field: (typeof card.fields)[number]; value: string | undefined }, _optional = {}) => value || field.default || "";
+      const effectiveFieldValue = ({ field, entered }: { field: (typeof card.fields)[number]; entered: string | undefined }, _optional = {}) => {
+        if (!field.secret) return effective({ field, value: entered ?? field.value });
+        if (entered) return entered;
+        return field.saved ? "saved" : "";
+      };
+      const changed = card.fields.filter((field) => {
+        const value = values[field.name];
+        return !field.secret && value !== undefined && effective({ field, value: value.trim() }) !== effective({ field, value: field.value });
+      });
+      const kept = card.fields.filter((field) => field.secret && field.saved && !values[field.name]?.trim());
+      if (changed.length > 0 && kept.length > 0) {
+        const labels = (list: typeof kept) => list.map((field) => field.label).join(", ");
+        throw new ApiError({ message: `Changing ${labels(changed)} needs ${labels(kept)} entered again.`, status: 400 }, { code: "PROVIDER_SETTINGS_SECRET_REENTRY" });
+      }
+      const effectiveValues = Object.fromEntries(card.fields.map((field) => [field.name, effectiveFieldValue({ field, entered: values[field.name]?.trim() })]));
+      const missing = card.fields.find((field) => providerSettingRequiredHere({ field, fields: card.fields, entered: values, values: effectiveValues }) && !effectiveValues[field.name]);
+      if (missing) throw new ApiError({ message: `${missing.label} is required.${missing.hint ? " " + missing.hint : ""}`, status: 400 }, { code: "PROVIDER_SETTINGS_REQUIRED" });
+      const fields = card.fields.map((field) => {
+        const value = values[field.name]?.trim();
+        if (value === undefined) return field;
+        if (field.secret) return { ...field, saved: field.saved || value !== "" };
+        return { ...field, value, saved: value !== "" };
+      });
+      // Like the server: once settings are saved, the retired-key and can't-read notices are gone.
+      const { legacyCredential: _retired, unreadable: _unreadable, ...current } = card;
+      const providerSettings = options.providerSettings;
+      if (!providerSettings) throw new ApiError({ message: "this plugin declares no provider settings", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
+      const updated = { ...current, fields };
+      providerSettings[id] = updated;
+      return updated;
+    },
+  };
+}
+
+function createFakePluginReads(
+  { options }:
+    Pick<Parameters<typeof createFakePluginsStore>[0], "options">
+): Pick<PluginsPort, "getPluginFiles" | "getProviderSettings"> {
+  return {
+
+    async getPluginFiles({ id }, _optional = {}) {
+      const listing = options.packageFiles?.[id];
+      if (!listing) throw new ApiError({ message: "plugin was not found", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
+      return listing;
+    },
+
+    async getProviderSettings({ id }, _optional = {}) {
+      const card = options.providerSettings?.[id];
+      if (!card) throw new ApiError({ message: "this plugin declares no provider settings", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
+      return card;
+    },
+  };
+}
+
+function createFakePluginLifecycle(
+  { options, plugins, trashedPluginIds }:
+    Pick<Parameters<typeof createFakePluginsStore>[0], "options"> &
+    { plugins: AdminPlugin[]; trashedPluginIds: Set<string> }
+): Pick<PluginsPort, "useProjectKey" | "listPlugins" | "setPluginEnabled" | "uninstallPlugin"> {
+  return {
     async useProjectKey({ keyId, use }, _optional = {}) {
       const card = Object.values(options.providerSettings ?? {}).find(card => card.keyId === keyId);
       if (!card) throw new ApiError({ message: "project key not found", status: 404 }, { code: "KEY_NOT_FOUND" });
@@ -96,58 +174,6 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       trashedPluginIds.add(id);
       plugins.splice(index, 1);
       return { pluginId: id, trashed: true };
-    },
-
-    async getPluginFiles({ id }, _optional = {}) {
-      const listing = options.packageFiles?.[id];
-      if (!listing) throw new ApiError({ message: "plugin was not found", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
-      return listing;
-    },
-
-    async getProviderSettings({ id }, _optional = {}) {
-      const card = options.providerSettings?.[id];
-      if (!card) throw new ApiError({ message: "this plugin declares no provider settings", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
-      return card;
-    },
-
-    async saveProviderSettings({ id, values }, _optional = {}) {
-      const card = await this.getProviderSettings({ id });
-      if (Object.entries(values).some(([name]) => !card.fields.some((field) => field.name === name))) {
-        throw new ApiError({ message: "values must map declared setting names to text", status: 400 }, { code: "PROVIDER_SETTINGS_INVALID" });
-      }
-      // Like the server: a blank secret is kept only while every public field is unchanged (a blank
-      // public field means its declared default, so filling in that default is no change).
-      const effective = ({ field, value }: { field: (typeof card.fields)[number]; value: string | undefined }, _optional = {}) => value || field.default || "";
-      const effectiveFieldValue = ({ field, entered }: { field: (typeof card.fields)[number]; entered: string | undefined }, _optional = {}) => {
-        if (!field.secret) return effective({ field, value: entered ?? field.value });
-        if (entered) return entered;
-        return field.saved ? "saved" : "";
-      };
-      const changed = card.fields.filter((field) => {
-        const value = values[field.name];
-        return !field.secret && value !== undefined && effective({ field, value: value.trim() }) !== effective({ field, value: field.value });
-      });
-      const kept = card.fields.filter((field) => field.secret && field.saved && !values[field.name]?.trim());
-      if (changed.length > 0 && kept.length > 0) {
-        const labels = (list: typeof kept) => list.map((field) => field.label).join(", ");
-        throw new ApiError({ message: `Changing ${labels(changed)} needs ${labels(kept)} entered again.`, status: 400 }, { code: "PROVIDER_SETTINGS_SECRET_REENTRY" });
-      }
-      const effectiveValues = Object.fromEntries(card.fields.map((field) => [field.name, effectiveFieldValue({ field, entered: values[field.name]?.trim() })]));
-      const missing = card.fields.find((field) => providerSettingRequiredHere({ field, fields: card.fields, entered: values, values: effectiveValues }) && !effectiveValues[field.name]);
-      if (missing) throw new ApiError({ message: `${missing.label} is required.${missing.hint ? " " + missing.hint : ""}`, status: 400 }, { code: "PROVIDER_SETTINGS_REQUIRED" });
-      const fields = card.fields.map((field) => {
-        const value = values[field.name]?.trim();
-        if (value === undefined) return field;
-        if (field.secret) return { ...field, saved: field.saved || value !== "" };
-        return { ...field, value, saved: value !== "" };
-      });
-      // Like the server: once settings are saved, the retired-key and can't-read notices are gone.
-      const { legacyCredential: _retired, unreadable: _unreadable, ...current } = card;
-      const providerSettings = options.providerSettings;
-      if (!providerSettings) throw new ApiError({ message: "this plugin declares no provider settings", status: 404 }, { code: "PLUGIN_NOT_FOUND" });
-      const updated = { ...current, fields };
-      providerSettings[id] = updated;
-      return updated;
     },
   };
 }

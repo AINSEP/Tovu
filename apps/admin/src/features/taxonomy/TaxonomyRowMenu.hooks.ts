@@ -10,27 +10,87 @@ type MenuState = ReturnType<NonNullable<RowMenuProps["useRowMenu"]>>;
  * @returns Menu state, DOM refs and keyboard/pointer actions; listeners exist only while open.
  */
 export function useTaxonomyRowMenu({ itemCount }: { itemCount: number }): MenuState {
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState<MenuState["position"]>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  itemRefs.current = itemRefs.current.slice(0, itemCount);
+  const { open, position, setPosition, activeIndex, setActiveIndex, triggerRef, menuRef, itemRefs, close, openAt } = useTaxonomyMenuState({ itemCount });
+  useTaxonomyMenuEffects({ open, triggerRef, menuRef, setPosition, close, itemRefs, activeIndex });
+  const { onTriggerClick, onTriggerKeyDown, onMenuKeyDown, selectItem } = createTaxonomyMenuActions({ open, close, openAt, itemCount, itemRefs, menuRef, activeIndex, setActiveIndex });
 
-  /** Close explicitly; Escape and selection return focus, outside clicks and Tab leave it. */
-  function close(focus: "trigger" | "leave") {
-    setOpen(false);
-    setPosition(null);
-    if (focus === "trigger") triggerRef.current?.focus();
+  return { open, position, triggerRef, menuRef, itemRefs, onTriggerClick, onTriggerKeyDown, onMenuKeyDown, selectItem };
+}
+
+function createTaxonomyMenuActions(
+  { open, close, openAt, itemCount, itemRefs, menuRef, activeIndex, setActiveIndex }:
+    Pick<ReturnType<typeof useTaxonomyMenuState>, "open" | "close" | "openAt" | "itemRefs" | "menuRef" | "activeIndex" | "setActiveIndex"> &
+    Pick<Parameters<typeof useTaxonomyRowMenu>[0], "itemCount">
+) {
+  /** Toggle by pointer without stealing focus back when closing the same trigger. */
+  function onTriggerClick() {
+    if (open) close("leave");
+    else openAt(0);
   }
 
-  /** Open with the first or last action selected, according to the trigger key. */
-  function openAt(index: number) {
-    setActiveIndex(index);
-    setOpen(true);
+  /** Arrow keys open with a predictable initial focused action. */
+  function onTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    openAt(event.key === "ArrowDown" ? 0 : itemCount - 1);
   }
+  const { onMenuKeyDown } = createTaxonomyMenuKeyboard({ itemRefs, menuRef, activeIndex, setActiveIndex, itemCount, close });
 
+  /** Close before handing the selected action back to its owner. */
+  function selectItem({ onSelect }: { onSelect: () => void }) {
+    close("trigger");
+    onSelect();
+  }
+  return { onTriggerClick, onTriggerKeyDown, onMenuKeyDown, selectItem };
+}
+
+function createTaxonomyMenuKeyboard(
+  { itemRefs, menuRef, activeIndex, setActiveIndex, itemCount, close }:
+    Pick<Parameters<typeof createTaxonomyMenuActions>[0], "itemRefs" | "menuRef" | "activeIndex" | "setActiveIndex" | "itemCount" | "close">
+) {
+  /** Keep menu navigation local; Tab follows the browser's ordinary focus order. */
+  function onMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // A pointer can focus another setting while the popup stays open. Navigate from that
+    // actual row, and focus explicitly even if the next index matches the last keyboard index.
+    const focusedIndex = itemRefs.current.indexOf(menuRef.current?.ownerDocument.activeElement as HTMLButtonElement);
+    const index = focusedIndex === -1 ? activeIndex : focusedIndex;
+    function focusItem(nextIndex: number) {
+      setActiveIndex(nextIndex);
+      itemRefs.current[nextIndex]?.focus();
+    }
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        focusItem((index + 1) % itemCount);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        focusItem((index - 1 + itemCount) % itemCount);
+        break;
+      case "Home":
+        event.preventDefault();
+        focusItem(0);
+        break;
+      case "End":
+        event.preventDefault();
+        focusItem(itemCount - 1);
+        break;
+      case "Escape":
+        event.preventDefault();
+        close("trigger");
+        break;
+      case "Tab":
+        close("leave");
+        break;
+    }
+  }
+  return { onMenuKeyDown };
+}
+
+function useTaxonomyMenuEffects(
+  { open, triggerRef, menuRef, setPosition, close, itemRefs, activeIndex }:
+    Pick<ReturnType<typeof useTaxonomyMenuState>, "open" | "triggerRef" | "menuRef" | "setPosition" | "close" | "itemRefs" | "activeIndex">
+) {
   useLayoutEffect(() => {
     if (!open) return undefined;
     /** Measure the portal after layout and follow anchor movement on scroll/resize. */
@@ -72,62 +132,31 @@ export function useTaxonomyRowMenu({ itemCount }: { itemCount: number }): MenuSt
   useEffect(() => {
     if (open) itemRefs.current[activeIndex]?.focus();
   }, [open, activeIndex]);
+}
 
-  /** Toggle by pointer without stealing focus back when closing the same trigger. */
-  function onTriggerClick() {
-    if (open) close("leave");
-    else openAt(0);
+function useTaxonomyMenuState(
+  { itemCount }:
+    Pick<Parameters<typeof useTaxonomyRowMenu>[0], "itemCount">
+) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<MenuState["position"]>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  itemRefs.current = itemRefs.current.slice(0, itemCount);
+
+  /** Close explicitly; Escape and selection return focus, outside clicks and Tab leave it. */
+  function close(focus: "trigger" | "leave") {
+    setOpen(false);
+    setPosition(null);
+    if (focus === "trigger") triggerRef.current?.focus();
   }
 
-  /** Arrow keys open with a predictable initial focused action. */
-  function onTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    event.preventDefault();
-    openAt(event.key === "ArrowDown" ? 0 : itemCount - 1);
+  /** Open with the first or last action selected, according to the trigger key. */
+  function openAt(index: number) {
+    setActiveIndex(index);
+    setOpen(true);
   }
-
-  /** Keep menu navigation local; Tab follows the browser's ordinary focus order. */
-  function onMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    // A pointer can focus another setting while the popup stays open. Navigate from that
-    // actual row, and focus explicitly even if the next index matches the last keyboard index.
-    const focusedIndex = itemRefs.current.indexOf(menuRef.current?.ownerDocument.activeElement as HTMLButtonElement);
-    const index = focusedIndex === -1 ? activeIndex : focusedIndex;
-    function focusItem(nextIndex: number) {
-      setActiveIndex(nextIndex);
-      itemRefs.current[nextIndex]?.focus();
-    }
-    switch (event.key) {
-      case "ArrowDown":
-        event.preventDefault();
-        focusItem((index + 1) % itemCount);
-        break;
-      case "ArrowUp":
-        event.preventDefault();
-        focusItem((index - 1 + itemCount) % itemCount);
-        break;
-      case "Home":
-        event.preventDefault();
-        focusItem(0);
-        break;
-      case "End":
-        event.preventDefault();
-        focusItem(itemCount - 1);
-        break;
-      case "Escape":
-        event.preventDefault();
-        close("trigger");
-        break;
-      case "Tab":
-        close("leave");
-        break;
-    }
-  }
-
-  /** Close before handing the selected action back to its owner. */
-  function selectItem({ onSelect }: { onSelect: () => void }) {
-    close("trigger");
-    onSelect();
-  }
-
-  return { open, position, triggerRef, menuRef, itemRefs, onTriggerClick, onTriggerKeyDown, onMenuKeyDown, selectItem };
+  return { open, position, setPosition, activeIndex, setActiveIndex, triggerRef, menuRef, itemRefs, close, openAt };
 }

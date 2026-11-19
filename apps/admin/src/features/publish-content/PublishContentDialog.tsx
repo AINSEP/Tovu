@@ -117,32 +117,7 @@ export function PublishContentDialog({
       <p>{t("Anything edited on the live site is skipped unless you tick Overwrite on live.")}</p>
       {view.rows.some(row => row.entityType === "form") && <p>{t("Form notification recipients stay local on each site; copying a form does not copy them.")}</p>}
 
-      {view.peers.length > 1 && (
-        <label className="field">
-          <span>{t("Publish to")}</span>
-          <select
-            value={view.selectedPeerId ?? ""}
-            disabled={!view.peerSelectionEnabled}
-            onChange={(e) => view.onSelectPeer({ peerId: e.target.value })}
-            {...agentHandle(
-              { handle: "dashboard-publish-content-peer" },
-              {
-                // `AgentElementRole` has no `select` member — a `<select>` is a `field` in that
-                // vocabulary, same as every other value-carrying control.
-                role: "field",
-                label: "Which site to publish this content to",
-              }
-            )}
-          >
-            <option value="">{t("Choose a site…")}</option>
-            {view.peers.map((peer) => (
-              <option key={peer.id} value={peer.id}>
-                {peer.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      {renderPublishPeerPicker({ view, t })}
       {view.peers.length === 1 && (
         <p className="muted publish-content-target">
           {t("Publishing to")} <strong>{view.peers[0].label}</strong>
@@ -153,69 +128,123 @@ export function PublishContentDialog({
 
       <PublishContentReport view={view} t={t} />
 
-      <span className="editor-actions">
-        {/* Cancel is the default-focused control — see this file's header for why, even though
-              this dialog isn't destructive. */}
-        <button
-          type="button"
-          className="btn-secondary"
-          data-jini-autofocus=""
-          disabled={!view.dismissible}
-          onClick={view.onDismiss}
+      {renderPublishContentActions({ view, t })}
+    </Dialog>
+  );
+}
+
+function renderPublishPeerPicker(
+  { view, t }:
+    Pick<PublishContentDialogProps, "t"> &
+    { view: ReturnType<NonNullable<PublishContentDialogProps["usePublishContentConfirmHook"]>> }
+) {
+  return (
+    view.peers.length > 1 && (
+      <label className="field">
+        <span>{t("Publish to")}</span>
+        <select
+          value={view.selectedPeerId ?? ""}
+          disabled={!view.peerSelectionEnabled}
+          onChange={(e) => view.onSelectPeer({ peerId: e.target.value })}
           {...agentHandle(
-            { handle: "dashboard-publish-content-cancel" },
+            { handle: "dashboard-publish-content-peer" },
             {
-              role: "button",
-              label: "Close this dialog without publishing",
+              // `AgentElementRole` has no `select` member — a `<select>` is a `field` in that
+              // vocabulary, same as every other value-carrying control.
+              role: "field",
+              label: "Which site to publish this content to",
             }
           )}
         >
-          {t("Cancel")}
-        </button>
-        {/* Two different buttons, keyed apart so the confirm is a new element rather than the plan
-              button relabelled in place — a click waiting on "Planning…" must never land on
-              "Publish N items" (owner report 2026-09-26; see `CONFIRM_ARM_DELAY_MS`). */}
-        {view.primaryKind === "start" ? (
-          <button
-            key="start"
-            type="button"
-            className="btn-primary"
-            disabled={view.primaryDisabled}
-            onClick={view.onPrimary}
-            {...agentHandle(
-              { handle: "dashboard-publish-content-plan" },
-              {
-                role: "button",
-                // While `connectOffer` is set this button connects the pre-filled site instead of
-                // planning — see this file's header.
-                label: view.connectOffer
-                  ? "Connect this site so it can publish, using the pre-filled site address"
-                  : "Work out what would be published, without publishing anything",
-              }
-            )}
-          >
-            {view.primaryLabel}
-          </button>
-        ) : (
-          <button
-            key="confirm"
-            type="button"
-            className="btn-primary"
-            disabled={view.primaryDisabled}
-            onClick={view.onPrimary}
-            {...agentHandle(
-              { handle: "dashboard-publish-content-confirm" },
-              {
-                role: "button",
-                label: "Publish the checked items to the live site",
-              }
-            )}
-          >
-            {view.primaryLabel}
-          </button>
+          <option value="">{t("Choose a site…")}</option>
+          {view.peers.map((peer) => (
+            <option key={peer.id} value={peer.id}>
+              {peer.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  );
+}
+
+function renderPublishContentActions(
+  { view, t }:
+    Pick<PublishContentDialogProps, "t"> &
+    { view: ReturnType<NonNullable<PublishContentDialogProps["usePublishContentConfirmHook"]>> }
+) {
+  return (
+    <span className="editor-actions">
+      {/* Cancel is the default-focused control — see this file's header for why, even though
+            this dialog isn't destructive. */}
+      <button
+        type="button"
+        className="btn-secondary"
+        data-jini-autofocus=""
+        disabled={!view.dismissible}
+        onClick={view.onDismiss}
+        {...agentHandle(
+          { handle: "dashboard-publish-content-cancel" },
+          {
+            role: "button",
+            label: "Close this dialog without publishing",
+          }
         )}
-      </span>
-    </Dialog>
+      >
+        {t("Cancel")}
+      </button>
+      {/* Two different buttons, keyed apart so the confirm is a new element rather than the plan
+            button relabelled in place — a click waiting on "Planning…" must never land on
+            "Publish N items" (owner report 2026-09-26; see `CONFIRM_ARM_DELAY_MS`). */}
+      {renderPublishPrimaryAction({ view })}
+    </span>
+  );
+}
+
+function renderPublishPrimaryAction(
+  { view }:
+    Pick<Parameters<typeof renderPublishContentActions>[0], "view">
+) {
+  return (
+    view.primaryKind === "start" ? (
+      <button
+        key="start"
+        type="button"
+        className="btn-primary"
+        disabled={view.primaryDisabled}
+        onClick={view.onPrimary}
+        {...agentHandle(
+          { handle: "dashboard-publish-content-plan" },
+          {
+            role: "button",
+            // While `connectOffer` is set this button connects the pre-filled site instead of
+            // planning — see this file's header.
+            label: view.connectOffer
+              ? "Connect this site so it can publish, using the pre-filled site address"
+              : "Work out what would be published, without publishing anything",
+          }
+        )}
+      >
+        {view.primaryLabel}
+      </button>
+    ) : (
+      <button
+        key="confirm"
+        type="button"
+        className="btn-primary"
+        disabled={view.primaryDisabled}
+        onClick={view.onPrimary}
+        {...agentHandle(
+          { handle: "dashboard-publish-content-confirm" },
+          {
+            role: "button",
+            label: "Publish the checked items to the live site",
+          }
+        )}
+      >
+        {view.primaryLabel}
+      </button>
+    )
   );
 }
 
@@ -285,84 +314,8 @@ function PublishContentReport({ view, t }: PublishContentSectionProps) {
     <>
       <div className="table-scroll publish-content-report">
         <table className="list-table">
-          <thead>
-            <tr>
-              <th className="publish-content-select">
-                <input
-                  type="checkbox"
-                  checked={view.allSelected}
-                  // React has no `indeterminate` prop — the partial state is a DOM property
-                  // only, so it is set on the node itself every render.
-                  ref={(node) => {
-                    if (node) node.indeterminate = view.someSelected;
-                  }}
-                  disabled={!view.selectionEnabled || view.rows.every((row) => !row.selectable)}
-                  onChange={view.onToggleAll}
-                  aria-label={t("Publish every item that can be published")}
-                  {...agentHandle(
-                    { handle: "dashboard-publish-content-select-all" },
-                    {
-                      role: "field",
-                      label: "Check or uncheck every publishable row at once",
-                    }
-                  )}
-                />
-              </th>
-              <th>{t("Type")}</th>
-              <th>{t("Item")}</th>
-              <th>{t("What happens")}</th>
-              {showOverwriteColumn && (
-                <th className="publish-content-overwrite">
-                  <input
-                    type="checkbox"
-                    checked={view.allOverwriteTicked}
-                    // Same DOM-only indeterminate handling as the select-all box above — React
-                    // has no prop for it.
-                    ref={(node) => {
-                      if (node) node.indeterminate = view.someOverwriteTicked;
-                    }}
-                    disabled={!view.selectionEnabled}
-                    onChange={view.onToggleAllOverwrite}
-                    aria-label={t("Overwrite every item that can replace something on live")}
-                    {...agentHandle(
-                      { handle: "dashboard-publish-content-overwrite-all" },
-                      {
-                        role: "field",
-                        label: "Check or uncheck every 'Overwrite on live' row at once",
-                      }
-                    )}
-                  />{" "}
-                  {t("Overwrite on live")}
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {view.listedRows.map((row) => <PublishContentReportRow key={row.key} row={row} view={view} t={t} />)}
-            {view.upToDateLabel && (
-              <tr className="publish-content-up-to-date">
-                <td colSpan={view.columnCount}>
-                  <button
-                    type="button"
-                    className="link-button"
-                    aria-expanded={view.upToDateExpanded}
-                    onClick={view.onToggleUpToDate}
-                    data-publish-up-to-date-toggle=""
-                    {...agentHandle(
-                      { handle: "dashboard-publish-content-up-to-date" },
-                      {
-                        role: "button",
-                        label: "Show or hide the items that are already up to date",
-                      }
-                    )}
-                  >
-                    {view.upToDateLabel}
-                  </button>
-                </td>
-              </tr>
-            )}
-            {view.upToDateExpanded && view.upToDateRows.map((row) => <PublishContentReportRow key={row.key} row={row} view={view} t={t} />)}
-          </tbody>
+          {renderPublishReportHead({ view, t, showOverwriteColumn })}
+          {renderPublishReportRows({ view, t })}
         </table>
       </div>
       <PublishReportSummary summary={view.summary} t={t} />
@@ -380,5 +333,107 @@ function PublishContentReport({ view, t }: PublishContentSectionProps) {
         <p className="notice publish-content-overwrite-unavailable">{view.overwriteUnavailable}</p>
       )}
     </>
+  );
+}
+
+function renderPublishReportRows(
+  { view, t }:
+    Pick<PublishContentSectionProps, "view" | "t">
+) {
+  return (
+    <tbody>
+      {view.listedRows.map((row) => <PublishContentReportRow key={row.key} row={row} view={view} t={t} />)}
+      {view.upToDateLabel && (
+        <tr className="publish-content-up-to-date">
+          <td colSpan={view.columnCount}>
+            <button
+              type="button"
+              className="link-button"
+              aria-expanded={view.upToDateExpanded}
+              onClick={view.onToggleUpToDate}
+              data-publish-up-to-date-toggle=""
+              {...agentHandle(
+                { handle: "dashboard-publish-content-up-to-date" },
+                {
+                  role: "button",
+                  label: "Show or hide the items that are already up to date",
+                }
+              )}
+            >
+              {view.upToDateLabel}
+            </button>
+          </td>
+        </tr>
+      )}
+      {view.upToDateExpanded && view.upToDateRows.map((row) => <PublishContentReportRow key={row.key} row={row} view={view} t={t} />)}
+    </tbody>
+  );
+}
+
+function renderPublishReportHead(
+  { view, t, showOverwriteColumn }:
+    Pick<PublishContentSectionProps, "view" | "t"> &
+    Pick<PublishContentSectionProps["view"], "showOverwriteColumn">
+) {
+  return (
+    <thead>
+      <tr>
+        <th className="publish-content-select">
+          <input
+            type="checkbox"
+            checked={view.allSelected}
+            // React has no `indeterminate` prop — the partial state is a DOM property
+            // only, so it is set on the node itself every render.
+            ref={(node) => {
+              if (node) node.indeterminate = view.someSelected;
+            }}
+            disabled={!view.selectionEnabled || view.rows.every((row) => !row.selectable)}
+            onChange={view.onToggleAll}
+            aria-label={t("Publish every item that can be published")}
+            {...agentHandle(
+              { handle: "dashboard-publish-content-select-all" },
+              {
+                role: "field",
+                label: "Check or uncheck every publishable row at once",
+              }
+            )}
+          />
+        </th>
+        <th>{t("Type")}</th>
+        <th>{t("Item")}</th>
+        <th>{t("What happens")}</th>
+        {showOverwriteColumn && renderPublishOverwriteHeader({ view, t })}
+      </tr>
+    </thead>
+  );
+}
+
+function renderPublishOverwriteHeader(
+  { view, t }:
+    Pick<Parameters<typeof renderPublishReportHead>[0], "view" | "t">
+) {
+  return (
+    <th className="publish-content-overwrite">
+      <input
+        type="checkbox"
+        checked={view.allOverwriteTicked}
+        // Same DOM-only indeterminate handling as the select-all box above — React
+        // has no prop for it.
+        ref={(node) => {
+          if (node) node.indeterminate = view.someOverwriteTicked;
+        }}
+        disabled={!view.selectionEnabled}
+        onChange={view.onToggleAllOverwrite}
+        aria-label={t("Overwrite every item that can replace something on live")}
+        {...agentHandle(
+          { handle: "dashboard-publish-content-overwrite-all" },
+          {
+            role: "field",
+            label: "Check or uncheck every 'Overwrite on live' row at once",
+          }
+        )}
+      />{" "}
+      {t("Overwrite on live")}
+    </th>
   );
 }

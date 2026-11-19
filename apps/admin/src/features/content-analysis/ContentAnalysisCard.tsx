@@ -34,49 +34,7 @@ export function ContentAnalysisCard({
       <p className="card-lead" aria-live="polite">
         {view.lead}
       </p>
-      {view.report ? (
-        <>
-          <ul className="content-analysis-stats">
-            {view.report.stats.map((stat) => (
-              <li key={stat.key} className="content-analysis-stat">
-                <span className="dash-stat-label">{stat.label}</span>
-                <span className="dash-stat-value">{stat.value}</span>
-                <span className="dash-stat-meta">{stat.meta}</span>
-              </li>
-            ))}
-          </ul>
-          <h4 id="content-analysis-toc" className="field-label">
-            {t("Table of contents")}
-          </h4>
-          {view.report.toc.length > 0 ? (
-            <ul className="content-analysis-list" aria-labelledby="content-analysis-toc">
-              {view.report.toc.map((entry) => (
-                <li key={entry.key} style={{ paddingInlineStart: `${entry.indentRem}rem` }}>
-                  <span className="content-analysis-toc-level">{entry.levelLabel}</span>
-                  {entry.text}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="field-hint">{t("No headings yet.")}</p>
-          )}
-          <h4 id="content-analysis-checks" className="field-label">
-            {t("Checks")}
-          </h4>
-          <ul className="content-analysis-list" aria-labelledby="content-analysis-checks">
-            {view.report.checks.map((check) => (
-              <li key={check.key} className="content-analysis-check">
-                {/* Status is the pill's TEXT; the icon is decorative and the tone only reinforces it. */}
-                <span className={`status ${check.tone}`}>
-                  <span aria-hidden="true">{check.icon}</span> {check.statusLabel}
-                </span>
-                <strong>{check.title}</strong>
-                <span>{check.message}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
+      {renderContentAnalysisReport({ view, t })}
       <span className="editor-actions content-analysis-actions">
         <button
           type="button"
@@ -98,4 +56,53 @@ export function ContentAnalysisCard({
       </span>
     </section>
   );
+}
+
+function renderContentAnalysisReport(
+  { view, t }:
+    Pick<ReturnType<typeof useWiredContentAnalysis>, "view" | "t">
+) {
+  return view.report ? (
+    <>
+      <ul className="content-analysis-stats">
+        {view.report.stats.map((stat) => (
+          <li key={stat.key} className="content-analysis-stat">
+            <span className="dash-stat-label">{stat.label}</span>
+            <span className="dash-stat-value">{stat.value}</span>
+            <span className="dash-stat-meta">{stat.meta}</span>
+          </li>
+        ))}
+      </ul>
+      <h4 id="content-analysis-toc" className="field-label">
+        {t("Table of contents")}
+      </h4>
+      {view.report.toc.length > 0 ? (
+        <ul className="content-analysis-list" aria-labelledby="content-analysis-toc">
+          {view.report.toc.map((entry) => (
+            <li key={entry.key} style={{ paddingInlineStart: `${entry.indentRem}rem` }}>
+              <span className="content-analysis-toc-level">{entry.levelLabel}</span>
+              {entry.text}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="field-hint">{t("No headings yet.")}</p>
+      )}
+      <h4 id="content-analysis-checks" className="field-label">
+        {t("Checks")}
+      </h4>
+      <ul className="content-analysis-list" aria-labelledby="content-analysis-checks">
+        {view.report.checks.map((check) => (
+          <li key={check.key} className="content-analysis-check">
+            {/* Status is the pill's TEXT; the icon is decorative and the tone only reinforces it. */}
+            <span className={`status ${check.tone}`}>
+              <span aria-hidden="true">{check.icon}</span> {check.statusLabel}
+            </span>
+            <strong>{check.title}</strong>
+            <span>{check.message}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+   ) : null;
 }

@@ -56,6 +56,96 @@ export function useMergeTermSection(
   port: MergeTermSectionPort,
   locale: string
 ): MergeTermSectionController {
+  const {
+    term, onMerged, intoTermId, setIntoTermId, step, setStep, plan, setPlan, confirmationToken, setConfirmationToken, busy, setBusy, error, setError,
+    planMutation, confirmMutation, executeMutation, activeTermIdRef,
+  } = useMergeTermState({ options, port });
+  const { startPlan, doConfirm } = createMergeTermPlanningActions({
+    intoTermId, term, setBusy, setError, planMutation, activeTermIdRef, setPlan, setStep, locale, plan, confirmMutation, setConfirmationToken,
+  });
+  const { doExecute } = createMergeTermExecuteAction({ confirmationToken, term, setBusy, setError, executeMutation, intoTermId, activeTermIdRef, onMerged, locale });
+
+  return { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute };
+}
+
+function createMergeTermExecuteAction(
+  { confirmationToken, term, setBusy, setError, executeMutation, intoTermId, activeTermIdRef, onMerged, locale }:
+    Pick<ReturnType<typeof useMergeTermState>, "confirmationToken" | "term" | "setBusy" | "setError" | "executeMutation" | "intoTermId" | "activeTermIdRef"
+    | "onMerged"> &
+    { locale: Parameters<typeof useMergeTermSection>[2] }
+) {
+  async function doExecute() {
+    if (!confirmationToken) return;
+    const forTermId = term.id;
+    setBusy(true);
+    setError(null);
+    try {
+      await executeMutation.mutate({ input: { fromTermId: term.id, intoTermId, confirmationToken } });
+      // `onMerged` also guarded — `Taxonomy.tsx`'s own `onMerged` both clears `selectedTermId` AND
+      // reloads; a stale execute must not deselect whatever DIFFERENT term the operator has since
+      // switched to. The list still refreshes regardless (`executeMutation`'s own
+      // `invalidates: [KEYS.list]` above is not gated on this), so the merge itself is never lost —
+      // only this callback's forced deselect/reload is skipped for a superseded call.
+      if (activeTermIdRef.current !== forTermId) return;
+      onMerged();
+    } catch (e) {
+      if (activeTermIdRef.current !== forTermId) return;
+      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to execute the merge" }) }));
+    } finally {
+      if (activeTermIdRef.current === forTermId) setBusy(false);
+    }
+  }
+  return { doExecute };
+}
+
+function createMergeTermPlanningActions(
+  { intoTermId, term, setBusy, setError, planMutation, activeTermIdRef, setPlan, setStep, locale, plan, confirmMutation, setConfirmationToken }:
+    Pick<ReturnType<typeof useMergeTermState>, "intoTermId" | "term" | "setBusy" | "setError" | "planMutation" | "activeTermIdRef" | "setPlan" | "setStep"
+    | "plan" | "confirmMutation" | "setConfirmationToken"> &
+    { locale: Parameters<typeof useMergeTermSection>[2] }
+) {
+  async function startPlan() {
+    if (!intoTermId) return;
+    const forTermId = term.id;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await planMutation.mutate({ input: { fromTermId: term.id, intoTermId } });
+      if (activeTermIdRef.current !== forTermId) return; // superseded by a term switch
+      setPlan({ planId: r.planId, planHash: r.planHash, overlappingContentCount: r.details.overlappingContentCount });
+      setStep("planned");
+    } catch (e) {
+      if (activeTermIdRef.current !== forTermId) return;
+      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to plan the merge" }) }));
+    } finally {
+      if (activeTermIdRef.current === forTermId) setBusy(false);
+    }
+  }
+
+  async function doConfirm() {
+    if (!plan) return;
+    const forTermId = term.id;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await confirmMutation.mutate({ input: { fromTermId: term.id, planId: plan.planId, planHash: plan.planHash } });
+      if (activeTermIdRef.current !== forTermId) return;
+      setConfirmationToken(r.confirmationToken);
+      setStep("confirmed");
+    } catch (e) {
+      if (activeTermIdRef.current !== forTermId) return;
+      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to confirm the merge" }) }));
+    } finally {
+      if (activeTermIdRef.current === forTermId) setBusy(false);
+    }
+  }
+  return { startPlan, doConfirm };
+}
+
+function useMergeTermState(
+  { options, port }:
+    { options: Parameters<typeof useMergeTermSection>[0]; port: Parameters<typeof useMergeTermSection>[1] }
+) {
   const { term, onMerged } = options;
   const [intoTermId, setIntoTermId] = useState("");
   const [step, setStep] = useState<MergeStep>("idle");
@@ -109,66 +199,10 @@ export function useMergeTermSection(
     resetConfirm();
     resetExecute();
   }, [term.id, resetPlan, resetConfirm, resetExecute]);
-
-  async function startPlan() {
-    if (!intoTermId) return;
-    const forTermId = term.id;
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await planMutation.mutate({ input: { fromTermId: term.id, intoTermId } });
-      if (activeTermIdRef.current !== forTermId) return; // superseded by a term switch
-      setPlan({ planId: r.planId, planHash: r.planHash, overlappingContentCount: r.details.overlappingContentCount });
-      setStep("planned");
-    } catch (e) {
-      if (activeTermIdRef.current !== forTermId) return;
-      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to plan the merge" }) }));
-    } finally {
-      if (activeTermIdRef.current === forTermId) setBusy(false);
-    }
-  }
-
-  async function doConfirm() {
-    if (!plan) return;
-    const forTermId = term.id;
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await confirmMutation.mutate({ input: { fromTermId: term.id, planId: plan.planId, planHash: plan.planHash } });
-      if (activeTermIdRef.current !== forTermId) return;
-      setConfirmationToken(r.confirmationToken);
-      setStep("confirmed");
-    } catch (e) {
-      if (activeTermIdRef.current !== forTermId) return;
-      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to confirm the merge" }) }));
-    } finally {
-      if (activeTermIdRef.current === forTermId) setBusy(false);
-    }
-  }
-
-  async function doExecute() {
-    if (!confirmationToken) return;
-    const forTermId = term.id;
-    setBusy(true);
-    setError(null);
-    try {
-      await executeMutation.mutate({ input: { fromTermId: term.id, intoTermId, confirmationToken } });
-      // `onMerged` also guarded — `Taxonomy.tsx`'s own `onMerged` both clears `selectedTermId` AND
-      // reloads; a stale execute must not deselect whatever DIFFERENT term the operator has since
-      // switched to. The list still refreshes regardless (`executeMutation`'s own
-      // `invalidates: [KEYS.list]` above is not gated on this), so the merge itself is never lost —
-      // only this callback's forced deselect/reload is skipped for a superseded call.
-      if (activeTermIdRef.current !== forTermId) return;
-      onMerged();
-    } catch (e) {
-      if (activeTermIdRef.current !== forTermId) return;
-      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to execute the merge" }) }));
-    } finally {
-      if (activeTermIdRef.current === forTermId) setBusy(false);
-    }
-  }
-
-  return { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute };
+  return {
+    term, onMerged, intoTermId, setIntoTermId, step, setStep, plan, setPlan, confirmationToken, setConfirmationToken, busy, setBusy, error, setError,
+    planMutation, confirmMutation, executeMutation, activeTermIdRef,
+  };
 }
 
 /**

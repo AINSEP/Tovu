@@ -63,49 +63,11 @@ export function useEmailTemplateEditor(
   required: { api: Pick<EmailApi, "getTemplate" | "saveTemplateHtml" | "renameTemplate" | "previewTemplate">; id: string },
   optional: { debounceMs?: number } = {},
 ): EmailTemplateEditorController {
-  const { api, id } = required;
-  const debounceMs = optional.debounceMs ?? 400;
-  const { view, setData } = useLoad({ load: useCallback(() => api.getTemplate({ id }), [api, id]) });
-  const detail = view.kind === "loaded" ? view.data : null;
-  const [html, setHtml] = useState("");
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [mode, setMode] = useState<PreviewMode>("admin");
-  const [preview, setPreview] = useState<EmailTemplateEditorController["preview"]>({ data: null, error: null, pending: true });
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [renameError, setRenameError] = useState<string | null>(null);
-
-  // Seed the working copy once per loaded template (not on every save's fresh detail).
-  const loadedId = detail?.id ?? null;
-  const seededId = useRef<string | null>(null);
-  useEffect(() => {
-    if (!detail) { seededId.current = null; return; }
-    if (seededId.current === loadedId) return;
-    seededId.current = loadedId;
-    setHtml(detail.html);
-    setName(detail.name);
-    setValues(Object.fromEntries(detail.fields.map((field) => [field.name, field.sample ?? ""])));
-    // Keyed on the id on purpose: a save's refreshed detail must not replace the working copy.
-  }, [detail, loadedId]);
-
-  useEffect(() => {
-    if (!loadedId) return undefined;
-    if (!html.trim()) {
-      setPreview({ data: null, error: null, pending: false });
-      return undefined;
-    }
-    let live = true;
-    setPreview((current) => ({ ...current, pending: true }));
-    const timer = setTimeout(() => {
-      api.previewTemplate({ html, values, mode }).then(
-        (data) => { if (live) setPreview({ data, error: null, pending: false }); },
-        (error: unknown) => { if (live) setPreview(previewFailed({ error: errorMessage({ error }) })); },
-      );
-    }, debounceMs);
-    return () => { live = false; clearTimeout(timer); };
-  }, [api, loadedId, html, values, mode, debounceMs]);
+  const {
+    api, debounceMs, view, setData, detail, html, setHtml, values, setValues, mode, setMode, preview, setPreview, saving, setSaving, saveError, setSaveError,
+    savedAt, setSavedAt, name, setName, renameError, setRenameError, loadedId,
+  } = useEmailTemplateWorkingCopy({ required, optional });
+  useEmailTemplatePreview({ loadedId, html, setPreview, api, values, mode, debounceMs });
 
   const dirty = detail !== null && html !== detail.html;
   const setValue = useCallback((field: string, value: string) => setValues((all) => ({ ...all, [field]: value })), []);
@@ -113,7 +75,19 @@ export function useEmailTemplateEditor(
     declared: detail?.fields ?? [],
     undeclared: preview.data?.undeclaredFields ?? detail?.undeclaredFields ?? [],
   }), [detail, preview.data]);
+  const { save, commitName } = useEmailTemplateWrites({ detail, saving, dirty, setSaving, setSaveError, api, html, setData, setHtml, setSavedAt, name, setName, setRenameError });
 
+  return {
+    view, html, setHtml, dirty, values, setValue, fieldNames, mode, setMode, preview, saving, saveError, savedAt, save, name, setName, commitName, renameError,
+  };
+}
+
+function useEmailTemplateWrites(
+  { detail, saving, dirty, setSaving, setSaveError, api, html, setData, setHtml, setSavedAt, name, setName, setRenameError }:
+    Pick<ReturnType<typeof useEmailTemplateWorkingCopy>, "detail" | "saving" | "setSaving" | "setSaveError" | "api" | "html" | "setData" | "setHtml"
+    | "setSavedAt" | "name" | "setName" | "setRenameError"> &
+    { dirty: boolean }
+) {
   const save = useCallback(async () => {
     if (!detail || saving || !dirty) return;
     setSaving(true);
@@ -149,9 +123,64 @@ export function useEmailTemplateEditor(
       setName(detail.name);
     }
   }, [api, detail, name, setData]);
+  return { save, commitName };
+}
 
+function useEmailTemplatePreview(
+  { loadedId, html, setPreview, api, values, mode, debounceMs }:
+    Pick<ReturnType<typeof useEmailTemplateWorkingCopy>, "loadedId" | "html" | "setPreview" | "api" | "values" | "mode" | "debounceMs">
+) {
+  useEffect(() => {
+    if (!loadedId) return undefined;
+    if (!html.trim()) {
+      setPreview({ data: null, error: null, pending: false });
+      return undefined;
+    }
+    let live = true;
+    setPreview((current) => ({ ...current, pending: true }));
+    const timer = setTimeout(() => {
+      api.previewTemplate({ html, values, mode }).then(
+        (data) => { if (live) setPreview({ data, error: null, pending: false }); },
+        (error: unknown) => { if (live) setPreview(previewFailed({ error: errorMessage({ error }) })); },
+      );
+    }, debounceMs);
+    return () => { live = false; clearTimeout(timer); };
+  }, [api, loadedId, html, values, mode, debounceMs]);
+}
+
+function useEmailTemplateWorkingCopy(
+  { required, optional }:
+    { required: Parameters<typeof useEmailTemplateEditor>[0]; optional: NonNullable<Parameters<typeof useEmailTemplateEditor>[1]> }
+) {
+  const { api, id } = required;
+  const debounceMs = optional.debounceMs ?? 400;
+  const { view, setData } = useLoad({ load: useCallback(() => api.getTemplate({ id }), [api, id]) });
+  const detail = view.kind === "loaded" ? view.data : null;
+  const [html, setHtml] = useState("");
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [mode, setMode] = useState<PreviewMode>("admin");
+  const [preview, setPreview] = useState<EmailTemplateEditorController["preview"]>({ data: null, error: null, pending: true });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  // Seed the working copy once per loaded template (not on every save's fresh detail).
+  const loadedId = detail?.id ?? null;
+  const seededId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!detail) { seededId.current = null; return; }
+    if (seededId.current === loadedId) return;
+    seededId.current = loadedId;
+    setHtml(detail.html);
+    setName(detail.name);
+    setValues(Object.fromEntries(detail.fields.map((field) => [field.name, field.sample ?? ""])));
+    // Keyed on the id on purpose: a save's refreshed detail must not replace the working copy.
+  }, [detail, loadedId]);
   return {
-    view, html, setHtml, dirty, values, setValue, fieldNames, mode, setMode, preview, saving, saveError, savedAt, save, name, setName, commitName, renameError,
+    api, debounceMs, view, setData, detail, html, setHtml, values, setValues, mode, setMode, preview, setPreview, saving, setSaving, saveError, setSaveError,
+    savedAt, setSavedAt, name, setName, renameError, setRenameError, loadedId,
   };
 }
 

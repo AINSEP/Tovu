@@ -157,68 +157,92 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
           {create.saving ? t({ key: "Creating…" }) : t({ key: "Create role" })}
         </button>
       </form>
-      <DataTable
-        rows={roles}
-        rowKey={(role) => role.id}
-        empty={
-          <div className="card">
-            <div className="empty-state">
-              <p>{t({ key: "No roles yet." })}</p>
-            </div>
-          </div>
-        }
-        columns={[
-          {
-            key: "name",
-            header: t({ key: "Name" }),
-            cell: (role, index) =>
-              row.editingId === role.id ? (
-                <input
-                  value={row.draftName}
-                  onChange={(e) => row.setDraftName(e.target.value)}
-                  {...agentHandle({ handle: `${roleMenuHandles[index]}-rename-name` }, { role: "field", label: "This role's new name" })}
-                />
-              ) : (
-                role.name
-              ),
-          },
-          { key: "type", header: t({ key: "Type" }), cell: (role) => (role.isBuiltin ? t({ key: "Built-in" }) : t({ key: "Custom" })) },
-          {
-            key: "actions",
-            header: t({ key: "More" }),
-            cell: (role, index) => {
-              if (role.isBuiltin) return <span className="muted-cell">—</span>;
-              if (row.editingId === role.id) return (
-                <span className="editor-actions">
-                  <button
-                    type="button"
-                    disabled={row.savingId === role.id}
-                    onClick={() => row.saveRename({ roleId: role.id })}
-                    {...agentHandle({ handle: `${roleMenuHandles[index]}-save` }, { role: "button", label: `Save this role's new name` })}
-                  >
-                    {row.savingId === role.id ? t({ key: "Saving…" }) : t({ key: "Save" })}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => row.setEditingId(null)}
-                    {...agentHandle({ handle: `${roleMenuHandles[index]}-cancel` }, { role: "button", label: "Cancel renaming this role" })}
-                  >
-                    {t({ key: "Cancel" })}
-                  </button>
-                </span>
-              );
-              return (
-                <RowMenu
-                  triggerLabel={`${t({ key: "Actions for role" })} "${role.name}"`}
-                  agentHandle={`${roleMenuHandles[index]}-menu`}
-                  items={roleMenuItems({ role, handlers: { onRename: row.startRename, onDelete: row.requestDelete }, locale })}
-                />
-              );
-            },
-          },
-        ]}
-      />
+      {renderRolesTable({ roles, t, row, roleMenuHandles, locale })}
     </>
+  );
+}
+
+function renderRolesTable(
+  { roles, t, row, roleMenuHandles, locale }:
+    Pick<RolesSectionProps, "roles" | "t" | "row" | "locale"> &
+    { roleMenuHandles: ReturnType<typeof buildAgentListHandles> }
+) {
+  return (
+    <DataTable
+      rows={roles}
+      rowKey={(role) => role.id}
+      empty={
+        <div className="card">
+          <div className="empty-state">
+            <p>{t({ key: "No roles yet." })}</p>
+          </div>
+        </div>
+      }
+      columns={[
+        {
+          key: "name",
+          header: t({ key: "Name" }),
+          cell: (role, index) =>
+            renderRoleName({ row, role, roleMenuHandles, index }),
+        },
+        { key: "type", header: t({ key: "Type" }), cell: (role) => (role.isBuiltin ? t({ key: "Built-in" }) : t({ key: "Custom" })) },
+        {
+          key: "actions",
+          header: t({ key: "More" }),
+          cell: (role, index) => {
+            if (role.isBuiltin) return <span className="muted-cell">—</span>;
+            if (row.editingId === role.id) return renderRoleRenameActions({ row, role, roleMenuHandles, index, t });
+            return (
+              <RowMenu
+                triggerLabel={`${t({ key: "Actions for role" })} "${role.name}"`}
+                agentHandle={`${roleMenuHandles[index]}-menu`}
+                items={roleMenuItems({ role, handlers: { onRename: row.startRename, onDelete: row.requestDelete }, locale })}
+              />
+            );
+          },
+        },
+      ]}
+    />
+  );
+}
+
+function renderRoleName({ row, role, roleMenuHandles, index }: { row: Parameters<typeof renderRolesTable>[0]["row"]; role: Parameters<typeof RolesSection>[0]["roles"][number]; roleMenuHandles: Parameters<typeof renderRolesTable>[0]["roleMenuHandles"]; index: number }) {
+  return (
+    row.editingId === role.id ? (
+      <input
+        value={row.draftName}
+        onChange={(e) => row.setDraftName(e.target.value)}
+        {...agentHandle({ handle: `${roleMenuHandles[index]}-rename-name` }, { role: "field", label: "This role's new name" })}
+      />
+    ) : (
+      role.name
+    )
+  );
+}
+
+function renderRoleRenameActions(
+  { row, role, roleMenuHandles, index, t }:
+    Pick<Parameters<typeof renderRolesTable>[0], "row" | "roleMenuHandles" | "t"> &
+    { role: RolesSectionProps["roles"][number]; index: number }
+) {
+  return (
+    <span className="editor-actions">
+      <button
+        type="button"
+        disabled={row.savingId === role.id}
+        onClick={() => row.saveRename({ roleId: role.id })}
+        {...agentHandle({ handle: `${roleMenuHandles[index]}-save` }, { role: "button", label: `Save this role's new name` })}
+      >
+        {row.savingId === role.id ? t({ key: "Saving…" }) : t({ key: "Save" })}
+      </button>
+      <button
+        type="button"
+        onClick={() => row.setEditingId(null)}
+        {...agentHandle({ handle: `${roleMenuHandles[index]}-cancel` }, { role: "button", label: "Cancel renaming this role" })}
+      >
+        {t({ key: "Cancel" })}
+      </button>
+    </span>
   );
 }
 

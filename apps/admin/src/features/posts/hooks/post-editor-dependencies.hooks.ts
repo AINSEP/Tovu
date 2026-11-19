@@ -143,6 +143,13 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
    *  the rejection. */
   simulateConcurrentSave(required: Record<string, never>, optional?: { title?: string }): void;
 } {
+  return createFakePostEditorStore({ options });
+}
+
+function createFakePostEditorStore(
+  { options }:
+    { options: NonNullable<Parameters<typeof createFakePostEditorPort>[0]> }
+): ReturnType<typeof createFakePostEditorPort> {
   const state = { post: options.post ?? { ...DEFAULT_POST } };
   const settings: PresentationSettings = {
     workspaceId: "fake-ws",
@@ -171,25 +178,42 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     simulateConcurrentSave(_required, { title = "Saved by someone else" } = {}) {
       state.post = { ...state.post, title, version: state.post.version + 1 };
     },
+    ...createFakePostResources({ state, options, settings }),
+    ...createFakePostWrites({ updatePostCalls, options, state }),
 
-    async createPost(input, _options = {}) {
-      state.post = { ...DEFAULT_POST, ...input, id: "created-post-1", slug: input.slug ?? postSlugForTitle({ title: input.title }), version: 1 };
-      return { post: state.post };
+    // Models the real guard, not just the happy path: `writeAutosave`
+    // (`apps/website/src/features/post/repo.sqlite.ts`) is one `UPDATE ... WHERE version =
+    // baseVersion`, so a draft built on a superseded basis is REFUSED — `{ applied: false }`, and
+    // nothing is parked. Reproducing that here is what lets a test reach a genuine stale basis via
+    // `simulateConcurrentSave` instead of stubbing the answer, which would pass whether or not the
+    // editor reads `applied` at all. The call is still recorded: "the editor sent a write the
+    // server threw away" is exactly the observation a stale-basis test needs.
+    async putAutosave({ id, draft }, _options = {}) {
+      if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
+      putAutosaveCalls.push(draft);
+      if (draft.baseVersion !== state.post.version) return { applied: false };
+      autosave = { ...draft, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local" };
+      return { applied: true };
     },
 
-    async getPost() {
-      if (options.getPostError) throw new Error(options.getPostError);
-      return { post: state.post };
+    async getAutosave() {
+      return { autosave };
     },
 
-    async getPresentation() {
-      return {
-        settings,
-        availableThemes: options.presentation?.availableThemes ?? [],
-        activeThemeTemplates: options.presentation?.activeThemeTemplates ?? [],
-        activeThemeStaticPageIds: options.presentation?.activeThemeStaticPageIds ?? [],
-      };
+    async discardAutosave() {
+      discardAutosaveCalled = true;
+      autosave = null;
+      return { ok: true };
     },
+  };
+}
+
+function createFakePostWrites(
+  { updatePostCalls, options, state }:
+    Pick<Parameters<typeof createFakePostEditorStore>[0], "options"> &
+    { updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[0]["patch"]>; state: { post: AdminPost } }
+): Pick<ReturnType<typeof createFakePostEditorPort>, "updatePost" | "deletePost" | "listPosts" | "uploadMedia" | "templatePreviewUrl"> {
+  return {
 
     async updatePost({ target, patch }, _optional = {}) {
       updatePostCalls.push(patch);
@@ -232,30 +256,33 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     templatePreviewUrl({ id, templateChoice }, _optional = {}) {
       return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
     },
+  };
+}
 
-    // Models the real guard, not just the happy path: `writeAutosave`
-    // (`apps/website/src/features/post/repo.sqlite.ts`) is one `UPDATE ... WHERE version =
-    // baseVersion`, so a draft built on a superseded basis is REFUSED — `{ applied: false }`, and
-    // nothing is parked. Reproducing that here is what lets a test reach a genuine stale basis via
-    // `simulateConcurrentSave` instead of stubbing the answer, which would pass whether or not the
-    // editor reads `applied` at all. The call is still recorded: "the editor sent a write the
-    // server threw away" is exactly the observation a stale-basis test needs.
-    async putAutosave({ id, draft }, _options = {}) {
-      if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
-      putAutosaveCalls.push(draft);
-      if (draft.baseVersion !== state.post.version) return { applied: false };
-      autosave = { ...draft, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local" };
-      return { applied: true };
+function createFakePostResources(
+  { state, options, settings }:
+    Pick<Parameters<typeof createFakePostEditorStore>[0], "options"> &
+    { state: { post: AdminPost }; settings: PresentationSettings }
+): Pick<PostEditorPort, "createPost" | "getPost" | "getPresentation"> {
+  return {
+
+    async createPost(input, _options = {}) {
+      state.post = { ...DEFAULT_POST, ...input, id: "created-post-1", slug: input.slug ?? postSlugForTitle({ title: input.title }), version: 1 };
+      return { post: state.post };
     },
 
-    async getAutosave() {
-      return { autosave };
+    async getPost() {
+      if (options.getPostError) throw new Error(options.getPostError);
+      return { post: state.post };
     },
 
-    async discardAutosave() {
-      discardAutosaveCalled = true;
-      autosave = null;
-      return { ok: true };
+    async getPresentation() {
+      return {
+        settings,
+        availableThemes: options.presentation?.availableThemes ?? [],
+        activeThemeTemplates: options.presentation?.activeThemeTemplates ?? [],
+        activeThemeStaticPageIds: options.presentation?.activeThemeStaticPageIds ?? [],
+      };
     },
   };
 }

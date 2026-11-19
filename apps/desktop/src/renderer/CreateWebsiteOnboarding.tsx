@@ -110,54 +110,75 @@ function DatabasePicker({
         <DatabaseOption value="custom" selected={database === 'custom'} onSelect={onSelect} title="Custom DB Provider" hint="Not available in this app yet · needs a hosted-database provisioner" unavailable />
       </fieldset>
 
-      {database === 'supabase' && (
-        <div className="vendor-fields">
-          <label className="create-field">
-            <span className="create-field__label">Supabase project URL</span>
-            <input value={supabaseUrl} onChange={(event) => onSupabaseUrlChange(event.target.value)} placeholder="https://your-project.supabase.co" inputMode="url" />
-          </label>
-          <label className="create-field">
-            <span className="create-field__label">Supabase API key</span>
-            <input
-              ref={supabaseKeyRef}
-              defaultValue=""
-              onChange={(event) => onSupabaseKeyChange(event.target.value.length > 0)}
-              placeholder="Paste your API key"
-              type="password"
-              autoComplete="off"
-            />
-            <span className="create-field__hint">Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain the key.</span>
-          </label>
-        </div>
-      )}
+      {renderSupabaseFields({ database, supabaseUrl, onSupabaseUrlChange, supabaseKeyRef, onSupabaseKeyChange })}
 
-      {database === 'custom' && (
-        <div className="vendor-fields vendor-fields--custom">
-          <label className="create-field">
-            <span className="create-field__label">Provider name</span>
-            <input value={customProvider} onChange={(event) => onCustomProviderChange(event.target.value)} placeholder="e.g. Neon, PlanetScale, Turso" />
-          </label>
-          <label className="create-field">
-            <span className="create-field__label">Connection string or API endpoint</span>
-            <input value={customConnection} onChange={(event) => onCustomConnectionChange(event.target.value)} placeholder="https://… or postgres://…" autoComplete="off" />
-          </label>
-          <label className="create-field">
-            <span className="create-field__label">
-              API key or vendor credential <em>(optional)</em>
-            </span>
-            <input
-              ref={customCredentialRef}
-              defaultValue=""
-              onChange={(event) => onCustomCredentialChange(event.target.value.length > 0)}
-              placeholder="Paste a credential if your provider requires one"
-              type="password"
-              autoComplete="off"
-            />
-            <span className="create-field__hint">Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain them.</span>
-          </label>
-        </div>
-      )}
+      {renderCustomDatabaseFields({
+        database, customProvider, onCustomProviderChange, customConnection, onCustomConnectionChange, customCredentialRef, onCustomCredentialChange,
+      })}
     </>
+  );
+}
+
+function renderCustomDatabaseFields(
+  { database, customProvider, onCustomProviderChange, customConnection, onCustomConnectionChange, customCredentialRef, onCustomCredentialChange }:
+    Pick<Parameters<typeof DatabasePicker>[0], "database" | "customProvider" | "onCustomProviderChange" | "customConnection" | "onCustomConnectionChange"
+    | "customCredentialRef" | "onCustomCredentialChange">
+) {
+  return (
+    database === 'custom' && (
+      <div className="vendor-fields vendor-fields--custom">
+        <label className="create-field">
+          <span className="create-field__label">Provider name</span>
+          <input value={customProvider} onChange={(event) => onCustomProviderChange(event.target.value)} placeholder="e.g. Neon, PlanetScale, Turso" />
+        </label>
+        <label className="create-field">
+          <span className="create-field__label">Connection string or API endpoint</span>
+          <input value={customConnection} onChange={(event) => onCustomConnectionChange(event.target.value)} placeholder="https://… or postgres://…" autoComplete="off" />
+        </label>
+        <label className="create-field">
+          <span className="create-field__label">
+            API key or vendor credential <em>(optional)</em>
+          </span>
+          <input
+            ref={customCredentialRef}
+            defaultValue=""
+            onChange={(event) => onCustomCredentialChange(event.target.value.length > 0)}
+            placeholder="Paste a credential if your provider requires one"
+            type="password"
+            autoComplete="off"
+          />
+          <span className="create-field__hint">Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain them.</span>
+        </label>
+      </div>
+    )
+  );
+}
+
+function renderSupabaseFields(
+  { database, supabaseUrl, onSupabaseUrlChange, supabaseKeyRef, onSupabaseKeyChange }:
+    Pick<Parameters<typeof DatabasePicker>[0], "database" | "supabaseUrl" | "onSupabaseUrlChange" | "supabaseKeyRef" | "onSupabaseKeyChange">
+) {
+  return (
+    database === 'supabase' && (
+      <div className="vendor-fields">
+        <label className="create-field">
+          <span className="create-field__label">Supabase project URL</span>
+          <input value={supabaseUrl} onChange={(event) => onSupabaseUrlChange(event.target.value)} placeholder="https://your-project.supabase.co" inputMode="url" />
+        </label>
+        <label className="create-field">
+          <span className="create-field__label">Supabase API key</span>
+          <input
+            ref={supabaseKeyRef}
+            defaultValue=""
+            onChange={(event) => onSupabaseKeyChange(event.target.value.length > 0)}
+            placeholder="Paste your API key"
+            type="password"
+            autoComplete="off"
+          />
+          <span className="create-field__hint">Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain the key.</span>
+        </label>
+      </div>
+    )
   );
 }
 
@@ -231,6 +252,87 @@ export function CreateWebsiteOnboarding({
   /** Capability injection for renderer tests; production uses the policy module's flag. */
   supabaseDatabaseAvailable?: boolean;
 }) {
+  const {
+    showConnectServices, supabaseDatabaseUnavailable, pluginTokens, name, setName, database, setDatabase, supabaseUrl, setSupabaseUrl, setHasSupabaseKey,
+    customProvider, setCustomProvider, customConnection, setCustomConnection, setHasCustomCredential, supabaseKeyRef, customCredentialRef, nameError, canCreate,
+    isSubmitting, formError, handleSubmit, destinationHint, showErrorFooter,
+  } = useWebsiteOnboardingState({ supabaseDatabaseAvailable, usePluginTokens, useForm, onCreate, useDestination });
+
+  return (
+    <section className="onboarding" aria-labelledby="create-website-title">
+      <div className="onboarding__intro">
+        <button type="button" className="back-link" onClick={onBack}>← All websites</button>
+        <p className="onboarding__eyebrow">New Tovu instance</p>
+        <div className="onboarding__heading">
+          <h2 id="create-website-title">Set up your website</h2>
+          <InfoTip text="Each website gets an isolated directory, database, port, and Tovu release." />
+        </div>
+      </div>
+
+      <form className="onboarding__form" onSubmit={handleSubmit}>
+        <section className="onboarding-card">
+          {renderWebsiteDetails({ name, nameError, setName, destinationHint })}
+
+          {renderWebsiteDatabase({
+            database, supabaseDatabaseUnavailable, setDatabase, supabaseUrl, setSupabaseUrl, supabaseKeyRef, setHasSupabaseKey, customProvider,
+            setCustomProvider, customConnection, setCustomConnection, customCredentialRef, setHasCustomCredential,
+          })}
+
+          {/* // Owner 2026-10-06: hidden — service tokens wait for Supabase database availability. */}
+          {showConnectServices && <ConnectServicesSection pluginTokens={pluginTokens} />}
+
+          {/* // Owner 2026-10-06: hidden — the owner removed the Instance copy summary from onboarding.
+          <div className="onboarding-section onboarding-section--instance">
+            <div>
+              <h3>Instance copy</h3>
+              <p>Tovu will create a separate workspace from the selected release.</p>
+            </div>
+            <dl className="instance-summary">
+              <div><dt>Template</dt><dd>Starter Site</dd></div>
+              <div><dt>Tovu release</dt><dd>v{TOVU_VERSION}</dd></div>
+              <div><dt>Local port</dt><dd>Assigned automatically</dd></div>
+              <div><dt>Workspace</dt><dd>{slug || 'Set a website name'}</dd></div>
+            </dl>
+          </div>
+          */}
+
+          {/* // Owner 2026-10-06: hidden — the owner removed the obsolete supervisor readiness note.
+              <p>UI onboarding is ready. Provisioning the copy and securely saving vendor credentials needs the Tovu supervisor connection.</p>
+          */}
+          {renderWebsiteOnboardingActions({ showErrorFooter, formError, onBack, canCreate, isSubmitting })}
+        </section>
+      </form>
+    </section>
+  );
+}
+
+function renderWebsiteOnboardingActions(
+  { showErrorFooter, formError, onBack, canCreate, isSubmitting }:
+    Pick<ReturnType<typeof useWebsiteOnboardingState>, "showErrorFooter" | "formError" | "canCreate" | "isSubmitting"> &
+    Pick<Parameters<typeof CreateWebsiteOnboarding>[0], "onBack">
+) {
+  return (
+    <div className="onboarding__actions">
+      {showErrorFooter && (
+        <footer>
+          <p className="onboarding__error" role="alert">{formError}</p>
+        </footer>
+      )}
+      <div>
+        <button type="button" className="button button--quiet" onClick={onBack}>Cancel</button>
+        <button type="submit" className="button button--primary" disabled={!canCreate || isSubmitting}>
+          {isSubmitting ? 'Creating…' : 'Create local instance'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function useWebsiteOnboardingState(
+  { supabaseDatabaseAvailable, usePluginTokens, useForm, onCreate, useDestination }:
+    Pick<Parameters<typeof CreateWebsiteOnboarding>[0], "supabaseDatabaseAvailable" | "onCreate"> &
+    { usePluginTokens: typeof useCreateSitePluginTokens; useForm: typeof useCreateWebsiteForm; useDestination: typeof useNewSiteDir }
+) {
   const { showConnectServices, supabaseDatabaseUnavailable } = createWebsiteOnboardingPolicy(
     { formError: null }, { supabaseDatabaseAvailable },
   );
@@ -258,105 +360,78 @@ export function CreateWebsiteOnboarding({
   } = useForm({ onCreate: pluginTokens.withTokens({ onCreate }) });
   const destinationHint = useDestination({ name });
   const { showErrorFooter } = createWebsiteOnboardingPolicy({ formError });
+  return {
+    showConnectServices, supabaseDatabaseUnavailable, pluginTokens, name, setName, database, setDatabase, supabaseUrl, setSupabaseUrl, setHasSupabaseKey,
+    customProvider, setCustomProvider, customConnection, setCustomConnection, setHasCustomCredential, supabaseKeyRef, customCredentialRef, nameError, canCreate,
+    isSubmitting, formError, handleSubmit, destinationHint, showErrorFooter,
+  };
+}
 
+function renderWebsiteDatabase(
+  {
+    database, supabaseDatabaseUnavailable, setDatabase, supabaseUrl, setSupabaseUrl, supabaseKeyRef, setHasSupabaseKey, customProvider, setCustomProvider,
+    customConnection, setCustomConnection, customCredentialRef, setHasCustomCredential,
+  }:
+    Pick<ReturnType<typeof useCreateWebsiteForm>, "database" | "setDatabase" | "supabaseUrl" | "setSupabaseUrl" | "supabaseKeyRef" | "setHasSupabaseKey"
+    | "customProvider" | "setCustomProvider" | "customConnection" | "setCustomConnection" | "customCredentialRef" | "setHasCustomCredential"> &
+    Pick<ReturnType<typeof createWebsiteOnboardingPolicy>, "supabaseDatabaseUnavailable">
+) {
   return (
-    <section className="onboarding" aria-labelledby="create-website-title">
-      <div className="onboarding__intro">
-        <button type="button" className="back-link" onClick={onBack}>← All websites</button>
-        <p className="onboarding__eyebrow">New Tovu instance</p>
+    <div className="onboarding-section">
+      <div className="onboarding-card__head onboarding__heading">
+        <h3>Database</h3>
+        <InfoTip text="SQLite is the zero-configuration default. Bring a hosted vendor when you need one." />
+      </div>
+
+      <DatabasePicker
+        database={database}
+        supabaseDatabaseUnavailable={supabaseDatabaseUnavailable}
+        onSelect={setDatabase}
+        supabaseUrl={supabaseUrl}
+        onSupabaseUrlChange={setSupabaseUrl}
+        supabaseKeyRef={supabaseKeyRef}
+        onSupabaseKeyChange={setHasSupabaseKey}
+        customProvider={customProvider}
+        onCustomProviderChange={setCustomProvider}
+        customConnection={customConnection}
+        onCustomConnectionChange={setCustomConnection}
+        customCredentialRef={customCredentialRef}
+        onCustomCredentialChange={setHasCustomCredential}
+      />
+    </div>
+  );
+}
+
+function renderWebsiteDetails(
+  { name, nameError, setName, destinationHint }:
+    Pick<ReturnType<typeof useCreateWebsiteForm>, "name" | "nameError" | "setName"> &
+    { destinationHint: ReturnType<typeof useNewSiteDir> }
+) {
+  return (
+    <div className="onboarding-section">
+      <div className="onboarding-card__head">
         <div className="onboarding__heading">
-          <h2 id="create-website-title">Set up your website</h2>
-          <InfoTip text="Each website gets an isolated directory, database, port, and Tovu release." />
+          <h3>Website details</h3>
+          <InfoTip text="Name the isolated workspace for this Tovu instance." />
         </div>
       </div>
 
-      <form className="onboarding__form" onSubmit={handleSubmit}>
-        <section className="onboarding-card">
-          <div className="onboarding-section">
-            <div className="onboarding-card__head">
-              <div className="onboarding__heading">
-                <h3>Website details</h3>
-                <InfoTip text="Name the isolated workspace for this Tovu instance." />
-              </div>
-            </div>
-
-            <label className="create-field">
-              <span className="create-field__label">Website name</span>
-              <input
-                autoFocus
-                value={name}
-                maxLength={200}
-                aria-invalid={Boolean(nameError)}
-                onChange={(event) => setName(event.target.value)}
-                onPaste={namePasteHandler({ setName })}
-                placeholder="e.g. Corner Bakery"
-              />
-              <span className="create-field__hint">
-                {destinationHint}
-              </span>
-              {nameError && <span className="onboarding__error" role="alert">{nameError}</span>}
-            </label>
-          </div>
-
-          <div className="onboarding-section">
-            <div className="onboarding-card__head onboarding__heading">
-              <h3>Database</h3>
-              <InfoTip text="SQLite is the zero-configuration default. Bring a hosted vendor when you need one." />
-            </div>
-
-            <DatabasePicker
-              database={database}
-              supabaseDatabaseUnavailable={supabaseDatabaseUnavailable}
-              onSelect={setDatabase}
-              supabaseUrl={supabaseUrl}
-              onSupabaseUrlChange={setSupabaseUrl}
-              supabaseKeyRef={supabaseKeyRef}
-              onSupabaseKeyChange={setHasSupabaseKey}
-              customProvider={customProvider}
-              onCustomProviderChange={setCustomProvider}
-              customConnection={customConnection}
-              onCustomConnectionChange={setCustomConnection}
-              customCredentialRef={customCredentialRef}
-              onCustomCredentialChange={setHasCustomCredential}
-            />
-          </div>
-
-          {/* // Owner 2026-10-06: hidden — service tokens wait for Supabase database availability. */}
-          {showConnectServices && <ConnectServicesSection pluginTokens={pluginTokens} />}
-
-          {/* // Owner 2026-10-06: hidden — the owner removed the Instance copy summary from onboarding.
-          <div className="onboarding-section onboarding-section--instance">
-            <div>
-              <h3>Instance copy</h3>
-              <p>Tovu will create a separate workspace from the selected release.</p>
-            </div>
-            <dl className="instance-summary">
-              <div><dt>Template</dt><dd>Starter Site</dd></div>
-              <div><dt>Tovu release</dt><dd>v{TOVU_VERSION}</dd></div>
-              <div><dt>Local port</dt><dd>Assigned automatically</dd></div>
-              <div><dt>Workspace</dt><dd>{slug || 'Set a website name'}</dd></div>
-            </dl>
-          </div>
-          */}
-
-          {/* // Owner 2026-10-06: hidden — the owner removed the obsolete supervisor readiness note.
-              <p>UI onboarding is ready. Provisioning the copy and securely saving vendor credentials needs the Tovu supervisor connection.</p>
-          */}
-          <div className="onboarding__actions">
-            {showErrorFooter && (
-              <footer>
-                <p className="onboarding__error" role="alert">{formError}</p>
-              </footer>
-            )}
-            <div>
-              <button type="button" className="button button--quiet" onClick={onBack}>Cancel</button>
-              <button type="submit" className="button button--primary" disabled={!canCreate || isSubmitting}>
-                {isSubmitting ? 'Creating…' : 'Create local instance'}
-              </button>
-            </div>
-          </div>
-        </section>
-      </form>
-    </section>
+      <label className="create-field">
+        <span className="create-field__label">Website name</span>
+        <input
+          autoFocus
+          value={name}
+          maxLength={200}
+          aria-invalid={Boolean(nameError)}
+          onChange={(event) => setName(event.target.value)}
+          onPaste={namePasteHandler({ setName })}
+          placeholder="e.g. Corner Bakery"
+        />
+        <span className="create-field__hint">
+          {destinationHint}
+        </span>
+        {nameError && <span className="onboarding__error" role="alert">{nameError}</span>}
+      </label>
+    </div>
   );
 }

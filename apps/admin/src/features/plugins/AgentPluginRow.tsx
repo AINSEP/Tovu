@@ -223,127 +223,11 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
     // `data-linked`: a linked plugin's row reads as disabled here; it is switched on the Plugins page.
     <li className="agent-plugin-row" data-enabled={plugin.enabled} data-linked={plugin.providerPlugin ? true : undefined} aria-label={displayName}>
       <div className="agent-plugin-row-main">
-        <button
-          type="button"
-          className="agent-plugin-row-summary"
-          aria-expanded={expanded}
-          aria-controls={detailId}
-          // The description lives INSIDE this button so the whole row is one comfortable hit
-          // target, but it must not become the button's accessible name — verified rendered, the
-          // name was the entire 60-word manifest description read aloud on focus. Pointing at the
-          // heading narrows the name to "Site Compliance v1.0.0" while the description stays
-          // visible, and stays reachable in browse mode, exactly as before.
-          aria-labelledby={headingId}
-          onClick={onToggleExpanded}
-          {...agentHandle({ handle: `${agentHandleBase}-details` }, { role: "button", label: `Show or hide the "${displayName}" package details` })}
-        >
-          <span className="agent-plugin-row-glyph">
-            <Glyph size={18} />
-          </span>
-          <span className="agent-plugin-row-text">
-            <span className="agent-plugin-row-heading" id={headingId}>
-              <span className="agent-plugin-row-name">{displayName}</span>
-              {/* Shown only when the installed package actually carries a version — both are
-                  genuinely optional in the Agent Plugins spec, and an invented "1.0.0" would be
-                  worse than an absent chip.
-
-                  The explicit `{" "}` is load-bearing, not formatting: this heading IS the summary
-                  button's accessible name (`aria-labelledby`), and accessible-name computation
-                  concatenates adjacent inline elements with no separator. The flex `gap` that
-                  visually separates them is invisible to it, so without a real text node a screen
-                  reader announced "Site Compliancev1.0.0". */}
-              {plugin.version ? (
-                <>
-                  {" "}
-                  <span className="agent-plugin-row-version">v{plugin.version}</span>
-                </>
-              ) : null}
-              {/* Beside the version (owner, 2026-10-24), so it sits inside the summary button: the
-                  wrapper keeps a tap on the pill opening its warning (mobile has no hover) instead of
-                  also toggling the row. Its "Soon"/"Untested" label joins the row's accessible name. */}
-              {plugin.maturity ? (
-                <>
-                  {" "}
-                  <span className="agent-plugin-row-maturity" onClick={(e) => e.stopPropagation()}>
-                    <AgentPluginMaturity maturity={plugin.maturity} t={t} />
-                  </span>
-                </>
-              ) : null}
-            </span>
-            {plugin.connectionStatus ? <span className="agent-plugin-row-desc">{t({
-              connected: "Signed in", disconnected: "Not signed in", pending: "Waiting for sign-in", needs_reauth: "Sign in again",
-            }[plugin.connectionStatus])}</span> : null}
-            {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
-                a hover tooltip, not a substitute for the unclamped copy below in the expanded
-                panel (screen readers and touch have no hover; that copy is the real fix). */}
-            {/* Compatibility first: "Not for this Tovu version" explains a switch that refuses to
-                turn on, and "Needs …" names capabilities no other enabled plugin provides. */}
-            {agentPluginCompatibilityLines({ plugin, translate: t }).map((line) => (
-              <span key={line} className="agent-plugin-row-desc">{line}</span>
-            ))}
-            {blurb ? (
-              <span className="agent-plugin-row-desc" title={blurb}>
-                {blurb}
-              </span>
-            ) : null}
-          </span>
-          <span className="agent-plugin-row-chevron">
-            <ChevronIcon />
-          </span>
-        </button>
+        {renderAgentPluginSummary({ expanded, detailId, headingId, onToggleExpanded, agentHandleBase, displayName, Glyph, plugin, t, blurb })}
 
         {/* Outside the actions column, against its divider: the switch stays at the same x on every row. */}
         {manage ? <div className="agent-plugin-row-manage">{manage}</div> : null}
-        <div className="agent-plugin-row-actions">
-          <AgentPluginRowStateArea
-            plugin={plugin}
-            t={t}
-            locale={locale}
-            busy={busy}
-            stateControl={stateControl}
-            agentHandleBase={agentHandleBase}
-            displayName={displayName}
-          />
-          <button
-            type="button"
-            className="agent-plugin-icon-btn"
-            onClick={onInspect}
-            // Preserved verbatim from the text button this replaced: "Inspect package files" reads
-            // identically on every row, so the plugin's own name must stay in the accessible name.
-            aria-label={`${t("Inspect package files")} — ${displayName}`}
-            {...agentHandle({ handle: `${agentHandleBase}-inspect` }, { role: "button", label: `Inspect the "${displayName}" package files` })}
-          >
-            <EyeIcon />
-          </button>
-          {/* HONEST-DISABLED, not decorative, and the domain agrees.
-              `features/agent-plugins/uninstall.ts`'s `uninstallAgentPlugin()` (landed 2026-09-09,
-              concurrently with this redesign) REFUSES any package whose activation record says
-              `origin: "bundled"`, with `AgentPluginNotUninstallableError` — precisely because
-              `recordBundledAgentPluginIfAbsent` re-seeds it on the next boot, so a delete would
-              appear to succeed and then silently reappear. That function's own header names this
-              screen's enable/disable control (the switch on Installed, Remove/Enable on Downloaded
-              — see this file's own header) as the lever an operator actually has for a bundled
-              package.
-
-              Every installed package today is bundled — `installAgentPluginFromUrl` exists but has
-              zero production callers, so nothing can arrive as `operator-installed` — and there is
-              no HTTP uninstall route either (the only wrapper is an assistant tool). So a live
-              button here would refuse on every row that exists. It becomes real when an
-              install-from-url path ships; until then the affordance holds its place and says why.
-
-              The reason is stated once at section level and referenced by every row via
-              `aria-describedby`: a disabled control is not focusable, so a per-row tooltip would
-              never be read. */}
-          <button
-            type="button"
-            className="agent-plugin-icon-btn"
-            disabled
-            aria-label={`${t("Uninstall")} ${displayName} — ${t("unavailable")}`}
-            aria-describedby={uninstallNoteId}
-          >
-            <TrashIcon />
-          </button>
-        </div>
+        {renderAgentPluginActions({ plugin, t, locale, busy, stateControl, agentHandleBase, displayName, onInspect, uninstallNoteId })}
       </div>
 
       <div className="agent-plugin-row-detail" id={detailId} hidden={!expanded}>
@@ -361,5 +245,159 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
         {props.update ?? null}
       </div>
     </li>
+  );
+}
+
+function renderAgentPluginActions(
+  { plugin, t, locale, busy, stateControl, agentHandleBase, displayName, onInspect, uninstallNoteId }:
+    Pick<AgentPluginRowProps, "plugin" | "t" | "locale" | "busy" | "stateControl" | "agentHandleBase" | "onInspect" | "uninstallNoteId"> &
+    { displayName: ReturnType<typeof agentPluginDisplayName> }
+) {
+  return (
+    <div className="agent-plugin-row-actions">
+      <AgentPluginRowStateArea
+        plugin={plugin}
+        t={t}
+        locale={locale}
+        busy={busy}
+        stateControl={stateControl}
+        agentHandleBase={agentHandleBase}
+        displayName={displayName}
+      />
+      {renderAgentPluginInspect({ onInspect, t, displayName, agentHandleBase })}
+      {/* HONEST-DISABLED, not decorative, and the domain agrees.
+          `features/agent-plugins/uninstall.ts`'s `uninstallAgentPlugin()` (landed 2026-09-09,
+          concurrently with this redesign) REFUSES any package whose activation record says
+          `origin: "bundled"`, with `AgentPluginNotUninstallableError` — precisely because
+          `recordBundledAgentPluginIfAbsent` re-seeds it on the next boot, so a delete would
+          appear to succeed and then silently reappear. That function's own header names this
+          screen's enable/disable control (the switch on Installed, Remove/Enable on Downloaded
+          — see this file's own header) as the lever an operator actually has for a bundled
+          package.
+
+          Every installed package today is bundled — `installAgentPluginFromUrl` exists but has
+          zero production callers, so nothing can arrive as `operator-installed` — and there is
+          no HTTP uninstall route either (the only wrapper is an assistant tool). So a live
+          button here would refuse on every row that exists. It becomes real when an
+          install-from-url path ships; until then the affordance holds its place and says why.
+
+          The reason is stated once at section level and referenced by every row via
+          `aria-describedby`: a disabled control is not focusable, so a per-row tooltip would
+          never be read. */}
+      <button
+        type="button"
+        className="agent-plugin-icon-btn"
+        disabled
+        aria-label={`${t("Uninstall")} ${displayName} — ${t("unavailable")}`}
+        aria-describedby={uninstallNoteId}
+      >
+        <TrashIcon />
+      </button>
+    </div>
+  );
+}
+
+function renderAgentPluginInspect(
+  { onInspect, t, displayName, agentHandleBase }:
+    Pick<Parameters<typeof renderAgentPluginActions>[0], "onInspect" | "t" | "displayName" | "agentHandleBase">
+) {
+  return (
+    <button
+      type="button"
+      className="agent-plugin-icon-btn"
+      onClick={onInspect}
+      // Preserved verbatim from the text button this replaced: "Inspect package files" reads
+      // identically on every row, so the plugin's own name must stay in the accessible name.
+      aria-label={`${t("Inspect package files")} — ${displayName}`}
+      {...agentHandle({ handle: `${agentHandleBase}-inspect` }, { role: "button", label: `Inspect the "${displayName}" package files` })}
+    >
+      <EyeIcon />
+    </button>
+  );
+}
+
+function renderAgentPluginSummary(
+  { expanded, detailId, headingId, onToggleExpanded, agentHandleBase, displayName, Glyph, plugin, t, blurb }:
+    Pick<AgentPluginRowProps, "expanded" | "onToggleExpanded" | "agentHandleBase" | "plugin" | "t"> &
+    { detailId: ReturnType<typeof useId>; headingId: ReturnType<typeof useId>; displayName: ReturnType<typeof agentPluginDisplayName>; Glyph: (typeof AGENT_PLUGIN_GLYPHS)[ReturnType<typeof agentPluginGlyphKind>]; blurb: ReturnType<typeof agentPluginBlurb> }
+) {
+  return (
+    <button
+      type="button"
+      className="agent-plugin-row-summary"
+      aria-expanded={expanded}
+      aria-controls={detailId}
+      // The description lives INSIDE this button so the whole row is one comfortable hit
+      // target, but it must not become the button's accessible name — verified rendered, the
+      // name was the entire 60-word manifest description read aloud on focus. Pointing at the
+      // heading narrows the name to "Site Compliance v1.0.0" while the description stays
+      // visible, and stays reachable in browse mode, exactly as before.
+      aria-labelledby={headingId}
+      onClick={onToggleExpanded}
+      {...agentHandle({ handle: `${agentHandleBase}-details` }, { role: "button", label: `Show or hide the "${displayName}" package details` })}
+    >
+      <span className="agent-plugin-row-glyph">
+        <Glyph size={18} />
+      </span>
+      <span className="agent-plugin-row-text">
+        {renderAgentPluginHeading({ headingId, displayName, plugin, t })}
+        {plugin.connectionStatus ? <span className="agent-plugin-row-desc">{t({
+          connected: "Signed in", disconnected: "Not signed in", pending: "Waiting for sign-in", needs_reauth: "Sign in again",
+        }[plugin.connectionStatus])}</span> : null}
+        {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
+            a hover tooltip, not a substitute for the unclamped copy below in the expanded
+            panel (screen readers and touch have no hover; that copy is the real fix). */}
+        {/* Compatibility first: "Not for this Tovu version" explains a switch that refuses to
+            turn on, and "Needs …" names capabilities no other enabled plugin provides. */}
+        {agentPluginCompatibilityLines({ plugin, translate: t }).map((line) => (
+          <span key={line} className="agent-plugin-row-desc">{line}</span>
+        ))}
+        {blurb ? (
+          <span className="agent-plugin-row-desc" title={blurb}>
+            {blurb}
+          </span>
+        ) : null}
+      </span>
+      <span className="agent-plugin-row-chevron">
+        <ChevronIcon />
+      </span>
+    </button>
+  );
+}
+
+function renderAgentPluginHeading(
+  { headingId, displayName, plugin, t }:
+    Pick<Parameters<typeof renderAgentPluginSummary>[0], "headingId" | "displayName" | "plugin" | "t">
+) {
+  return (
+    <span className="agent-plugin-row-heading" id={headingId}>
+      <span className="agent-plugin-row-name">{displayName}</span>
+      {/* Shown only when the installed package actually carries a version — both are
+          genuinely optional in the Agent Plugins spec, and an invented "1.0.0" would be
+          worse than an absent chip.
+
+          The explicit `{" "}` is load-bearing, not formatting: this heading IS the summary
+          button's accessible name (`aria-labelledby`), and accessible-name computation
+          concatenates adjacent inline elements with no separator. The flex `gap` that
+          visually separates them is invisible to it, so without a real text node a screen
+          reader announced "Site Compliancev1.0.0". */}
+      {plugin.version ? (
+        <>
+          {" "}
+          <span className="agent-plugin-row-version">v{plugin.version}</span>
+        </>
+      ) : null}
+      {/* Beside the version (owner, 2026-10-24), so it sits inside the summary button: the
+          wrapper keeps a tap on the pill opening its warning (mobile has no hover) instead of
+          also toggling the row. Its "Soon"/"Untested" label joins the row's accessible name. */}
+      {plugin.maturity ? (
+        <>
+          {" "}
+          <span className="agent-plugin-row-maturity" onClick={(e) => e.stopPropagation()}>
+            <AgentPluginMaturity maturity={plugin.maturity} t={t} />
+          </span>
+        </>
+      ) : null}
+    </span>
   );
 }

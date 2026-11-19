@@ -141,36 +141,55 @@ function findPluginById({ plugins, id }: {
  * @overallScore 92
  */
 export function usePlugins({ port, locale, t, installPort = defaultPluginInstallPort }: PluginsDependencies): PluginsController {
-  const queryFetch = useCallback(async () => {
-    try { return await port.listPlugins(); }
-    catch (error) { throw new Error(describeApiError({ e: error, fallback: translate({ locale, key: "failed to load plugins" }) }, { translate: t })); }
-  }, [port, locale]);
-  const key = useMemo(() => ["plugins", "list"] as const, []);
-  const query = useFetchQuery({ key, fetch: queryFetch }, { staleTime: 0 });
-  const loader = useCachedLoader({ key, fetch: queryFetch }, { staleTime: 0 });
-  const plugins = query.data?.plugins ?? null;
-  const canInstallFolder = query.data?.installSources?.includes("folder") === true;
-  const invalidate = useInvalidate();
-  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["plugins"]] });
-  const error = query.error?.message ?? null;
-  const [rowError, setRowError] = useState<string | null>(null);
-  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
-  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
-  const [inspectedPluginId, setInspectedPluginId] = useState<string | null>(null);
-  const [settingsPluginId, setSettingsPluginId] = useState<string | null>(null);
-  const [settingsNotice, setSettingsNotice] = useState<string | null>(null);
-  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const {
+    loader, plugins, canInstallFolder, write, error, rowError, setRowError, rowSavingId, setRowSavingId, expandedIds, setExpandedIds, inspectedPluginId,
+    setInspectedPluginId, settingsPluginId, setSettingsPluginId, settingsNotice, setSettingsNotice, pendingRemoveId, setPendingRemoveId, reload,
+  } = usePluginsState({ port, locale, t });
+  const { onToggleEnabled, onRemovePlugin } = createPluginActions({ rowSavingId, setRowSavingId, setRowError, write, port, loader, locale, t });
 
-  const reload = useCallback(async () => {
-    invalidate({ key: ["plugins"] });
-    await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
-  }, [invalidate, loader]);
+  const install = usePluginInstall({ port: installPort, t, onInstalled: reload });
 
-  // Assistant tool results already publish through this bridge; re-read via our authorized port.
-  // The query exposes the read error. No `.catch` here: `reload` already swallows its own load
-  // failure, so the promise it returns never rejects (a second catch could never run).
-  useContentRefreshSubscription({ resource: PLUGINS_RESOURCE, onRefresh: () => { void reload(); } });
+  return {
+    install,
+    canInstallFolder,
+    plugins,
+    error,
+    rowError,
+    rowSavingId,
+    onToggleEnabled,
+    onRemovePlugin,
+    expandedIds,
+    onToggleExpanded: ({ id }, _optional = {}) => setExpandedIds((ids) => withId({ ids, id, present: !ids.has(id) })),
+    inspectedPlugin: findPluginById({ plugins, id: inspectedPluginId }),
+    onInspectPlugin: setInspectedPluginId,
+    onCloseInspector: () => setInspectedPluginId(null),
+    settingsPlugin: findPluginById({ plugins, id: settingsPluginId }),
+    onOpenSettings: setSettingsPluginId,
+    onCloseSettings: () => setSettingsPluginId(null),
+    onSettingsSaved: () => {
+      const name = findPluginById({ plugins, id: settingsPluginId })?.name ?? settingsPluginId ?? "";
+      setSettingsPluginId(null);
+      setSettingsNotice(interpolate({ template: t("{name} settings saved"), vars: { name } }));
+    },
+    settingsNotice,
+    dismissSettingsNotice: () => setSettingsNotice(null),
+    pendingRemovePlugin: findPluginById({ plugins, id: pendingRemoveId }),
+    onRequestRemove: (plugin: AdminPlugin) => setPendingRemoveId(plugin.id),
+    onConfirmRemove: (plugin: AdminPlugin) => {
+      setPendingRemoveId(null);
+      void onRemovePlugin(plugin);
+    },
+    onCancelRemove: () => setPendingRemoveId(null),
+    t,
+    locale,
+  };
+}
 
+function createPluginActions(
+  { rowSavingId, setRowSavingId, setRowError, write, port, loader, locale, t }:
+    Pick<ReturnType<typeof usePluginsState>, "rowSavingId" | "setRowSavingId" | "setRowError" | "write" | "loader"> &
+    Pick<Parameters<typeof usePlugins>[0], "port" | "locale" | "t">
+) {
   async function onToggleEnabled(plugin: AdminPlugin) {
     // EC-11: a second activation of this row's own toggle while its request is outstanding is a
     // no-op — the client-side single-flight discipline is the guard, no `Idempotency-Key` is sent.
@@ -209,42 +228,45 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
       setRowSavingId((current) => (current === plugin.id ? null : current));
     }
   }
+  return { onToggleEnabled, onRemovePlugin };
+}
 
-  const install = usePluginInstall({ port: installPort, t, onInstalled: reload });
+function usePluginsState(
+  { port, locale, t }:
+    Pick<Parameters<typeof usePlugins>[0], "port" | "locale" | "t">
+) {
+  const queryFetch = useCallback(async () => {
+    try { return await port.listPlugins(); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: translate({ locale, key: "failed to load plugins" }) }, { translate: t })); }
+  }, [port, locale]);
+  const key = useMemo(() => ["plugins", "list"] as const, []);
+  const query = useFetchQuery({ key, fetch: queryFetch }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: queryFetch }, { staleTime: 0 });
+  const plugins = query.data?.plugins ?? null;
+  const canInstallFolder = query.data?.installSources?.includes("folder") === true;
+  const invalidate = useInvalidate();
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["plugins"]] });
+  const error = query.error?.message ?? null;
+  const [rowError, setRowError] = useState<string | null>(null);
+  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
+  const [inspectedPluginId, setInspectedPluginId] = useState<string | null>(null);
+  const [settingsPluginId, setSettingsPluginId] = useState<string | null>(null);
+  const [settingsNotice, setSettingsNotice] = useState<string | null>(null);
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
 
+  const reload = useCallback(async () => {
+    invalidate({ key: ["plugins"] });
+    await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
+  }, [invalidate, loader]);
+
+  // Assistant tool results already publish through this bridge; re-read via our authorized port.
+  // The query exposes the read error. No `.catch` here: `reload` already swallows its own load
+  // failure, so the promise it returns never rejects (a second catch could never run).
+  useContentRefreshSubscription({ resource: PLUGINS_RESOURCE, onRefresh: () => { void reload(); } });
   return {
-    install,
-    canInstallFolder,
-    plugins,
-    error,
-    rowError,
-    rowSavingId,
-    onToggleEnabled,
-    onRemovePlugin,
-    expandedIds,
-    onToggleExpanded: ({ id }, _optional = {}) => setExpandedIds((ids) => withId({ ids, id, present: !ids.has(id) })),
-    inspectedPlugin: findPluginById({ plugins, id: inspectedPluginId }),
-    onInspectPlugin: setInspectedPluginId,
-    onCloseInspector: () => setInspectedPluginId(null),
-    settingsPlugin: findPluginById({ plugins, id: settingsPluginId }),
-    onOpenSettings: setSettingsPluginId,
-    onCloseSettings: () => setSettingsPluginId(null),
-    onSettingsSaved: () => {
-      const name = findPluginById({ plugins, id: settingsPluginId })?.name ?? settingsPluginId ?? "";
-      setSettingsPluginId(null);
-      setSettingsNotice(interpolate({ template: t("{name} settings saved"), vars: { name } }));
-    },
-    settingsNotice,
-    dismissSettingsNotice: () => setSettingsNotice(null),
-    pendingRemovePlugin: findPluginById({ plugins, id: pendingRemoveId }),
-    onRequestRemove: (plugin: AdminPlugin) => setPendingRemoveId(plugin.id),
-    onConfirmRemove: (plugin: AdminPlugin) => {
-      setPendingRemoveId(null);
-      void onRemovePlugin(plugin);
-    },
-    onCancelRemove: () => setPendingRemoveId(null),
-    t,
-    locale,
+    loader, plugins, canInstallFolder, write, error, rowError, setRowError, rowSavingId, setRowSavingId, expandedIds, setExpandedIds, inspectedPluginId,
+    setInspectedPluginId, settingsPluginId, setSettingsPluginId, settingsNotice, setSettingsNotice, pendingRemoveId, setPendingRemoveId, reload,
   };
 }
 

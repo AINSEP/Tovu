@@ -92,6 +92,44 @@ export interface WidgetPickerDialogProps {
 
 export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, agentHandle: base, ...props }: WidgetPickerDialogProps) {
   const {
+    instances, loadError, selectedExistingId, setSelectedExistingId, newTitle, setNewTitle, newConfig, setNewConfig, error, existingSelectId, newTitleInputId,
+    newTitleInputRef, typeLabel, hasExisting, submitUseExisting, submitCreateNew, t,
+  } = useWidgetPickerView({ useDialog, props });
+  // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
+  if (hasExisting && !instances) throw new Error("widget picker has existing widgets but no instances");
+
+  const content = (
+    <>
+        <div className="widget-picker-body">
+          {loadError ? <div className="notice error">{loadError}</div> : null}
+          {error ? (
+            <span className="save-error" role="alert">
+              {error}
+            </span>
+          ) : null}
+
+          {hasExisting && instances ? renderExistingWidgetForm({ submitUseExisting, t, existingSelectId, typeLabel, selectedExistingId, setSelectedExistingId, instances, base }) : null}
+
+          {renderNewWidgetForm({ submitCreateNew, t, newTitleInputId, newTitleInputRef, newTitle, setNewTitle, base, props, newConfig, setNewConfig })}
+        </div>
+
+        {renderWidgetPickerFooter({ props, base, t })}
+    </>
+  );
+  if (props.presentation === "inline") return content;
+  return (
+    <Dialog open title={interpolate({ template: t("Place a {typeLabel} widget"), vars: { typeLabel } })}
+      onClose={() => props.onCancel()} className="settings-dialog jini-domain-dialog widget-picker-dialog">
+      {content}
+    </Dialog>
+  );
+}
+
+function useWidgetPickerView(
+  { useDialog, props }:
+    { useDialog: NonNullable<WidgetPickerDialogProps["useDialog"]>; props: Omit<WidgetPickerDialogProps, "useDialog" | "agentHandle"> }
+) {
+  const {
     instances,
     loadError,
     selectedExistingId,
@@ -110,92 +148,98 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
     submitCreateNew,
     t,
   } = useDialog(props);
-  // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
-  if (hasExisting && !instances) throw new Error("widget picker has existing widgets but no instances");
+  return {
+    instances, loadError, selectedExistingId, setSelectedExistingId, newTitle, setNewTitle, newConfig, setNewConfig, error, existingSelectId, newTitleInputId,
+    newTitleInputRef, typeLabel, hasExisting, submitUseExisting, submitCreateNew, t,
+  };
+}
 
-  const content = (
-    <>
-        <div className="widget-picker-body">
-          {loadError ? <div className="notice error">{loadError}</div> : null}
-          {error ? (
-            <span className="save-error" role="alert">
-              {error}
-            </span>
-          ) : null}
-
-          {hasExisting && instances ? (
-            <form onSubmit={submitUseExisting} className="widget-picker-section">
-              <h3>{t("Use existing")}</h3>
-              <div className="field">
-                <label className="field-label" htmlFor={existingSelectId}>
-                  {interpolate({ template: t("Existing {typeLabel} widgets"), vars: { typeLabel } })}
-                </label>
-                <Select
-                  id={existingSelectId}
-                  value={selectedExistingId}
-                  onChange={setSelectedExistingId}
-                  // `hasExisting` is `(instances?.length ?? 0) > 0` (the hook), so this section only
-                  // renders once `instances` is a loaded, non-empty list; the old `?? []` here could not fire.
-                  options={toExistingOptions(instances)}
-                  placeholder={t("Choose a widget…")}
-                  agentHandle={subHandle({ base, suffix: "existing-select" })}
-                  t={t}
-                />
-              </div>
-              <button type="submit" {...handleSpread({ base, suffix: "existing-submit", opts: { role: "button", label: "Use this widget" } })}>
-                {t("Use this widget")}
-              </button>
-            </form>
-          ) : null}
-
-          <form onSubmit={submitCreateNew} className="widget-picker-section">
-            <h3>{t("Create new")}</h3>
-            <div className="field">
-              <label className="field-label" htmlFor={newTitleInputId}>
-                {t("Title")}
-              </label>
-              <input
-                id={newTitleInputId}
-                ref={newTitleInputRef}
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                {...handleSpread({ base, suffix: "new-title", opts: { role: "field", label: "The new widget's title" } })}
-              />
-            </div>
-            <WidgetConfigFields
-              widgetType={props.widgetType}
-              config={newConfig}
-              onChange={setNewConfig}
-              agentHandle={subHandle({ base, suffix: "new-config" })}
-              t={t}
-            />
-            <button type="submit" {...handleSpread({ base, suffix: "new-submit", opts: { role: "button", label: "Create and place this widget" } })}>
-              {t("Create and place")}
-            </button>
-          </form>
-        </div>
-
-        <div className="widget-picker-footer">
-          <span className="editor-actions">
-            <button
-              type="button"
-              className="btn-secondary"
-              data-jini-autofocus=""
-              onClick={props.onCancel}
-              {...handleSpread({ base, suffix: "cancel", opts: { role: "button", label: "Close without placing a widget" } })}
-            >
-              {t("Cancel")}
-            </button>
-          </span>
-        </div>
-    </>
-  );
-  if (props.presentation === "inline") return content;
+function renderWidgetPickerFooter(
+  { props, base, t }:
+    Pick<ReturnType<NonNullable<WidgetPickerDialogProps["useDialog"]>>, "t"> &
+    { props: Omit<WidgetPickerDialogProps, "useDialog" | "agentHandle">; base: WidgetPickerDialogProps["agentHandle"] }
+) {
   return (
-    <Dialog open title={interpolate({ template: t("Place a {typeLabel} widget"), vars: { typeLabel } })}
-      onClose={() => props.onCancel()} className="settings-dialog jini-domain-dialog widget-picker-dialog">
-      {content}
-    </Dialog>
+    <div className="widget-picker-footer">
+      <span className="editor-actions">
+        <button
+          type="button"
+          className="btn-secondary"
+          data-jini-autofocus=""
+          onClick={props.onCancel}
+          {...handleSpread({ base, suffix: "cancel", opts: { role: "button", label: "Close without placing a widget" } })}
+        >
+          {t("Cancel")}
+        </button>
+      </span>
+    </div>
+  );
+}
+
+function renderNewWidgetForm(
+  { submitCreateNew, t, newTitleInputId, newTitleInputRef, newTitle, setNewTitle, base, props, newConfig, setNewConfig }:
+    Pick<ReturnType<NonNullable<WidgetPickerDialogProps["useDialog"]>>, "submitCreateNew" | "t" | "newTitleInputId" | "newTitleInputRef" | "newTitle"
+    | "setNewTitle" | "newConfig" | "setNewConfig"> &
+    { base: WidgetPickerDialogProps["agentHandle"]; props: Omit<WidgetPickerDialogProps, "useDialog" | "agentHandle"> }
+) {
+  return (
+    <form onSubmit={submitCreateNew} className="widget-picker-section">
+      <h3>{t("Create new")}</h3>
+      <div className="field">
+        <label className="field-label" htmlFor={newTitleInputId}>
+          {t("Title")}
+        </label>
+        <input
+          id={newTitleInputId}
+          ref={newTitleInputRef}
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          {...handleSpread({ base, suffix: "new-title", opts: { role: "field", label: "The new widget's title" } })}
+        />
+      </div>
+      <WidgetConfigFields
+        widgetType={props.widgetType}
+        config={newConfig}
+        onChange={setNewConfig}
+        agentHandle={subHandle({ base, suffix: "new-config" })}
+        t={t}
+      />
+      <button type="submit" {...handleSpread({ base, suffix: "new-submit", opts: { role: "button", label: "Create and place this widget" } })}>
+        {t("Create and place")}
+      </button>
+    </form>
+  );
+}
+
+function renderExistingWidgetForm(
+  { submitUseExisting, t, existingSelectId, typeLabel, selectedExistingId, setSelectedExistingId, instances, base }:
+    Pick<ReturnType<NonNullable<WidgetPickerDialogProps["useDialog"]>>, "submitUseExisting" | "t" | "existingSelectId" | "typeLabel" | "selectedExistingId"
+    | "setSelectedExistingId"> &
+    { instances: NonNullable<ReturnType<NonNullable<WidgetPickerDialogProps["useDialog"]>>["instances"]>; base: WidgetPickerDialogProps["agentHandle"] }
+) {
+  return (
+    <form onSubmit={submitUseExisting} className="widget-picker-section">
+      <h3>{t("Use existing")}</h3>
+      <div className="field">
+        <label className="field-label" htmlFor={existingSelectId}>
+          {interpolate({ template: t("Existing {typeLabel} widgets"), vars: { typeLabel } })}
+        </label>
+        <Select
+          id={existingSelectId}
+          value={selectedExistingId}
+          onChange={setSelectedExistingId}
+          // `hasExisting` is `(instances?.length ?? 0) > 0` (the hook), so this section only
+          // renders once `instances` is a loaded, non-empty list; the old `?? []` here could not fire.
+          options={toExistingOptions(instances)}
+          placeholder={t("Choose a widget…")}
+          agentHandle={subHandle({ base, suffix: "existing-select" })}
+          t={t}
+        />
+      </div>
+      <button type="submit" {...handleSpread({ base, suffix: "existing-submit", opts: { role: "button", label: "Use this widget" } })}>
+        {t("Use this widget")}
+      </button>
+    </form>
   );
 }
 

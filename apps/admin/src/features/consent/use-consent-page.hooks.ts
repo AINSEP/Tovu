@@ -52,52 +52,12 @@ function withPreviewError({ error }: { error: string }, _optional = {}): (curren
 /** Loads the revisions, autosaves edits as a draft and publishes it on request.
  * @complexity O(1) per edit; one request in flight at a time. */
 export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Translate }, { delayMs, timers }: { delayMs?: number; timers?: ConsentTimers } = {}): ConsentPageController {
-  const [loadNonce, setLoadNonce] = useState(0);
-  const [snapshot, setSnapshot] = useState<ConsentSettingsSnapshot | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [value, setValue] = useState<ConsentSettingsView | null>(null);
-  const [heads, setHeads] = useState<Heads>({ draftId: null, publishedId: null });
-  const [problems, setProblems] = useState<ConsentFieldProblem[]>([]);
-  const [saveState, setSaveState] = useState<ConsentSaveState>('idle');
-  const [settled, setSettled] = useState(true);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [publishing, setPublishing] = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
-  const [liveEnabled, setLiveEnabled] = useState(false);
-  const [publishedCount, setPublishedCount] = useState(0);
-  const valueRef = useRef<ConsentSettingsView | null>(null);
-  const autosave = useRef<ConsentAutosave | null>(null);
-  const currentLoadNonce = useRef(loadNonce);
-  currentLoadNonce.current = loadNonce;
-  const loadInputs = useRef({ t, delayMs, timers });
-  loadInputs.current = { t, delayMs, timers };
-
-  useEffect(() => {
-    const { t, delayMs, timers } = loadInputs.current;
-    let alive = true;
-    setLoadError(null);
-    port.get().then(loaded => {
-      if (!alive || currentLoadNonce.current !== loadNonce) return;
-      const draftId = loaded.draft?.id ?? null;
-      valueRef.current = loaded.draft?.config ?? loaded.effective;
-      setSnapshot(loaded);
-      setValue(valueRef.current);
-      setHeads({ draftId, publishedId: loaded.published?.id ?? null });
-      setLiveEnabled(loaded.effective.enabled);
-      setProblems([]); setSaveState('idle'); setSettled(true); setSaveError(null); setPublishError(null);
-      autosave.current = createConsentAutosave({ port, draftId, events: {
-        onSaving: () => setSaveState('saving'),
-        onSaved: ({ result, settled: done }) => {
-          setHeads(withDraftId({ draftId: result.revision.id }));
-          setProblems(result.blockingProblems);
-          if (done) { setSaveState('saved'); setSettled(true); }
-        },
-        onConflict: () => setSaveState('conflict'),
-        onError: ({ error }) => { setSaveState('error'); setSaveError(describeApiError({ e: error, fallback: t("Couldn't save.") })); },
-      } }, consentAutosaveOptions({ delayMs, timers }));
-    }, error => { if (alive && currentLoadNonce.current === loadNonce) setLoadError(describeApiError({ e: error, fallback: t("Couldn't load cookie consent.") })); });
-    return () => { alive = false; autosave.current?.stop(); };
-  }, [port, loadNonce]); // Reload restarts the load; t/delay/timers must not reset a draft.
+  const {
+    loadNonce, setLoadNonce, snapshot, setSnapshot, loadError, setLoadError, value, setValue, heads, setHeads, problems, setProblems, saveState, setSaveState,
+    settled, setSettled, saveError, setSaveError, publishing, setPublishing, publishError, setPublishError, liveEnabled, setLiveEnabled, publishedCount,
+    setPublishedCount, valueRef, autosave, currentLoadNonce, loadInputs,
+  } = useConsentEditorState({ t, delayMs, timers });
+  useConsentDraftLoad({ loadInputs, setLoadError, port, currentLoadNonce, loadNonce, valueRef, setSnapshot, setValue, setHeads, setLiveEnabled, setProblems, setSaveState, setSettled, setSaveError, setPublishError, autosave });
 
   const hasUnpublished = heads.draftId !== null && heads.draftId !== heads.publishedId;
 
@@ -111,7 +71,28 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
     setPublishError(null);
     saver.change({ config: valueRef.current });
   }
+  const { canPublish, publish } = createConsentPublisher({
+    saveState, settled, hasUnpublished, problems, publishing, heads, valueRef, autosave, setPublishing, setPublishError, port, setHeads, setLiveEnabled,
+    setPublishedCount, setSaveState, t,
+  });
 
+  return {
+    loadError, editor: snapshot?.editor ?? null, value, onChange, problems, saveState, saveError,
+    draftId: heads.draftId, hasUnpublished, everPublished: heads.publishedId !== null, liveEnabled, canPublish, publishing, publishError, publishedCount,
+    publish, reload: () => setLoadNonce(nonce => nonce + 1),
+  };
+}
+
+function createConsentPublisher(
+  {
+    saveState, settled, hasUnpublished, problems, publishing, heads, valueRef, autosave, setPublishing, setPublishError, port, setHeads, setLiveEnabled,
+    setPublishedCount, setSaveState, t,
+  }:
+    Pick<ReturnType<typeof useConsentEditorState>, "saveState" | "settled" | "problems" | "publishing" | "heads" | "valueRef" | "autosave" | "setPublishing"
+    | "setPublishError" | "setHeads" | "setLiveEnabled" | "setPublishedCount" | "setSaveState"> &
+    Pick<Parameters<typeof useConsentPage>[0], "port" | "t"> &
+    { hasUnpublished: boolean }
+) {
   const canPublish = canPublishConsent({ saveState, settled, hasUnpublished, problems, publishing });
 
   async function publish() {
@@ -138,11 +119,69 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
       setPublishing(false);
     }
   }
+  return { canPublish, publish };
+}
 
+function useConsentDraftLoad(
+  { loadInputs, setLoadError, port, currentLoadNonce, loadNonce, valueRef, setSnapshot, setValue, setHeads, setLiveEnabled, setProblems, setSaveState, setSettled, setSaveError, setPublishError, autosave }:
+    Pick<ReturnType<typeof useConsentEditorState>, "loadInputs" | "setLoadError" | "currentLoadNonce" | "loadNonce" | "valueRef" | "setSnapshot" | "setValue" | "setHeads" | "setLiveEnabled" | "setProblems" | "setSaveState" | "setSettled" | "setSaveError" | "setPublishError" | "autosave"> & Pick<Parameters<typeof useConsentPage>[0], "port">
+) {
+  useEffect(() => {
+    const { t, delayMs, timers } = loadInputs.current;
+    let alive = true;
+    setLoadError(null);
+    port.get().then(loaded => {
+      if (!alive || currentLoadNonce.current !== loadNonce) return;
+      const draftId = loaded.draft?.id ?? null;
+      valueRef.current = loaded.draft?.config ?? loaded.effective;
+      setSnapshot(loaded);
+      setValue(valueRef.current);
+      setHeads({ draftId, publishedId: loaded.published?.id ?? null });
+      setLiveEnabled(loaded.effective.enabled);
+      setProblems([]); setSaveState('idle'); setSettled(true); setSaveError(null); setPublishError(null);
+      autosave.current = createConsentAutosave({ port, draftId, events: {
+        onSaving: () => setSaveState('saving'),
+        onSaved: ({ result, settled: done }) => {
+          setHeads(withDraftId({ draftId: result.revision.id }));
+          setProblems(result.blockingProblems);
+          if (done) { setSaveState('saved'); setSettled(true); }
+        },
+        onConflict: () => setSaveState('conflict'),
+        onError: ({ error }) => { setSaveState('error'); setSaveError(describeApiError({ e: error, fallback: t("Couldn't save.") })); },
+      } }, consentAutosaveOptions({ delayMs, timers }));
+    }, error => { if (alive && currentLoadNonce.current === loadNonce) setLoadError(describeApiError({ e: error, fallback: t("Couldn't load cookie consent.") })); });
+    return () => { alive = false; autosave.current?.stop(); };
+  }, [port, loadNonce]); // Reload restarts the load; t/delay/timers must not reset a draft.
+}
+
+function useConsentEditorState(
+  { t, delayMs, timers }:
+    Pick<Parameters<typeof useConsentPage>[0], "t"> &
+    Pick<NonNullable<Parameters<typeof useConsentPage>[1]>, "delayMs" | "timers">
+) {
+  const [loadNonce, setLoadNonce] = useState(0);
+  const [snapshot, setSnapshot] = useState<ConsentSettingsSnapshot | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [value, setValue] = useState<ConsentSettingsView | null>(null);
+  const [heads, setHeads] = useState<Heads>({ draftId: null, publishedId: null });
+  const [problems, setProblems] = useState<ConsentFieldProblem[]>([]);
+  const [saveState, setSaveState] = useState<ConsentSaveState>('idle');
+  const [settled, setSettled] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [liveEnabled, setLiveEnabled] = useState(false);
+  const [publishedCount, setPublishedCount] = useState(0);
+  const valueRef = useRef<ConsentSettingsView | null>(null);
+  const autosave = useRef<ConsentAutosave | null>(null);
+  const currentLoadNonce = useRef(loadNonce);
+  currentLoadNonce.current = loadNonce;
+  const loadInputs = useRef({ t, delayMs, timers });
+  loadInputs.current = { t, delayMs, timers };
   return {
-    loadError, editor: snapshot?.editor ?? null, value, onChange, problems, saveState, saveError,
-    draftId: heads.draftId, hasUnpublished, everPublished: heads.publishedId !== null, liveEnabled, canPublish, publishing, publishError, publishedCount,
-    publish, reload: () => setLoadNonce(nonce => nonce + 1),
+    loadNonce, setLoadNonce, snapshot, setSnapshot, loadError, setLoadError, value, setValue, heads, setHeads, problems, setProblems, saveState, setSaveState,
+    settled, setSettled, saveError, setSaveError, publishing, setPublishing, publishError, setPublishError, liveEnabled, setLiveEnabled, publishedCount,
+    setPublishedCount, valueRef, autosave, currentLoadNonce, loadInputs,
   };
 }
 

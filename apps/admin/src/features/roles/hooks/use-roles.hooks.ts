@@ -209,6 +209,508 @@ export interface RolesDependencies {
  * @returns The full `RolesController` the view renders from — see that interface for every field.
  */
 export function useRoles(deps: RolesDependencies): RolesController {
+  const {
+    port, locale, boundT, roles, policies, error, rowError, setRowError, roleName, setRoleName, policyName, setPolicyName, policyDescription,
+    setPolicyDescription, editingRoleId, setEditingRoleId, editingRoleName, setEditingRoleName, editingPolicyId, setEditingPolicyId, editingPolicyName,
+    setEditingPolicyName, editingPolicyDescription, setEditingPolicyDescription, rowSavingId, setRowSavingId, permissionPolicyId, setPermissionPolicyId,
+    permissionInput, setPermissionInput, resourceTypeInput, setResourceTypeInput, permissionRows, setPermissionRows, permissionsLoading, setPermissionsLoading,
+    removingPermissionId, setRemovingPermissionId, permissionsGenerationRef, permissionPolicyIdRef, pendingRoleDelete, setPendingRoleDelete, pendingPolicyDelete,
+    setPendingPolicyDelete, pendingPermissionRemove, setPendingPermissionRemove,
+  } = useRolesState({ deps });
+  const {
+    createRoleMutation, createPolicyMutation, saveRoleMutation, deleteRoleMutation, savePolicyMutation, deletePolicyMutation, writePermissionMutation,
+    removePermissionMutation,
+  } = useRolesMutations({ port });
+  const { onCreateRole, onCreatePolicy, startEditRole, onSaveRole, onDeleteRole } = createRoleActions({
+    createRoleMutation, roleName, setRoleName, createPolicyMutation, policyName, policyDescription, setPolicyName, setPolicyDescription, setRowError,
+    setEditingRoleId, setEditingRoleName, setRowSavingId, saveRoleMutation, editingRoleName, locale, pendingRoleDelete, deleteRoleMutation, setPendingRoleDelete,
+  });
+  const { startEditPolicy, onSavePolicy, onDeletePolicy } = createPolicyActions({
+    setRowError, setEditingPolicyId, setEditingPolicyName, setEditingPolicyDescription, setRowSavingId, savePolicyMutation, editingPolicyName,
+    editingPolicyDescription, locale, pendingPolicyDelete, deletePolicyMutation, setPendingPolicyDelete,
+  });
+  const { loadPermissions, togglePermissionForm } = createPermissionLoader({
+    permissionsGenerationRef, setPermissionsLoading, port, setPermissionRows, setRowError, locale, setPermissionInput, setResourceTypeInput,
+    permissionPolicyIdRef, setPermissionPolicyId,
+  });
+  const { onRemovePermission, onConfirmRemovePermission } = createPermissionRemovalActions({
+    setRemovingPermissionId, setRowError, removePermissionMutation, permissionPolicyIdRef, loadPermissions, locale, pendingPermissionRemove,
+    setPendingPermissionRemove,
+  });
+  const { onWritePermission } = createPermissionWriter({
+    permissionInput, permissionsGenerationRef, setRowSavingId, setRowError, writePermissionMutation, resourceTypeInput, setPermissionInput, setResourceTypeInput,
+    permissionPolicyIdRef, loadPermissions, locale,
+  });
+
+  const roleSaving = createRoleMutation.status === "pending";
+  const roleError = createRoleMutation.error ? describeApiError({ e: createRoleMutation.error, fallback: t({ locale: locale, key: "failed to create role" }), locale }) : null;
+  const policySaving = createPolicyMutation.status === "pending";
+  const policyError = createPolicyMutation.error
+    ? describeApiError({ e: createPolicyMutation.error, fallback: t({ locale: locale, key: "failed to create policy" }), locale })
+    : null;
+  return createRolesController({
+    roles, policies, error, rowError, roleName, setRoleName, roleSaving, roleError, onCreateRole, policyName, setPolicyName, policyDescription,
+    setPolicyDescription, policySaving, policyError, onCreatePolicy, editingRoleId, setEditingRoleId, editingRoleName, setEditingRoleName, startEditRole,
+    onSaveRole, editingPolicyId, setEditingPolicyId, editingPolicyName, setEditingPolicyName, editingPolicyDescription, setEditingPolicyDescription,
+    startEditPolicy, onSavePolicy, rowSavingId, permissionPolicyId, permissionInput, setPermissionInput, resourceTypeInput, setResourceTypeInput,
+    togglePermissionForm, onWritePermission, permissionRows, permissionsLoading, removingPermissionId, onRemovePermission, pendingPermissionRemove,
+    setPendingPermissionRemove, onConfirmRemovePermission, pendingRoleDelete, setPendingRoleDelete, onDeleteRole, pendingPolicyDelete,
+    setPendingPolicyDelete, onDeletePolicy, boundT, locale,
+  });
+}
+
+function createRolesController(
+  {
+    roles, policies, error, rowError, roleName, setRoleName, roleSaving, roleError, onCreateRole, policyName, setPolicyName, policyDescription,
+    setPolicyDescription, policySaving, policyError, onCreatePolicy, editingRoleId, setEditingRoleId, editingRoleName, setEditingRoleName, startEditRole,
+    onSaveRole, editingPolicyId, setEditingPolicyId, editingPolicyName, setEditingPolicyName, editingPolicyDescription, setEditingPolicyDescription,
+    startEditPolicy, onSavePolicy, rowSavingId, permissionPolicyId, permissionInput, setPermissionInput, resourceTypeInput, setResourceTypeInput,
+    togglePermissionForm, onWritePermission, permissionRows, permissionsLoading, removingPermissionId, onRemovePermission, pendingPermissionRemove,
+    setPendingPermissionRemove, onConfirmRemovePermission, pendingRoleDelete, setPendingRoleDelete, onDeleteRole, pendingPolicyDelete, setPendingPolicyDelete,
+    onDeletePolicy, boundT, locale,
+  }:
+    Omit<RolesController, "t"> & { boundT: RolesController["t"] }
+) : RolesController {
+  return {
+    roles,
+    policies,
+    error,
+    rowError,
+    ...createRoleCreationControllers({
+      roleName, setRoleName, roleSaving, roleError, onCreateRole, policyName, setPolicyName, policyDescription, setPolicyDescription, policySaving,
+      policyError, onCreatePolicy,
+    }),
+    ...createRoleEditingControllers({
+      editingRoleId, setEditingRoleId, editingRoleName, setEditingRoleName, startEditRole, onSaveRole, editingPolicyId, setEditingPolicyId, editingPolicyName,
+      setEditingPolicyName, editingPolicyDescription, setEditingPolicyDescription, startEditPolicy, onSavePolicy,
+    }),
+
+    rowSavingId,
+
+    permissionPolicyId,
+    permissionInput,
+    setPermissionInput,
+    resourceTypeInput,
+    setResourceTypeInput,
+    togglePermissionForm,
+    onWritePermission,
+
+    permissionRows,
+    permissionsLoading,
+    removingPermissionId,
+    onRemovePermission,
+
+    pendingPermissionRemove,
+    setPendingPermissionRemove,
+    onConfirmRemovePermission,
+
+    pendingRoleDelete,
+    setPendingRoleDelete,
+    onDeleteRole,
+
+    pendingPolicyDelete,
+    setPendingPolicyDelete,
+    onDeletePolicy,
+
+    t: boundT,
+    locale,
+  };
+}
+
+function createRoleEditingControllers(
+  {
+    editingRoleId, setEditingRoleId, editingRoleName, setEditingRoleName, startEditRole, onSaveRole, editingPolicyId, setEditingPolicyId, editingPolicyName,
+    setEditingPolicyName, editingPolicyDescription, setEditingPolicyDescription, startEditPolicy, onSavePolicy,
+  }:
+    Pick<RolesController, "editingRoleId" | "setEditingRoleId" | "editingRoleName" | "setEditingRoleName" | "startEditRole" | "onSaveRole" | "editingPolicyId" | "setEditingPolicyId" | "editingPolicyName" | "setEditingPolicyName" | "editingPolicyDescription" | "setEditingPolicyDescription" | "startEditPolicy" | "onSavePolicy">
+): Pick<RolesController, "editingRoleId" | "setEditingRoleId" | "editingRoleName" | "setEditingRoleName" | "startEditRole" | "onSaveRole" | "editingPolicyId" | "setEditingPolicyId" | "editingPolicyName" | "setEditingPolicyName" | "editingPolicyDescription" | "setEditingPolicyDescription" | "startEditPolicy" | "onSavePolicy"> {
+  return {
+
+    editingRoleId,
+    setEditingRoleId,
+    editingRoleName,
+    setEditingRoleName,
+    startEditRole,
+    onSaveRole,
+
+    editingPolicyId,
+    setEditingPolicyId,
+    editingPolicyName,
+    setEditingPolicyName,
+    editingPolicyDescription,
+    setEditingPolicyDescription,
+    startEditPolicy,
+    onSavePolicy,
+  };
+}
+
+function createRoleCreationControllers(
+  {
+    roleName, setRoleName, roleSaving, roleError, onCreateRole, policyName, setPolicyName, policyDescription, setPolicyDescription, policySaving, policyError,
+    onCreatePolicy,
+  }:
+    Pick<RolesController, "roleName" | "setRoleName" | "roleSaving" | "roleError" | "onCreateRole" | "policyName" | "setPolicyName" | "policyDescription" | "setPolicyDescription" | "policySaving" | "policyError" | "onCreatePolicy">
+): Pick<RolesController, "roleName" | "setRoleName" | "roleSaving" | "roleError" | "onCreateRole" | "policyName" | "setPolicyName" | "policyDescription" | "setPolicyDescription" | "policySaving" | "policyError" | "onCreatePolicy"> {
+  return {
+
+    roleName,
+    setRoleName,
+    roleSaving,
+    roleError,
+    onCreateRole,
+
+    policyName,
+    setPolicyName,
+    policyDescription,
+    setPolicyDescription,
+    policySaving,
+    policyError,
+    onCreatePolicy,
+  };
+}
+
+function createPermissionWriter(
+  {
+    permissionInput, permissionsGenerationRef, setRowSavingId, setRowError, writePermissionMutation, resourceTypeInput, setPermissionInput, setResourceTypeInput,
+    permissionPolicyIdRef, loadPermissions, locale,
+  }:
+    Pick<ReturnType<typeof useRolesState>, "permissionInput" | "permissionsGenerationRef" | "setRowSavingId" | "setRowError" | "resourceTypeInput"
+    | "setPermissionInput" | "setResourceTypeInput" | "permissionPolicyIdRef" | "locale"> &
+    Pick<ReturnType<typeof useRolesMutations>, "writePermissionMutation"> &
+    Pick<ReturnType<typeof createPermissionLoader>, "loadPermissions">
+) {
+  /** 2026-09-05 fix, same bug class as `onSaveRole`/`onDeleteRole` above: nothing gates opening a
+   *  DIFFERENT policy's permission form (`togglePermissionForm`) while a write for the previously
+   *  open one is still in flight. `permissionInput`/`resourceTypeInput` are cleared on success
+   *  unconditionally — captured here as `generationAtStart` (`permissionsGenerationRef`, bumped by
+   *  every `loadPermissions` call, i.e. every panel open) before the write starts, so a stale
+   *  write's success can tell "the operator is still on the policy this write was for" apart from
+   *  "they've since switched panels and typed a NEW, unrelated value" and skip clearing in the
+   *  latter case — otherwise it would erase whatever the operator typed for the policy they
+   *  actually have open now. `rowSavingId`'s reset (matching `onSaveRole`'s identical fix) is a
+   *  functional update keyed on this call's own `policyId` for the same reason. */
+  async function onWritePermission({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
+    if (!permissionInput) return;
+    const generationAtStart = permissionsGenerationRef.current;
+    setRowSavingId(policyId);
+    setRowError(null);
+    try {
+      await writePermissionMutation.mutate({ input: { policyId, permission: permissionInput, resourceType: resourceTypeInput || undefined } });
+      if (permissionsGenerationRef.current === generationAtStart) {
+        setPermissionInput("");
+        setResourceTypeInput("");
+      }
+      // The row the write just created has to appear in the list, or its Remove button would not
+      // exist until the form was closed and re-opened. Refresh only while the panel is still on
+      // THIS policy (C2/N1 fix, same guard and reasoning as `onRemovePermission` above) — this
+      // trailing call always mints the newest generation, so `loadPermissions`'s OWN generation
+      // guard cannot tell "superseded by a different policy's open" apart from "just the latest
+      // load for this one"; only `permissionPolicyIdRef`'s equality check can.
+      if (permissionPolicyIdRef.current === policyId) await loadPermissions({ policyId });
+    } catch (e) {
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to add permission" }), locale }));
+    } finally {
+      setRowSavingId((current) => (current === policyId ? null : current));
+    }
+  }
+  return { onWritePermission };
+}
+
+function createPermissionRemovalActions(
+  {
+    setRemovingPermissionId, setRowError, removePermissionMutation, permissionPolicyIdRef, loadPermissions, locale, pendingPermissionRemove,
+    setPendingPermissionRemove,
+  }:
+    Pick<ReturnType<typeof useRolesState>, "setRemovingPermissionId" | "setRowError" | "permissionPolicyIdRef" | "locale" | "pendingPermissionRemove"
+    | "setPendingPermissionRemove"> &
+    Pick<ReturnType<typeof useRolesMutations>, "removePermissionMutation"> &
+    Pick<ReturnType<typeof createPermissionLoader>, "loadPermissions">
+) {
+  async function onRemovePermission({ policyId, policyPermissionId }: { policyId: string; policyPermissionId: string }, _optional: Record<string, never> = {}) {
+    setRemovingPermissionId(policyPermissionId);
+    setRowError(null);
+    try {
+      await removePermissionMutation.mutate({ input: { policyId, policyPermissionId } });
+      // Refresh only while the panel is still on THIS policy (C2/N1 fix) — see
+      // `permissionPolicyIdRef`'s doc comment above. `loadPermissions`'s generation guard orders
+      // same-policy loads against each other; it does not protect against a newer call for a
+      // DIFFERENT policy, and this trailing call always mints the newest generation by
+      // construction, so it used to win even after the operator moved to another policy's panel.
+      if (permissionPolicyIdRef.current === policyId) await loadPermissions({ policyId });
+    } catch (e) {
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to remove permission" }), locale }));
+    } finally {
+      // Keyed functional update (same fix class as `runRowDelete`'s `setRowSavingId` above):
+      // nothing gates starting a removal on a SECOND row while this one is still in flight, so an
+      // unconditional reset would clear a still-in-flight newer removal's own busy indicator.
+      setRemovingPermissionId((current) => (current === policyPermissionId ? null : current));
+    }
+  }
+
+  /** C1 — the Remove button no longer calls {@link onRemovePermission} directly; it stages the
+   *  target row here and a shell `ConfirmDialog` calls this to actually remove it. Clears the
+   *  pending selection in `finally` regardless of outcome (a failure surfaces through `rowError`,
+   *  same as every other row action), keyed on the row's own id so a stale confirm settling after
+   *  the operator has already opened a DIFFERENT row's confirmation does not dismiss it — same
+   *  guard shape as `onDeleteRole`/`onDeletePolicy`'s `clearPending`. */
+  async function onConfirmRemovePermission() {
+    if (!pendingPermissionRemove) return;
+    const target = pendingPermissionRemove;
+    try {
+      await onRemovePermission({ policyId: target.policyId, policyPermissionId: target.row.id });
+    } finally {
+      setPendingPermissionRemove((current) => (current?.row.id === target.row.id ? null : current));
+    }
+  }
+  return { onRemovePermission, onConfirmRemovePermission };
+}
+
+function createPermissionLoader(
+  {
+    permissionsGenerationRef, setPermissionsLoading, port, setPermissionRows, setRowError, locale, setPermissionInput, setResourceTypeInput,
+    permissionPolicyIdRef, setPermissionPolicyId,
+  }:
+    Pick<ReturnType<typeof useRolesState>, "permissionsGenerationRef" | "setPermissionsLoading" | "port" | "setPermissionRows" | "setRowError" | "locale"
+    | "setPermissionInput" | "setResourceTypeInput" | "permissionPolicyIdRef" | "setPermissionPolicyId">
+) {
+  /** Refresh the open form's permission list. Failures land in `rowError` like every other row
+   *  action rather than throwing — a list that cannot load must not take the form down with it. */
+  async function loadPermissions({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
+    permissionsGenerationRef.current += 1;
+    const generation = permissionsGenerationRef.current;
+    setPermissionsLoading(true);
+    try {
+      const { policyPermissions } = await port.listPolicyPermissions({ policyId });
+      // Superseded by a newer load started after this one — that later call owns
+      // `permissionRows` now, and applying this stale result would let whichever policy's load
+      // happens to settle LAST win regardless of which panel is actually open. See
+      // `permissionsGenerationRef`'s doc comment above.
+      if (permissionsGenerationRef.current !== generation) return;
+      setPermissionRows(policyPermissions);
+    } catch (e) {
+      if (permissionsGenerationRef.current !== generation) return;
+      setPermissionRows([]);
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to load permissions" }), locale }));
+    } finally {
+      if (permissionsGenerationRef.current !== generation) return;
+      setPermissionsLoading(false);
+    }
+  }
+
+  // No side effects inside the `setPermissionPolicyId` updater (2026-09-20 fix, C2/N1): React 18
+  // Strict Mode double-invokes a functional `setState` updater in dev, so the old shape (this
+  // function's body used to live inside that updater) fired `loadPermissions` twice per open. The
+  // updater is now a pure `current === policyId` read; every side effect (the ref write, the row
+  // clear, the load) runs once, in the function body, after the updater has been called.
+  function togglePermissionForm({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
+    setRowError(null);
+    setPermissionInput("");
+    setResourceTypeInput("");
+    const closing = permissionPolicyIdRef.current === policyId;
+    permissionPolicyIdRef.current = closing ? null : policyId;
+    setPermissionPolicyId(permissionPolicyIdRef.current);
+    // Clear first either way, so a re-open never flashes the previous policy's permissions.
+    setPermissionRows([]);
+    if (!closing) void loadPermissions({ policyId });
+  }
+  return { loadPermissions, togglePermissionForm };
+}
+
+function createPolicyActions(
+  {
+    setRowError, setEditingPolicyId, setEditingPolicyName, setEditingPolicyDescription, setRowSavingId, savePolicyMutation, editingPolicyName,
+    editingPolicyDescription, locale, pendingPolicyDelete, deletePolicyMutation, setPendingPolicyDelete,
+  }:
+    Pick<ReturnType<typeof useRolesState>, "setRowError" | "setEditingPolicyId" | "setEditingPolicyName" | "setEditingPolicyDescription" | "setRowSavingId"
+    | "editingPolicyName" | "editingPolicyDescription" | "locale" | "pendingPolicyDelete" | "setPendingPolicyDelete"> &
+    Pick<ReturnType<typeof useRolesMutations>, "savePolicyMutation" | "deletePolicyMutation">
+) {
+  function startEditPolicy(policy: AdminPolicy) {
+    setRowError(null);
+    setEditingPolicyId(policy.id);
+    setEditingPolicyName(policy.name);
+    setEditingPolicyDescription(policy.description ?? "");
+  }
+
+  /** Same settle-time guard as `onSaveRole` above, keyed on `policyId` instead of `roleId` — see
+   *  that function's comment for why. */
+  async function onSavePolicy({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
+    setRowSavingId(policyId);
+    setRowError(null);
+    try {
+      await savePolicyMutation.mutate({ input: { policyId, name: editingPolicyName, description: editingPolicyDescription } });
+      setEditingPolicyId((current) => (current === policyId ? null : current));
+    } catch (e) {
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to update policy" }), locale }));
+    } finally {
+      setRowSavingId((current) => (current === policyId ? null : current));
+    }
+  }
+
+  /** Same `ConfirmDialog`-via-`RowMenu` swap as `onDeleteRole` above, plus the same `clearPending`
+   *  settle-time guard — see that function's comments for both. */
+  async function onDeletePolicy() {
+    if (!pendingPolicyDelete) return;
+    const policy = pendingPolicyDelete;
+    await runRowDelete({
+      id: policy.id,
+      mutate: deletePolicyMutation.mutate,
+      setRowSavingId,
+      setRowError,
+      clearPending: () => setPendingPolicyDelete((current) => (current?.id === policy.id ? null : current)),
+      describeError: (e) => describeApiError({ e, fallback: t({ locale: locale, key: "failed to delete policy" }), locale }),
+    });
+  }
+  return { startEditPolicy, onSavePolicy, onDeletePolicy };
+}
+
+function createRoleActions(
+  {
+    createRoleMutation, roleName, setRoleName, createPolicyMutation, policyName, policyDescription, setPolicyName, setPolicyDescription, setRowError,
+    setEditingRoleId, setEditingRoleName, setRowSavingId, saveRoleMutation, editingRoleName, locale, pendingRoleDelete, deleteRoleMutation, setPendingRoleDelete,
+  }:
+    Pick<ReturnType<typeof useRolesMutations>, "createRoleMutation" | "createPolicyMutation" | "saveRoleMutation" | "deleteRoleMutation"> &
+    Pick<ReturnType<typeof useRolesState>, "roleName" | "setRoleName" | "policyName" | "policyDescription" | "setPolicyName" | "setPolicyDescription"
+    | "setRowError" | "setEditingRoleId" | "setEditingRoleName" | "setRowSavingId" | "editingRoleName" | "locale" | "pendingRoleDelete" | "setPendingRoleDelete">
+) {
+  async function onCreateRole(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await createRoleMutation.mutate({ input: roleName });
+      setRoleName("");
+    } catch {
+      // already surfaced through createRoleMutation.error -> roleError below
+    }
+  }
+  const { onCreatePolicy } = createPolicyCreateAction({ createPolicyMutation, policyName, policyDescription, setPolicyName, setPolicyDescription });
+
+  function startEditRole(role: AdminRole) {
+    setRowError(null);
+    setEditingRoleId(role.id);
+    setEditingRoleName(role.name);
+  }
+
+  /** `setEditingRoleId`/`setRowSavingId`'s settle-time writes (2026-09-05 fix, same bug class as
+   *  `use-sites.hooks.ts`'s `activate`/`use-themes.hooks.ts`'s `activate`/`download`/
+   *  `use-theme-explore.hooks.ts`'s rename) are functional updates keyed on THIS call's own
+   *  `roleId`, not a blind `setEditingRoleId(null)`/`setRowSavingId(null)`: nothing gates a second
+   *  `onSaveRole` (for a DIFFERENT role) from starting before this one settles — the operator can
+   *  freely click "Edit" on another row at any time, no modal blocks it — so an unconditional reset
+   *  would close a DIFFERENT, still-open and unsaved row's inline edit UI out from under the
+   *  operator the moment this stale call finally settles. */
+  async function onSaveRole({ roleId }: { roleId: string }, _optional: Record<string, never> = {}) {
+    setRowSavingId(roleId);
+    setRowError(null);
+    try {
+      await saveRoleMutation.mutate({ input: { roleId, name: editingRoleName } });
+      setEditingRoleId((current) => (current === roleId ? null : current));
+    } catch (e) {
+      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to rename role" }), locale }));
+    } finally {
+      setRowSavingId((current) => (current === roleId ? null : current));
+    }
+  }
+
+  /** Confirmation now gates via a `ConfirmDialog` modal, reached through `RowMenu`'s "Delete" item
+   *  (`setPendingRoleDelete` below) — this row action moved off the in-place two-click
+   *  `ConfirmButton` control (MSG-03 rollout) because a `RowMenu` item fires once and the menu
+   *  closes immediately (`selectItem` in `RowMenu.tsx`), so there is no "stay open for a second
+   *  confirm click" state for `ConfirmButton` to hold; `ConfirmDialog` is the mechanism that
+   *  survives the menu closing, same as `Posts.tsx`/`Pages.tsx`'s own Delete.
+   *
+   *  `clearPending` (2026-09-05 fix, same reasoning as `onSaveRole`'s comment above) only clears
+   *  `pendingRoleDelete` when it still names THIS call's own `role` — otherwise a stale delete
+   *  settling after the operator has already opened a DIFFERENT row's delete confirmation would
+   *  silently dismiss that dialog with no decision made. */
+  async function onDeleteRole() {
+    if (!pendingRoleDelete) return;
+    const role = pendingRoleDelete;
+    await runRowDelete({
+      id: role.id,
+      mutate: deleteRoleMutation.mutate,
+      setRowSavingId,
+      setRowError,
+      clearPending: () => setPendingRoleDelete((current) => (current?.id === role.id ? null : current)),
+      describeError: (e) => describeApiError({ e, fallback: t({ locale: locale, key: "failed to delete role" }), locale }),
+    });
+  }
+  return { onCreateRole, onCreatePolicy, startEditRole, onSaveRole, onDeleteRole };
+}
+
+function createPolicyCreateAction(
+  { createPolicyMutation, policyName, policyDescription, setPolicyName, setPolicyDescription }:
+    Pick<Parameters<typeof createRoleActions>[0], "createPolicyMutation" | "policyName" | "policyDescription" | "setPolicyName" | "setPolicyDescription">
+) {
+  async function onCreatePolicy(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await createPolicyMutation.mutate({ input: { name: policyName, description: policyDescription || undefined } });
+      setPolicyName("");
+      setPolicyDescription("");
+    } catch {
+      // already surfaced through createPolicyMutation.error -> policyError below
+    }
+  }
+  return { onCreatePolicy };
+}
+
+function useRolesMutations(
+  { port }:
+    Pick<ReturnType<typeof useRolesState>, "port">
+) {
+  const createRoleMutation = useFetchMutation({
+    run: ({ input: name }: { input: string }) => port.createRole({ name }),
+  }, {
+    invalidates: [KEYS.list],
+  });
+  const createPolicyMutation = useFetchMutation({
+    run: ({ input }: { input: { name: string; description: string | undefined } }) =>
+      port.createPolicy({ name: input.name }, { description: input.description }),
+  }, {
+    invalidates: [KEYS.list],
+  });
+  const saveRoleMutation = useFetchMutation({
+    run: ({ input }: { input: { roleId: string; name: string } }) => port.updateRole(input),
+  }, {
+    invalidates: [KEYS.list],
+  });
+  const deleteRoleMutation = useFetchMutation({
+    run: ({ input: id }: { input: string }) => port.deleteRole({ roleId: id }),
+  }, {
+    invalidates: [KEYS.list],
+  });
+  const savePolicyMutation = useFetchMutation({
+    run: ({ input }: { input: { policyId: string; name: string; description: string } }) =>
+      port.updatePolicy({ policyId: input.policyId }, { name: input.name, description: input.description }),
+  }, {
+    invalidates: [KEYS.list],
+  });
+  const deletePolicyMutation = useFetchMutation({
+    run: ({ input: id }: { input: string }) => port.deletePolicy({ policyId: id }),
+  }, {
+    invalidates: [KEYS.list],
+  });
+  // No `invalidates` — matches the pre-migration `onWritePermission`, which never called `reload()`
+  // either.
+  const writePermissionMutation = useFetchMutation({
+    run: ({ input }: { input: { policyId: string; permission: string; resourceType: string | undefined } }) =>
+      port.writePolicyPermission({ policyId: input.policyId, permission: input.permission }, { resourceType: input.resourceType }),
+  });
+  // Also no `invalidates`: removing a permission changes nothing `KEYS.list` caches (the policy
+  // list carries no permissions), so the refresh that matters is `loadPermissions` below.
+  const removePermissionMutation = useFetchMutation({
+    run: ({ input }: { input: { policyId: string; policyPermissionId: string } }) => port.removePolicyPermission(input),
+  });
+  return {
+    createRoleMutation, createPolicyMutation, saveRoleMutation, deleteRoleMutation, savePolicyMutation, deletePolicyMutation, writePermissionMutation,
+    removePermissionMutation,
+  };
+}
+
+function useRolesState(
+  { deps }:
+    { deps: Parameters<typeof useRoles>[0] }
+) {
   const { port } = deps;
   const locale = useAdminLocale();
   const boundT = ({ key }: { key: string }, _optional: Record<string, never> = {}): string => t({ locale: locale, key: key });
@@ -275,345 +777,13 @@ export function useRoles(deps: RolesDependencies): RolesController {
   const [pendingRoleDelete, setPendingRoleDelete] = useState<AdminRole | null>(null);
   const [pendingPolicyDelete, setPendingPolicyDelete] = useState<AdminPolicy | null>(null);
   const [pendingPermissionRemove, setPendingPermissionRemove] = useState<PendingPermissionRemove | null>(null);
-
-  const createRoleMutation = useFetchMutation({
-    run: ({ input: name }: { input: string }) => port.createRole({ name }),
-  }, {
-    invalidates: [KEYS.list],
-  });
-  const createPolicyMutation = useFetchMutation({
-    run: ({ input }: { input: { name: string; description: string | undefined } }) =>
-      port.createPolicy({ name: input.name }, { description: input.description }),
-  }, {
-    invalidates: [KEYS.list],
-  });
-  const saveRoleMutation = useFetchMutation({
-    run: ({ input }: { input: { roleId: string; name: string } }) => port.updateRole(input),
-  }, {
-    invalidates: [KEYS.list],
-  });
-  const deleteRoleMutation = useFetchMutation({
-    run: ({ input: id }: { input: string }) => port.deleteRole({ roleId: id }),
-  }, {
-    invalidates: [KEYS.list],
-  });
-  const savePolicyMutation = useFetchMutation({
-    run: ({ input }: { input: { policyId: string; name: string; description: string } }) =>
-      port.updatePolicy({ policyId: input.policyId }, { name: input.name, description: input.description }),
-  }, {
-    invalidates: [KEYS.list],
-  });
-  const deletePolicyMutation = useFetchMutation({
-    run: ({ input: id }: { input: string }) => port.deletePolicy({ policyId: id }),
-  }, {
-    invalidates: [KEYS.list],
-  });
-  // No `invalidates` — matches the pre-migration `onWritePermission`, which never called `reload()`
-  // either.
-  const writePermissionMutation = useFetchMutation({
-    run: ({ input }: { input: { policyId: string; permission: string; resourceType: string | undefined } }) =>
-      port.writePolicyPermission({ policyId: input.policyId, permission: input.permission }, { resourceType: input.resourceType }),
-  });
-  // Also no `invalidates`: removing a permission changes nothing `KEYS.list` caches (the policy
-  // list carries no permissions), so the refresh that matters is `loadPermissions` below.
-  const removePermissionMutation = useFetchMutation({
-    run: ({ input }: { input: { policyId: string; policyPermissionId: string } }) => port.removePolicyPermission(input),
-  });
-
-  async function onCreateRole(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      await createRoleMutation.mutate({ input: roleName });
-      setRoleName("");
-    } catch {
-      // already surfaced through createRoleMutation.error -> roleError below
-    }
-  }
-
-  async function onCreatePolicy(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      await createPolicyMutation.mutate({ input: { name: policyName, description: policyDescription || undefined } });
-      setPolicyName("");
-      setPolicyDescription("");
-    } catch {
-      // already surfaced through createPolicyMutation.error -> policyError below
-    }
-  }
-
-  function startEditRole(role: AdminRole) {
-    setRowError(null);
-    setEditingRoleId(role.id);
-    setEditingRoleName(role.name);
-  }
-
-  /** `setEditingRoleId`/`setRowSavingId`'s settle-time writes (2026-09-05 fix, same bug class as
-   *  `use-sites.hooks.ts`'s `activate`/`use-themes.hooks.ts`'s `activate`/`download`/
-   *  `use-theme-explore.hooks.ts`'s rename) are functional updates keyed on THIS call's own
-   *  `roleId`, not a blind `setEditingRoleId(null)`/`setRowSavingId(null)`: nothing gates a second
-   *  `onSaveRole` (for a DIFFERENT role) from starting before this one settles — the operator can
-   *  freely click "Edit" on another row at any time, no modal blocks it — so an unconditional reset
-   *  would close a DIFFERENT, still-open and unsaved row's inline edit UI out from under the
-   *  operator the moment this stale call finally settles. */
-  async function onSaveRole({ roleId }: { roleId: string }, _optional: Record<string, never> = {}) {
-    setRowSavingId(roleId);
-    setRowError(null);
-    try {
-      await saveRoleMutation.mutate({ input: { roleId, name: editingRoleName } });
-      setEditingRoleId((current) => (current === roleId ? null : current));
-    } catch (e) {
-      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to rename role" }), locale }));
-    } finally {
-      setRowSavingId((current) => (current === roleId ? null : current));
-    }
-  }
-
-  /** Confirmation now gates via a `ConfirmDialog` modal, reached through `RowMenu`'s "Delete" item
-   *  (`setPendingRoleDelete` below) — this row action moved off the in-place two-click
-   *  `ConfirmButton` control (MSG-03 rollout) because a `RowMenu` item fires once and the menu
-   *  closes immediately (`selectItem` in `RowMenu.tsx`), so there is no "stay open for a second
-   *  confirm click" state for `ConfirmButton` to hold; `ConfirmDialog` is the mechanism that
-   *  survives the menu closing, same as `Posts.tsx`/`Pages.tsx`'s own Delete.
-   *
-   *  `clearPending` (2026-09-05 fix, same reasoning as `onSaveRole`'s comment above) only clears
-   *  `pendingRoleDelete` when it still names THIS call's own `role` — otherwise a stale delete
-   *  settling after the operator has already opened a DIFFERENT row's delete confirmation would
-   *  silently dismiss that dialog with no decision made. */
-  async function onDeleteRole() {
-    if (!pendingRoleDelete) return;
-    const role = pendingRoleDelete;
-    await runRowDelete({
-      id: role.id,
-      mutate: deleteRoleMutation.mutate,
-      setRowSavingId,
-      setRowError,
-      clearPending: () => setPendingRoleDelete((current) => (current?.id === role.id ? null : current)),
-      describeError: (e) => describeApiError({ e, fallback: t({ locale: locale, key: "failed to delete role" }), locale }),
-    });
-  }
-
-  function startEditPolicy(policy: AdminPolicy) {
-    setRowError(null);
-    setEditingPolicyId(policy.id);
-    setEditingPolicyName(policy.name);
-    setEditingPolicyDescription(policy.description ?? "");
-  }
-
-  /** Same settle-time guard as `onSaveRole` above, keyed on `policyId` instead of `roleId` — see
-   *  that function's comment for why. */
-  async function onSavePolicy({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
-    setRowSavingId(policyId);
-    setRowError(null);
-    try {
-      await savePolicyMutation.mutate({ input: { policyId, name: editingPolicyName, description: editingPolicyDescription } });
-      setEditingPolicyId((current) => (current === policyId ? null : current));
-    } catch (e) {
-      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to update policy" }), locale }));
-    } finally {
-      setRowSavingId((current) => (current === policyId ? null : current));
-    }
-  }
-
-  /** Same `ConfirmDialog`-via-`RowMenu` swap as `onDeleteRole` above, plus the same `clearPending`
-   *  settle-time guard — see that function's comments for both. */
-  async function onDeletePolicy() {
-    if (!pendingPolicyDelete) return;
-    const policy = pendingPolicyDelete;
-    await runRowDelete({
-      id: policy.id,
-      mutate: deletePolicyMutation.mutate,
-      setRowSavingId,
-      setRowError,
-      clearPending: () => setPendingPolicyDelete((current) => (current?.id === policy.id ? null : current)),
-      describeError: (e) => describeApiError({ e, fallback: t({ locale: locale, key: "failed to delete policy" }), locale }),
-    });
-  }
-
-  /** Refresh the open form's permission list. Failures land in `rowError` like every other row
-   *  action rather than throwing — a list that cannot load must not take the form down with it. */
-  async function loadPermissions({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
-    permissionsGenerationRef.current += 1;
-    const generation = permissionsGenerationRef.current;
-    setPermissionsLoading(true);
-    try {
-      const { policyPermissions } = await port.listPolicyPermissions({ policyId });
-      // Superseded by a newer load started after this one — that later call owns
-      // `permissionRows` now, and applying this stale result would let whichever policy's load
-      // happens to settle LAST win regardless of which panel is actually open. See
-      // `permissionsGenerationRef`'s doc comment above.
-      if (permissionsGenerationRef.current !== generation) return;
-      setPermissionRows(policyPermissions);
-    } catch (e) {
-      if (permissionsGenerationRef.current !== generation) return;
-      setPermissionRows([]);
-      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to load permissions" }), locale }));
-    } finally {
-      if (permissionsGenerationRef.current !== generation) return;
-      setPermissionsLoading(false);
-    }
-  }
-
-  // No side effects inside the `setPermissionPolicyId` updater (2026-09-20 fix, C2/N1): React 18
-  // Strict Mode double-invokes a functional `setState` updater in dev, so the old shape (this
-  // function's body used to live inside that updater) fired `loadPermissions` twice per open. The
-  // updater is now a pure `current === policyId` read; every side effect (the ref write, the row
-  // clear, the load) runs once, in the function body, after the updater has been called.
-  function togglePermissionForm({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
-    setRowError(null);
-    setPermissionInput("");
-    setResourceTypeInput("");
-    const closing = permissionPolicyIdRef.current === policyId;
-    permissionPolicyIdRef.current = closing ? null : policyId;
-    setPermissionPolicyId(permissionPolicyIdRef.current);
-    // Clear first either way, so a re-open never flashes the previous policy's permissions.
-    setPermissionRows([]);
-    if (!closing) void loadPermissions({ policyId });
-  }
-
-  async function onRemovePermission({ policyId, policyPermissionId }: { policyId: string; policyPermissionId: string }, _optional: Record<string, never> = {}) {
-    setRemovingPermissionId(policyPermissionId);
-    setRowError(null);
-    try {
-      await removePermissionMutation.mutate({ input: { policyId, policyPermissionId } });
-      // Refresh only while the panel is still on THIS policy (C2/N1 fix) — see
-      // `permissionPolicyIdRef`'s doc comment above. `loadPermissions`'s generation guard orders
-      // same-policy loads against each other; it does not protect against a newer call for a
-      // DIFFERENT policy, and this trailing call always mints the newest generation by
-      // construction, so it used to win even after the operator moved to another policy's panel.
-      if (permissionPolicyIdRef.current === policyId) await loadPermissions({ policyId });
-    } catch (e) {
-      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to remove permission" }), locale }));
-    } finally {
-      // Keyed functional update (same fix class as `runRowDelete`'s `setRowSavingId` above):
-      // nothing gates starting a removal on a SECOND row while this one is still in flight, so an
-      // unconditional reset would clear a still-in-flight newer removal's own busy indicator.
-      setRemovingPermissionId((current) => (current === policyPermissionId ? null : current));
-    }
-  }
-
-  /** C1 — the Remove button no longer calls {@link onRemovePermission} directly; it stages the
-   *  target row here and a shell `ConfirmDialog` calls this to actually remove it. Clears the
-   *  pending selection in `finally` regardless of outcome (a failure surfaces through `rowError`,
-   *  same as every other row action), keyed on the row's own id so a stale confirm settling after
-   *  the operator has already opened a DIFFERENT row's confirmation does not dismiss it — same
-   *  guard shape as `onDeleteRole`/`onDeletePolicy`'s `clearPending`. */
-  async function onConfirmRemovePermission() {
-    if (!pendingPermissionRemove) return;
-    const target = pendingPermissionRemove;
-    try {
-      await onRemovePermission({ policyId: target.policyId, policyPermissionId: target.row.id });
-    } finally {
-      setPendingPermissionRemove((current) => (current?.row.id === target.row.id ? null : current));
-    }
-  }
-
-  /** 2026-09-05 fix, same bug class as `onSaveRole`/`onDeleteRole` above: nothing gates opening a
-   *  DIFFERENT policy's permission form (`togglePermissionForm`) while a write for the previously
-   *  open one is still in flight. `permissionInput`/`resourceTypeInput` are cleared on success
-   *  unconditionally — captured here as `generationAtStart` (`permissionsGenerationRef`, bumped by
-   *  every `loadPermissions` call, i.e. every panel open) before the write starts, so a stale
-   *  write's success can tell "the operator is still on the policy this write was for" apart from
-   *  "they've since switched panels and typed a NEW, unrelated value" and skip clearing in the
-   *  latter case — otherwise it would erase whatever the operator typed for the policy they
-   *  actually have open now. `rowSavingId`'s reset (matching `onSaveRole`'s identical fix) is a
-   *  functional update keyed on this call's own `policyId` for the same reason. */
-  async function onWritePermission({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) {
-    if (!permissionInput) return;
-    const generationAtStart = permissionsGenerationRef.current;
-    setRowSavingId(policyId);
-    setRowError(null);
-    try {
-      await writePermissionMutation.mutate({ input: { policyId, permission: permissionInput, resourceType: resourceTypeInput || undefined } });
-      if (permissionsGenerationRef.current === generationAtStart) {
-        setPermissionInput("");
-        setResourceTypeInput("");
-      }
-      // The row the write just created has to appear in the list, or its Remove button would not
-      // exist until the form was closed and re-opened. Refresh only while the panel is still on
-      // THIS policy (C2/N1 fix, same guard and reasoning as `onRemovePermission` above) — this
-      // trailing call always mints the newest generation, so `loadPermissions`'s OWN generation
-      // guard cannot tell "superseded by a different policy's open" apart from "just the latest
-      // load for this one"; only `permissionPolicyIdRef`'s equality check can.
-      if (permissionPolicyIdRef.current === policyId) await loadPermissions({ policyId });
-    } catch (e) {
-      setRowError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to add permission" }), locale }));
-    } finally {
-      setRowSavingId((current) => (current === policyId ? null : current));
-    }
-  }
-
-  const roleSaving = createRoleMutation.status === "pending";
-  const roleError = createRoleMutation.error ? describeApiError({ e: createRoleMutation.error, fallback: t({ locale: locale, key: "failed to create role" }), locale }) : null;
-  const policySaving = createPolicyMutation.status === "pending";
-  const policyError = createPolicyMutation.error
-    ? describeApiError({ e: createPolicyMutation.error, fallback: t({ locale: locale, key: "failed to create policy" }), locale })
-    : null;
-
   return {
-    roles,
-    policies,
-    error,
-    rowError,
-
-    roleName,
-    setRoleName,
-    roleSaving,
-    roleError,
-    onCreateRole,
-
-    policyName,
-    setPolicyName,
-    policyDescription,
-    setPolicyDescription,
-    policySaving,
-    policyError,
-    onCreatePolicy,
-
-    editingRoleId,
-    setEditingRoleId,
-    editingRoleName,
-    setEditingRoleName,
-    startEditRole,
-    onSaveRole,
-
-    editingPolicyId,
-    setEditingPolicyId,
-    editingPolicyName,
-    setEditingPolicyName,
-    editingPolicyDescription,
-    setEditingPolicyDescription,
-    startEditPolicy,
-    onSavePolicy,
-
-    rowSavingId,
-
-    permissionPolicyId,
-    permissionInput,
-    setPermissionInput,
-    resourceTypeInput,
-    setResourceTypeInput,
-    togglePermissionForm,
-    onWritePermission,
-
-    permissionRows,
-    permissionsLoading,
-    removingPermissionId,
-    onRemovePermission,
-
-    pendingPermissionRemove,
-    setPendingPermissionRemove,
-    onConfirmRemovePermission,
-
-    pendingRoleDelete,
-    setPendingRoleDelete,
-    onDeleteRole,
-
-    pendingPolicyDelete,
-    setPendingPolicyDelete,
-    onDeletePolicy,
-
-    t: boundT,
-    locale,
+    port, locale, boundT, roles, policies, error, rowError, setRowError, roleName, setRoleName, policyName, setPolicyName, policyDescription,
+    setPolicyDescription, editingRoleId, setEditingRoleId, editingRoleName, setEditingRoleName, editingPolicyId, setEditingPolicyId, editingPolicyName,
+    setEditingPolicyName, editingPolicyDescription, setEditingPolicyDescription, rowSavingId, setRowSavingId, permissionPolicyId, setPermissionPolicyId,
+    permissionInput, setPermissionInput, resourceTypeInput, setResourceTypeInput, permissionRows, setPermissionRows, permissionsLoading, setPermissionsLoading,
+    removingPermissionId, setRemovingPermissionId, permissionsGenerationRef, permissionPolicyIdRef, pendingRoleDelete, setPendingRoleDelete, pendingPolicyDelete,
+    setPendingPolicyDelete, pendingPermissionRemove, setPendingPermissionRemove,
   };
 }
 

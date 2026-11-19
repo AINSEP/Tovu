@@ -69,37 +69,60 @@ export interface RestoreFlowController {
  * and a bound `t`/`locale` — see this file's header for the full rationale.
  */
 export function useRestoreFlow(props: { point: AdminRestorePoint }, port: RestoreFlowPort): RestoreFlowController {
-  const locale = useAdminLocale();
-  const boundT = (key: string): string => t({ locale: locale, key: key });
-  const [disclosure, setDisclosure] = useState<AdminDisclosureResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [acknowledged, setAcknowledged] = useState(false);
+  const {
+    locale, boundT, disclosure, error, acknowledged, setAcknowledged, step, setStep, busy, setBusy, ceremonyError, setCeremonyError, plan, setPlan,
+    confirmationToken, setConfirmationToken, result, setResult,
+  } = useRestoreFlowState({ port, props });
+  const { startPlan, doConfirm } = createRestorePlanningActions({ setBusy, setCeremonyError, port, props, setPlan, setStep, locale, plan, acknowledged, setConfirmationToken });
+  const { doExecute } = createRestoreExecuteAction({ confirmationToken, setBusy, setCeremonyError, port, props, setResult, setStep, locale });
 
-  const [step, setStep] = useState<CeremonyStep>("idle");
-  const [busy, setBusy] = useState(false);
-  const [ceremonyError, setCeremonyError] = useState<string | null>(null);
-  const [plan, setPlan] = useState<{ planId: string; planHash: string } | null>(null);
-  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
-  const [result, setResult] = useState<{ restoreRunId: string; state: string; restartRequired?: boolean } | null>(
-    null,
-  );
+  return {
+    disclosure,
+    error,
+    acknowledged,
+    setAcknowledged,
+    step,
+    busy,
+    ceremonyError,
+    plan,
+    confirmationToken,
+    result,
+    startPlan,
+    doConfirm,
+    doExecute,
+    t: boundT,
+    locale,
+  };
+}
 
-  useEffect(() => {
-    setDisclosure(null);
-    setAcknowledged(false);
-    setError(null);
-    setStep("idle");
-    setBusy(false);
+function createRestoreExecuteAction(
+  { confirmationToken, setBusy, setCeremonyError, port, props, setResult, setStep, locale }:
+    Pick<ReturnType<typeof useRestoreFlowState>, "confirmationToken" | "setBusy" | "setCeremonyError" | "setResult" | "setStep" | "locale"> &
+    { port: Parameters<typeof useRestoreFlow>[1]; props: Parameters<typeof useRestoreFlow>[0] }
+) {
+  async function doExecute() {
+    if (!confirmationToken) return;
+    setBusy(true);
     setCeremonyError(null);
-    setPlan(null);
-    setConfirmationToken(null);
-    setResult(null);
-    port
-      .computeRecoveryDisclosure({ restorePointId: props.point.id })
-      .then(setDisclosure)
-      .catch((e) => setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to compute the discarded-write-window disclosure" }) })));
-  }, [props.point.id, port]);
+    try {
+      const r = await port.executeRestore({ confirmationToken, restorePointId: props.point.id });
+      setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
+      setStep("done");
+    } catch (e) {
+      setCeremonyError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to execute the restore" }) }));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return { doExecute };
+}
 
+function createRestorePlanningActions(
+  { setBusy, setCeremonyError, port, props, setPlan, setStep, locale, plan, acknowledged, setConfirmationToken }:
+    Pick<ReturnType<typeof useRestoreFlowState>, "setBusy" | "setCeremonyError" | "setPlan" | "setStep" | "locale" | "plan" | "acknowledged"
+    | "setConfirmationToken"> &
+    { port: Parameters<typeof useRestoreFlow>[1]; props: Parameters<typeof useRestoreFlow>[0] }
+) {
   async function startPlan() {
     setBusy(true);
     setCeremonyError(null);
@@ -132,38 +155,46 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }, port: Restor
       setBusy(false);
     }
   }
+  return { startPlan, doConfirm };
+}
 
-  async function doExecute() {
-    if (!confirmationToken) return;
-    setBusy(true);
+function useRestoreFlowState(
+  { port, props }:
+    { port: Parameters<typeof useRestoreFlow>[1]; props: Parameters<typeof useRestoreFlow>[0] }
+) {
+  const locale = useAdminLocale();
+  const boundT = (key: string): string => t({ locale: locale, key: key });
+  const [disclosure, setDisclosure] = useState<AdminDisclosureResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  const [step, setStep] = useState<CeremonyStep>("idle");
+  const [busy, setBusy] = useState(false);
+  const [ceremonyError, setCeremonyError] = useState<string | null>(null);
+  const [plan, setPlan] = useState<{ planId: string; planHash: string } | null>(null);
+  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
+  const [result, setResult] = useState<{ restoreRunId: string; state: string; restartRequired?: boolean } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setDisclosure(null);
+    setAcknowledged(false);
+    setError(null);
+    setStep("idle");
+    setBusy(false);
     setCeremonyError(null);
-    try {
-      const r = await port.executeRestore({ confirmationToken, restorePointId: props.point.id });
-      setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
-      setStep("done");
-    } catch (e) {
-      setCeremonyError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to execute the restore" }) }));
-    } finally {
-      setBusy(false);
-    }
-  }
-
+    setPlan(null);
+    setConfirmationToken(null);
+    setResult(null);
+    port
+      .computeRecoveryDisclosure({ restorePointId: props.point.id })
+      .then(setDisclosure)
+      .catch((e) => setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to compute the discarded-write-window disclosure" }) })));
+  }, [props.point.id, port]);
   return {
-    disclosure,
-    error,
-    acknowledged,
-    setAcknowledged,
-    step,
-    busy,
-    ceremonyError,
-    plan,
-    confirmationToken,
-    result,
-    startPlan,
-    doConfirm,
-    doExecute,
-    t: boundT,
-    locale,
+    locale, boundT, disclosure, error, acknowledged, setAcknowledged, step, setStep, busy, setBusy, ceremonyError, setCeremonyError, plan, setPlan,
+    confirmationToken, setConfirmationToken, result, setResult,
   };
 }
 
