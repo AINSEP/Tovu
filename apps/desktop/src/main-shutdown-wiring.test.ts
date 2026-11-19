@@ -22,7 +22,7 @@ import vm from "node:vm";
 import os from "node:os";
 import { stripTypeScriptTypes } from "node:module";
 import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
-import { handleStop } from "./project-ipc.ts";
+import { handleStop } from "./project-ipc.server.ts";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
 import { sitesFilePath, trackSite } from "./tracked-sites.ts";
 import { sourceFunction } from "./renderer/source-test-harness.ts";

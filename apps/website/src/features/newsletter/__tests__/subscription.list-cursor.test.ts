@@ -11,7 +11,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { registerAdminNewsletterListSubscriptionsRoute } from "#src/server/inbound/admin-http/routes/newsletter/list-subscriptions";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
-import { SqlNewsletterSubscriptionRepo } from "../repo.js";
+import { SqlNewsletterSubscriptionRepo } from "../repo-subscribers.js";
 import { InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
 import { buildNewsletterRegistrations, type NewsletterToolDeps } from "../tool-registrations.js";
 import type { NewsletterSubscriptionRepoPort } from "../ports.js";

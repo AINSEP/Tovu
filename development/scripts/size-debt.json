@@ -58,11 +58,11 @@
       "value": 101
     },
     {
-      "file": "apps/admin/src/features/collections/Collections.tsx",
-      "function": "<file>",
-      "line": 609,
-      "rule": "max-lines",
-      "value": 562
+      "file": "apps/admin/src/features/collections/NewContentTypeDialog.tsx",
+      "function": "NewContentTypeDialog#1",
+      "line": 21,
+      "rule": "max-lines-per-function",
+      "value": 81
     },
     {
       "file": "apps/admin/src/features/deployment/DockerfileTab.tsx",
@@ -247,11 +247,11 @@
       "value": 461
     },
     {
-      "file": "apps/admin/src/features/roles/Roles.tsx",
-      "function": "<file>",
-      "line": 665,
-      "rule": "max-lines",
-      "value": 673
+      "file": "apps/admin/src/features/roles/RolesSection.tsx",
+      "function": "RolesSection#1",
+      "line": 53,
+      "rule": "max-lines-per-function",
+      "value": 91
     },
     {
       "file": "apps/admin/src/features/security/AccessTokensTab.tsx",
@@ -429,13 +429,6 @@
       "value": 665
     },
     {
-      "file": "apps/desktop/src/project-ipc.ts",
-      "function": "<file>",
-      "line": 812,
-      "rule": "max-lines",
-      "value": 1092
-    },
-    {
       "file": "apps/desktop/src/renderer/App.tsx",
       "function": "App#1",
       "line": 92,
@@ -499,13 +492,6 @@
       "value": 98
     },
     {
-      "file": "apps/website/src/features/newsletter/repo.ts",
-      "function": "<file>",
-      "line": 590,
-      "rule": "max-lines",
-      "value": 551
-    },
-    {
       "file": "apps/website/src/features/newsletter/tool-registrations.ts",
       "function": "buildNewsletterRegistrations#1",
       "line": 293,
@@ -567,13 +553,6 @@
       "line": 609,
       "rule": "max-lines-per-function",
       "value": 154
-    },
-    {
-      "file": "apps/website/src/features/theme/static-render.ts",
-      "function": "<file>",
-      "line": 1382,
-      "rule": "max-lines",
-      "value": 512
     },
     {
       "file": "apps/website/src/platform/db/sqlite/fresh-content-db.ts",

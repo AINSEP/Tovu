@@ -1,4 +1,5 @@
-export { renderStaticFragment, renderStaticPage, renderCoverImageTag, postAuthorForContentHeader } from "./static-render.js";
+export { renderStaticFragment, renderStaticPage } from "./static-render.js";
+export { renderCoverImageTag, postAuthorForContentHeader } from "./static-render-content.js";
 export {
   renderEntryList,
   renderEntryListStructuredData,

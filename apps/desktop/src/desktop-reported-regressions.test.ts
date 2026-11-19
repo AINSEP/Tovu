@@ -6,7 +6,8 @@ import path from 'node:path';
 import test from 'node:test';
 
 // Test the changed Jini source without a build or a change to the published package map.
-import { handleList, handleStart } from './project-ipc.ts';
+import { handleList } from './project-ipc.catalog.ts';
+import { handleStart } from './project-ipc.server.ts';
 import { writeTrackedSites } from './tracked-sites.ts';
 import { createSitesWorkspace } from './shared-sites.ts';
 import { createKeyedSerializer } from './keyed-serializer.ts';

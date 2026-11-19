@@ -1,5 +1,5 @@
 // Keep request rendering separate from theme installation, imports, and agent tools.
-import { scanMenuEmbedIds, type StaticMenuItem, type StaticMenuContent } from "#src/features/theme/static-render";
+import { scanMenuEmbedIds, type StaticMenuItem, type StaticMenuContent } from "#src/features/theme/static-render-menus";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { urlFor } from "#src/platform/routing/index";
 import type { RouteTarget } from "@jini-ai/cms/routing";

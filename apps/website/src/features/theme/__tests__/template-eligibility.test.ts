@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isBarePageChoice, isEligibleForTemplateBranch } from "../static-render.js";
+import { isBarePageChoice, isEligibleForTemplateBranch } from "../static-template-choice.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**

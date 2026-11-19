@@ -5,7 +5,9 @@ import path from "node:path";
 import test from "node:test";
 
 import { applicableThemeTemplates } from "../template-applicability.js";
-import { injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
+import { injectPageTitle } from "../static-render-content.js";
+import { renderStaticPage } from "../static-render.js";
+import { resolveTemplate } from "../static-template-resolution.js";
 import type { DiscoveredTheme } from "../index.js";
 
 /**

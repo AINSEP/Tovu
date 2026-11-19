@@ -6,7 +6,8 @@ import test from "node:test";
 
 import { relativeFilePaths } from "../sync-originals.js";
 import { loadTheme } from "../theme.js";
-import { renderStaticPage, resolveTemplate } from "../static-render.js";
+import { renderStaticPage } from "../static-render.js";
+import { resolveTemplate } from "../static-template-resolution.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 const STOCK_DIR = path.join(REPO_ROOT, "content/themes/static/tovu-theme");

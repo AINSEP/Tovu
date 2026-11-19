@@ -12,9 +12,16 @@ import os from "node:os";
 import path from "node:path";
 
 import { PROJECT_NOT_OPEN_MESSAGE, SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
-import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleImportArchive, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, handleTokenSignInPlugins, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { SITE_IPC_CHANNELS, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { buildSiteRecord, siteRecordLifecycle } from "./project-ipc.records.ts";
+import { importSharedSiteDiscovery, handleList, handleLocate, rescanSites } from "./project-ipc.catalog.ts";
+import { handleAddSite, handleImportArchive } from "./project-ipc.import.ts";
+import { handleCreate, planNewSiteDir, handleTokenSignInPlugins } from "./project-ipc.create.ts";
+import { handleDelete } from "./project-ipc.delete.ts";
+import { handleOpenExternal, handleStart, handleStop, handleGetPreview } from "./project-ipc.server.ts";
+import { handleRename } from "./project-ipc.rename.ts";
 import { createSiteTransitions } from "./site-transitions.ts";
-import type { ProjectIpcDeps } from "./project-ipc.ts";
+import type { ProjectIpcDeps } from "./project-ipc.types.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.ts";
 import { createSitesWorkspace } from "./shared-sites.ts";
@@ -29,7 +36,7 @@ import type { SupervisedServer } from "./site-supervisor.ts";
 import { readRegistry, writeRegistry, isLiveServeRow, instanceFilePath } from "./site-process-registry.ts";
 import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
-import { createSitePresence } from "./project-ipc.ts";
+import { createSitePresence } from "./project-ipc.presence.ts";
 import { SITE_PRESENCE_CHANNEL } from "./contracts/project.ts";
 import { IDLE_SITE_SLEEP_CHANNELS } from "./contracts/site-view-preference.ts";
 

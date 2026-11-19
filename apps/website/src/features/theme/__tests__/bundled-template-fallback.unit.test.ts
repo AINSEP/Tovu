@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { loadTheme } from "../theme.js";
-import { resolveTemplate } from "../static-render.js";
+import { resolveTemplate } from "../static-template-resolution.js";
 import { applicableThemeTemplates } from "../template-applicability.js";
 
 /** Class B guard: new package templates and site copies need not share a version. */
