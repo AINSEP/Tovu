@@ -119,41 +119,7 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
   };
 
   /** Attaches one subscription; resolves with its outcome. Every event is pushed tagged. */
-  async function subscribe({ sender, subscriptionId, runId, afterCursor }: { sender: EventSink; subscriptionId: string; runId: string; afterCursor: string | null }, _options = {}): Promise<void> {
-    const push = (message: WorkspaceChatEventMessage) => {
-      if (sender.isDestroyed()) { detach({ subscriptionId }); return; }
-      sender.send(WORKSPACE_CHAT_IPC.event, message);
-    };
-    let ended = false;
-    const onEvent = (event: RunProtocolEvent) => {
-      push({ subscriptionId, kind: "event", event });
-      if (event.kind === "end") {
-        ended = true;
-        push({ subscriptionId, kind: "closed", reason: "terminal" });
-        // Deferred: `stream()` may deliver a replayed `end` before it has returned its unsubscribe.
-        queueMicrotask(() => detach({ subscriptionId }));
-      }
-    };
-    try {
-      const result = await (await lifecycleOf()).stream({ runId, onEvent }, { afterCursor });
-      if (result.kind === "ok") {
-        // A REPLAYED `end` (an already-finished run) queues its detach before `stream()`'s promise
-        // settles, so that detach runs first and finds nothing to drop; registering now would leave a
-        // dead subscription in the table for good. Release it instead.
-        if (ended) {
-          result.unsubscribe();
-          return;
-        }
-        if (!subscriptions.has(subscriptionId)) subscriptions.set(subscriptionId, result.unsubscribe);
-        return;
-      }
-      // Jini answers an evicted / never-started run with `unknown-run`; every other refusal
-      // (`replay-gap`, `invalid-cursor`) means the cursor cannot be replayed, so the turn restarts.
-      push({ subscriptionId, kind: "closed", reason: result.kind === "unknown-run" ? "unknown-run" : "replay-gap" });
-    } catch {
-      push({ subscriptionId, kind: "closed", reason: "unknown-run" });
-    }
-  }
+  const subscribe = createWorkspaceRunSubscriber(detach, lifecycleOf, subscriptions);
 
   deps.ipcMain.handle(WORKSPACE_CHAT_IPC.start, async (event, input: DesktopChatStartInput) => {
     const { runId } = await (await deps.runtime).startTurn(
@@ -199,6 +165,44 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
   deps.ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, (_event, directory: string) => (isDirectory({ directory }) ? path.resolve(directory) : null));
 
   return { activeSubscriptions: () => subscriptions.size };
+}
+
+function createWorkspaceRunSubscriber(detach: ({ subscriptionId }: { subscriptionId: string; }, _options?: {}) => void, lifecycleOf: () => Promise<Awaited<WorkspaceChatIpcDeps["runtime"]>["lifecycle"]>, subscriptions: Map<string, () => void>) {
+  return async function subscribe({ sender, subscriptionId, runId, afterCursor }: { sender: EventSink; subscriptionId: string; runId: string; afterCursor: string | null }, _options = {}): Promise<void> {
+    const push = (message: WorkspaceChatEventMessage) => {
+      if (sender.isDestroyed()) { detach({ subscriptionId }); return; }
+      sender.send(WORKSPACE_CHAT_IPC.event, message);
+    };
+    let ended = false;
+    const onEvent = (event: RunProtocolEvent) => {
+      push({ subscriptionId, kind: "event", event });
+      if (event.kind === "end") {
+        ended = true;
+        push({ subscriptionId, kind: "closed", reason: "terminal" });
+        // Deferred: `stream()` may deliver a replayed `end` before it has returned its unsubscribe.
+        queueMicrotask(() => detach({ subscriptionId }));
+      }
+    };
+    try {
+      const result = await (await lifecycleOf()).stream({ runId, onEvent }, { afterCursor });
+      if (result.kind === "ok") {
+        // A REPLAYED `end` (an already-finished run) queues its detach before `stream()`'s promise
+        // settles, so that detach runs first and finds nothing to drop; registering now would leave a
+        // dead subscription in the table for good. Release it instead.
+        if (ended) {
+          result.unsubscribe();
+          return;
+        }
+        if (!subscriptions.has(subscriptionId)) subscriptions.set(subscriptionId, result.unsubscribe);
+        return;
+      }
+      // Jini answers an evicted / never-started run with `unknown-run`; every other refusal
+      // (`replay-gap`, `invalid-cursor`) means the cursor cannot be replayed, so the turn restarts.
+      push({ subscriptionId, kind: "closed", reason: result.kind === "unknown-run" ? "unknown-run" : "replay-gap" });
+    } catch {
+      push({ subscriptionId, kind: "closed", reason: "unknown-run" });
+    }
+  };
 }
 
 /** `true` only for an existing directory. @complexity O(1) syscall. */

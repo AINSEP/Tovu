@@ -149,6 +149,39 @@ function run(): void {
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;
 
+  const { survivors, cardList, foldedTextOf, collapsed, fatText, shippedCardIds } = prepareFatConcatArms(all, realIds, shippedIds);
+
+  const arms = [
+    buildResourceCardArm({ survivors, cardList, foldedTextOf, collapsed }),
+    buildOpaqueCardArm({ shippedRegistry, collapsed, cardList, shippedIds }),
+    buildBoundedRichArm({ survivors, cardList, foldedTextOf, collapsed }),
+    buildConcatenatedFatArm(survivors, fatText, collapsed),
+  ] as const;
+
+  const baseline = buildToolCatalogQuery(registry);
+  const baseVecs = hitVectors(
+    (q, l) => baseline.search({ query: q }, { limit: l }),
+    (c) => new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]),
+  );
+
+  // ---- Document lengths, to test the length-normalization mechanism directly rather than assert it.
+  reportFatConcatTextLengths({ survivors, foldedTextOf, cardList, fatText, realIds, shippedIds, shippedCardIds });
+
+  const rows: { name: string; vecs: Record<Cutoff, boolean[]> }[] = [{ name: "BASELINE (uncollapsed)", vecs: baseVecs }];
+  for (const arm of arms) {
+    const catalog = buildToolCatalogQuery({ list: () => arm.list as never });
+    rows.push({ name: arm.name, vecs: hitVectors((q, l) => catalog.search({ query: q }, { limit: l }), arm.acceptable) });
+  }
+
+  const affectedIdx = HELD_OUT_V2.map((c, i) => [c, i] as const)
+    .filter(([c]) => [c.expect, ...(c.alsoAcceptable ?? [])].some((id) => collapsed.has(id)))
+    .map(([, i]) => i);
+  const restrict = (v: boolean[]) => affectedIdx.filter((i) => v[i]).length;
+
+  reportFatConcatRetrieval({ n, rows, affectedIdx, restrict, baseVecs });
+}
+
+function prepareFatConcatArms(all: readonly Descriptor[], realIds: Set<string>, shippedIds: Set<unknown>) {
   const collapsed = new Set(TIER1_CLEAN);
   const survivors = all.filter((d) => !collapsed.has(d.id));
   const byId = new Map(all.map((d) => [d.id, d]));
@@ -156,14 +189,14 @@ function run(): void {
   // ---- Integrity: a stale ground-truth id scores as a permanent miss and reads as a retrieval
   // ---- failure. A peer measured a 21-point artifact from exactly this. Fail loudly instead.
   const badCaseIds = [...new Set(HELD_OUT_V2.flatMap((c) => [c.expect, ...(c.alsoAcceptable ?? [])]))].filter(
-    (id) => !realIds.has(id),
+    (id) => !realIds.has(id)
   );
   const badTierIds = TIER1_CLEAN.filter((id) => !realIds.has(id));
   if (badCaseIds.length > 0 || badTierIds.length > 0) {
     throw new Error(
       `Ground truth does not resolve against the live catalog — refusing to score.\n` +
-        `  unresolvable case ids (${badCaseIds.length}): ${badCaseIds.join(", ")}\n` +
-        `  unresolvable tier-1 ids (${badTierIds.length}): ${badTierIds.join(", ")}`,
+      `  unresolvable case ids (${badCaseIds.length}): ${badCaseIds.join(", ")}\n` +
+      `  unresolvable tier-1 ids (${badTierIds.length}): ${badTierIds.join(", ")}`
     );
   }
 
@@ -179,77 +212,11 @@ function run(): void {
   const fatText = TIER1_CLEAN.map(foldedTextOf).join(" ");
 
   const shippedCardIds = [...shippedIds].filter((id) => id.startsWith("content_read")).sort();
+  return { survivors, cardList, foldedTextOf, collapsed, fatText, shippedCardIds };
+}
 
-  const arms = [
-    {
-      name: "D1 28 cards (mechanical text)",
-      list: [
-        ...survivors,
-        ...cardList.map(([key, ids]) => ({
-          id: `content_read.${key}`,
-          description: ids.map(foldedTextOf).join(" "),
-          inputSchema: { type: "object" },
-        })),
-      ],
-      acceptable: (c: EvalCase): ReadonlySet<string> => {
-        const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
-        const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
-        for (const [key, members] of cardList) if (ids.some((id) => members.includes(id))) out.add(`content_read.${key}`);
-        return out;
-      },
-    },
-    {
-      name: "D1-SHIPPED (real catalog)",
-      list: shippedRegistry.list({}) as readonly Descriptor[],
-      acceptable: (c: EvalCase): ReadonlySet<string> => {
-        const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
-        const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
-        for (const [key, members] of cardList) {
-          if (!ids.some((id) => members.includes(id))) continue;
-          const real = `content_read.${key}`;
-          out.add(shippedIds.has(real) ? real : `content_read.${key}`);
-        }
-        return out;
-      },
-    },
-    {
-      // Scoring-asymmetry bound: C2 is a hit whenever its ONE entry ranks, but D1 requires the
-      // CORRECT card. This arm scores D1 the lenient way — any `content_read.*` card counts — so the
-      // gap between it and strict D1 measures exactly how much the asymmetry is worth.
-      name: "D1 LENIENT (any card counts)",
-      list: [
-        ...survivors,
-        ...cardList.map(([key, ids]) => ({
-          id: `content_read.${key}`,
-          description: ids.map(foldedTextOf).join(" "),
-          inputSchema: { type: "object" },
-        })),
-      ],
-      acceptable: (c: EvalCase): ReadonlySet<string> => {
-        const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
-        const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
-        if (ids.some((id) => collapsed.has(id))) for (const [key] of cardList) out.add(`content_read.${key}`);
-        return out;
-      },
-    },
-    {
-      name: "C2 ONE fat entry (same text)",
-      list: [...survivors, { id: "content_read", description: fatText, inputSchema: { type: "object" } }],
-      acceptable: (c: EvalCase): ReadonlySet<string> => {
-        const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
-        const survivorsOfCase = ids.filter((id) => !collapsed.has(id));
-        return new Set<string>(ids.some((id) => collapsed.has(id)) ? [...survivorsOfCase, "content_read"] : survivorsOfCase);
-      },
-    },
-  ] as const;
 
-  const baseline = buildToolCatalogQuery(registry);
-  const baseVecs = hitVectors(
-    (q, l) => baseline.search({ query: q }, { limit: l }),
-    (c) => new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]),
-  );
-
-  // ---- Document lengths, to test the length-normalization mechanism directly rather than assert it.
+function reportFatConcatTextLengths({ survivors, foldedTextOf, cardList, fatText, realIds, shippedIds, shippedCardIds }: { survivors: Descriptor[]; foldedTextOf: (id: string) => string; cardList: [string, string[]][]; fatText: string; realIds: Set<string>; shippedIds: Set<unknown>; shippedCardIds: unknown[] }) {
   const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
   const survivorLens = survivors.map((d) => words(foldedTextOf(d.id)));
   const avgdl = survivorLens.reduce((a, b) => a + b, 0) / survivorLens.length;
@@ -268,18 +235,10 @@ function run(): void {
   console.log(`    avgdl across ${survivors.length} surviving tools   ${avgdl.toFixed(0)}`);
   console.log(`    D1 card, median               ${[...cardLens].sort((a, b) => a - b)[Math.floor(cardLens.length / 2)]}  (|D|/avgdl ~ ${([...cardLens].sort((a, b) => a - b)[Math.floor(cardLens.length / 2)]! / avgdl).toFixed(1)}x)`);
   console.log(`    C2 fat entry                  ${fatLen}  (|D|/avgdl ~ ${(fatLen / avgdl).toFixed(1)}x)`);
+}
 
-  const rows: { name: string; vecs: Record<Cutoff, boolean[]> }[] = [{ name: "BASELINE (uncollapsed)", vecs: baseVecs }];
-  for (const arm of arms) {
-    const catalog = buildToolCatalogQuery({ list: () => arm.list as never });
-    rows.push({ name: arm.name, vecs: hitVectors((q, l) => catalog.search({ query: q }, { limit: l }), arm.acceptable) });
-  }
 
-  const affectedIdx = HELD_OUT_V2.map((c, i) => [c, i] as const)
-    .filter(([c]) => [c.expect, ...(c.alsoAcceptable ?? [])].some((id) => collapsed.has(id)))
-    .map(([, i]) => i);
-  const restrict = (v: boolean[]) => affectedIdx.filter((i) => v[i]).length;
-
+function reportFatConcatRetrieval({ n, rows, affectedIdx, restrict, baseVecs }: { n: number; rows: { name: string; vecs: Record<Cutoff, boolean[]> }[]; affectedIdx: number[]; restrict: (v: boolean[]) => number; baseVecs: Record<1 | 5 | 10 | 20, boolean[]> }) {
   console.log(`\n  Whole set, n=${n}\n`);
   console.log(`  ${"configuration".padEnd(32)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
   for (const r of rows) console.log(`  ${r.name.padEnd(32)}${CUTOFFS.map((k) => pct(r.vecs[k].filter(Boolean).length, n)).join("")}`);
@@ -289,7 +248,7 @@ function run(): void {
   for (const r of rows) console.log(`  ${r.name.padEnd(32)}${CUTOFFS.map((k) => pct(restrict(r.vecs[k]), affectedIdx.length)).join("")}`);
 
   console.log(`\n  PAIRED McNemar exact test vs. baseline (whole set), and C2 vs D1:\n`);
-  const pairs: { label: string; a: Record<Cutoff, boolean[]>; b: Record<Cutoff, boolean[]> }[] = [
+  const pairs: { label: string; a: Record<Cutoff, boolean[]>; b: Record<Cutoff, boolean[]>; }[] = [
     { label: "D1 vs baseline", a: baseVecs, b: rows[1]!.vecs },
     { label: "D1-SHIPPED vs baseline", a: baseVecs, b: rows[2]!.vecs },
     { label: "C2 vs baseline", a: baseVecs, b: rows[4]!.vecs },
@@ -301,7 +260,7 @@ function run(): void {
     const cells = CUTOFFS.map((k) => {
       let b = 0;
       let c = 0;
-      for (let i = 0; i < n; i++) {
+      for (let i = 0;i < n;i++) {
         const x = p.a[k][i]!;
         const y = p.b[k][i]!;
         if (x && !y) b++;
@@ -319,5 +278,82 @@ function run(): void {
   for (const m of misses) console.log(`    ${m.expect.padEnd(34)} "${m.query}"`);
   console.log("");
 }
+
+
+function buildResourceCardArm({ survivors, cardList, foldedTextOf, collapsed }: { survivors: Descriptor[]; cardList: [string, string[]][]; foldedTextOf: (id: string) => string; collapsed: Set<string> }) {
+  return {
+      name: "D1 28 cards (mechanical text)",
+      list: [
+        ...survivors,
+        ...cardList.map(([key, ids]) => ({
+          id: `content_read.${key}`,
+          description: ids.map(foldedTextOf).join(" "),
+          inputSchema: { type: "object" },
+        })),
+      ],
+      acceptable: (c: EvalCase): ReadonlySet<string> => {
+        const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
+        const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
+        for (const [key, members] of cardList) if (ids.some((id) => members.includes(id))) out.add(`content_read.${key}`);
+        return out;
+      },
+    };
+}
+
+
+function buildOpaqueCardArm({ shippedRegistry, collapsed, cardList, shippedIds }: { shippedRegistry: ReturnType<typeof buildEvalToolRegistry>; collapsed: Set<string>; cardList: [string, string[]][]; shippedIds: Set<unknown> }) {
+  return {
+      name: "D1-SHIPPED (real catalog)",
+      list: shippedRegistry.list({}) as readonly Descriptor[],
+      acceptable: (c: EvalCase): ReadonlySet<string> => {
+        const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
+        const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
+        for (const [key, members] of cardList) {
+          if (!ids.some((id) => members.includes(id))) continue;
+          const real = `content_read.${key}`;
+          out.add(shippedIds.has(real) ? real : `content_read.${key}`);
+        }
+        return out;
+      },
+    };
+}
+
+
+function buildBoundedRichArm({ survivors, cardList, foldedTextOf, collapsed }: { survivors: Descriptor[]; cardList: [string, string[]][]; foldedTextOf: (id: string) => string; collapsed: Set<string> }) {
+  return {
+      // Scoring-asymmetry bound: C2 is a hit whenever its ONE entry ranks, but D1 requires the
+      // CORRECT card. This arm scores D1 the lenient way — any `content_read.*` card counts — so the
+      // gap between it and strict D1 measures exactly how much the asymmetry is worth.
+      name: "D1 LENIENT (any card counts)",
+      list: [
+        ...survivors,
+        ...cardList.map(([key, ids]) => ({
+          id: `content_read.${key}`,
+          description: ids.map(foldedTextOf).join(" "),
+          inputSchema: { type: "object" },
+        })),
+      ],
+      acceptable: (c: EvalCase): ReadonlySet<string> => {
+        const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
+        const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
+        if (ids.some((id) => collapsed.has(id))) for (const [key] of cardList) out.add(`content_read.${key}`);
+        return out;
+      },
+    };
+}
+
+
+function buildConcatenatedFatArm(survivors: Descriptor[], fatText: string, collapsed: Set<string>) {
+  return {
+      name: "C2 ONE fat entry (same text)",
+      list: [...survivors, { id: "content_read", description: fatText, inputSchema: { type: "object" } }],
+      acceptable: (c: EvalCase): ReadonlySet<string> => {
+        const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
+        const survivorsOfCase = ids.filter((id) => !collapsed.has(id));
+        return new Set<string>(ids.some((id) => collapsed.has(id)) ? [...survivorsOfCase, "content_read"] : survivorsOfCase);
+      },
+    };
+}
+
 
 run();

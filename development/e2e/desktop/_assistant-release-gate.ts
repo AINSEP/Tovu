@@ -91,12 +91,19 @@ export async function acceptRuns({ app, count }: { app: ElectronApplication; cou
   return accepted;
 }
 
+type Frame = { kind?: string; payload?: { type?: string; childPid?: number; sessionId?: string; message?: string; error?: { code?: string } } };
+
 /** Read one SSE subscription per run (90s / 256 KiB cap). Parsing stays in the packaged main
  * process: it cannot dynamic-import the checkout's harness helpers. No run/history polling.
  */
+
+
 export async function executionEvidence({ app }: { app: ElectronApplication }, _optional = {}): Promise<Evidence[]> {
-  return app.evaluate(async () => {
-    type Frame = { kind?: string; payload?: { type?: string; childPid?: number; sessionId?: string; message?: string; error?: { code?: string } } };
+  return app.evaluate(readExecutionEvidence);
+}
+
+async function readExecutionEvidence() {
+    
     // These small helpers must travel inside evaluate: the packaged main process has no harness imports.
     function parseFrame(frame: string): Frame | undefined {
       const data = frame.split('\n').filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
@@ -147,8 +154,8 @@ export async function executionEvidence({ app }: { app: ElectronApplication }, _
       } finally { clearTimeout(timer); abort.abort(); }
     }
     return Promise.all(((globalThis as ExecutionState).__assistantGateSites ?? []).map(readSite));
-  });
-}
+  }
+
 
 /** One OS process-table read proves the children belong to the desktop's sole daemon. */
 async function assertProcessOwnership({ launch, childPids }: { launch: DesktopLaunch; childPids: readonly number[] }, _optional = {}) {

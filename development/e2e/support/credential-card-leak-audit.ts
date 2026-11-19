@@ -25,13 +25,7 @@ export async function createCredentialLeakAudit(
   const cliRoot = path.resolve(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude"));
   const projectRoot = path.join(cliRoot, "projects");
 
-  async function entries({ dir, optional = false }: { dir: string; optional?: boolean }, _options = {}) {
-    try { return await readdir(dir, { withFileTypes: true }); }
-    catch (error) {
-      if (optional && (error as NodeJS.ErrnoException).code === "ENOENT") return [];
-      throw new Error("Canary scan could not enumerate an evidence directory");
-    }
-  }
+  const entries = createEntries();
   const priorProjects = new Set((await entries({ dir: projectRoot, optional: true })).map(entry => entry.name));
   const latestDebugLink = path.join(cliRoot, "debug", "latest");
   const priorDebugLink = await readlink(latestDebugLink).catch(error => {
@@ -39,50 +33,116 @@ export async function createCredentialLeakAudit(
     throw new Error("Could not record CLI debug link ownership");
   });
 
-  function contains({ bytes }: { bytes: Buffer }, _options = {}) {
-    return needles.some(needle => bytes.indexOf(needle) !== -1);
-  }
-  function scan({ source, bytes }: { source: string; bytes: Buffer | string }, _options = {}) {
-    if (contains({ bytes: typeof bytes === "string" ? Buffer.from(bytes, "utf8") : bytes })) leaks.add(source);
-  }
-  function track({ work, source }: { work: Promise<void>; source: string }, _options = {}) {
-    const guarded = work.catch(() => { failures.add(source); }).finally(() => pending.delete(guarded));
-    pending.add(guarded);
-  }
-  async function drain(_required = {}, _options = {}) {
-    while (pending.size) await Promise.all([...pending]);
-  }
-  async function scanApiResponse({ response }: { response: APIResponse }, _options = {}) {
-    scan({ source: "API response URL", bytes: response.url() });
-    scan({ source: "API response headers", bytes: JSON.stringify(response.headers()) });
-    scan({ source: "API response body", bytes: await response.body() });
-    counts.bodies++;
-  }
-  async function assertClean(_required = {}, _options = {}) {
-    await drain();
-    expect(failures.size, "all response/log captures completed").toBe(0);
-    expect(leaks.size, "canary hits across responses, logs, transcripts and persistence").toBe(0);
-  }
+  const contains = createCanaryMatcher(needles);
+  const scan = createCanaryScanner(contains, leaks);
+  const track = createCaptureTracker(failures, pending);
+  const drain = createCaptureDrainer(pending);
+  const scanApiResponse = createScanApiResponse(scan, counts);
+  const assertClean = createCleanAuditAssertion(drain, failures, leaks);
 
   // A binary positive control, with each canary split over two chunks, prevents F5.2/F5.6:
   // a vacuous negative check or a scanner that cannot see binary/chunk-boundary occurrences.
+  verifyCanaryChunkDetection(needles, contains, overlap);
+
+  const cdp = await page.context().newCDPSession(page);
+  const streams = new Map<string, { tail: Buffer; chunksBeforeBuffer: Buffer[]; ready: boolean }>();
+  await cdp.send("Network.enable");
+  const streamChunk = createStreamChunk({ streams, scan, overlap, counts });
+  registerEventStreamCapture({ cdp, streams, streamChunk, track });
+  const responseListener = createResponseListener(track, scan, counts);
+  const consoleListener = createConsoleListener(counts, scan, track);
+  const errorListener = createBrowserErrorScanner(scan);
+  page.context().on("response", responseListener);
+  page.context().on("console", consoleListener);
+  page.context().on("weberror", errorListener);
+  registerWebSocketCanaryScanner(page, scan, overlap);
+
+  const scanReadable = createScanReadable(scan, overlap);
+  const scanZip = createScanZip(scanReadable);
+  const scanTree = createScanTree({ entries, scanReadable, scanZip, scannedFiles, counts });
+
+  const scanDatabase = createScanDatabase(scan, counts);
+
+  const browserSnapshot = createBrowserSnapshot(page, scan);
+
+  const finishAfterSiteCleanup = createSiteCleanupAudit({ entries, projectRoot, priorProjects, scanTree, cliRoot, testInfo, scan, counts, assertClean, latestDebugLink, priorDebugLink });
+
+  return { scan, scanApiResponse, scanTree, scanDatabase, browserSnapshot, assertClean, scannedFiles, finishAfterSiteCleanup, detach: createAuditDetacher({ drain, page, responseListener, consoleListener, errorListener, cdp }) };
+}
+
+function registerWebSocketCanaryScanner(page: Page, scan: ReturnType<typeof createCanaryScanner>, overlap: number) {
+  page.on("websocket", socket => {
+    let tail = Buffer.alloc(0);
+    socket.on("framereceived", event => {
+      const bytes = Buffer.concat([tail, Buffer.from(event.payload)]);
+      scan({ source: "WebSocket response", bytes });
+      tail = bytes.subarray(-overlap);
+    });
+  });
+}
+
+
+function verifyCanaryChunkDetection(needles: Buffer[], contains: ReturnType<typeof createCanaryMatcher>, overlap: number) {
   for (const needle of needles) {
     const split = Math.floor(needle.length / 2);
     const left = Buffer.concat([Buffer.from([0, 255]), needle.subarray(0, split)]);
     const right = Buffer.concat([needle.subarray(split), Buffer.from([0, 254])]);
     expect(contains({ bytes: Buffer.concat([left.subarray(-overlap), right]) }), "binary scan positive control").toBe(true);
   }
+}
 
-  const cdp = await page.context().newCDPSession(page);
-  const streams = new Map<string, { tail: Buffer; chunksBeforeBuffer: Buffer[]; ready: boolean }>();
-  await cdp.send("Network.enable");
-  function streamChunk({ id, bytes }: { id: string; bytes: Buffer }, _options = {}) {
-    const stream = streams.get(id)!;
-    const combined = Buffer.concat([stream.tail, bytes]);
-    scan({ source: "HTTP event stream", bytes: combined });
-    stream.tail = combined.subarray(-overlap);
-    counts.streamBytes += bytes.length;
-  }
+
+function createAuditDetacher({ drain, page, responseListener, consoleListener, errorListener, cdp }: { drain: ReturnType<typeof createCaptureDrainer>; page: Page; responseListener: ReturnType<typeof createResponseListener>; consoleListener: ReturnType<typeof createConsoleListener>; errorListener: ReturnType<typeof createBrowserErrorScanner>; cdp: import("@playwright/test").CDPSession }) {
+  return async function detach(_required = {}, _options = {}) {
+    await drain();
+    page.context().off("response", responseListener);
+    page.context().off("console", consoleListener);
+    page.context().off("weberror", errorListener);
+    await cdp.detach();
+  };
+}
+
+function createBrowserErrorScanner(scan: ReturnType<typeof createCanaryScanner>) {
+  return (webError: WebError) => {
+    const error = webError.error();
+    scan({ source: "browser error", bytes: error.stack ?? error.message });
+  };
+}
+
+function createCleanAuditAssertion(drain: ReturnType<typeof createCaptureDrainer>, failures: Set<string>, leaks: Set<string>) {
+  return async function assertClean(_required = {}, _options = {}) {
+    await drain();
+    expect(failures.size, "all response/log captures completed").toBe(0);
+    expect(leaks.size, "canary hits across responses, logs, transcripts and persistence").toBe(0);
+  };
+}
+
+function createCaptureDrainer(pending: Set<Promise<void>>) {
+  return async function drain(_required = {}, _options = {}) {
+    while (pending.size) await Promise.all([...pending]);
+  };
+}
+
+function createCaptureTracker(failures: Set<string>, pending: Set<Promise<void>>) {
+  return function track({ work, source }: { work: Promise<void>; source: string }, _options = {}) {
+    const guarded = work.catch(() => { failures.add(source); }).finally(() => pending.delete(guarded));
+    pending.add(guarded);
+  };
+}
+
+function createCanaryScanner(contains: ReturnType<typeof createCanaryMatcher>, leaks: Set<string>) {
+  return function scan({ source, bytes }: { source: string; bytes: Buffer | string }, _options = {}) {
+    if (contains({ bytes: typeof bytes === "string" ? Buffer.from(bytes, "utf8") : bytes })) leaks.add(source);
+  };
+}
+
+function createCanaryMatcher(needles: Buffer[]) {
+  return function contains({ bytes }: { bytes: Buffer }, _options = {}) {
+    return needles.some(needle => bytes.indexOf(needle) !== -1);
+  };
+}
+
+function registerEventStreamCapture({ cdp, streams, streamChunk, track }: { cdp: import("@playwright/test").CDPSession; streams: Map<string, { tail: Buffer; chunksBeforeBuffer: Buffer[]; ready: boolean; }>; streamChunk: ReturnType<typeof createStreamChunk>; track: ReturnType<typeof createCaptureTracker> }) {
   cdp.on("Network.dataReceived", event => {
     const stream = streams.get(event.requestId);
     if (!stream || !event.data) return;
@@ -94,16 +154,149 @@ export async function createCredentialLeakAudit(
     if (event.response.mimeType !== "text/event-stream") return;
     const stream = { tail: Buffer.alloc(0), chunksBeforeBuffer: [] as Buffer[], ready: false };
     streams.set(event.requestId, stream);
-    track({ source: "capture HTTP event stream", work: (async () => {
-      // Unlike response.body(), CDP exposes bytes while an SSE response is still open.
-      const buffered = await cdp.send("Network.streamResourceContent", { requestId: event.requestId });
-      streamChunk({ id: event.requestId, bytes: Buffer.from(buffered.bufferedData, "base64") });
-      for (const bytes of stream.chunksBeforeBuffer) streamChunk({ id: event.requestId, bytes });
-      stream.chunksBeforeBuffer.length = 0;
-      stream.ready = true;
-    })() });
+    track({
+      source: "capture HTTP event stream", work: (async () => {
+        // Unlike response.body(), CDP exposes bytes while an SSE response is still open.
+        const buffered = await cdp.send("Network.streamResourceContent", { requestId: event.requestId });
+        streamChunk({ id: event.requestId, bytes: Buffer.from(buffered.bufferedData, "base64") });
+        for (const bytes of stream.chunksBeforeBuffer) streamChunk({ id: event.requestId, bytes });
+        stream.chunksBeforeBuffer.length = 0;
+        stream.ready = true;
+      })()
+    });
   });
-  const responseListener = (response: Response) => {
+}
+
+
+function createSiteCleanupAudit({ entries, projectRoot, priorProjects, scanTree, cliRoot, testInfo, scan, counts, assertClean, latestDebugLink, priorDebugLink }: { entries: ReturnType<typeof createEntries>; projectRoot: string; priorProjects: Set<string>; scanTree: ReturnType<typeof createScanTree>; cliRoot: string; testInfo: TestInfo; scan: ReturnType<typeof createCanaryScanner>; counts: { bodies: number; streamBytes: number; console: number; files: number; sqlValues: number; }; assertClean: ReturnType<typeof createCleanAuditAssertion>; latestDebugLink: string; priorDebugLink: string | undefined }) {
+  return async function finishAfterSiteCleanup({ siteDir }: { siteDir: string }, _options = {}) {
+    // This runs in a WORKER fixture, after bug-pin-fixtures stopped its daemon and attached
+    // stdout/stderr. Read everything reachable in Claude's config, but delete only fresh
+    // project/session artifacts whose transcript establishes this test's unique cwd.
+    const ownedProjects: string[] = [];
+    const sessionIds = new Set<string>();
+    try {
+      await collectOwnedCliArtifacts({ entries, projectRoot, priorProjects, siteDir, sessionIds, ownedProjects });
+      await scanTree({ dir: cliRoot });
+      expect(ownedProjects.length, "a real Local CLI transcript was scanned").toBeGreaterThan(0);
+      const log = testInfo.attachments.find(attachment => attachment.name === "pin-server.log");
+      expect(log, "harness stdout/stderr evidence must exist after site teardown").toBeDefined();
+      await scanTestAttachments(testInfo, scan);
+      await scanTree({ dir: testInfo.outputDir });
+      expect(counts.bodies, "response scan is nonempty").toBeGreaterThan(0);
+      expect(counts.streamBytes, "raw SSE response bytes were scanned").toBeGreaterThan(0);
+      expect(counts.sqlValues, "persisted SQLite values were scanned").toBeGreaterThan(0);
+      await assertClean();
+    } finally {
+      // Only uniquely owned, newly created project directories and UUID-named CLI artifacts.
+      for (const dir of ownedProjects) await rm(dir, { recursive: true, force: true });
+      for (const id of sessionIds) {
+        await removeOwnedCliSessionArtifacts(id, cliRoot, entries);
+      }
+      const currentDebugLink = await readlink(latestDebugLink).catch(error => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+        throw new Error("Could not check CLI debug link ownership");
+      });
+      if (currentDebugLink && sessionIds.has(path.basename(currentDebugLink, ".txt"))) {
+        await rm(latestDebugLink);
+        if (priorDebugLink !== undefined) await symlink(priorDebugLink, latestDebugLink);
+      }
+      for (const dir of ownedProjects) {
+        const remaining = await lstat(dir).then(() => true, error => {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+          throw new Error("Could not verify owned CLI artifact deletion");
+        });
+        expect(remaining, "owned CLI transcript directory deleted").toBe(false);
+      }
+    }
+  };
+}
+
+async function scanTestAttachments(testInfo: TestInfo, scan: ({ source, bytes }: { source: string; bytes: Buffer | string; }, _options?: {}) => void) {
+  for (const attachment of testInfo.attachments) {
+    if (attachment.body) scan({ source: "test attachment", bytes: attachment.body });
+    if (attachment.path) scan({ source: "test attachment file", bytes: await readFile(attachment.path) });
+  }
+}
+
+
+async function removeOwnedCliSessionArtifacts(id: (typeof sessionIds)[number], cliRoot: string, entries: ReturnType<typeof createEntries>) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Unexpected owned CLI session identity");
+  for (const relative of [`debug/${id}.txt`, `session-env/${id}`, `file-history/${id}`, `tasks/${id}`]) {
+    await rm(path.join(cliRoot, relative), { recursive: true, force: true });
+  }
+  for (const entry of await entries({ dir: path.join(cliRoot, "todos"), optional: true })) {
+    if (entry.name.startsWith(`${id}-agent-`)) await rm(path.join(cliRoot, "todos", entry.name), { force: true });
+  }
+}
+
+
+function createScanApiResponse(scan: ReturnType<typeof createCanaryScanner>, counts: { bodies: number; streamBytes: number; console: number; files: number; sqlValues: number; }) {
+  return async function scanApiResponse({ response }: { response: APIResponse }, _options = {}) {
+    scan({ source: "API response URL", bytes: response.url() });
+    scan({ source: "API response headers", bytes: JSON.stringify(response.headers()) });
+    scan({ source: "API response body", bytes: await response.body() });
+    counts.bodies++;
+  };
+}
+
+function createConsoleListener(counts: { bodies: number; streamBytes: number; console: number; files: number; sqlValues: number; }, scan: ReturnType<typeof createCanaryScanner>, track: ReturnType<typeof createCaptureTracker>) {
+  return (message: ConsoleMessage) => {
+    counts.console++;
+    scan({ source: "browser console", bytes: message.text() });
+    for (const arg of message.args()) track({ source: "capture console argument", work: (async () => {
+      scan({ source: "browser console argument", bytes: JSON.stringify(await arg.jsonValue()) ?? "" });
+    })() });
+  };
+}
+
+function createStreamChunk({ streams, scan, overlap, counts }: { streams: Map<string, { tail: Buffer; chunksBeforeBuffer: Buffer[]; ready: boolean; }>; scan: ReturnType<typeof createCanaryScanner>; overlap: number; counts: { bodies: number; streamBytes: number; console: number; files: number; sqlValues: number; } }) {
+  return function streamChunk({ id, bytes }: { id: string; bytes: Buffer }, _options = {}) {
+    const stream = streams.get(id)!;
+    const combined = Buffer.concat([stream.tail, bytes]);
+    scan({ source: "HTTP event stream", bytes: combined });
+    stream.tail = combined.subarray(-overlap);
+    counts.streamBytes += bytes.length;
+  };
+}
+
+function createEntries() {
+  return async function entries({ dir, optional = false }: { dir: string; optional?: boolean }, _options = {}) {
+    try { return await readdir(dir, { withFileTypes: true }); }
+    catch (error) {
+      if (optional && (error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw new Error("Canary scan could not enumerate an evidence directory");
+    }
+  };
+}
+
+function createScanReadable(scan: ReturnType<typeof createCanaryScanner>, overlap: number) {
+  return async function scanReadable({ stream, source }: { stream: AsyncIterable<Buffer | string>; source: string }, _options = {}) {
+    let tail = Buffer.alloc(0);
+    for await (const chunk of stream) {
+      const bytes = Buffer.concat([tail, Buffer.from(chunk)]);
+      scan({ source, bytes });
+      tail = bytes.subarray(-overlap);
+    }
+  };
+}
+
+function createBrowserSnapshot(page: Page, scan: ReturnType<typeof createCanaryScanner>) {
+  return async function browserSnapshot(_required = {}, _options = {}) {
+    for (const frame of page.frames()) {
+      scan({ source: "rendered transcript/card HTML", bytes: await frame.content() });
+      const sandbox = frame.parentFrame() ? await (await frame.frameElement()).getAttribute("sandbox") : null;
+      const opaque = sandbox !== null && !sandbox.split(/\s+/).includes("allow-same-origin");
+      const state = await frame.evaluate(readBrowserPersistedState, opaque);
+      scan({ source: "browser persisted chat stores/mirror/cache", bytes: JSON.stringify(state) });
+      for (const bytes of state.binary ?? []) scan({ source: "browser persisted binary value", bytes: Buffer.from(bytes) });
+    }
+    scan({ source: "browser storage state", bytes: JSON.stringify(await page.context().storageState({ indexedDB: true })) });
+  };
+}
+
+function createResponseListener(track: ReturnType<typeof createCaptureTracker>, scan: ReturnType<typeof createCanaryScanner>, counts: { bodies: number; streamBytes: number; console: number; files: number; sqlValues: number; }) {
+  return (response: Response) => {
     track({ source: "capture HTTP response", work: (async () => {
       scan({ source: "HTTP response URL", bytes: response.url() });
       scan({ source: "HTTP response headers", bytes: JSON.stringify(await response.allHeaders()) });
@@ -115,38 +308,30 @@ export async function createCredentialLeakAudit(
       counts.bodies++;
     })() });
   };
-  const consoleListener = (message: ConsoleMessage) => {
-    counts.console++;
-    scan({ source: "browser console", bytes: message.text() });
-    for (const arg of message.args()) track({ source: "capture console argument", work: (async () => {
-      scan({ source: "browser console argument", bytes: JSON.stringify(await arg.jsonValue()) ?? "" });
-    })() });
-  };
-  const errorListener = (webError: WebError) => {
-    const error = webError.error();
-    scan({ source: "browser error", bytes: error.stack ?? error.message });
-  };
-  page.context().on("response", responseListener);
-  page.context().on("console", consoleListener);
-  page.context().on("weberror", errorListener);
-  page.on("websocket", socket => {
-    let tail = Buffer.alloc(0);
-    socket.on("framereceived", event => {
-      const bytes = Buffer.concat([tail, Buffer.from(event.payload)]);
-      scan({ source: "WebSocket response", bytes });
-      tail = bytes.subarray(-overlap);
-    });
-  });
+}
 
-  async function scanReadable({ stream, source }: { stream: AsyncIterable<Buffer | string>; source: string }, _options = {}) {
-    let tail = Buffer.alloc(0);
-    for await (const chunk of stream) {
-      const bytes = Buffer.concat([tail, Buffer.from(chunk)]);
-      scan({ source, bytes });
-      tail = bytes.subarray(-overlap);
-    }
-  }
-  async function scanZip({ file }: { file: string }, _options = {}) {
+function createScanDatabase(scan: ReturnType<typeof createCanaryScanner>, counts: { bodies: number; streamBytes: number; console: number; files: number; sqlValues: number; }) {
+  return async function scanDatabase({ file }: { file: string }, _options = {}) {
+    const db = new Database(file, { fileMustExist: true }); // SELECT-only; WAL readers need SHM access
+    try {
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>;
+      for (const { name } of tables) {
+        const identifier = '"' + name.replaceAll('"', '""') + '"';
+        for (const row of db.prepare<[], Record<string, unknown>>(`SELECT * FROM ${identifier}`).iterate()) {
+          for (const value of Object.values(row)) {
+            if (typeof value === "string" || Buffer.isBuffer(value)) {
+              scan({ source: "SQLite field", bytes: value });
+              counts.sqlValues++;
+            }
+          }
+        }
+      }
+    } finally { db.close(); }
+  };
+}
+
+function createScanZip(scanReadable: ReturnType<typeof createScanReadable>) {
+  return async function scanZip({ file }: { file: string }, _options = {}) {
     // Use the installed archive reader rather than treating compressed evidence as plaintext.
     const bytes = await readFile(file);
     await new Promise<void>((resolve, reject) => fromBuffer(bytes, { lazyEntries: true }, (error, zip) => {
@@ -163,8 +348,11 @@ export async function createCredentialLeakAudit(
       });
       zip.readEntry();
     }));
-  }
-  async function scanTree({ dir, optional = false }: { dir: string; optional?: boolean }, _options = {}): Promise<void> {
+  };
+}
+
+function createScanTree({ entries, scanReadable, scanZip, scannedFiles, counts }: { entries: ReturnType<typeof createEntries>; scanReadable: ReturnType<typeof createScanReadable>; scanZip: ReturnType<typeof createScanZip>; scannedFiles: Set<string>; counts: { bodies: number; streamBytes: number; console: number; files: number; sqlValues: number; } }) {
+  return async function scanTree({ dir, optional = false }: { dir: string; optional?: boolean }, _options = {}): Promise<void> {
     const visited = new Set<string>();
     async function walk({ dir, optional = false }: { dir: string; optional?: boolean }, _options = {}): Promise<void> {
       const children = await entries({ dir, optional });
@@ -189,32 +377,31 @@ export async function createCredentialLeakAudit(
       }
     }
     await walk({ dir, optional });
-  }
+  };
+}
 
-  async function scanDatabase({ file }: { file: string }, _options = {}) {
-    const db = new Database(file, { fileMustExist: true }); // SELECT-only; WAL readers need SHM access
-    try {
-      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>;
-      for (const { name } of tables) {
-        const identifier = '"' + name.replaceAll('"', '""') + '"';
-        for (const row of db.prepare<[], Record<string, unknown>>(`SELECT * FROM ${identifier}`).iterate()) {
-          for (const value of Object.values(row)) {
-            if (typeof value === "string" || Buffer.isBuffer(value)) {
-              scan({ source: "SQLite field", bytes: value });
-              counts.sqlValues++;
-            }
-          }
-        }
+async function collectOwnedCliArtifacts({ entries, projectRoot, priorProjects, siteDir, sessionIds, ownedProjects }: { entries: ReturnType<typeof createEntries>; projectRoot: string; priorProjects: Set<string>; siteDir: string; sessionIds: Set<string>; ownedProjects: string[] }) {
+  for (const entry of await entries({ dir: projectRoot })) {
+    if (!entry.isDirectory() || priorProjects.has(entry.name)) continue;
+    const dir = path.join(projectRoot, entry.name);
+    const transcripts = (await entries({ dir })).filter(file => file.isFile() && file.name.endsWith(".jsonl"));
+    let owned = false;
+    for (const transcript of transcripts) {
+      const lines = (await readFile(path.join(dir, transcript.name), "utf8")).split("\n").filter(Boolean);
+      for (const line of lines) {
+        const record = JSON.parse(line) as { cwd?: string; sessionId?: string; };
+        // macOS may canonicalize /var and /tmp to /private before Claude records cwd.
+        const cwd = record.cwd?.replace(/^\/(var|tmp)\//, "/private/$1/");
+        const expected = siteDir.replace(/^\/(var|tmp)\//, "/private/$1/");
+        if (cwd === expected) { owned = true; if (record.sessionId) sessionIds.add(record.sessionId); }
       }
-    } finally { db.close(); }
+    }
+    if (owned) ownedProjects.push(dir);
   }
+}
 
-  async function browserSnapshot(_required = {}, _options = {}) {
-    for (const frame of page.frames()) {
-      scan({ source: "rendered transcript/card HTML", bytes: await frame.content() });
-      const sandbox = frame.parentFrame() ? await (await frame.frameElement()).getAttribute("sandbox") : null;
-      const opaque = sandbox !== null && !sandbox.split(/\s+/).includes("allow-same-origin");
-      const state = await frame.evaluate(async opaque => {
+
+async function readBrowserPersistedState(opaque: boolean) {
         const mirrors = (window as unknown as { __tovuAssistantMessages?: unknown }).__tovuAssistantMessages;
         // Credential iframes have an opaque sandbox origin: storage is unavailable there.
         if (opaque || globalThis.origin === "null" || !/^https?:$/.test(location.protocol)) return { mirrors };
@@ -263,87 +450,7 @@ export async function createCredentialLeakAudit(
           }
         }
         return { mirrors, local: { ...localStorage }, session: { ...sessionStorage }, stores, cachesContent, binary };
-      }, opaque);
-      scan({ source: "browser persisted chat stores/mirror/cache", bytes: JSON.stringify(state) });
-      for (const bytes of state.binary ?? []) scan({ source: "browser persisted binary value", bytes: Buffer.from(bytes) });
-    }
-    scan({ source: "browser storage state", bytes: JSON.stringify(await page.context().storageState({ indexedDB: true })) });
-  }
+      }
 
-  async function finishAfterSiteCleanup({ siteDir }: { siteDir: string }, _options = {}) {
-    // This runs in a WORKER fixture, after bug-pin-fixtures stopped its daemon and attached
-    // stdout/stderr. Read everything reachable in Claude's config, but delete only fresh
-    // project/session artifacts whose transcript establishes this test's unique cwd.
-    const ownedProjects: string[] = [];
-    const sessionIds = new Set<string>();
-    try {
-      for (const entry of await entries({ dir: projectRoot })) {
-        if (!entry.isDirectory() || priorProjects.has(entry.name)) continue;
-        const dir = path.join(projectRoot, entry.name);
-        const transcripts = (await entries({ dir })).filter(file => file.isFile() && file.name.endsWith(".jsonl"));
-        let owned = false;
-        for (const transcript of transcripts) {
-          const lines = (await readFile(path.join(dir, transcript.name), "utf8")).split("\n").filter(Boolean);
-          for (const line of lines) {
-            const record = JSON.parse(line) as { cwd?: string; sessionId?: string };
-            // macOS may canonicalize /var and /tmp to /private before Claude records cwd.
-            const cwd = record.cwd?.replace(/^\/(var|tmp)\//, "/private/$1/");
-            const expected = siteDir.replace(/^\/(var|tmp)\//, "/private/$1/");
-            if (cwd === expected) { owned = true; if (record.sessionId) sessionIds.add(record.sessionId); }
-          }
-        }
-        if (owned) ownedProjects.push(dir);
-      }
-      await scanTree({ dir: cliRoot });
-      expect(ownedProjects.length, "a real Local CLI transcript was scanned").toBeGreaterThan(0);
-      const log = testInfo.attachments.find(attachment => attachment.name === "pin-server.log");
-      expect(log, "harness stdout/stderr evidence must exist after site teardown").toBeDefined();
-      for (const attachment of testInfo.attachments) {
-        if (attachment.body) scan({ source: "test attachment", bytes: attachment.body });
-        if (attachment.path) scan({ source: "test attachment file", bytes: await readFile(attachment.path) });
-      }
-      await scanTree({ dir: testInfo.outputDir });
-      expect(counts.bodies, "response scan is nonempty").toBeGreaterThan(0);
-      expect(counts.streamBytes, "raw SSE response bytes were scanned").toBeGreaterThan(0);
-      expect(counts.sqlValues, "persisted SQLite values were scanned").toBeGreaterThan(0);
-      await assertClean();
-    } finally {
-      // Only uniquely owned, newly created project directories and UUID-named CLI artifacts.
-      for (const dir of ownedProjects) await rm(dir, { recursive: true, force: true });
-      for (const id of sessionIds) {
-        if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Unexpected owned CLI session identity");
-        for (const relative of [`debug/${id}.txt`, `session-env/${id}`, `file-history/${id}`, `tasks/${id}`]) {
-          await rm(path.join(cliRoot, relative), { recursive: true, force: true });
-        }
-        for (const entry of await entries({ dir: path.join(cliRoot, "todos"), optional: true })) {
-          if (entry.name.startsWith(`${id}-agent-`)) await rm(path.join(cliRoot, "todos", entry.name), { force: true });
-        }
-      }
-      const currentDebugLink = await readlink(latestDebugLink).catch(error => {
-        if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-        throw new Error("Could not check CLI debug link ownership");
-      });
-      if (currentDebugLink && sessionIds.has(path.basename(currentDebugLink, ".txt"))) {
-        await rm(latestDebugLink);
-        if (priorDebugLink !== undefined) await symlink(priorDebugLink, latestDebugLink);
-      }
-      for (const dir of ownedProjects) {
-        const remaining = await lstat(dir).then(() => true, error => {
-          if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-          throw new Error("Could not verify owned CLI artifact deletion");
-        });
-        expect(remaining, "owned CLI transcript directory deleted").toBe(false);
-      }
-    }
-  }
-
-  return { scan, scanApiResponse, scanTree, scanDatabase, browserSnapshot, assertClean, scannedFiles, finishAfterSiteCleanup, async detach(_required = {}, _options = {}) {
-    await drain();
-    page.context().off("response", responseListener);
-    page.context().off("console", consoleListener);
-    page.context().off("weberror", errorListener);
-    await cdp.detach();
-  } };
-}
 
 export type CredentialLeakAudit = Awaited<ReturnType<typeof createCredentialLeakAudit>>;

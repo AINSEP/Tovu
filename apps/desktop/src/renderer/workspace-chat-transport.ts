@@ -331,82 +331,15 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
 
   // One listener per transport instance, installed at construction. `WorkspaceChatPane` memoizes the
   // transport, so this is one registration per pane lifetime, not per turn.
-  const offChatEvent = bridge.onChatEvent({ listener: (message: WorkspaceChatEventMessage) => {
-    const record = records.get(message.subscriptionId);
-    if (record === undefined) return;
-    if (message.kind === 'event') {
-      applyRunEvent({ record, event: message.event });
-      return;
-    }
-    if (message.kind === 'closed') {
-      if (message.reason !== 'terminal' && !record.settled) {
-        record.errored = true;
-        record.handlers.onError(
-          new Error(
-            message.reason === 'unknown-run'
-              ? 'Runner no longer has this run; send the message again.'
-              : "Runner couldn't replay this run's history; send the message again.",
-          ),
-        );
-      }
-      settle(record);
-      records.delete(message.subscriptionId);
-    }
-  } });
+  const offChatEvent = listenToWorkspaceChatEvents(bridge, records);
 
-  function open(handlers: RunHandlers): { subscriptionId: string; record: SubscriptionRecord } {
-    const subscriptionId = mintSubscriptionId();
-    const record: SubscriptionRecord = {
-      handlers,
-      events: [],
-      renderedToolUseIds: new Set(),
-      mirroredToolUseIds: new Set(),
-      runId: null,
-      errored: false,
-      settled: false,
-      finish: null,
-    };
-    records.set(subscriptionId, record);
-    return { subscriptionId, record };
-  }
+  const open = createSubscriptionOpener(records);
 
   /** Detaches the browser side. The run keeps going in main — that is exactly `StartRunInput.signal`'s contract. */
-  function detach({ subscriptionId }: { subscriptionId: string }, _options: Record<string, never> = {}): void {
-    if (!records.delete(subscriptionId)) return;
-    void bridge.chatDetach({ subscriptionId }).catch(() => {
-      // The renderer is already done with this subscription; a failed teardown invoke (window
-      // closing, main already torn down) has no remedy and nothing left to report to.
-    });
-  }
+  const detach = createSubscriptionDetacher(records, bridge);
 
   return {
-    async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
-      const agentId = input.agentId;
-      if (agentId === undefined || agentId === '') {
-        throw new Error('Choose an agent runtime before sending a message.');
-      }
-
-      // Registered BEFORE the invoke. Main attaches its subscription inside the `start` handler, so
-      // the first events can be pushed while this promise is still in flight; without the record
-      // already in place they would arrive with nowhere to go.
-      const { subscriptionId, record } = open(handlers);
-      const alreadyDetached = input.signal.aborted;
-      if (alreadyDetached) records.delete(subscriptionId);
-      else input.signal.addEventListener('abort', () => detach({ subscriptionId }), { once: true });
-
-      try {
-        const { runId } = await bridge.chatStart(buildChatStartPayload({ subscriptionId, agentId, input }));
-        record.runId = runId;
-        // Main now owns the subscription; a pane that was already gone must detach it too.
-        // The pane is gone, so a late teardown failure has no remaining listener to notify.
-        if (alreadyDetached) void bridge.chatDetach({ subscriptionId }).catch(() => {});
-        wireCancelSignal({ bridge, cancelSignal: input.cancelSignal, runId });
-        return { runId };
-      } catch (error) {
-        records.delete(subscriptionId);
-        throw error;
-      }
-    },
+    startRun: createWorkspaceRunStarter({ open, records, detach, bridge }),
 
     async reattachRun(runId: string, handlers: RunHandlers, options?: ReattachRunOptions): Promise<void> {
       const { subscriptionId, record } = open(handlers);
@@ -451,4 +384,87 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
       for (const subscriptionId of [...records.keys()]) detach({ subscriptionId });
     },
   };
+}
+
+function createWorkspaceRunStarter({ open, records, detach, bridge }: { open: ReturnType<typeof createSubscriptionOpener>; records: Map<string, SubscriptionRecord>; detach: ReturnType<typeof createSubscriptionDetacher>; bridge: RunnerInventoryBridge }) {
+  return async function startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
+      const agentId = input.agentId;
+      if (agentId === undefined || agentId === '') {
+        throw new Error('Choose an agent runtime before sending a message.');
+      }
+
+      // Registered BEFORE the invoke. Main attaches its subscription inside the `start` handler, so
+      // the first events can be pushed while this promise is still in flight; without the record
+      // already in place they would arrive with nowhere to go.
+      const { subscriptionId, record } = open(handlers);
+      const alreadyDetached = input.signal.aborted;
+      if (alreadyDetached) records.delete(subscriptionId);
+      else input.signal.addEventListener('abort', () => detach({ subscriptionId }), { once: true });
+
+      try {
+        const { runId } = await bridge.chatStart(buildChatStartPayload({ subscriptionId, agentId, input }));
+        record.runId = runId;
+        // Main now owns the subscription; a pane that was already gone must detach it too.
+        // The pane is gone, so a late teardown failure has no remaining listener to notify.
+        if (alreadyDetached) void bridge.chatDetach({ subscriptionId }).catch(() => {});
+        wireCancelSignal({ bridge, cancelSignal: input.cancelSignal, runId });
+        return { runId };
+      } catch (error) {
+        records.delete(subscriptionId);
+        throw error;
+      }
+    };
+}
+
+function createSubscriptionDetacher(records: Map<string, SubscriptionRecord>, bridge: RunnerInventoryBridge) {
+  return function detach({ subscriptionId }: { subscriptionId: string }, _options: Record<string, never> = {}): void {
+    if (!records.delete(subscriptionId)) return;
+    void bridge.chatDetach({ subscriptionId }).catch(() => {
+      // The renderer is already done with this subscription; a failed teardown invoke (window
+      // closing, main already torn down) has no remedy and nothing left to report to.
+    });
+  };
+}
+
+function createSubscriptionOpener(records: Map<string, SubscriptionRecord>) {
+  return function open(handlers: RunHandlers): { subscriptionId: string; record: SubscriptionRecord } {
+    const subscriptionId = mintSubscriptionId();
+    const record: SubscriptionRecord = {
+      handlers,
+      events: [],
+      renderedToolUseIds: new Set(),
+      mirroredToolUseIds: new Set(),
+      runId: null,
+      errored: false,
+      settled: false,
+      finish: null,
+    };
+    records.set(subscriptionId, record);
+    return { subscriptionId, record };
+  };
+}
+
+function listenToWorkspaceChatEvents(bridge: RunnerInventoryBridge, records: Map<string, SubscriptionRecord>) {
+  return bridge.onChatEvent({ listener: (message: WorkspaceChatEventMessage) => {
+    const record = records.get(message.subscriptionId);
+    if (record === undefined) return;
+    if (message.kind === 'event') {
+      applyRunEvent({ record, event: message.event });
+      return;
+    }
+    if (message.kind === 'closed') {
+      if (message.reason !== 'terminal' && !record.settled) {
+        record.errored = true;
+        record.handlers.onError(
+          new Error(
+            message.reason === 'unknown-run'
+              ? 'Runner no longer has this run; send the message again.'
+              : "Runner couldn't replay this run's history; send the message again.",
+          ),
+        );
+      }
+      settle(record);
+      records.delete(message.subscriptionId);
+    }
+  } });
 }

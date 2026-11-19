@@ -55,52 +55,80 @@ export function startBrowserStream<Frame>(
     ports?: BrowserStreamPorts; scope?: "origin" | "tab"; activity?: StreamActivity;
   } = {},
 ): () => void {
-  let disposed = false;
-  let away = false;
-  let hiddenSince = hiddenSinceNow({ ports, previous: undefined });
-  let stopConnection: (() => void) | undefined;
-  let stopTimer: (() => void) | undefined;
-  let lock: AbortController | undefined;
-  let releaseLock: (() => void) | undefined;
+  const stream = buildStream(ports);
   // `stop` removes this listener, so a disposed stream never reaches it.
   const onMessage = (event: MessageEvent<unknown>) => {
-    if (!away) receive({ frame: event.data as Frame });
+    if (!stream.away) receive({ frame: event.data as Frame });
   };
-  let channel = openSharedChannel({ key, scope, ports, onMessage });
+  const fanout = {
+    channel: openSharedChannel({ key, scope, ports, onMessage }),
+  };
 
   /** Close before releasing the lock: two tabs must never overlap their connections. */
-  function halt(): void {
-    stopConnection?.();
-    stopConnection = undefined;
-    lock?.abort();
-    lock = undefined;
-    releaseLock?.();
-    releaseLock = undefined;
-  }
+  const halt = createHalt(stream);
 
-  function open(): void {
-    if (stopConnection) return;
-    let connected = true;
-    const close = connect({ emit: ({ frame }, _optional = {}) => {
-      if (!connected || disposed || away) return;
-      receive({ frame });
-      channel?.postMessage(frame);
-    } });
-    stopConnection = () => { connected = false; close(); };
-  }
+  const open = createStreamConnectionOpener({ stream, connect, receive, fanout });
 
   /** A pending/acquired lock owns its own cancellation; denied hosts switch to tab mode. */
-  function acquire(): void {
-    if (lock) return;
+  const acquire = createStreamLockAcquirer({ stream, ports, key, open, halt, closeChannel: (...args: Parameters<typeof closeChannel>) => closeChannel(...args), reconcile: (...args: Parameters<typeof reconcile>) => reconcile(...args) });
+
+  const closeChannel = createChannelCloser(fanout, onMessage);
+
+  /** Reconcile one tab's visibility/activity with its connection and queued lock. */
+  const reconcile = createStreamReconciler({ stream, halt, fanout, acquire, reconcileTab: (...args: Parameters<typeof reconcileTab>) => reconcileTab(...args) });
+
+  /** Per-tab mode: keep the connection through the hidden grace period unless a chat is active. */
+  const reconcileTab = createReconcileTab({ stream, activity, ports, halt, reconcile, open });
+
+  const onVisibility = () => {
+    stream.hiddenSince = hiddenSinceNow({ ports, previous: stream.hiddenSince });
+    reconcile();
+  };
+  const onPageHide = () => { stream.away = true; reconcile(); };
+  const onPageShow = () => { stream.away = false; onVisibility(); };
+  ports.visibility.addEventListener("visibilitychange", onVisibility);
+  ports.page.addEventListener("pagehide", onPageHide);
+  ports.page.addEventListener("pageshow", onPageShow);
+  const unsubscribeActivity = activity?.subscribe({ listener: reconcile });
+  const stop = createStop({ stream, halt, unsubscribeActivity, ports, onVisibility, onPageHide, onPageShow, closeChannel });
+  try { reconcile(); } catch (error) { stop(); throw error; }
+  return stop;
+}
+
+function createStreamReconciler<Frame>({ stream, halt, fanout, acquire, reconcileTab }: { stream: ReturnType<typeof buildStream>; halt: ReturnType<typeof createHalt>; fanout: { channel: StreamChannel | undefined; }; acquire: ReturnType<typeof createStreamLockAcquirer<Frame>>; reconcileTab: ReturnType<typeof createReconcileTab<Frame>> }) {
+  return function reconcile(): void {
+    stream.stopTimer?.();
+    stream.stopTimer = undefined;
+    if (stream.disposed || stream.away) { halt(); return; }
+    if (fanout.channel) {
+      if (stream.hiddenSince !== undefined) { halt(); return; }
+      acquire();
+      return;
+    }
+    reconcileTab();
+  };
+}
+
+function createChannelCloser(fanout: { channel: StreamChannel | undefined; }, onMessage: (event: MessageEvent<unknown>) => void) {
+  return function closeChannel(): void {
+    fanout.channel?.removeEventListener("message", onMessage);
+    fanout.channel?.close();
+    fanout.channel = undefined;
+  };
+}
+
+function createStreamLockAcquirer<Frame>({ stream, ports, key, open, halt, closeChannel, reconcile }: { stream: ReturnType<typeof buildStream>; ports: BrowserStreamPorts; key: string; open: ReturnType<typeof createStreamConnectionOpener<Frame>>; halt: ReturnType<typeof createHalt>; closeChannel: ReturnType<typeof createChannelCloser>; reconcile: ReturnType<typeof createStreamReconciler<Frame>> }) {
+  return function acquire(): void {
+    if (stream.lock) return;
     if (!ports.requestLock) throw new Error("shared browser stream has no lock provider");
     const requested = new AbortController();
-    lock = requested;
+    stream.lock = requested;
     // Disposal and pagehide both run `halt()`, which aborts this request, so its signal covers them.
     void ports.requestLock({ key: `browser-stream:${key}`, signal: requested.signal, hold: async () => {
       if (requested.signal.aborted) return;
       // Set the release first so cleanup always releases even when connect throws.
       await new Promise<void>((resolve, reject) => {
-        releaseLock = resolve;
+        stream.releaseLock = resolve;
         try { open(); } catch (error) { reject(error); }
       });
     } }).catch(() => {
@@ -109,60 +137,68 @@ export function startBrowserStream<Frame>(
       closeChannel();
       reconcile();
     });
-  }
+  };
+}
 
-  function closeChannel(): void {
-    channel?.removeEventListener("message", onMessage);
-    channel?.close();
-    channel = undefined;
-  }
+function createStreamConnectionOpener<Frame>({ stream, connect, receive, fanout }: { stream: ReturnType<typeof buildStream>; connect: (required: { emit: (required: { frame: Frame; }, optional?: Record<string, never>) => void; }) => () => void; receive: (required: { frame: Frame; }) => void; fanout: { channel: StreamChannel | undefined; } }) {
+  return function open(): void {
+    if (stream.stopConnection) return;
+    let connected = true;
+    const close = connect({ emit: ({ frame }, _optional = {}) => {
+      if (!connected || stream.disposed || stream.away) return;
+      receive({ frame });
+      fanout.channel?.postMessage(frame);
+    } });
+    stream.stopConnection = () => { connected = false; close(); };
+  };
+}
 
-  /** Reconcile one tab's visibility/activity with its connection and queued lock. */
-  function reconcile(): void {
-    stopTimer?.();
-    stopTimer = undefined;
-    if (disposed || away) { halt(); return; }
-    if (channel) {
-      if (hiddenSince !== undefined) { halt(); return; }
-      acquire();
-      return;
-    }
-    reconcileTab();
-  }
-
-  /** Per-tab mode: keep the connection through the hidden grace period unless a chat is active. */
-  function reconcileTab(): void {
-    if (hiddenSince !== undefined && !activity?.active({})) {
-      const remaining = HIDDEN_GRACE_MS - (ports.now() - hiddenSince);
+function createReconcileTab<Frame>({ stream, activity, ports, halt, reconcile, open }: { stream: ReturnType<typeof buildStream>; activity: StreamActivity; ports: BrowserStreamPorts; halt: ReturnType<typeof createHalt>; reconcile: ReturnType<typeof createStreamReconciler<Frame>>; open: ReturnType<typeof createStreamConnectionOpener<Frame>> }) {
+  return function reconcileTab(): void {
+    if (stream.hiddenSince !== undefined && !activity?.active({})) {
+      const remaining = HIDDEN_GRACE_MS - (ports.now() - stream.hiddenSince);
       if (remaining <= 0) { halt(); return; }
-      stopTimer = ports.schedule({ work: reconcile, delayMs: remaining });
+      stream.stopTimer = ports.schedule({ work: reconcile, delayMs: remaining });
     }
     open();
-  }
-
-  const onVisibility = () => {
-    hiddenSince = hiddenSinceNow({ ports, previous: hiddenSince });
-    reconcile();
   };
-  const onPageHide = () => { away = true; reconcile(); };
-  const onPageShow = () => { away = false; onVisibility(); };
-  ports.visibility.addEventListener("visibilitychange", onVisibility);
-  ports.page.addEventListener("pagehide", onPageHide);
-  ports.page.addEventListener("pageshow", onPageShow);
-  const unsubscribeActivity = activity?.subscribe({ listener: reconcile });
-  const stop = () => {
-    if (disposed) return;
-    disposed = true;
+}
+
+function createHalt(stream: ReturnType<typeof buildStream>) {
+  return function halt(): void {
+    stream.stopConnection?.();
+    stream.stopConnection = undefined;
+    stream.lock?.abort();
+    stream.lock = undefined;
+    stream.releaseLock?.();
+    stream.releaseLock = undefined;
+  };
+}
+
+function buildStream(ports: BrowserStreamPorts) {
+  return {
+    disposed: false,
+    away: false,
+    hiddenSince: hiddenSinceNow({ ports, previous: undefined }),
+    stopConnection: undefined as (() => void) | undefined,
+    stopTimer: undefined as (() => void) | undefined,
+    lock: undefined as AbortController | undefined,
+    releaseLock: undefined as (() => void) | undefined,
+  };
+}
+
+function createStop({ stream, halt, unsubscribeActivity, ports, onVisibility, onPageHide, onPageShow, closeChannel }: { stream: ReturnType<typeof buildStream>; halt: ReturnType<typeof createHalt>; unsubscribeActivity: ReturnType<StreamActivity["subscribe"]> | undefined; ports: BrowserStreamPorts; onVisibility: () => void; onPageHide: () => void; onPageShow: () => void; closeChannel: ReturnType<typeof createChannelCloser> }) {
+  return () => {
+    if (stream.disposed) return;
+    stream.disposed = true;
     halt();
-    stopTimer?.();
+    stream.stopTimer?.();
     unsubscribeActivity?.();
     ports.visibility.removeEventListener("visibilitychange", onVisibility);
     ports.page.removeEventListener("pagehide", onPageHide);
     ports.page.removeEventListener("pageshow", onPageShow);
     closeChannel();
   };
-  try { reconcile(); } catch (error) { stop(); throw error; }
-  return stop;
 }
 
 /**

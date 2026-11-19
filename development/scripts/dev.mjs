@@ -408,53 +408,92 @@ export function siteEnvForRestart({ shellSite, envFileText }) {
  * }} deps
  */
 export function createApiRestarter(deps, _options = {}) {
-  let child = null;
-  let inFlight = null;
-  let decision = null;
-  let currentEnv = {};
+  const state = {
+    child: null,
+    inFlight: null,
+    decision: null,
+    currentEnv: {},
+  };
   /** Persistence failure must not prevent restoring the live API. Never log env/error payloads. */
   function restoreChoice() {
-    try { deps.restoreSite({ env: currentEnv }); }
+    try { deps.restoreSite({ env: state.currentEnv }); }
     catch { deps.log("tovu dev: could not restore TOVU_SITE in .env; keeping the previous site for this session."); }
   }
   /** Drain the entire watcher tree and its ports before either target or rollback boot. */
   async function stopCurrent() {
-    if (child) {
-      deps.markPlanned(child);
-      await deps.stopChild(child);
+    if (state.child) {
+      deps.markPlanned(state.child);
+      await deps.stopChild(state.child);
     }
     if (await deps.waitForPortsFree() === false) throw new Error("API ports are still busy");
   }
   /** A requested boot is provisional until the API listens; a watch wrapper alone is not ready. */
-  async function boot(env) {
-    if (deps.isShuttingDown()) return false;
-    child = deps.startApi(env);
-    deps.markPlanned(child);
-    if (!await deps.waitForReady({ child }) || deps.isShuttingDown()) return false;
-    deps.markRunning(child);
-    currentEnv = { ...env };
-    return true;
-  }
+  const boot = createBoot(deps, state);
   /** Bounded recovery: restore selection, stop the refused watcher, then boot the last site once. */
-  async function recover() {
+  const recover = createRecover({ restoreChoice, deps, stopCurrent, boot, state });
+  const run = createRun({ deps, state, restoreChoice, stopCurrent, boot, recover });
+  return {
+    start(env) {
+      state.currentEnv = { ...env };
+      state.child = deps.startApi(env);
+      return state.child;
+    },
+    current: () => state.child,
+    /** @returns {Promise<boolean>} whether the requested site booted; false includes rollback. */
+    restart(reason, { onDecision = async () => {} } = {}) {
+      if (state.inFlight) {
+        const current = state.inFlight;
+        return state.decision.then(onDecision).then(() => current);
+      }
+      let acknowledge;
+      state.decision = new Promise(resolve => { acknowledge = resolve; });
+      state.inFlight = run({ reason }, { onDecision: async value => {
+        await onDecision(value);
+        acknowledge(value);
+      } }).finally(() => {
+        acknowledge({ accepted: false, reason: "The dev supervisor could not acknowledge the restart." });
+        state.inFlight = null;
+      });
+      return state.inFlight;
+    },
+  };
+}
+
+function createBoot(deps, state) {
+  return async function boot(env) {
+    if (deps.isShuttingDown()) return false;
+    state.child = deps.startApi(env);
+    deps.markPlanned(state.child);
+    if (!await deps.waitForReady({ child: state.child }) || deps.isShuttingDown()) return false;
+    deps.markRunning(state.child);
+    state.currentEnv = { ...env };
+    return true;
+  };
+}
+
+function createRecover({ restoreChoice, deps, stopCurrent, boot, state }) {
+  return async function recover() {
     restoreChoice();
     if (deps.isShuttingDown()) return false;
     deps.log("tovu dev: site switch did not boot; restoring the previous site.");
     try {
       await stopCurrent();
-      if (await boot(currentEnv)) return false;
+      if (await boot(state.currentEnv)) return false;
     } catch { /* Report recovery failure without disclosing environment or child error payloads. */ }
     if (!deps.isShuttingDown()) {
       deps.log("tovu dev: the previous site could not restart; inspect the API startup output.");
       deps.shutdown(1);
     }
     return false;
-  }
-  async function run({ reason }, { onDecision }) {
+  };
+}
+
+function createRun({ deps, state, restoreChoice, stopCurrent, boot, recover }) {
+  return async function run({ reason }, { onDecision }) {
     let nextEnv;
     try {
       nextEnv = deps.envForRestart();
-      const refusal = await deps.checkTarget({ env: nextEnv, currentEnv, child });
+      const refusal = await deps.checkTarget({ env: nextEnv, currentEnv: state.currentEnv, child: state.child });
       if (refusal) {
         deps.log(refusal); restoreChoice();
         await onDecision({ accepted: false, reason: refusal });
@@ -481,31 +520,6 @@ export function createApiRestarter(deps, _options = {}) {
       deps.log("tovu dev: requested API boot failed.");
     }
     return recover();
-  }
-  return {
-    start(env) {
-      currentEnv = { ...env };
-      child = deps.startApi(env);
-      return child;
-    },
-    current: () => child,
-    /** @returns {Promise<boolean>} whether the requested site booted; false includes rollback. */
-    restart(reason, { onDecision = async () => {} } = {}) {
-      if (inFlight) {
-        const current = inFlight;
-        return decision.then(onDecision).then(() => current);
-      }
-      let acknowledge;
-      decision = new Promise(resolve => { acknowledge = resolve; });
-      inFlight = run({ reason }, { onDecision: async value => {
-        await onDecision(value);
-        acknowledge(value);
-      } }).finally(() => {
-        acknowledge({ accepted: false, reason: "The dev supervisor could not acknowledge the restart." });
-        inFlight = null;
-      });
-      return inFlight;
-    },
   };
 }
 
@@ -900,34 +914,7 @@ async function main() {
   }
   apiEnv[DEV_RESTART_REQUEST_FILE_ENV] = restartRequestFile;
   apiEnv.TOVU_DEV_SITE_PINNED = SHELL_TOVU_SITE === undefined ? "0" : "1";
-  const apiRestarter = createApiRestarter({
-    startApi: (env) => start("api server", runtime.command, [createRequire(import.meta.url).resolve("tsx/cli"),
-      ...apiWatchArgs({ sitesHome: process.env.TOVU_SITES_HOME ?? path.dirname(selectedSite.dir) }).slice(1)], env),
-    stopChild: (child) => stopChildGroup({ child }),
-    markPlanned: (child) => plannedExits.add(child),
-    markRunning: (child) => plannedExits.delete(child),
-    waitForPortsFree: () => waitForPortsFree([API_PORT, DAEMON_PORT]),
-    waitForReady: () => waitForDevApi({ apiPort: API_PORT, scheme }, { certificate }),
-    shutdown,
-    checkTarget: async ({ env, currentEnv, child }) => devRestartRefusal({
-      repoRoot: REPO_ROOT, env: { ...process.env, ...env }, currentEnv: { ...process.env, ...currentEnv },
-      apiPids: collectProcessTreePids(await listProcessSnapshots(), [child.pid]),
-    }),
-    restoreSite: ({ env }) => restoreDevSiteSelection({ repoRoot: REPO_ROOT, name: env.TOVU_SITE }),
-    envForRestart: () => {
-      const site = siteEnvForRestart({ shellSite: SHELL_TOVU_SITE, envFileText: readRepoEnvFile() });
-      if (site.warning) console.warn(site.warning);
-      const next = { ...apiEnv, ...site.env };
-      // A launcher pin follows a requested site switch; an explicit directory remains pinned.
-      if (next.TOVU_SITE_SELECTION_PINNED === "1") {
-        delete next.TOVU_SITE_DIR;
-        next.TOVU_SITE_DIR = devSitesHome({ repoRoot: REPO_ROOT }, { env: next }).dir;
-      }
-      return next;
-    },
-    isShuttingDown: () => shuttingDown,
-    log: (message) => console.log(message),
-  });
+  const apiRestarter = buildApiRestarter({ runtime, selectedSite, scheme, certificate, apiEnv });
   apiRestarter.start(apiEnv);
   watchRestartRequests(restartRequestFile, (request) => {
     void handleDevRestartRequest({ request, requestFile: restartRequestFile, restarter: apiRestarter })
@@ -961,6 +948,37 @@ async function main() {
       shutdown(0);
     });
   }
+}
+
+function buildApiRestarter({ runtime, selectedSite, scheme, certificate, apiEnv }) {
+  return createApiRestarter({
+    startApi: (env) => start("api server", runtime.command, [createRequire(import.meta.url).resolve("tsx/cli"),
+      ...apiWatchArgs({ sitesHome: process.env.TOVU_SITES_HOME ?? path.dirname(selectedSite.dir) }).slice(1)], env),
+    stopChild: (child) => stopChildGroup({ child }),
+    markPlanned: (child) => plannedExits.add(child),
+    markRunning: (child) => plannedExits.delete(child),
+    waitForPortsFree: () => waitForPortsFree([API_PORT, DAEMON_PORT]),
+    waitForReady: () => waitForDevApi({ apiPort: API_PORT, scheme }, { certificate }),
+    shutdown,
+    checkTarget: async ({ env, currentEnv, child }) => devRestartRefusal({
+      repoRoot: REPO_ROOT, env: { ...process.env, ...env }, currentEnv: { ...process.env, ...currentEnv },
+      apiPids: collectProcessTreePids(await listProcessSnapshots(), [child.pid]),
+    }),
+    restoreSite: ({ env }) => restoreDevSiteSelection({ repoRoot: REPO_ROOT, name: env.TOVU_SITE }),
+    envForRestart: () => {
+      const site = siteEnvForRestart({ shellSite: SHELL_TOVU_SITE, envFileText: readRepoEnvFile() });
+      if (site.warning) console.warn(site.warning);
+      const next = { ...apiEnv, ...site.env };
+      // A launcher pin follows a requested site switch; an explicit directory remains pinned.
+      if (next.TOVU_SITE_SELECTION_PINNED === "1") {
+        delete next.TOVU_SITE_DIR;
+        next.TOVU_SITE_DIR = devSitesHome({ repoRoot: REPO_ROOT }, { env: next }).dir;
+      }
+      return next;
+    },
+    isShuttingDown: () => shuttingDown,
+    log: (message) => console.log(message),
+  });
 }
 
 // Only run the real boot sequence when this file is executed directly (`node dev.mjs` / `npm run

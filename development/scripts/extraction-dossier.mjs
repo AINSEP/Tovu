@@ -361,22 +361,159 @@ function parseFile(abs, info) {
   const lineOf = (pos) => sf.getLineAndCharacterOfPosition(pos).line + 1;
   const full = info.role !== "aux" && info.role !== "test";   // tests/aux: imports only
   // split("\n") counts the empty string after a trailing newline: every file read +1 (pilot ABC #9).
-  const f = { loc: text.split("\n").length - (text.endsWith("\n") ? 1 : 0), imports: [], bindings: new Map(), nsUses: new Map(), localExports: new Map(),
-    reexports: new Map(), stars: [], localNames: new Set(), units: [], shapes: [], extendsInfo: [], literals: [], hostObjects: [],
-    jiniLits: null, staleCandidates: [], ports: [], bug: null, reexportOnly: false, toolRegistration: false, dataOnly: false,
-    beh: new Set(), constSets: [], constKinds: new Map(), couplingCands: [], expressType: false, approvalOrCtxSignal: false,
-    // v3: top-level symbols with a direct store/fs/fetch write (one-hop resolution of bare verb calls),
-    // bare verb-noun call candidates, Tovu wording pieces (Tovu<->Tovu parse couplings), wire keys.
-    directWriteSyms: new Set(), bareWrites: [], tPhrases: new Map(), wireKeys: [], ensureCalls: new Set(), httpRoutes: false, constVals: [], selfUses: new Map(),
-    // v4: path literals that load a file by path (vite lib entries, spawn/fork, new URL(..., import.meta.url));
-    // property names read / destructured (member-level dead code); returned/exported object members;
-    // thrown messages and `err.message ===` compares; permission literals; route-path literals; tools.
-    pathLits: [], propNames: new Set(), objMembers: [], thrown: new Set(), errCompares: [], permLits: [], routeLits: new Set(), routeDefs: [],
-    tools: [], toolFile: null, implementsNames: [], hermetic: false };
+  const f = buildF(text);
 
   // --- imports, bindings, exports ------------------------------------------------------------
   const addImport = (spec, line, kindTag, names, typeOnly, extra = {}) => f.imports.push({ spec, line, kind: kindTag, names, typeOnly, ...extra });
-  let onlyReexports = sf.statements.length > 0;
+  const exportsState = {
+    onlyReexports: sf.statements.length > 0,
+  };
+  const declare = createDossierDeclare(f, (...args) => lineOf(...args));
+  const addUnit = createDossierAddUnit({ full, normHash: (...args) => normHash(...args), unitBeh: (...args) => unitBeh(...args), f, lineOf: (...args) => lineOf(...args) });
+  const objMemberNames = createDossierObjMemberNames();
+  const collectTopLevel = createDossierCollectTopLevel({ full, info, returnedObject: (...args) => returnedObject(...args), f, lineOf: (...args) => lineOf(...args), objMemberNames: (...args) => objMemberNames(...args), declare: (...args) => declare(...args), singleCall: (...args) => singleCall(...args), addUnit: (...args) => addUnit(...args), constKindOf: (...args) => constKindOf(...args), constSetOf: (...args) => constSetOf(...args) });
+
+  scanDossierModuleStatements({ sf, f, addImport, lineOf, exportsState, collectTopLevel });
+  f.reexportOnly = exportsState.onlyReexports && (f.reexports.size > 0 || f.stars.length > 0);
+  // Tovu shim of Jini (round-2 judge 1 #10: reconcile-interrupted-migration.ts = `export * from
+  // "@jini-ai/db/recovery"`): every re-export names a @jini-ai package. DELETE + repoint importers.
+  f.jiniShim = f.reexportOnly && [...f.stars, ...[...f.reexports.values()].map((r) => r.spec)].every((sp) => sp.startsWith("@jini-ai/"));
+  /** Normalised body text -> hash: identifiers DECLARED in the unit (params, locals) renamed $0..$n in
+   * order of first use, string quotes unified, type nodes and comments dropped. A renamed copy hashes the
+   * same; a body calling different names does not. -> "len:hash" or null when too short. */
+  const normHash = createNormHash(sf);
+  /** Behaviour tokens of one unit: strings (3-60 chars), callee names, property names. Filtered by
+   * document frequency after the parse (common vocabulary says nothing). */
+  const unitBeh = createUnitBeh();
+  /** A body that is one call (`return jiniFn(...)` or `=> jiniFn(...)`): R2 pass-through candidate.
+   * Also returns what the call is FED: literals, identifiers (resolved later: npm values?) and
+   * host-copy objects. R3 ALL-PASS-THROUGH is wrong for driver binders that inject npm modules or
+   * product literals (pilot ABC #6): those stay in Tovu as wiring. */
+  const singleCall = createSingleCall();
+  /** Exported const arrays / string sets (`["a","b","c"] as const`, `new Set([...])`): duplicated
+   * enums are invisible to the body fingerprint (pilot ABC #3, consent enums). */
+  const constSetOf = createConstSetOf();
+  const constKindOf = createConstKindOf();
+  const returnedObject = createReturnedObject();
+
+  // --- whole-tree walk: inline import(), require, ns uses, literals, ports, bug hints ------------
+  const { visit, jiniLits, localStr, bug, counter } = createDossierTraversalState({ info, full, sf, lineOf, f, addImport, text, addUnit });
+  visit(sf);
+
+  // --- comments: stale path references (canary-2 item 8) --------------------------------------
+  finalizeDossierFileFacts({ full, text, f, lineOf, sf, jiniLits, info, localStr, bug, counter });
+  return f;
+}
+
+function createDossierTraversalState({ info, full, sf, lineOf, f, addImport, text, addUnit }: { info: unknown; full: unknown; sf: unknown; lineOf: unknown; f: unknown; addImport: unknown; text: unknown; addUnit: unknown }) {
+  const jiniLits = info.repo === "jini" && !info.helper ? { all: new Set(), formats: [], phrases: new Set() } : null;
+  const bug = {
+    crud: [], signalParams: [], abortChecks: [], forwards: [], writes: [], awaitGaps: [], listenerGaps: [], swallows: [], wholePut: [],
+    secretLogs: [], cachedPromise: [], ctxNoSignal: [], filterAfterPage: []
+  };
+  const tovuFull = full && info.repo === "tovu";
+  const unitBodies = new Set(); for (const st of sf.statements) { /* bodies already fingerprinted as top-level units */
+    if (ts.isFunctionDeclaration(st) && st.body) unitBodies.add(st.body);
+    else if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) { const i = unwrap(d.initializer); if (i && (ts.isArrowFunction(i) || ts.isFunctionExpression(i))) unitBodies.add(i.body); }
+    else if (ts.isClassDeclaration(st)) for (const m of st.members) if (m.body) unitBodies.add(m.body);
+  }
+  // `await import(x)` / `await import(x).then(...)`; `lazy(() => import(x))` is code splitting, not this.
+  const awaitedCall = (cur) => {
+    let p = cur.parent;
+    while (p && (ts.isParenthesizedExpression(p) || (ts.isPropertyAccessExpression(p) && p.expression === cur) || (ts.isCallExpression(p) && p.expression === cur))) { cur = p; p = p.parent; }
+    return !!p && ts.isAwaitExpression(p);
+  };
+  /** Names a dynamic import actually uses: `import(x).then(m => m.X)`, `.then(({ X }) => …)`,
+   * `(await import(x)).X`, `const { X } = await import(x)`, `const m = await import(x); m.X`.
+   * Without this the edge stayed on the barrel: Media.tsx showed 0 prod importers although
+   * panel-pages.ts:61 does `import("./features/media").then(m => m.Media)` (pilot DE #2). */
+  const dynamicNames = createDynamicNames();
+  /** Write through an injected port or a callback parameter (see PORT_RECEIVER_RE). */
+  const portWrite = createPortWrite();
+  const PHRASE_CALLEES = new Set(["startsWith", "endsWith", "includes", "indexOf", "lastIndexOf", "match", "split", "search", "replace"]);
+  const EVENT_CALLEES = new Set(["addEventListener", "removeEventListener", "on", "once", "off", "emit", "addListener"]);
+  const localStr = new Map(); // string consts seen so far in this file (name -> text)
+  const coupled = new Set();
+  const coupling = (kind, text, n, extra = {}) => { const line = lineOf(n.getStart()); const k = `${kind}\0${text}\0${line}`; if (coupled.has(k)) return; coupled.add(k); f.couplingCands.push({ kind, text, line, symbol: topSymbol(n), ...extra }); };
+  const topSymbol = (n) => { while (n.parent && n.parent !== sf) n = n.parent; const d = n; return d.name?.text ?? (ts.isVariableStatement(d) ? d.declarationList.declarations[0]?.name.getText() : null); };
+  const topExported = (n) => { while (n.parent && n.parent !== sf) n = n.parent; return hasExport(n); };
+  const fnName = (fn) => fn.name ? fn.name.getText() : ts.isVariableDeclaration(fn.parent) || ts.isPropertyAssignment(fn.parent) ? fn.parent.name.getText() : "(anon)";
+  const counter = {
+    fnCount: 0,
+  };
+  const timing = createDossierTiming({ localStr, portWrite: (...args) => portWrite(...args), lineOf: (...args) => lineOf(...args), bug });
+
+  const visit = createDossierVisitor({ addImport, lineOf, dynamicNames, f, awaitedCall, full, jiniLits, topSymbol, topExported, info, tovuFull, coupling, EVENT_CALLEES, localStr, PHRASE_CALLEES, fnName, portWrite, bug, text, sf, collectPorts: (...args) => collectPorts(...args), counter, unitBodies, addUnit, timing });
+
+  /** Port-implementation candidates: `key: tovuSymbol` inside an object literal that is typed with,
+   * or passed into, something (resolved in pass 2 to Jini or not). Item 2 of canary-2. */
+  const portContext = createPortContext();
+  const collectPorts = createCollectPorts(portContext, f, lineOf);
+  return { visit, jiniLits, localStr, bug, counter };
+}
+
+
+function finalizeDossierFileFacts({ full, text, f, lineOf, sf, jiniLits, info, localStr, bug, counter }: { full: unknown; text: unknown; f: unknown; lineOf: unknown; sf: unknown; jiniLits: unknown; info: unknown; localStr: unknown; bug: unknown; counter: unknown }) {
+  if (full) {
+    const seen = new Set();
+    const scanComments = (ranges) => {
+      for (const r of ranges ?? []) {
+        if (seen.has(r.pos)) continue; seen.add(r.pos);
+        const c = text.slice(r.pos, r.end); for (const m of c.matchAll(PATH_REF_RE)) f.staleCandidates.push({ ref: m[1], line: lineOf(r.pos + m.index) });
+        // v4 (judge 1 #9, judge 2 #11): `file.ts:44-50` line cites (bare names too) are checked against the
+        // file's length, and `@jini-ai/pkg/sub` mentions against that package's `exports` map.
+        for (const m of c.matchAll(LINE_REF_RE)) f.staleCandidates.push({ ref: m[1], refLine: +(m[3] ?? m[2]), line: lineOf(r.pos + m.index), kind: "line" });
+        for (const m of c.matchAll(/@jini-ai\/[\w-]+(?:\/[\w-]+)*(?![\w./-]*\.\w{2,4}\b)/g)) f.staleCandidates.push({ ref: m[0], line: lineOf(r.pos + m.index), kind: "jini-spec" });
+      }
+    };
+    const walkC = (n) => { scanComments(ts.getLeadingCommentRanges(text, n.pos)); ts.forEachChild(n, walkC); };
+    walkC(sf); scanComments(ts.getLeadingCommentRanges(text, sf.endOfFileToken.pos));
+  }
+  f.jiniLits = jiniLits;
+  // The hermetic default composition (composition/app.ts: in-memory adapters, "what tests exercise"):
+  // its edges to memory/console/seed adapters are not prod reach (judge 2 #11).
+  f.hermetic = info.repo === "tovu" && /\bhermetic\b/i.test(text.slice(0, 40000)) && f.imports.length >= 30;
+  // TOOL-CALL check, per file: hand-written permission checks, ctx.signal reads, hand-parsed input,
+  // generic error wording. Files that define tools, or tool/registration files that hold their handlers.
+  if (full && info.repo === "tovu" && (f.tools.length || /tool|registration/i.test(path.basename(info.rel)))) {
+    const checks = []; const generic = []; let handParse = 0;
+    const w = (n) => {
+      if (ts.isCallExpression(n)) {
+        const c = lastName(n.expression);
+        if (c && HAND_CHECK_RE.test(c)) {
+          let perm = null; for (const a of n.arguments) {
+            const x = unwrap(a); if (ts.isStringLiteralLike(x) && PERM_RE.test(x.text)) perm = x.text;
+            else if (ts.isObjectLiteralExpression(x)) { const pp = x.properties.find((q) => q.name && memberName(q) === "permission"); const iv = pp && ts.isPropertyAssignment(pp) ? unwrap(pp.initializer) : null; if (iv) perm = ts.isStringLiteralLike(iv) ? iv.text : ts.isIdentifier(iv) ? (localStr.get(iv.text) ?? iv.text) : null; }
+          }
+          checks.push({ fn: c, perm, line: lineOf(n.getStart()) });
+        }
+        if (/^JSON\.parse$/.test(n.expression.getText())) handParse++;
+      }
+      // `typeof input.x === "string"` / `typeof ctx.input...` instead of the declared schema.
+      if (ts.isTypeOfExpression(n) && /^(ctx\.)?(input|args|params|raw)\b/.test(n.expression.getText())) handParse++;
+      if (ts.isStringLiteralLike(n) && GENERIC_ERR_RE.test(n.text) && n.parent && ((ts.isNewExpression(n.parent) && /Error$/.test(n.parent.expression.getText())) || (ts.isPropertyAssignment(n.parent) && /^(error|message|reason)$/.test(memberName(n.parent))))) generic.push(`"${n.text}"@${lineOf(n.getStart())}`);
+      ts.forEachChild(n, w);
+    };
+    w(sf);
+    f.toolFile = { checks, ctxSignal: /\bctx\.signal\b|\{[^}]*\bsignal\b[^}]*\}\s*=\s*ctx\b|\bsignal\s*:\s*ctx\.signal/.test(text), handParse, generic };
+  }
+  if (full) {
+    f.bug = bug; f.fnCount = counter.fnCount;
+    f.toolRegistration = /\bbuildDomainRegistrations\b|AgentToolDefinition\[\]/.test(text);
+    f.dataIsh = /(i18n|locales?|copy|messages|strings)\b/i.test(info.rel);
+    // An approval handler or ctx.signal use is behaviour a Tier 0 skim misses (pilot ABC #7:
+    // project-keys/tools.ts and consent/tool-registrations.ts sat at Tier 0 as R9).
+    f.approvalOrCtxSignal = /\b(requiresApproval|needsApproval|approvalRequired|approval\w*\s*[:(]|onApprove\w*|approve[A-Z]\w*\s*\(|ctx\.signal)/.test(text);
+    // Rule check (pilot DE #7, D2): Jini must not name a specific server framework (owner 11-07).
+    // Partial batches (round-2 judge 2 #1): a prepared/approval batch whose prepare step pins a
+    // version/hash reads every item against ONE original; two items on the same target then conflict.
+    f.batchPin = /\b(createPreparedBatchHandler|createBatchApprovalHandler)\b/.test(text) && /\bprepare\w*\s*[:(]/.test(text) && /\b\w*(Hash|hash|Version|version|etag|Etag|sha|revision)\w*\b/.test(text);
+    f.expressType = f.imports.some((i) => /^(express|@types\/express)$/.test(i.spec)) || /(:\s*|<\s*)(Express|express\.(Application|Router|Request|Response))\b/.test(text);
+  }
+}
+
+
+function scanDossierModuleStatements({ sf, f, addImport, lineOf, exportsState, collectTopLevel }: { sf: unknown; f: unknown; addImport: unknown; lineOf: unknown; exportsState: unknown; collectTopLevel: unknown }) {
   for (const st of sf.statements) {
     if (ts.isImportDeclaration(st) && ts.isStringLiteral(st.moduleSpecifier)) {
       const spec = st.moduleSpecifier.text; const c = st.importClause; const names = [];
@@ -404,267 +541,45 @@ function parseFile(abs, info) {
       } else if (st.exportClause && ts.isNamedExports(st.exportClause)) {
         for (const el of st.exportClause.elements) {
           const local = (el.propertyName ?? el.name).text; const b = f.bindings.get(local);
-          if (b) f.reexports.set(el.name.text, b); else { f.localExports.set(el.name.text, { kind: "alias", line: lineOf(el.getStart()) }); onlyReexports = false; }
+          if (b) f.reexports.set(el.name.text, b); else { f.localExports.set(el.name.text, { kind: "alias", line: lineOf(el.getStart()) }); exportsState.onlyReexports = false; }
         }
       }
       continue;
     }
-    onlyReexports = false;
+    exportsState.onlyReexports = false;
     if (ts.isExportAssignment(st)) { f.localExports.set("default", { kind: "default", line: lineOf(st.getStart()) }); continue; }
     collectTopLevel(st);
   }
-  f.reexportOnly = onlyReexports && (f.reexports.size > 0 || f.stars.length > 0);
-  // Tovu shim of Jini (round-2 judge 1 #10: reconcile-interrupted-migration.ts = `export * from
-  // "@jini-ai/db/recovery"`): every re-export names a @jini-ai package. DELETE + repoint importers.
-  f.jiniShim = f.reexportOnly && [...f.stars, ...[...f.reexports.values()].map((r) => r.spec)].every((sp) => sp.startsWith("@jini-ai/"));
+}
 
-  function declare(name, kindTag, node, exported) {
-    f.localNames.add(name);
-    if (exported) f.localExports.set(hasDefault(node) ? "default" : name, { kind: kindTag, line: lineOf(node.getStart()) });
-  }
-  function addUnit(name, kindTag, body, node, exported, extra = {}) {
-    if (!full || !body) return;
-    const { kinds, statements } = bodyKinds(body);
-    // One-liners (openSqliteSnapshot, safeHref) are skipped by the fingerprint; keep their exact
-    // text so an identical copy in Jini still shows up (pilot ABC #3).
-    let smallText = null;
-    if (statements < MIN_UNIT_STATEMENTS && kindTag !== "class" && !extra.closure) {
-      const t = body.getText().replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, "");
-      if (t.length >= SMALL_EXACT_MIN_CHARS && t.length <= 600) smallText = t;
-    }
-    // register-only: every statement is `register*(...)` (route modules). A cycle edge from such a
-    // body is wiring, not logic, so it must not lift the tier (pilot DE #5).
-    const registerOnly = ts.isBlock(body) && body.statements.length > 0 && body.statements.every((s) => {
-      const e = ts.isExpressionStatement(s) ? unwrap(s.expression) : null;
-      return e && ts.isCallExpression(e) && /^register[A-Z]/.test(lastName(e.expression) ?? "");
-    });
-    // Identifier-agnostic key for small bodies (round-2 judge 1 #2: identityReposFrom x4,
-    // createMemberAccessResolver x3 are one `return {...}` each, below the 5-statement floor).
-    let kindsKey = null;
-    if (statements < MIN_UNIT_STATEMENTS && kinds.length >= SMALL_KINDS_MIN && kindTag !== "class") { let h = 2166136261; for (const k of kinds) h = Math.imul(h ^ k, 16777619); kindsKey = `${kinds.length}:${h >>> 0}`; }
-    // v4: full kind-sequence hash (same-file twin pass: readSiteAssistant <-> readAdminByok, judge 3 #3),
-    // normalised text hash and behaviour tokens (name-independent Jini twins, judge 1 #2, judge 2 #3).
-    // >= 20 kinds (part 2: readSiteAssistant/readAdminByok, two 2-statement bodies, fell under 30).
-    let kindsAll = null; if (kindTag !== "class" && kinds.length >= 20) { let h = 2166136261; for (const k of kinds) h = Math.imul(h ^ k, 16777619); kindsAll = `${kinds.length}:${h >>> 0}`; }
-    const norm = kindTag !== "class" ? normHash(body, node.parameters ?? node.initializer?.parameters ?? extra.params ?? []) : null;
-    const ubeh = kindTag !== "class" && statements >= 2 ? unitBeh(body) : null;
-    delete extra.params;
-    f.units.push({ name, kind: kindTag, line: lineOf(node.getStart()), endLine: lineOf(node.getEnd()), statements, exported, shingles: shinglesOf(kinds), smallText, kindsKey, kindsAll, norm, ubeh, registerOnly, ...extra });
-  }
-  /** Normalised body text -> hash: identifiers DECLARED in the unit (params, locals) renamed $0..$n in
-   * order of first use, string quotes unified, type nodes and comments dropped. A renamed copy hashes the
-   * same; a body calling different names does not. -> "len:hash" or null when too short. */
-  function normHash(body, params) {
-    const txt = body.getText(); if (txt.length < NORM_MIN_CHARS || txt.length > 6000) return null;
-    const declared = new Set();
-    const addName = (nm) => { if (!nm) return; if (ts.isIdentifier(nm)) declared.add(nm.text); else if (ts.isObjectBindingPattern(nm) || ts.isArrayBindingPattern(nm)) nm.elements.forEach((el) => el.name && addName(el.name)); };
-    for (const p of params) addName(p.name);
-    const w = (n) => { if (ts.isVariableDeclaration(n) || ts.isParameter(n) || ts.isBindingElement(n)) addName(n.name); else if ((ts.isFunctionDeclaration(n) || ts.isClassDeclaration(n)) && n.name) declared.add(n.name.text); ts.forEachChild(n, w); };
-    w(body);
-    const ids = new Map(); const out = [];
-    const emit = (n) => {
-      if (ts.isTypeNode(n) && n.kind !== ts.SyntaxKind.ThisType) return;
-      if (ts.isIdentifier(n)) {
-        const p = n.parent; const isMember = p && ((ts.isPropertyAccessExpression(p) && p.name === n) || (ts.isPropertyAssignment(p) && p.name === n));
-        if (declared.has(n.text) && !isMember) { if (!ids.has(n.text)) ids.set(n.text, `$${ids.size}`); out.push(ids.get(n.text)); } else out.push(n.text);
-        return;
-      }
-      if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) { out.push(JSON.stringify(n.text)); return; }
-      const kids = n.getChildren(sf);
-      if (!kids.length) { out.push(n.getText(sf)); return; }
-      kids.forEach(emit);
-    };
-    emit(body);
-    let h = 2166136261; const s = out.join(" "); for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
-    return `${out.length}:${h >>> 0}`;
-  }
-  /** Behaviour tokens of one unit: strings (3-60 chars), callee names, property names. Filtered by
-   * document frequency after the parse (common vocabulary says nothing). */
-  function unitBeh(body) {
-    const toks = new Set();
-    const w = (n) => {
-      if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) && n.text.length >= 3 && n.text.length <= 60) toks.add(`s:${n.text}`);
-      else if (ts.isCallExpression(n)) { const c = lastName(n.expression); if (c) toks.add(`c:${c}`); }
-      else if (ts.isPropertyAccessExpression(n)) toks.add(`p:${n.name.text}`);
-      ts.forEachChild(n, w);
-    };
-    w(body);
-    return toks.size >= UNIT_BEH_MIN_SHARED ? [...toks] : null;
-  }
-  /** A body that is one call (`return jiniFn(...)` or `=> jiniFn(...)`): R2 pass-through candidate.
-   * Also returns what the call is FED: literals, identifiers (resolved later: npm values?) and
-   * host-copy objects. R3 ALL-PASS-THROUGH is wrong for driver binders that inject npm modules or
-   * product literals (pilot ABC #6): those stay in Tovu as wiring. */
-  function singleCall(body, params = []) {
-    let e = null;
-    if (!body) return null;
-    if (!ts.isBlock(body)) e = body;
-    else if (body.statements.length === 1) { const s = body.statements[0]; e = ts.isReturnStatement(s) ? s.expression : ts.isExpressionStatement(s) ? s.expression : null; }
-    e = unwrap(e);
-    if (!e || !(ts.isCallExpression(e) || ts.isNewExpression(e))) return null;
-    // Round-2 judge 1 #9, judge 2 #3: builders (buildDeployOpsRegistrations, buildSettingsRegistrations)
-    // read as pass-throughs because their one call is into Jini. A pass-through FORWARDS: every argument
-    // is a parameter, `...param` or `param.x` - no literals, no extra object properties, no closures.
-    const pnames = new Set(params.flatMap((p) => ts.isIdentifier(p.name) ? [p.name.text] : ts.isObjectBindingPattern(p.name) ? p.name.elements.map((el) => el.name.getText()) : []));
-    const fwd = (a) => { a = unwrap(a); if (ts.isSpreadElement(a) || ts.isSpreadAssignment?.(a)) a = unwrap(a.expression);
-      // `{ deps }` / `{ ...opts, deps: d }` re-packs parameters: still forwarding (no new values).
-      if (ts.isObjectLiteralExpression(a)) return a.properties.every((p) => ts.isShorthandPropertyAssignment(p) ? pnames.has(p.name.text) : ts.isSpreadAssignment(p) ? fwd(p.expression) : ts.isPropertyAssignment(p) && fwd(p.initializer));
-      const r = ts.isIdentifier(a) ? a.text : ts.isPropertyAccessExpression(a) ? rootIdent(a) : null; return !!r && pnames.has(r); };
-    const forwardsOnly = (e.arguments ?? []).every(fwd);
-    const args = { lit: false, idents: [], hostMsg: false, forwardsOnly };
-    const scan = (a, depth) => {
-      a = unwrap(a); if (!a) return;
-      if (ts.isStringLiteralLike(a) || ts.isTemplateExpression(a) || ts.isNumericLiteral(a)) args.lit = true;
-      else if (ts.isIdentifier(a)) { args.idents.push(a.text); if (/messages|copy|strings|i18n|labels|wording/i.test(a.text)) args.hostMsg = true; }
-      else if (ts.isPropertyAccessExpression(a)) { const r = rootIdent(a); if (r) args.idents.push(r); if (/messages|copy|strings|i18n|labels|wording/i.test(a.name.text)) args.hostMsg = true; }
-      else if (depth < 2 && ts.isObjectLiteralExpression(a)) for (const p of a.properties) { if (ts.isPropertyAssignment(p)) scan(p.initializer, depth + 1); else if (ts.isShorthandPropertyAssignment(p)) scan(p.name, depth + 1); }
-      else if (depth < 2 && ts.isArrayLiteralExpression(a)) a.elements.forEach((x) => scan(x, depth + 1));
-    };
-    for (const a of e.arguments ?? []) scan(a, 0);
-    return { root: rootIdent(e.expression), args };
-  }
-  /** Exported const arrays / string sets (`["a","b","c"] as const`, `new Set([...])`): duplicated
-   * enums are invisible to the body fingerprint (pilot ABC #3, consent enums). */
-  function constSetOf(init) {
-    let a = unwrap(init);
-    // Regex alternations are sets too (round-2 judge 2 #8: LOCAL_HOSTS array <-> a /^(localhost|127.0.0.1|::1)$/ in
-    // platform/net): `(a|b|c)` of plain tokens, >= 3, keyed like an array of the same strings.
-    if (a && ts.isRegularExpressionLiteral(a)) {
-      const m = /\(\??:?([\w.:\\-]+(?:\|[\w.:\\-]+){2,})\)/.exec(a.text);
-      return m ? [...new Set(m[1].split("|").map((x) => x.replace(/\\(.)/g, "$1")))].sort().join("\u0001") : null;
-    }
-    if (a && (ts.isNewExpression(a) || ts.isCallExpression(a)) && a.arguments?.[0]) a = unwrap(a.arguments[0]);
-    if (!a || !ts.isArrayLiteralExpression(a) || a.elements.length < 3 || !a.elements.every((x) => ts.isStringLiteralLike(x))) return null;
-    return [...new Set(a.elements.map((x) => x.text))].sort().join("\u0001");
-  }
-  function constKindOf(init) { const i = unwrap(init); if (!i) return "other";
-    if (ts.isStringLiteralLike(i) || ts.isNumericLiteral(i) || ts.isTemplateExpression(i) || i.kind === ts.SyntaxKind.TrueKeyword || i.kind === ts.SyntaxKind.FalseKeyword) return "literal";
-    if (ts.isArrayLiteralExpression(i)) return "array";
-    if (ts.isObjectLiteralExpression(i)) return "object";
-    if (ts.isBinaryExpression(i) && /^[\d_\s*+\-/().]+$/.test(i.getText())) return "literal";
-    if (ts.isArrowFunction(i) || ts.isFunctionExpression(i)) return "fn"; return "other"; }
-  /** Members of the object a function returns (hooks/controllers: `return { items, replace, setDraftToken }`)
-   * or of an exported object literal (`export const api = { setSitesHome: ... }`), judge 3 #4. */
-  function objMemberNames(o) { return o.properties.filter((p) => p.name && !ts.isSpreadAssignment(p)).map(memberName).filter((n) => n.length >= 3); }
-  function returnedObject(body) {
-    if (!body) return null;
-    if (!ts.isBlock(body)) { const e = unwrap(body); return e && ts.isObjectLiteralExpression(e) ? e : null; }
-    const last = [...body.statements].reverse().find((x) => ts.isReturnStatement(x));
-    const e = last?.expression ? unwrap(last.expression) : null;
-    if (e && ts.isObjectLiteralExpression(e)) return e;
-    // `return useMemo(() => ({ ... }), deps)`
-    if (e && ts.isCallExpression(e) && /^(useMemo|useCallback)$/.test(lastName(e.expression) ?? "")) { const cb = unwrap(e.arguments[0]); if (cb && ts.isArrowFunction(cb)) return returnedObject(cb.body); }
-    return null;
-  }
-  function collectTopLevel(st) {
-    const exported = hasExport(st);
-    if (full && exported && info.repo === "tovu") {
-      if (ts.isFunctionDeclaration(st) && st.name) { const o = returnedObject(st.body); if (o) f.objMembers.push({ sym: st.name.text, line: lineOf(st.getStart()), members: objMemberNames(o), kind: "returns" }); }
-      else if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) {
-        const i = unwrap(d.initializer); if (!i || !ts.isIdentifier(d.name)) continue;
-        const o = ts.isObjectLiteralExpression(i) ? i : (ts.isArrowFunction(i) || ts.isFunctionExpression(i)) ? returnedObject(i.body) : null;
-        if (o) f.objMembers.push({ sym: d.name.text, line: lineOf(st.getStart()), members: objMemberNames(o), kind: ts.isObjectLiteralExpression(i) ? "object" : "returns" });
-      }
-    }
-    if (ts.isFunctionDeclaration(st)) {
-      const name = st.name?.text ?? "default"; declare(name, "function", st, exported);
-      const sc = singleCall(st.body, st.parameters);
-      addUnit(name, "fn", st.body, st, exported, { callRoot: sc?.root ?? null, callArgs: sc?.args });
-    } else if (ts.isVariableStatement(st)) {
-      for (const d of st.declarationList.declarations) {
-        if (!ts.isIdentifier(d.name)) { d.name.elements?.forEach((el) => ts.isBindingElement(el) && ts.isIdentifier(el.name) && declare(el.name.text, "const", st, exported)); continue; }
-        const init = unwrap(d.initializer);
-        const isFn = init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init));
-        declare(d.name.text, isFn ? "function" : "const", st, exported);
-        f.constKinds.set(d.name.text, constKindOf(init));
-        if (full || info.repo === "jini") { const key = constSetOf(init); if (key) f.constSets.push({ name: d.name.text, line: lineOf(st.getStart()), exported, key, size: key.split("\u0001").length }); }
-        // Constant VALUES (round-2 judge 1 #2, judge 3 #2): `50 * 1024 * 1024`, `FETCH_TIMEOUT_MS`, frozen
-        // option objects. Numbers lose `_` separators; objects/strings are whitespace-stripped text.
-        if (full && init) {
-          const ck = f.constKinds.get(d.name.text); let inner = init;
-          if (ts.isCallExpression(inner) && /^Object\.freeze$/.test(inner.expression.getText()) && inner.arguments[0]) inner = unwrap(inner.arguments[0]);
-          // v4 (judge 1 #4): quotes and escapes normalised (`'askChoiceAnswerTicket'` == `"askChoiceAnswerTicket"`
-          // scored sim 0); strings compare by their parsed text; regex literals are values too (SITE_NAME_PATTERN).
-          const lit = unwrap(init);
-          const val = lit && ts.isStringLiteralLike(lit) ? JSON.stringify(lit.text) : lit && ts.isRegularExpressionLiteral(lit) ? lit.text
-            : ck === "literal" ? init.getText().replace(/_/g, "").replace(/\s+/g, "").replace(/'([^'"\\]*)'/g, '"$1"') : ts.isObjectLiteralExpression(inner) ? inner.getText().replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, "").replace(/'([^'"\\]*)'/g, '"$1"') : null;
-          if (val && val.length <= 400) f.constVals.push({ name: d.name.text, line: lineOf(st.getStart()), exported, val, obj: ts.isObjectLiteralExpression(inner), re: !!lit && ts.isRegularExpressionLiteral(lit), str: !!lit && ts.isStringLiteralLike(lit) });
-        }
-        if (isFn) { const sc = singleCall(init.body, init.parameters); addUnit(d.name.text, "fn", init.body, st, exported, { callRoot: sc?.root ?? null, callArgs: sc?.args, params: init.parameters }); }
-        else if (init && ts.isIdentifier(init)) f.units.push({ name: d.name.text, kind: "alias", line: lineOf(st.getStart()), statements: 0, exported, shingles: new Uint32Array(), callRoot: init.text });
-      }
-    } else if (ts.isClassDeclaration(st)) {
-      const name = st.name?.text ?? "default"; declare(name, "class", st, exported);
-      const ext = st.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0];
-      // v4 (judge 2 #1): a constructor-only subclass (`constructor(x) { super(f(x)) }`, no other member) is a
-      // TINY-EXTENDS-ADAPTER; one that overrides ANY method (replaceWorkspace under a lock) never is.
-      const ctorOnly = st.members.length > 0 && st.members.every((m) => ts.isConstructorDeclaration(m) && !!m.body && m.body.statements.length === 1
-        && ts.isExpressionStatement(m.body.statements[0]) && ts.isCallExpression(unwrap(m.body.statements[0].expression)) && unwrap(m.body.statements[0].expression).expression.kind === ts.SyntaxKind.SuperKeyword
-        && !(m.parameters ?? []).some((p) => ts.getModifiers?.(p)?.length));
-      const overrides = st.members.filter((m) => !ts.isConstructorDeclaration(m) && m.name).map(memberName);
-      if (ext) f.extendsInfo.push({ name, base: rootIdent(ext.expression), members: st.members.length, line: lineOf(st.getStart()), ctorOnly, overrides });
-      // `implements` names (judge 2 #5: Sql* <-> InMemory* class-api twins implementing the same port).
-      const impl = st.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ImplementsKeyword)?.types ?? [];
-      for (const t of impl) { const r = rootIdent(t.expression); if (r) f.implementsNames.push({ cls: name, iface: r }); }
-      // Class API fingerprint (pilot ABC #3: keyring.memory / CredentialSetVaultRepo restructured,
-      // body sim .04): public method names + the set of callee names used anywhere in the class.
-      const isPublic = (m) => !ts.getModifiers?.(m)?.some((x) => x.kind === ts.SyntaxKind.PrivateKeyword || x.kind === ts.SyntaxKind.ProtectedKeyword) && !(m.name && ts.isPrivateIdentifier(m.name)) && !/^_/.test(m.name ? memberName(m) : "_");
-      const calls = new Set(); const walkCalls = (n) => { if (ts.isCallExpression(n)) { const c = lastName(n.expression); if (c) calls.add(c); } ts.forEachChild(n, walkCalls); }; walkCalls(st);
-      addUnit(name, "class", st, st, exported, { methods: st.members.filter((m) => m.name && (ts.isMethodDeclaration(m) || ts.isPropertyDeclaration(m) || ts.isGetAccessor(m))).map(memberName),
-        publicMethods: st.members.filter((m) => m.name && (ts.isMethodDeclaration(m) || ts.isGetAccessor(m)) && isPublic(m)).map(memberName), calls: [...calls], implements: impl.map((t) => rootIdent(t.expression)).filter(Boolean) });
-      for (const m of st.members) if ((ts.isMethodDeclaration(m) || ts.isConstructorDeclaration(m) || ts.isGetAccessor(m)) && m.body) addUnit(`${name}.${m.name ? memberName(m) : "constructor"}`, "method", m.body, m, exported);
-    } else if (ts.isInterfaceDeclaration(st) || ts.isTypeAliasDeclaration(st)) {
-      declare(st.name.text, ts.isInterfaceDeclaration(st) ? "interface" : "type", st, exported);
-      const ext = ts.isInterfaceDeclaration(st) ? st.heritageClauses?.[0]?.types[0] : null;
-      if (ext) f.extendsInfo.push({ name: st.name.text, base: rootIdent(ext.expression), members: st.members.length, line: lineOf(st.getStart()), iface: true });
-      if (full) { const shape = shapeOf(st); if (shape) f.shapes.push({ name: st.name.text, line: lineOf(st.getStart()), exported, ...shape }); }
-    } else if (ts.isEnumDeclaration(st) || ts.isModuleDeclaration(st)) {
-      if (st.name && ts.isIdentifier(st.name)) declare(st.name.text, "enum", st, exported);
-    }
-  }
 
-  // --- whole-tree walk: inline import(), require, ns uses, literals, ports, bug hints ------------
-  const jiniLits = info.repo === "jini" && !info.helper ? { all: new Set(), formats: [], phrases: new Set() } : null;
-  const bug = { crud: [], signalParams: [], abortChecks: [], forwards: [], writes: [], awaitGaps: [], listenerGaps: [], swallows: [], wholePut: [],
-    secretLogs: [], cachedPromise: [], ctxNoSignal: [], filterAfterPage: [] };
-  const tovuFull = full && info.repo === "tovu";
-  const unitBodies = new Set(); for (const st of sf.statements) { /* bodies already fingerprinted as top-level units */
-    if (ts.isFunctionDeclaration(st) && st.body) unitBodies.add(st.body);
-    else if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) { const i = unwrap(d.initializer); if (i && (ts.isArrowFunction(i) || ts.isFunctionExpression(i))) unitBodies.add(i.body); }
-    else if (ts.isClassDeclaration(st)) for (const m of st.members) if (m.body) unitBodies.add(m.body);
-  }
-  // `await import(x)` / `await import(x).then(...)`; `lazy(() => import(x))` is code splitting, not this.
-  const awaitedCall = (cur) => { let p = cur.parent;
-    while (p && (ts.isParenthesizedExpression(p) || (ts.isPropertyAccessExpression(p) && p.expression === cur) || (ts.isCallExpression(p) && p.expression === cur))) { cur = p; p = p.parent; }
-    return !!p && ts.isAwaitExpression(p); };
-  /** Names a dynamic import actually uses: `import(x).then(m => m.X)`, `.then(({ X }) => …)`,
-   * `(await import(x)).X`, `const { X } = await import(x)`, `const m = await import(x); m.X`.
-   * Without this the edge stayed on the barrel: Media.tsx showed 0 prod importers although
-   * panel-pages.ts:61 does `import("./features/media").then(m => m.Media)` (pilot DE #2). */
-  function dynamicNames(call) {
-    let p = call.parent; while (p && (ts.isAwaitExpression(p) || ts.isParenthesizedExpression(p))) p = p.parent;
-    if (p && ts.isVariableDeclaration(p) && ts.isObjectBindingPattern(p.name)) return { names: p.name.elements.map((el) => (el.propertyName ?? el.name).getText()) };
-    if (p && ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) return { names: ["*"], local: p.name.text };
-    if (p && ts.isPropertyAccessExpression(p) && p.name.text !== "then") return { names: [p.name.text] };
-    if (p && ts.isPropertyAccessExpression(p) && ts.isCallExpression(p.parent)) {
-      const cb = unwrap(p.parent.arguments[0]);
-      if (cb && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb)) && cb.parameters[0]) {
-        const pn = cb.parameters[0].name;
-        if (ts.isObjectBindingPattern(pn)) return { names: pn.elements.map((el) => (el.propertyName ?? el.name).getText()) };
-        if (ts.isIdentifier(pn)) {
-          const used = new Set(); const w = (n) => { if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === pn.text) used.add(n.name.text); ts.forEachChild(n, w); };
-          w(cb.body); if (used.size) return { names: [...used] };
-        }
-      }
-    }
-    return { names: ["*"] };
-  }
-  /** Per-handler timing (pilot ABC #5, DE #3). A `signal` variable name is no evidence; ORDER is:
+function createDossierVisitor({ addImport, lineOf, dynamicNames, f, awaitedCall, full, jiniLits, topSymbol, topExported, info, tovuFull, coupling, EVENT_CALLEES, localStr, PHRASE_CALLEES, fnName, portWrite, bug, text, sf, collectPorts, counter, unitBodies, addUnit, timing }) {
+  const visit = (n) => {
+    recordDossierImportReferences({ n, addImport, lineOf, dynamicNames, f, awaitedCall });
+    // Same-file uses of an export (round-2 judge 2 #7: importWorkerLaunch is used at :66, so it is not
+    // test-only even with no prod importer).
+    if (full && ts.isIdentifier(n) && f.localExports.has(n.text) && !(n.parent && n.parent.name === n) && !ts.isExportSpecifier(n.parent)) f.selfUses.set(n.text, (f.selfUses.get(n.text) ?? 0) + 1);
+    recordDossierBehaviorTokens(full, n, f);
+    recordDossierStringLiterals({ full, jiniLits, n, lineOf, topSymbol, topExported, info, tovuFull, f, coupling });
+    recordTovuDossierFacts({ tovuFull, n, f, coupling, EVENT_CALLEES, localStr, PHRASE_CALLEES, fnName, lineOf, portWrite, bug, topSymbol, text });
+    // --- v4 facts --------------------------------------------------------------------------------
+    // Path-loaded entries (judge 1 #1, judge 2 #2): `lib: { entry: path.resolve(dir, "src/loader-entry.ts") }`,
+    // `new URL("../../x.js", import.meta.url)`, `path.join(dir, "../../inbound/assistant", "x.ts")` spawn paths.
+    recordDossierPathLiterals({ info, n, f, sf });
+    recordDossierSymbolsAndRoutes({ full, n, f, sf, info, lineOf, topSymbol, localStr });
+    recordDossierFunctionsAndPorts({ full, n, collectPorts, counter, fnName, info, unitBodies, addUnit, topSymbol, tovuFull, bug, lineOf, timing, f, localStr, portWrite, text });
+    ts.forEachChild(n, visit);
+  };
+  return visit;
+}
+
+/** Per-handler timing (pilot ABC #5, DE #3). A `signal` variable name is no evidence; ORDER is:
    * bugs ABC #7-#10 were "abort checked, then awaits, then a write with no recheck"; DE 2/8/23 were
    * "an await before the close/abort listener is attached" (a client leaving during it is never
    * seen). One function body in source order; nested functions are their own handlers. An await
    * counts only if it ENDS before the write/listener starts (`await store.put()` is no gap). */
-  function timing(fn, name) {
+function createDossierTiming({ localStr, portWrite, lineOf, bug }) {
+  return function timing(fn, name) {
     const ev = { awaits: [], checks: [], writes: [], listeners: [], paged: [], filters: [] };
     const walk = (n) => {
       if (n !== fn.body && ts.isFunctionLike(n)) return;
@@ -713,337 +628,565 @@ function parseFile(abs, info) {
       const l = first(ev.listeners); const pre = ev.awaits.filter((x) => x.end <= l.getStart());
       if (pre.length) bug.listenerGaps.push(`${name}@${at(fn)}: await @${at(first(pre))} before close/abort listener @${at(l)}`);
     }
+  };
+}
+
+function createDossierCollectTopLevel({ full, info, returnedObject, f, lineOf, objMemberNames, declare, singleCall, addUnit, constKindOf, constSetOf }) {
+  return function collectTopLevel(st) {
+    const exported = hasExport(st);
+    recordDossierExportedObjects({ full, exported, info, st, returnedObject, f, lineOf, objMemberNames });
+    recordTopLevelDeclaration({ st, declare, exported, singleCall, addUnit, f, constKindOf, full, info, constSetOf, lineOf });
+  };
+}
+
+function recordDossierExportedObjects({ full, exported, info, st, returnedObject, f, lineOf, objMemberNames }: { full: unknown; exported: unknown; info: unknown; st: unknown; returnedObject: unknown; f: unknown; lineOf: unknown; objMemberNames: unknown }) {
+  if (full && exported && info.repo === "tovu") {
+    if (ts.isFunctionDeclaration(st) && st.name) { const o = returnedObject(st.body); if (o) f.objMembers.push({ sym: st.name.text, line: lineOf(st.getStart()), members: objMemberNames(o), kind: "returns" }); }
+    else if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) {
+      const i = unwrap(d.initializer); if (!i || !ts.isIdentifier(d.name)) continue;
+      const o = ts.isObjectLiteralExpression(i) ? i : (ts.isArrowFunction(i) || ts.isFunctionExpression(i)) ? returnedObject(i.body) : null;
+      if (o) f.objMembers.push({ sym: d.name.text, line: lineOf(st.getStart()), members: objMemberNames(o), kind: ts.isObjectLiteralExpression(i) ? "object" : "returns" });
+    }
   }
-  /** Write through an injected port or a callback parameter (see PORT_RECEIVER_RE). */
-  function portWrite(call) {
+}
+
+
+/** Members of the object a function returns (hooks/controllers: `return { items, replace, setDraftToken }`)
+   * or of an exported object literal (`export const api = { setSitesHome: ... }`), judge 3 #4. */
+function createDossierObjMemberNames() {
+  return function objMemberNames(o) { return o.properties.filter((p) => p.name && !ts.isSpreadAssignment(p)).map(memberName).filter((n) => n.length >= 3); };
+}
+
+function createDossierAddUnit({ full, normHash, unitBeh, f, lineOf }) {
+  return function addUnit(name, kindTag, body, node, exported, extra = {}) {
+    if (!full || !body) return;
+    const { kinds, statements } = bodyKinds(body);
+    // One-liners (openSqliteSnapshot, safeHref) are skipped by the fingerprint; keep their exact
+    // text so an identical copy in Jini still shows up (pilot ABC #3).
+    let smallText = null;
+    if (statements < MIN_UNIT_STATEMENTS && kindTag !== "class" && !extra.closure) {
+      const t = body.getText().replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, "");
+      if (t.length >= SMALL_EXACT_MIN_CHARS && t.length <= 600) smallText = t;
+    }
+    // register-only: every statement is `register*(...)` (route modules). A cycle edge from such a
+    // body is wiring, not logic, so it must not lift the tier (pilot DE #5).
+    const registerOnly = ts.isBlock(body) && body.statements.length > 0 && body.statements.every((s) => {
+      const e = ts.isExpressionStatement(s) ? unwrap(s.expression) : null;
+      return e && ts.isCallExpression(e) && /^register[A-Z]/.test(lastName(e.expression) ?? "");
+    });
+    // Identifier-agnostic key for small bodies (round-2 judge 1 #2: identityReposFrom x4,
+    // createMemberAccessResolver x3 are one `return {...}` each, below the 5-statement floor).
+    let kindsKey = null;
+    if (statements < MIN_UNIT_STATEMENTS && kinds.length >= SMALL_KINDS_MIN && kindTag !== "class") { let h = 2166136261; for (const k of kinds) h = Math.imul(h ^ k, 16777619); kindsKey = `${kinds.length}:${h >>> 0}`; }
+    // v4: full kind-sequence hash (same-file twin pass: readSiteAssistant <-> readAdminByok, judge 3 #3),
+    // normalised text hash and behaviour tokens (name-independent Jini twins, judge 1 #2, judge 2 #3).
+    // >= 20 kinds (part 2: readSiteAssistant/readAdminByok, two 2-statement bodies, fell under 30).
+    let kindsAll = null; if (kindTag !== "class" && kinds.length >= 20) { let h = 2166136261; for (const k of kinds) h = Math.imul(h ^ k, 16777619); kindsAll = `${kinds.length}:${h >>> 0}`; }
+    const norm = kindTag !== "class" ? normHash(body, node.parameters ?? node.initializer?.parameters ?? extra.params ?? []) : null;
+    const ubeh = kindTag !== "class" && statements >= 2 ? unitBeh(body) : null;
+    delete extra.params;
+    f.units.push({ name, kind: kindTag, line: lineOf(node.getStart()), endLine: lineOf(node.getEnd()), statements, exported, shingles: shinglesOf(kinds), smallText, kindsKey, kindsAll, norm, ubeh, registerOnly, ...extra });
+  };
+}
+
+function createDossierDeclare(f, lineOf) {
+  return function declare(name, kindTag, node, exported) {
+    f.localNames.add(name);
+    if (exported) f.localExports.set(hasDefault(node) ? "default" : name, { kind: kindTag, line: lineOf(node.getStart()) });
+  };
+}
+
+function recordTopLevelDeclaration({ st, declare, exported, singleCall, addUnit, f, constKindOf, full, info, constSetOf, lineOf }: { st: unknown; declare: unknown; exported: unknown; singleCall: unknown; addUnit: unknown; f: unknown; constKindOf: unknown; full: unknown; info: unknown; constSetOf: unknown; lineOf: unknown }) {
+  if (ts.isFunctionDeclaration(st)) {
+    const name = st.name?.text ?? "default"; declare(name, "function", st, exported);
+    const sc = singleCall(st.body, st.parameters);
+    addUnit(name, "fn", st.body, st, exported, { callRoot: sc?.root ?? null, callArgs: sc?.args });
+  } else if (ts.isVariableStatement(st)) {
+    for (const d of st.declarationList.declarations) {
+      if (!ts.isIdentifier(d.name)) { d.name.elements?.forEach((el) => ts.isBindingElement(el) && ts.isIdentifier(el.name) && declare(el.name.text, "const", st, exported)); continue; }
+      const init = unwrap(d.initializer);
+      const isFn = init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init));
+      declare(d.name.text, isFn ? "function" : "const", st, exported);
+      f.constKinds.set(d.name.text, constKindOf(init));
+      if (full || info.repo === "jini") { const key = constSetOf(init); if (key) f.constSets.push({ name: d.name.text, line: lineOf(st.getStart()), exported, key, size: key.split("\u0001").length }); }
+      // Constant VALUES (round-2 judge 1 #2, judge 3 #2): `50 * 1024 * 1024`, `FETCH_TIMEOUT_MS`, frozen
+      // option objects. Numbers lose `_` separators; objects/strings are whitespace-stripped text.
+      if (full && init) {
+        const ck = f.constKinds.get(d.name.text); let inner = init;
+        if (ts.isCallExpression(inner) && /^Object\.freeze$/.test(inner.expression.getText()) && inner.arguments[0]) inner = unwrap(inner.arguments[0]);
+        // v4 (judge 1 #4): quotes and escapes normalised (`'askChoiceAnswerTicket'` == `"askChoiceAnswerTicket"`
+        // scored sim 0); strings compare by their parsed text; regex literals are values too (SITE_NAME_PATTERN).
+        const lit = unwrap(init);
+        const val = lit && ts.isStringLiteralLike(lit) ? JSON.stringify(lit.text) : lit && ts.isRegularExpressionLiteral(lit) ? lit.text
+          : ck === "literal" ? init.getText().replace(/_/g, "").replace(/\s+/g, "").replace(/'([^'"\\]*)'/g, '"$1"') : ts.isObjectLiteralExpression(inner) ? inner.getText().replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, "").replace(/'([^'"\\]*)'/g, '"$1"') : null;
+        if (val && val.length <= 400) f.constVals.push({ name: d.name.text, line: lineOf(st.getStart()), exported, val, obj: ts.isObjectLiteralExpression(inner), re: !!lit && ts.isRegularExpressionLiteral(lit), str: !!lit && ts.isStringLiteralLike(lit) });
+      }
+      if (isFn) { const sc = singleCall(init.body, init.parameters); addUnit(d.name.text, "fn", init.body, st, exported, { callRoot: sc?.root ?? null, callArgs: sc?.args, params: init.parameters }); }
+      else if (init && ts.isIdentifier(init)) f.units.push({ name: d.name.text, kind: "alias", line: lineOf(st.getStart()), statements: 0, exported, shingles: new Uint32Array(), callRoot: init.text });
+    }
+  } else if (ts.isClassDeclaration(st)) {
+    const name = st.name?.text ?? "default"; declare(name, "class", st, exported);
+    const ext = st.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0];
+    // v4 (judge 2 #1): a constructor-only subclass (`constructor(x) { super(f(x)) }`, no other member) is a
+    // TINY-EXTENDS-ADAPTER; one that overrides ANY method (replaceWorkspace under a lock) never is.
+    const ctorOnly = st.members.length > 0 && st.members.every((m) => ts.isConstructorDeclaration(m) && !!m.body && m.body.statements.length === 1
+      && ts.isExpressionStatement(m.body.statements[0]) && ts.isCallExpression(unwrap(m.body.statements[0].expression)) && unwrap(m.body.statements[0].expression).expression.kind === ts.SyntaxKind.SuperKeyword
+      && !(m.parameters ?? []).some((p) => ts.getModifiers?.(p)?.length));
+    const overrides = st.members.filter((m) => !ts.isConstructorDeclaration(m) && m.name).map(memberName);
+    if (ext) f.extendsInfo.push({ name, base: rootIdent(ext.expression), members: st.members.length, line: lineOf(st.getStart()), ctorOnly, overrides });
+    // `implements` names (judge 2 #5: Sql* <-> InMemory* class-api twins implementing the same port).
+    const impl = st.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ImplementsKeyword)?.types ?? [];
+    for (const t of impl) { const r = rootIdent(t.expression); if (r) f.implementsNames.push({ cls: name, iface: r }); }
+    // Class API fingerprint (pilot ABC #3: keyring.memory / CredentialSetVaultRepo restructured,
+    // body sim .04): public method names + the set of callee names used anywhere in the class.
+    const isPublic = (m) => !ts.getModifiers?.(m)?.some((x) => x.kind === ts.SyntaxKind.PrivateKeyword || x.kind === ts.SyntaxKind.ProtectedKeyword) && !(m.name && ts.isPrivateIdentifier(m.name)) && !/^_/.test(m.name ? memberName(m) : "_");
+    const calls = new Set(); const walkCalls = (n) => { if (ts.isCallExpression(n)) { const c = lastName(n.expression); if (c) calls.add(c); } ts.forEachChild(n, walkCalls); }; walkCalls(st);
+    addUnit(name, "class", st, st, exported, {
+      methods: st.members.filter((m) => m.name && (ts.isMethodDeclaration(m) || ts.isPropertyDeclaration(m) || ts.isGetAccessor(m))).map(memberName),
+      publicMethods: st.members.filter((m) => m.name && (ts.isMethodDeclaration(m) || ts.isGetAccessor(m)) && isPublic(m)).map(memberName), calls: [...calls], implements: impl.map((t) => rootIdent(t.expression)).filter(Boolean)
+    });
+    for (const m of st.members) if ((ts.isMethodDeclaration(m) || ts.isConstructorDeclaration(m) || ts.isGetAccessor(m)) && m.body) addUnit(`${name}.${m.name ? memberName(m) : "constructor"}`, "method", m.body, m, exported);
+  } else if (ts.isInterfaceDeclaration(st) || ts.isTypeAliasDeclaration(st)) {
+    declare(st.name.text, ts.isInterfaceDeclaration(st) ? "interface" : "type", st, exported);
+    const ext = ts.isInterfaceDeclaration(st) ? st.heritageClauses?.[0]?.types[0] : null;
+    if (ext) f.extendsInfo.push({ name: st.name.text, base: rootIdent(ext.expression), members: st.members.length, line: lineOf(st.getStart()), iface: true });
+    if (full) { const shape = shapeOf(st); if (shape) f.shapes.push({ name: st.name.text, line: lineOf(st.getStart()), exported, ...shape }); }
+  } else if (ts.isEnumDeclaration(st) || ts.isModuleDeclaration(st)) {
+    if (st.name && ts.isIdentifier(st.name)) declare(st.name.text, "enum", st, exported);
+  }
+}
+
+
+function recordDossierImportReferences({ n, addImport, lineOf, dynamicNames, f, awaitedCall }: { n: unknown; addImport: unknown; lineOf: unknown; dynamicNames: unknown; f: unknown; awaitedCall: unknown }) {
+  if (ts.isImportTypeNode(n) && ts.isLiteralTypeNode(n.argument) && ts.isStringLiteral(n.argument.literal)) {
+    let q = n.qualifier; while (q && ts.isQualifiedName(q)) q = q.left;
+    addImport(n.argument.literal.text, lineOf(n.getStart()), "importType", [q ? q.text : "*"], true);
+  } else if (ts.isCallExpression(n) && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) &&
+    (n.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(n.expression) && n.expression.text === "require"))) {
+    const dyn = n.expression.kind === ts.SyntaxKind.ImportKeyword;
+    const dn = dyn ? dynamicNames(n) : (() => {
+      let p = n.parent; while (p && ts.isParenthesizedExpression(p)) p = p.parent;
+      return { names: p && ts.isVariableDeclaration(p) && ts.isObjectBindingPattern(p.name) ? p.name.elements.map((el) => (el.propertyName ?? el.name).getText()) : ["*"] };
+    })();
+    // `const m = await import(x)`: treat m as a namespace binding so `m.X` uses resolve the names.
+    if (dn.local && !f.bindings.has(dn.local)) f.bindings.set(dn.local, { spec: n.arguments[0].text, imported: "*" });
+    addImport(n.arguments[0].text, lineOf(n.getStart()), dyn ? "dynamic" : "require", dn.names, false, dyn ? { awaited: awaitedCall(n) } : {});
+  } else if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && f.bindings.get(n.expression.text)?.imported === "*") {
+    const set = f.nsUses.get(n.expression.text) ?? new Set(); set.add(n.name.text); f.nsUses.set(n.expression.text, set);
+  }
+}
+
+
+function recordDossierBehaviorTokens(full, n, f) {
+  if (full) {
+    // Behaviour fingerprint tokens (LEGACY-TWIN pre-pass): what a module SAYS (string literals, route
+    // strings), CALLS and TOUCHES (property names). Restructured siblings keep these when their
+    // bodies and names differ (pilot DE #1: media 0.07/0.11 by body). Private closures included.
+    // HTTP route registration, Tovu and Jini: `app.get("/x", ...)` or `{ path: "/api/..." }` (the
+    // LEGACY-TWIN route gate, see the legacy pre-pass).
+    if (ts.isCallExpression(n) && /^(get|post|put|patch|delete|all|route|use)$/.test(lastName(n.expression) ?? "") && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text.startsWith("/")) f.httpRoutes = true;
+    else if (ts.isPropertyAssignment(n) && /^(path|route|pattern)$/.test(memberName(n)) && ts.isStringLiteralLike(n.initializer) && /^\/api\//.test(n.initializer.text)) f.httpRoutes = true;
+    if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) && !isModuleSpecifier(n) && n.text.length >= 3 && n.text.length <= 60) f.beh.add(`s:${n.text}`);
+    else if (ts.isCallExpression(n)) { const c = lastName(n.expression); if (c) f.beh.add(`c:${c}`); }
+    else if (ts.isPropertyAccessExpression(n)) f.beh.add(`p:${n.name.text}`);
+    else if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n) || ts.isMethodDeclaration(n)) && n.name && ts.isIdentifier(n.name)) f.beh.add(`p:${n.name.text}`);
+  }
+}
+
+
+function recordDossierStringLiterals({ full, jiniLits, n, lineOf, topSymbol, topExported, info, tovuFull, f, coupling }: { full: unknown; jiniLits: unknown; n: unknown; lineOf: unknown; topSymbol: unknown; topExported: unknown; info: unknown; tovuFull: unknown; f: unknown; coupling: unknown }) {
+  if (full || jiniLits) {
+    if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateExpression(n)) && !isModuleSpecifier(n)) {
+      const pattern = templatePattern(n);
+      if (jiniLits) {
+        if (!/\s/.test(pattern) && pattern.length >= 2 && pattern.length <= 80) {
+          jiniLits.all.add(pattern);
+          if (ts.isTemplateExpression(n)) for (const piece of pattern.split("${}")) if (piece) jiniLits.all.add(piece);
+          for (const seg of pattern.split(/:|\$\{\}/)) if (seg) jiniLits.all.add(seg);
+          if (pattern.includes(":") && /[A-Za-z]{3}/.test(pattern)) jiniLits.formats.push({ pattern, line: lineOf(n.getStart()), symbol: topSymbol(n), exported: topExported(n) });
+        }
+        // Wording Tovu may compare or parse ("failed to start daemon: ", pilot DE #4): >= 12 chars,
+        // whitespace allowed; each static piece of a template separately.
+        for (const piece of pattern.split("${}")) { const t = piece.trim(); if (t.length >= 12 && t.length <= 200) jiniLits.phrases.add(piece.length <= 200 ? piece : t); }
+      } else if (info.repo === "tovu") {
+        // Tovu wording too (round-2 judge 3 #1, judge 1 #4): the parser of a Tovu line is often another
+        // Tovu app (desktop's /^tovu serve: bootToken=/ reads serve.ts's console line).
+        if (tovuFull) for (const piece of pattern.split("${}")) { const t = piece.trim(); if (t.length >= 12 && t.length <= 200 && !f.tPhrases.has(piece)) f.tPhrases.set(piece, pattern); }
+        const residue = RESIDUE_RE.test(pattern) ? "tovu" : vendorHit(pattern);
+        const format = isFormatLike(pattern);
+        if (residue || format) f.literals.push({ text: short(pattern, 80), line: lineOf(n.getStart()), ctx: literalContext(n), symbol: topSymbol(n), residue: residue ?? null, format });
+        // Template/script contents (RELEASE_PROBE holds 'jini:release-check', /admin, .admin-content,
+        // pilot DE #4): pull quoted strings, selectors/paths and colon ids out of long strings.
+        if (pattern.length > 40 || /\n/.test(pattern)) {
+          for (const m of pattern.matchAll(/['"]([^'"\s]{4,80})['"]/g)) coupling("template", m[1], n);
+          for (const m of pattern.matchAll(/(?:^|[\s(,='"`])([./#][A-Za-z_][\w./-]{3,60})/g)) coupling("template", m[1], n);
+          for (const m of pattern.matchAll(/\b([a-z][\w-]*:[a-z][\w:-]{2,60})\b/g)) coupling("template", m[1], n);
+        }
+      }
+    }
+  }
+}
+
+
+function recordTovuDossierFacts({ tovuFull, n, f, coupling, EVENT_CALLEES, localStr, PHRASE_CALLEES, fnName, lineOf, portWrite, bug, topSymbol, text }: { tovuFull: unknown; n: unknown; f: unknown; coupling: unknown; EVENT_CALLEES: unknown; localStr: unknown; PHRASE_CALLEES: unknown; fnName: unknown; lineOf: unknown; portWrite: unknown; bug: unknown; topSymbol: unknown; text: unknown }) {
+  if (tovuFull) {
+    // Format couplings beyond `x:y` ids (pilot DE #4): path.join literals, event names and
+    // operands Tovu compares/parses against (matched to Jini strings after the parse).
+    recordDossierFormatCouplings({ n, f, coupling, EVENT_CALLEES, localStr, PHRASE_CALLEES });
+    recordDossierSwallowedErrors({ n, fnName, lineOf, localStr, portWrite, bug });
+    // Wire keys (round-2 judge 1 #4, judge 3 #1): res.locals keys, x-* header names, cookie names and
+    // console/stdout protocol lines are formats another file (or app, or Jini) reads by name.
+    recordDossierWireProtocolUsage({ n, f, lineOf, topSymbol, localStr, bug });
+    // Promise cached for good (round-2 judge 1 #11: seed-hash, worker-sandbox): `x ??= load()` with no
+    // reset of x anywhere in the file keeps a rejected promise (or a cached null) forever.
+    recordDossierPersistenceHazards({ n, text, bug, lineOf });
+  }
+}
+
+
+function recordDossierPathLiterals({ info, n, f, sf }: { info: unknown; n: unknown; f: unknown; sf: unknown }) {
+  if (info.repo === "tovu" && info.role !== "test") {
+    if (ts.isStringLiteralLike(n) && !isModuleSpecifier(n) && /\.[mc]?[jt]sx?$/.test(n.text) && n.text.includes("/") && n.text.length <= 200) f.pathLits.push(n.text);
+    const pc = ts.isCallExpression(n) || ts.isNewExpression(n) ? (n.expression.getText(sf)) : "";
+    if (/^(path\.(posix\.)?)?(join|resolve)$|^URL$/.test(pc) && n.arguments?.length) {
+      const lits = []; for (const a0 of n.arguments) {
+        const a = unwrap(a0);
+        if (ts.isStringLiteralLike(a)) lits.push(a.text);
+        else if (ts.isConditionalExpression(a)) { const b = [a.whenTrue, a.whenFalse].map(unwrap).find((x) => ts.isStringLiteralLike(x) && /\.ts$/.test(x.text)) ?? unwrap(a.whenFalse); if (ts.isStringLiteralLike(b)) lits.push(b.text); }
+      }
+      const joined = lits.join("/").replace(/\/+/g, "/");
+      if (lits.length > 1 && /\.[mc]?[jt]sx?$/.test(joined)) f.pathLits.push(joined);
+    }
+  }
+}
+
+
+function recordDossierSymbolsAndRoutes({ full, n, f, sf, info, lineOf, topSymbol, localStr }: { full: unknown; n: unknown; f: unknown; sf: unknown; info: unknown; lineOf: unknown; topSymbol: unknown; localStr: unknown }) {
+  if (full) {
+    // Property names read or destructured here: member-level dead code (judge 3 #4: `replace`, `setDraftToken`).
+    if (ts.isPropertyAccessExpression(n)) f.propNames.add(n.name.text);
+    else if (ts.isBindingElement(n) && ts.isObjectBindingPattern(n.parent)) f.propNames.add((n.propertyName ?? n.name).getText(sf));
+    // Thrown messages (Tovu and Jini) and `err.message === "..."` / `.includes("...")` compares (judge 2 #8:
+    // a service exact-matching another file's error text is a private format coupling).
+    if (ts.isThrowStatement(n) && n.expression && ts.isNewExpression(unwrap(n.expression))) { const a = unwrap(unwrap(n.expression).arguments?.[0]); if (a && (ts.isStringLiteralLike(a) || ts.isTemplateExpression(a))) { const t = templatePattern(a).split("${}")[0].trim(); if (t.length >= 12) f.thrown.add(t); } }
+    if (info.repo === "tovu") {
+      const isMsg = (e) => { e = unwrap(e); return !!e && ts.isPropertyAccessExpression(e) && e.name.text === "message"; };
+      if (ts.isBinaryExpression(n) && /^[!=]==?$/.test(ts.tokenToString(n.operatorToken.kind) ?? "")) { const [m, l] = isMsg(n.left) ? [n.left, n.right] : isMsg(n.right) ? [n.right, n.left] : []; if (m && ts.isStringLiteralLike(l) && l.text.trim().length >= 12) f.errCompares.push({ text: l.text.trim(), line: lineOf(n.getStart()), symbol: topSymbol(n), op: "===" }); }
+      if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && /^(includes|startsWith|endsWith)$/.test(n.expression.name.text) && isMsg(n.expression.expression) && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text.trim().length >= 12) f.errCompares.push({ text: n.arguments[0].text.trim(), line: lineOf(n.getStart()), symbol: topSymbol(n), op: n.expression.name.text });
+    }
+    // Permission literals in a permission context (WIRE-DRIFT, tool-calls): `permission: "x"`,
+    // `permissions: ["x"]`, `const X_PERMISSION = "x"`, `grants.has("x")`, `requireToolPermission(..."x")`.
+    if (ts.isStringLiteralLike(n) && PERM_RE.test(n.text) && !isModuleSpecifier(n)) {
+      let p = n.parent; if (p && ts.isArrayLiteralExpression(p)) p = p.parent;
+      const def = !!p && ts.isVariableDeclaration(p) && /PERMISSION/i.test(p.name.getText(sf));
+      const ctx = def || (!!p && ts.isPropertyAssignment(p) && /permission/i.test(memberName(p)))
+        || (!!p && ts.isCallExpression(p) && /^(has|can|hasPermission|require\w*Permission|assert\w*Permission|authorize\w*|check\w*Permission)$/.test(lastName(p.expression) ?? ""));
+      if (ctx) f.permLits.push({ value: n.text, line: lineOf(n.getStart()), def, name: def ? p.name.getText(sf) : null });
+    }
+    // Route-path literals (WIRE-DRIFT and client-route checks): "/system/site-key", `${base}/system/site-token`.
+    if ((ts.isStringLiteralLike(n) || ts.isTemplateExpression(n)) && !isModuleSpecifier(n)) {
+      const pat = templatePattern(n).replace(/^(\$\{\})+/, "").replace(/\?.*$/, "");
+      if (/^\/[a-z][\w.-]*(\/[\w:.${}-]+)+\/?$/i.test(pat) && pat.length <= 160) f.routeLits.add(pat.replace(/\$\{\}|:\w+/g, ":p").replace(/\/$/, ""));
+    }
+    if (ts.isCallExpression(n) && /^(get|post|put|patch|delete|all)$/.test(lastName(n.expression) ?? "") && ts.isPropertyAccessExpression(n.expression) && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text.startsWith("/"))
+      f.routeDefs.push({ method: n.expression.name.text.toUpperCase(), path: n.arguments[0].text.replace(/:\w+/g, ":p").replace(/\/$/, ""), line: lineOf(n.getStart()) });
+    // Tool definitions (TOOL-CALL check): an object literal with `name` plus `authorization`, or plus
+    // `inputSchema` and `description` (AgentToolDefinition shape).
+    if (info.repo === "tovu" && ts.isObjectLiteralExpression(n)) {
+      const props = new Map(n.properties.filter((p) => p.name).map((p) => [memberName(p), p]));
+      if (props.has("name") && (props.has("authorization") || (props.has("inputSchema") && props.has("description")))) {
+        const val = (p) => { const i = p && ts.isPropertyAssignment(p) ? unwrap(p.initializer) : p && ts.isShorthandPropertyAssignment(p) ? p.name : null; if (!i) return null; if (ts.isStringLiteralLike(i)) return i.text; if (ts.isIdentifier(i)) return localStr.get(i.text) ?? `${i.text}`; return short(i.getText(sf), 40); };
+        const auth = props.get("authorization"); const ai = auth && ts.isPropertyAssignment(auth) ? unwrap(auth.initializer) : null;
+        const perm = ai && ts.isObjectLiteralExpression(ai) ? val(ai.properties.find((p) => p.name && memberName(p) === "permission")) : null;
+        f.tools.push({ name: val(props.get("name")), line: lineOf(n.getStart()), permission: perm, hasAuthorization: !!auth, hasSchema: props.has("inputSchema") });
+      }
+    }
+  }
+}
+
+
+function recordDossierFunctionsAndPorts({ full, n, collectPorts, counter, fnName, info, unitBodies, addUnit, topSymbol, tovuFull, bug, lineOf, timing, f, localStr, portWrite, text }: { full: unknown; n: unknown; collectPorts: unknown; counter: unknown; fnName: unknown; info: unknown; unitBodies: unknown; addUnit: unknown; topSymbol: unknown; tovuFull: unknown; bug: unknown; lineOf: unknown; timing: unknown; f: unknown; localStr: unknown; portWrite: unknown; text: unknown }) {
+  if (full) {
+    if (ts.isObjectLiteralExpression(n)) collectPorts(n);
+    if (ts.isFunctionLike(n) && "body" in n && n.body) {
+      counter.fnCount++;
+      const name = fnName(n);
+      // Jini private closures as twin targets (pilot DE #1: toWireSurfacePayload <-> a closure in
+      // delegated-tool-bridge). Tovu nested functions stay out: rows label top-level symbols.
+      if (info.repo === "jini" && ts.isBlock(n.body) && !unitBodies.has(n.body) && name !== "(anon)") addUnit(`${topSymbol(n) ?? "?"}>${name}`, "fn", n.body, n, false, { closure: true });
+      if (tovuFull) {
+        // A function that talks about process exit (SIGTERM, .kill(, exit codes) uses `signal` for
+        // an OS signal, not cancellation (pilot DE #3: kill, classifyExit, computeExitReasonCode).
+        // `(code, signal)` / `{ code, signal }` is a child-process exit pair.
+        const osFn = /SIG[A-Z]{3,}|\.kill\(|\bexit(Code)?\b|\bkill\b/i.test(name) || (n.parameters ?? []).some((p) => /\bcode\b/.test(p.name.getText())) || ((n.parameters ?? []).some((p) => /signal/i.test(p.name.getText())) && /SIG[A-Z]{3,}|\.kill\(|exitCode|on\(["'](exit|close)["']/.test(n.getText()));
+        if (!osFn) for (const p of n.parameters ?? []) {
+          const pn = p.name; const ptype = p.type?.getText() ?? "";
+          // OS signals (NodeJS.Signals, "SIGTERM" strings, exit-code helpers) are not cancellation.
+          if (/Signals|^string|^number/.test(ptype)) continue;
+          const names = ts.isIdentifier(pn) ? [pn.text] : ts.isObjectBindingPattern(pn) ? pn.elements.map((el) => el.name.getText()) : [];
+          if (/AbortSignal|CancelToken/.test(ptype) || names.some((x) => /^(signal|abortSignal|cancel\w*)$/.test(x))) bug.signalParams.push(`${name}@${lineOf(n.getStart())}`);
+          else if (/\bsignal\??:\s*AbortSignal/.test(ptype)) bug.signalParams.push(`${name}(opts.signal)@${lineOf(n.getStart())}`);
+        }
+        if (CRUD_RE.test(name)) bug.crud.push(`${name}@${lineOf(n.getStart())}`);
+        timing(n, name);
+      }
+    }
+    // Jini symbols that write, so a Tovu bare call into Jini resolves one hop too.
+    if (info.repo === "jini" && ts.isCallExpression(n) && writeKind(n) === "write") { const s0 = topSymbol(n); if (s0) f.directWriteSyms.add(s0); }
+    if (tovuFull && ts.isCallExpression(n)) {
+      const callee = lastName(n.expression);
+      if (callee === "throwIfAborted") bug.abortChecks.push(lineOf(n.getStart()));
+      const encl = ts.findAncestor(n.parent, ts.isFunctionLike);
+      const osSignal = /kill|exit|signal|^on$|^once$|^String$|^log$|^warn$|^error$/i.test(callee ?? "") || (!!encl && (/SIG[A-Z]{3,}|\.kill\(|exitCode/.test(encl.getText()) || (encl.parameters ?? []).some((p) => /\bcode\b/.test(p.name.getText()))));
+      const passes = !osSignal && n.arguments.some((a) => (ts.isIdentifier(a) && /^(signal|abortSignal)$/.test(a.text)) || (ts.isPropertyAccessExpression(a) && a.name.text === "signal")
+        || (ts.isObjectLiteralExpression(a) && a.properties.some((p) => p.name && /^signal$/.test(memberName(p)))));
+      const label = short(n.expression.getText().replace(/\s+/g, ""), 48);
+      if (passes) bug.forwards.push(`${label}@${lineOf(n.getStart())}`);
+      // Bare verb-noun calls (settleWithin, trashDaysRemaining, pushRefusal) are writes only if the
+      // callee itself writes: resolved one hop after the parse (round-2 judge 1 #3, judge 2 #9).
+      const wk = writeKind(n, (id) => localStr.get(id)) ?? (portWrite(n) ? "write" : null);
+      // Map-cached promise with no delete-on-reject (judge 2 #9: decoyKeyHash memoises hasher.hash() in a
+      // Map; a rejected hash stays cached for the process). `M.set(k, v)` in a Promise-returning function
+      // (or a Map typed with Promise) and no `M.delete(` anywhere in the file.
+      if (ts.isPropertyAccessExpression(unwrap(n.expression)) && unwrap(n.expression).name.text === "set" && n.arguments.length === 2) {
+        const m = unwrap(n.expression).expression.getText().replace(/\s+/g, ""); const encl = ts.findAncestor(n.parent, ts.isFunctionLike);
+        const esc = m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        // A non-async function typed `Promise<...>` returns the cached value itself: that is a cached promise.
+        const promiseFn = (!!encl && /Promise</.test(encl.type?.getText() ?? "") && !ts.getModifiers?.(encl)?.some((x) => x.kind === ts.SyntaxKind.AsyncKeyword)) || new RegExp(`${esc.split(".").pop()}[^;\\n]*Map<[^>]*Promise<`).test(text);
+        const raw = n.arguments[1]; const v0 = unwrap(raw);
+        const isCall = !ts.isAwaitExpression(raw) && (ts.isCallExpression(v0) || (ts.isIdentifier(v0) && !!encl && new RegExp(`\\b${v0.text}\\s*=\\s*[\\w.]+\\(`).test(encl.getText())));
+        if (promiseFn && isCall && !new RegExp(`${esc}\\.(delete|clear)\\(`).test(text)) bug.cachedPromise.push(`${m}.set(...) caches a promise, no delete-on-reject @${lineOf(n.getStart())}`);
+      }
+      if (wk === "write") { bug.writes.push(`${label}@${lineOf(n.getStart())}${passes ? "+sig" : ""}`); const ts0 = topSymbol(n); if (ts0) f.directWriteSyms.add(ts0); }
+      else if (wk === "bare") f.bareWrites.push({ callee: unwrap(n.expression).text, text: `${label}@${lineOf(n.getStart())}${passes ? "+sig" : ""}` });
+    } else if (tovuFull && ts.isPropertyAccessExpression(n) && n.name.text === "aborted") bug.abortChecks.push(lineOf(n.getStart()));
+  }
+}
+
+
+function recordDossierFormatCouplings({ n, f, coupling, EVENT_CALLEES, localStr, PHRASE_CALLEES }: { n: unknown; f: unknown; coupling: unknown; EVENT_CALLEES: unknown; localStr: unknown; PHRASE_CALLEES: unknown }) {
+  if (ts.isCallExpression(n)) {
+    const callee = lastName(n.expression); const ctext = n.expression.getText();
+    const pathCall = /^(path\.(posix\.)?)?(join|resolve)$/.test(ctext) && (ctext.startsWith("path.") || /^(node:)?path$/.test(f.bindings.get(ctext)?.spec ?? ""));
+    if (pathCall) for (const a of n.arguments) if (ts.isStringLiteralLike(a) && a.text.length >= 5 && (/\//.test(a.text) || /\.\w{2,4}$/.test(a.text))) coupling("path", a.text, a);
+    const a0 = n.arguments[0];
+    if (callee && EVENT_CALLEES.has(callee) && a0 && ts.isStringLiteralLike(a0)) coupling("event", a0.text, a0);
+    // `const prefix = "failed to start daemon: "; reason.startsWith(prefix)` (pilot DE #4): follow
+    // an identifier operand to a string const declared earlier in this file.
+    const opText = a0 && (ts.isStringLiteralLike(a0) ? a0.text : ts.isIdentifier(a0) ? localStr.get(a0.text) : null);
+    if (callee && PHRASE_CALLEES.has(callee) && opText && opText.trim().length >= 12) coupling("phrase", opText, a0);
+  }
+  if (ts.isNewExpression(n) && ts.isIdentifier(n.expression) && /^(Custom)?Event$/.test(n.expression.text) && n.arguments?.[0] && ts.isStringLiteralLike(n.arguments[0])) coupling("event", n.arguments[0].text, n);
+  if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer && ts.isStringLiteralLike(n.initializer)) localStr.set(n.name.text, n.initializer.text);
+  if (ts.isBinaryExpression(n) && /^[!=]==?$/.test(ts.tokenToString(n.operatorToken.kind) ?? "")) for (const s of [n.left, n.right]) if (ts.isStringLiteralLike(s) && s.text.trim().length >= 12) coupling("phrase", s.text, s);
+  if (ts.isCaseClause(n) && ts.isStringLiteralLike(n.expression) && n.expression.text.trim().length >= 12) coupling("phrase", n.expression.text, n);
+  if (ts.isRegularExpressionLiteral(n)) {
+    const src = n.text.slice(1, n.text.lastIndexOf("/")).replace(/\\([.\/\-:()[\]{}?*+^$|\\])/g, "$1");
+    // v4 (judge 2 #8): keep the regex itself so a match is TESTED against the emitted literal.
+    const re = { src: n.text.slice(1, n.text.lastIndexOf("/")), flags: n.text.slice(n.text.lastIndexOf("/") + 1) };
+    for (const run of src.split(/\\[a-zA-Z]|[\^$*+?()[\]{}|]/)) if (run.trim().length >= 12) coupling("regex", run, n, { re });
+  }
+}
+
+
+function recordDossierSwallowedErrors({ n, fnName, lineOf, localStr, portWrite, bug }: { n: unknown; fnName: unknown; lineOf: unknown; localStr: unknown; portWrite: unknown; bug: unknown }) {
+  if (ts.isCatchClause(n)) {
+    // Swallow arms (pilot ABC #4, bugs #3/#5/#6): a catch that answers [] / null / {} / undefined,
+    // or rethrows a fresh generic Error that drops the cause.
+    const v = n.variableDeclaration?.name.getText(); const encl = ts.findAncestor(n, ts.isFunctionLike); const where = `${encl ? fnName(encl) : "(top)"}@${lineOf(n.getStart())}`;
+    const usesErr = !!v && new RegExp(`\\b${v.replace(/[^\w$]/g, "")}\\b`).test(n.block.getText());
+    // v4 calibration (judge 1 #8, judge 2 #9, judge 3 #12). A catch that sets a VISIBLE error
+    // (setError, setStatus, `state.error =`) is handled, not swallowed. A fail-closed `return null/false`
+    // in a predicate/parse/read helper (or a short helper) whose try block writes nothing is the
+    // helper's contract (cover-image renditionRef, readSiteChatComparisonVariant). After a WRITE it is a
+    // swallow (tool-confirmation.ts:30 `catch { return false }` after a POST).
+    const blockText = n.block.getText();
+    const visible = /\bset\w*(Error|Status|Message|Notice|Failure|Problem|Alert)\s*\(|\.(error|errorMessage|failure)\s*=[^=]|\berror\s*:\s*/.test(blockText);
+    const tryBlock = ts.isTryStatement(n.parent) ? n.parent.tryBlock : null;
+    let tryWrites = false; let tryCalls = false;
+    if (tryBlock) { const w = (x) => { if (x !== tryBlock && ts.isFunctionLike(x)) return; if (ts.isCallExpression(x)) { tryCalls = true; if (writeKind(x, (id) => localStr.get(id)) === "write" || portWrite(x)) tryWrites = true; } ts.forEachChild(x, w); }; w(tryBlock); }
+    const fnLines = encl ? lineOf(encl.getEnd()) - lineOf(encl.getStart()) + 1 : 999;
+    const helper = /^(is|has|can|should|parse|try|safe|maybe|decode|probe|detect|looks|valid|check|read|to|from|normali[sz]e|coerce)[A-Z_]?/.test(encl ? fnName(encl) : "") || fnLines <= 15;
+    if (!visible) for (const s0 of n.block.statements) {
+      if (ts.isReturnStatement(s0) && s0.expression) {
+        const e = unwrap(s0.expression);
+        const empty = e.kind === ts.SyntaxKind.NullKeyword || (ts.isIdentifier(e) && e.text === "undefined") || (ts.isArrayLiteralExpression(e) && !e.elements.length) || (ts.isObjectLiteralExpression(e) && !e.properties.length);
+        const falsy = e.kind === ts.SyntaxKind.FalseKeyword;
+        if (tryWrites && (empty || falsy)) bug.swallows.push(`${where} return ${e.getText()} after a write`);
+        else if (empty && !helper) bug.swallows.push(`${where} return ${e.getText()}`);
+      } else if (ts.isReturnStatement(s0) || ts.isContinueStatement(s0)) {
+        // `catch { continue }` / bare `return` after a read (judge 2 #9: readFileSync then continue).
+        if (tryCalls && n.block.statements.length === 1) bug.swallows.push(`${where} ${ts.isContinueStatement(s0) ? "continue" : "return"} drops the error`);
+      } else if (ts.isThrowStatement(s0)) {
+        const e = unwrap(s0.expression);
+        // Round-2 judge 3 #6: deliberate refusals (openMcpUiLink, assertLoopbackAdminUrl, reset-owner)
+        // were flagged. A generic rethrow is one that BINDS the error and drops it; a message built
+        // with context (template with values) or a binding-less `catch {` is a chosen refusal.
+        const msg = e && ts.isNewExpression(e) ? unwrap(e.arguments?.[0]) : null;
+        const withContext = !!msg && (ts.isTemplateExpression(msg) || ts.isBinaryExpression(msg));
+        if (e && ts.isNewExpression(e) && /Error$/.test(e.expression.getText()) && (e.arguments?.length ?? 0) < 2 && v && !usesErr && !withContext) bug.swallows.push(`${where} rethrows generic ${short(e.getText(), 50)}`);
+      }
+    }
+    // A catch that caches the failure in an outer variable (seed-hash:52 `catch { seedDeps = null }`
+    // behind `if (seedDeps !== undefined) return seedDeps`): one transient throw sticks until restart.
+    for (const st of n.block.statements) {
+      const e = ts.isExpressionStatement(st) ? unwrap(st.expression) : null;
+      if (e && ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(e.left) && /^(null|undefined|false)$/.test(e.right.getText())
+        && encl && !new RegExp(`\\b(let|const|var)\\s+${e.left.text}\\b`).test(encl.getText())) bug.cachedPromise.push(`catch caches ${e.left.text} = ${e.right.getText()} @${lineOf(st.getStart())}`);
+    }
+    // ...and the silent ones (deploy-config :83, agent-plugin-tokens :95): `catch {}`. v4: a calls-only
+    // catch is flagged only when it LOGS without the error (judge 1 #8: delivery/tool-registrations.ts:180
+    // logs a fixed line, then returns); cleanup calls (`image.remove()` in vanilla-host) are fail-closed.
+    const logs = n.block.statements.some((s0) => ts.isExpressionStatement(s0) && ts.isCallExpression(unwrap(s0.expression)) && /^(console\.\w+|\w*log(ger)?\.\w+|log\w*|warn|report\w*)$/i.test(unwrap(s0.expression).expression.getText().replace(/\s+/g, "")));
+    if (!n.block.statements.length && !/\/\/|\/\*/.test(blockText)) bug.swallows.push(`${where} empty catch`);
+    else if (logs && !usesErr && !visible) bug.swallows.push(`${where} logs a fixed line without the error`);
+  }
+}
+
+
+function recordDossierWireProtocolUsage({ n, f, lineOf, topSymbol, localStr, bug }: { n: unknown; f: unknown; lineOf: unknown; topSymbol: unknown; localStr: unknown; bug: unknown }) {
+  if (ts.isPropertyAccessExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === "locals" && /^(res|response|reply)$/i.test(recvName(n.expression.expression) ?? "")) {
+    const w = ts.isBinaryExpression(n.parent) && n.parent.left === n && n.parent.operatorToken.kind === ts.SyntaxKind.EqualsToken;
+    f.wireKeys.push({ kind: "res.locals", key: n.name.text, line: lineOf(n.getStart()), write: w, symbol: topSymbol(n) });
+  }
+  // `res.locals[LOCAL_KEY] = ...` (render-theme-override.ts writes tovuRenderThemeIdOverride this way).
+  if (ts.isElementAccessExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === "locals" && /^(res|response|reply)$/i.test(recvName(n.expression.expression) ?? "")) {
+    const a = unwrap(n.argumentExpression); const key = ts.isStringLiteralLike(a) ? a.text : ts.isIdentifier(a) ? localStr.get(a.text) : null;
+    if (key) f.wireKeys.push({ kind: "res.locals", key, line: lineOf(n.getStart()), write: ts.isBinaryExpression(n.parent) && n.parent.left === n, symbol: topSymbol(n) });
+  }
+  if (ts.isStringLiteralLike(n) && !isModuleSpecifier(n)) {
+    if (/^x-[a-z0-9]+(-[a-z0-9]+)+$/i.test(n.text)) f.wireKeys.push({ kind: "header", key: n.text.toLowerCase(), line: lineOf(n.getStart()), symbol: topSymbol(n) });
+    const pc = n.parent && (ts.isCallExpression(n.parent) || ts.isNewExpression(n.parent)) ? lastName(n.parent.expression) ?? "" : "";
+    if ((/cookie/i.test(pc) && /^[\w.-]{4,60}$/.test(n.text)) || /^[a-z][a-z0-9]*([_-][a-z0-9]+)*[_-](session|sid|csrf|auth)$/.test(n.text)) f.wireKeys.push({ kind: "cookie", key: n.text, line: lineOf(n.getStart()), symbol: topSymbol(n) });
+  }
+  if (ts.isCallExpression(n) && /^(console\.(log|info|warn|error)|process\.(stdout|stderr)\.write)$/.test(n.expression.getText()) && n.arguments[0]) {
+    const a0 = unwrap(n.arguments[0]);
+    if (ts.isStringLiteralLike(a0) || ts.isTemplateExpression(a0)) {
+      const pat = templatePattern(a0); const head = pat.split("${}")[0];
+      // A `prefix: key=` line is a protocol another process may parse (desktop's BOOT_TOKEN_LINE).
+      if (/^[\w@./ -]{3,40}: \S*=/.test(head) || /^[\w@./ -]{3,40}: /.test(head) && /\w=\$\{\}/.test(pat)) f.wireKeys.push({ kind: "stdout-line", key: head, line: lineOf(n.getStart()), symbol: topSymbol(n) });
+      // Secret-looking values printed (round-2 judge 3 #1): a `*Token=`/`*Secret=` label or an
+      // interpolated mint*/token/secret/password value. Jini's log redactor keys on field names, not
+      // on `bootToken=` inside a free-text line, so a log tee would keep the secret.
+      const spans = ts.isTemplateExpression(a0) ? a0.templateSpans : [];
+      const hit = !/tokens|count|usage|length|limit|budget|max[A-Z_]/i.test(pat + spans.map((sp) => sp.expression.getText()).join(" ")) && spans.find((sp, i) => /(token|secret|password|apikey|credential)=?\s*$/i.test(i === 0 ? a0.head.text : spans[i - 1].literal.text) || /\b(mint\w*|\w*(token|secret|password|apiKey|credential)\w*)\b/i.test(sp.expression.getText()));
+      if (hit) bug.secretLogs.push(`${short(pat, 50)} @${lineOf(n.getStart())}`);
+    }
+  }
+  if (ts.isCallExpression(n)) {
+    const c = lastName(n.expression) ?? "";
+    if (/^ensure[A-Z]\w*$/.test(c)) f.ensureCalls.add(c);
+  }
+}
+
+
+function recordDossierPersistenceHazards({ n, text, bug, lineOf }: { n: unknown; text: unknown; bug: unknown; lineOf: unknown }) {
+  if (ts.isBinaryExpression(n) && (n.operatorToken.kind === ts.SyntaxKind.QuestionQuestionEqualsToken || n.operatorToken.kind === ts.SyntaxKind.BarBarEqualsToken)) {
+    const rhs = unwrap(n.right); const lhs = n.left.getText();
+    // Only promises: the RHS chains/imports/builds one, or the variable is awaited / typed Promise
+    // (worker-sandbox `sourceWorkers ??= compileSourceWorkers()` then `await sourceWorkers`).
+    const esc = lhs.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const promiseLike = /\.then\(|\bimport\(|\bPromise\./.test(rhs?.getText() ?? "") || new RegExp(`await\\s+\\(?${esc}\\b|\\b${esc}\\s*:\\s*Promise<`).test(text);
+    // v4 (judge 1 #8: cli-probe-cache): `Promise.resolve(sync())` cannot cache a rejection, and a
+    // variable the file reassigns elsewhere (`snapshot = Promise.resolve(result)`) is refreshed.
+    const reassigned = new RegExp(`(^|[^?|&=!<>])\\b${esc}\\s*=(?!=)`, "m").test(text.replace(n.getText(), ""));
+    if (rhs && ts.isCallExpression(rhs) && n.parent && !ts.isAwaitExpression(n.parent) && promiseLike && !/^Promise\.resolve$/.test(rhs.expression.getText()) && !reassigned) {
+      const reset = new RegExp(`${lhs.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*=\\s*(null|undefined)\\b|delete\\s+${lhs.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(text);
+      if (!reset) bug.cachedPromise.push(`${short(n.getText().replace(/\s+/g, " "), 60)} @${lineOf(n.getStart())}`);
+    }
+  }
+  // Whole-collection PUT (pilot DE #3, bug 3): a PUT that replaces a whole map/list loses a
+  // concurrent writer's change. Flag PUT requests and PUT routes with no trailing :param.
+  if (ts.isPropertyAssignment(n) && memberName(n) === "method" && ts.isStringLiteralLike(n.initializer) && n.initializer.text.toUpperCase() === "PUT") bug.wholePut.push(`PUT request @${lineOf(n.getStart())}`);
+  if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === "put" && /^(app|router|server|fastify|routes?|r)$/i.test(recvName(n.expression.expression) ?? "")
+    && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text.startsWith("/")) {
+    // "(collection)" only for a plural last segment with no :param (round-2 judge 1 #3: the explore PUT
+    // writes one file and was tagged collection).
+    const route = n.arguments[0].text; const last = route.replace(/\/$/, "").split("/").pop() ?? "";
+    bug.wholePut.push(`PUT route ${route} @${lineOf(n.getStart())}${!last.startsWith(":") && /[a-z]s$/.test(last) ? " (collection)" : ""}`);
+  }
+}
+
+
+function createConstKindOf() {
+  return function constKindOf(init) { const i = unwrap(init); if (!i) return "other";
+    if (ts.isStringLiteralLike(i) || ts.isNumericLiteral(i) || ts.isTemplateExpression(i) || i.kind === ts.SyntaxKind.TrueKeyword || i.kind === ts.SyntaxKind.FalseKeyword) return "literal";
+    if (ts.isArrayLiteralExpression(i)) return "array";
+    if (ts.isObjectLiteralExpression(i)) return "object";
+    if (ts.isBinaryExpression(i) && /^[\d_\s*+\-/().]+$/.test(i.getText())) return "literal";
+    if (ts.isArrowFunction(i) || ts.isFunctionExpression(i)) return "fn"; return "other"; };
+}
+
+function buildF(text) {
+  return { loc: text.split("\n").length - (text.endsWith("\n") ? 1 : 0), imports: [], bindings: new Map(), nsUses: new Map(), localExports: new Map(),
+    reexports: new Map(), stars: [], localNames: new Set(), units: [], shapes: [], extendsInfo: [], literals: [], hostObjects: [],
+    jiniLits: null, staleCandidates: [], ports: [], bug: null, reexportOnly: false, toolRegistration: false, dataOnly: false,
+    beh: new Set(), constSets: [], constKinds: new Map(), couplingCands: [], expressType: false, approvalOrCtxSignal: false,
+    // v3: top-level symbols with a direct store/fs/fetch write (one-hop resolution of bare verb calls),
+    // bare verb-noun call candidates, Tovu wording pieces (Tovu<->Tovu parse couplings), wire keys.
+    directWriteSyms: new Set(), bareWrites: [], tPhrases: new Map(), wireKeys: [], ensureCalls: new Set(), httpRoutes: false, constVals: [], selfUses: new Map(),
+    // v4: path literals that load a file by path (vite lib entries, spawn/fork, new URL(..., import.meta.url));
+    // property names read / destructured (member-level dead code); returned/exported object members;
+    // thrown messages and `err.message ===` compares; permission literals; route-path literals; tools.
+    pathLits: [], propNames: new Set(), objMembers: [], thrown: new Set(), errCompares: [], permLits: [], routeLits: new Set(), routeDefs: [],
+    tools: [], toolFile: null, implementsNames: [], hermetic: false };
+}
+
+function createPortWrite() {
+  return function portWrite(call) {
     const c = unwrap(call.expression);
     if (ts.isPropertyAccessExpression(c)) { const r = recvName(c.expression); return !!r && PORT_RECEIVER_RE.test(r) && PORT_VERB_RE.test(c.name.text); }
     if (!ts.isIdentifier(c) || !PORT_VERB_RE.test(c.text)) return false;
     const fn = ts.findAncestor(call.parent, ts.isFunctionLike);
     const params = new Set((fn?.parameters ?? []).flatMap((p) => ts.isIdentifier(p.name) ? [p.name.text] : ts.isObjectBindingPattern(p.name) ? p.name.elements.map((el) => el.name.getText()) : []));
     return params.has(c.text);
-  }
-  const PHRASE_CALLEES = new Set(["startsWith", "endsWith", "includes", "indexOf", "lastIndexOf", "match", "split", "search", "replace"]);
-  const EVENT_CALLEES = new Set(["addEventListener", "removeEventListener", "on", "once", "off", "emit", "addListener"]);
-  const localStr = new Map(); // string consts seen so far in this file (name -> text)
-  const coupled = new Set();
-  const coupling = (kind, text, n, extra = {}) => { const line = lineOf(n.getStart()); const k = `${kind}\0${text}\0${line}`; if (coupled.has(k)) return; coupled.add(k); f.couplingCands.push({ kind, text, line, symbol: topSymbol(n), ...extra }); };
-  const topSymbol = (n) => { while (n.parent && n.parent !== sf) n = n.parent; const d = n; return d.name?.text ?? (ts.isVariableStatement(d) ? d.declarationList.declarations[0]?.name.getText() : null); };
-  const topExported = (n) => { while (n.parent && n.parent !== sf) n = n.parent; return hasExport(n); };
-  const fnName = (fn) => fn.name ? fn.name.getText() : ts.isVariableDeclaration(fn.parent) || ts.isPropertyAssignment(fn.parent) ? fn.parent.name.getText() : "(anon)";
-  let fnCount = 0;
-  const visit = (n) => {
-    if (ts.isImportTypeNode(n) && ts.isLiteralTypeNode(n.argument) && ts.isStringLiteral(n.argument.literal)) {
-      let q = n.qualifier; while (q && ts.isQualifiedName(q)) q = q.left;
-      addImport(n.argument.literal.text, lineOf(n.getStart()), "importType", [q ? q.text : "*"], true);
-    } else if (ts.isCallExpression(n) && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) &&
-      (n.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(n.expression) && n.expression.text === "require"))) {
-      const dyn = n.expression.kind === ts.SyntaxKind.ImportKeyword;
-      const dn = dyn ? dynamicNames(n) : (() => { let p = n.parent; while (p && ts.isParenthesizedExpression(p)) p = p.parent;
-        return { names: p && ts.isVariableDeclaration(p) && ts.isObjectBindingPattern(p.name) ? p.name.elements.map((el) => (el.propertyName ?? el.name).getText()) : ["*"] }; })();
-      // `const m = await import(x)`: treat m as a namespace binding so `m.X` uses resolve the names.
-      if (dn.local && !f.bindings.has(dn.local)) f.bindings.set(dn.local, { spec: n.arguments[0].text, imported: "*" });
-      addImport(n.arguments[0].text, lineOf(n.getStart()), dyn ? "dynamic" : "require", dn.names, false, dyn ? { awaited: awaitedCall(n) } : {});
-    } else if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && f.bindings.get(n.expression.text)?.imported === "*") {
-      const set = f.nsUses.get(n.expression.text) ?? new Set(); set.add(n.name.text); f.nsUses.set(n.expression.text, set);
-    }
-    // Same-file uses of an export (round-2 judge 2 #7: importWorkerLaunch is used at :66, so it is not
-    // test-only even with no prod importer).
-    if (full && ts.isIdentifier(n) && f.localExports.has(n.text) && !(n.parent && n.parent.name === n) && !ts.isExportSpecifier(n.parent)) f.selfUses.set(n.text, (f.selfUses.get(n.text) ?? 0) + 1);
-    if (full) {
-      // Behaviour fingerprint tokens (LEGACY-TWIN pre-pass): what a module SAYS (string literals, route
-      // strings), CALLS and TOUCHES (property names). Restructured siblings keep these when their
-      // bodies and names differ (pilot DE #1: media 0.07/0.11 by body). Private closures included.
-      // HTTP route registration, Tovu and Jini: `app.get("/x", ...)` or `{ path: "/api/..." }` (the
-      // LEGACY-TWIN route gate, see the legacy pre-pass).
-      if (ts.isCallExpression(n) && /^(get|post|put|patch|delete|all|route|use)$/.test(lastName(n.expression) ?? "") && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text.startsWith("/")) f.httpRoutes = true;
-      else if (ts.isPropertyAssignment(n) && /^(path|route|pattern)$/.test(memberName(n)) && ts.isStringLiteralLike(n.initializer) && /^\/api\//.test(n.initializer.text)) f.httpRoutes = true;
-      if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) && !isModuleSpecifier(n) && n.text.length >= 3 && n.text.length <= 60) f.beh.add(`s:${n.text}`);
-      else if (ts.isCallExpression(n)) { const c = lastName(n.expression); if (c) f.beh.add(`c:${c}`); }
-      else if (ts.isPropertyAccessExpression(n)) f.beh.add(`p:${n.name.text}`);
-      else if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n) || ts.isMethodDeclaration(n)) && n.name && ts.isIdentifier(n.name)) f.beh.add(`p:${n.name.text}`);
-    }
-    if (full || jiniLits) {
-      if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateExpression(n)) && !isModuleSpecifier(n)) {
-        const pattern = templatePattern(n);
-        if (jiniLits) {
-          if (!/\s/.test(pattern) && pattern.length >= 2 && pattern.length <= 80) {
-            jiniLits.all.add(pattern);
-            if (ts.isTemplateExpression(n)) for (const piece of pattern.split("${}")) if (piece) jiniLits.all.add(piece);
-            for (const seg of pattern.split(/:|\$\{\}/)) if (seg) jiniLits.all.add(seg);
-            if (pattern.includes(":") && /[A-Za-z]{3}/.test(pattern)) jiniLits.formats.push({ pattern, line: lineOf(n.getStart()), symbol: topSymbol(n), exported: topExported(n) });
-          }
-          // Wording Tovu may compare or parse ("failed to start daemon: ", pilot DE #4): >= 12 chars,
-          // whitespace allowed; each static piece of a template separately.
-          for (const piece of pattern.split("${}")) { const t = piece.trim(); if (t.length >= 12 && t.length <= 200) jiniLits.phrases.add(piece.length <= 200 ? piece : t); }
-        } else if (info.repo === "tovu") {
-          // Tovu wording too (round-2 judge 3 #1, judge 1 #4): the parser of a Tovu line is often another
-          // Tovu app (desktop's /^tovu serve: bootToken=/ reads serve.ts's console line).
-          if (tovuFull) for (const piece of pattern.split("${}")) { const t = piece.trim(); if (t.length >= 12 && t.length <= 200 && !f.tPhrases.has(piece)) f.tPhrases.set(piece, pattern); }
-          const residue = RESIDUE_RE.test(pattern) ? "tovu" : vendorHit(pattern);
-          const format = isFormatLike(pattern);
-          if (residue || format) f.literals.push({ text: short(pattern, 80), line: lineOf(n.getStart()), ctx: literalContext(n), symbol: topSymbol(n), residue: residue ?? null, format });
-          // Template/script contents (RELEASE_PROBE holds 'jini:release-check', /admin, .admin-content,
-          // pilot DE #4): pull quoted strings, selectors/paths and colon ids out of long strings.
-          if (pattern.length > 40 || /\n/.test(pattern)) {
-            for (const m of pattern.matchAll(/['"]([^'"\s]{4,80})['"]/g)) coupling("template", m[1], n);
-            for (const m of pattern.matchAll(/(?:^|[\s(,='"`])([./#][A-Za-z_][\w./-]{3,60})/g)) coupling("template", m[1], n);
-            for (const m of pattern.matchAll(/\b([a-z][\w-]*:[a-z][\w:-]{2,60})\b/g)) coupling("template", m[1], n);
-          }
-        }
-      }
-    }
-    if (tovuFull) {
-      // Format couplings beyond `x:y` ids (pilot DE #4): path.join literals, event names and
-      // operands Tovu compares/parses against (matched to Jini strings after the parse).
-      if (ts.isCallExpression(n)) {
-        const callee = lastName(n.expression); const ctext = n.expression.getText();
-        const pathCall = /^(path\.(posix\.)?)?(join|resolve)$/.test(ctext) && (ctext.startsWith("path.") || /^(node:)?path$/.test(f.bindings.get(ctext)?.spec ?? ""));
-        if (pathCall) for (const a of n.arguments) if (ts.isStringLiteralLike(a) && a.text.length >= 5 && (/\//.test(a.text) || /\.\w{2,4}$/.test(a.text))) coupling("path", a.text, a);
-        const a0 = n.arguments[0];
-        if (callee && EVENT_CALLEES.has(callee) && a0 && ts.isStringLiteralLike(a0)) coupling("event", a0.text, a0);
-        // `const prefix = "failed to start daemon: "; reason.startsWith(prefix)` (pilot DE #4): follow
-        // an identifier operand to a string const declared earlier in this file.
-        const opText = a0 && (ts.isStringLiteralLike(a0) ? a0.text : ts.isIdentifier(a0) ? localStr.get(a0.text) : null);
-        if (callee && PHRASE_CALLEES.has(callee) && opText && opText.trim().length >= 12) coupling("phrase", opText, a0);
-      }
-      if (ts.isNewExpression(n) && ts.isIdentifier(n.expression) && /^(Custom)?Event$/.test(n.expression.text) && n.arguments?.[0] && ts.isStringLiteralLike(n.arguments[0])) coupling("event", n.arguments[0].text, n);
-      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer && ts.isStringLiteralLike(n.initializer)) localStr.set(n.name.text, n.initializer.text);
-      if (ts.isBinaryExpression(n) && /^[!=]==?$/.test(ts.tokenToString(n.operatorToken.kind) ?? "")) for (const s of [n.left, n.right]) if (ts.isStringLiteralLike(s) && s.text.trim().length >= 12) coupling("phrase", s.text, s);
-      if (ts.isCaseClause(n) && ts.isStringLiteralLike(n.expression) && n.expression.text.trim().length >= 12) coupling("phrase", n.expression.text, n);
-      if (ts.isRegularExpressionLiteral(n)) {
-        const src = n.text.slice(1, n.text.lastIndexOf("/")).replace(/\\([.\/\-:()[\]{}?*+^$|\\])/g, "$1");
-        // v4 (judge 2 #8): keep the regex itself so a match is TESTED against the emitted literal.
-        const re = { src: n.text.slice(1, n.text.lastIndexOf("/")), flags: n.text.slice(n.text.lastIndexOf("/") + 1) };
-        for (const run of src.split(/\\[a-zA-Z]|[\^$*+?()[\]{}|]/)) if (run.trim().length >= 12) coupling("regex", run, n, { re });
-      }
-      if (ts.isCatchClause(n)) {
-        // Swallow arms (pilot ABC #4, bugs #3/#5/#6): a catch that answers [] / null / {} / undefined,
-        // or rethrows a fresh generic Error that drops the cause.
-        const v = n.variableDeclaration?.name.getText(); const encl = ts.findAncestor(n, ts.isFunctionLike); const where = `${encl ? fnName(encl) : "(top)"}@${lineOf(n.getStart())}`;
-        const usesErr = !!v && new RegExp(`\\b${v.replace(/[^\w$]/g, "")}\\b`).test(n.block.getText());
-        // v4 calibration (judge 1 #8, judge 2 #9, judge 3 #12). A catch that sets a VISIBLE error
-        // (setError, setStatus, `state.error =`) is handled, not swallowed. A fail-closed `return null/false`
-        // in a predicate/parse/read helper (or a short helper) whose try block writes nothing is the
-        // helper's contract (cover-image renditionRef, readSiteChatComparisonVariant). After a WRITE it is a
-        // swallow (tool-confirmation.ts:30 `catch { return false }` after a POST).
-        const blockText = n.block.getText();
-        const visible = /\bset\w*(Error|Status|Message|Notice|Failure|Problem|Alert)\s*\(|\.(error|errorMessage|failure)\s*=[^=]|\berror\s*:\s*/.test(blockText);
-        const tryBlock = ts.isTryStatement(n.parent) ? n.parent.tryBlock : null;
-        let tryWrites = false; let tryCalls = false;
-        if (tryBlock) { const w = (x) => { if (x !== tryBlock && ts.isFunctionLike(x)) return; if (ts.isCallExpression(x)) { tryCalls = true; if (writeKind(x, (id) => localStr.get(id)) === "write" || portWrite(x)) tryWrites = true; } ts.forEachChild(x, w); }; w(tryBlock); }
-        const fnLines = encl ? lineOf(encl.getEnd()) - lineOf(encl.getStart()) + 1 : 999;
-        const helper = /^(is|has|can|should|parse|try|safe|maybe|decode|probe|detect|looks|valid|check|read|to|from|normali[sz]e|coerce)[A-Z_]?/.test(encl ? fnName(encl) : "") || fnLines <= 15;
-        if (!visible) for (const s0 of n.block.statements) {
-          if (ts.isReturnStatement(s0) && s0.expression) {
-            const e = unwrap(s0.expression);
-            const empty = e.kind === ts.SyntaxKind.NullKeyword || (ts.isIdentifier(e) && e.text === "undefined") || (ts.isArrayLiteralExpression(e) && !e.elements.length) || (ts.isObjectLiteralExpression(e) && !e.properties.length);
-            const falsy = e.kind === ts.SyntaxKind.FalseKeyword;
-            if (tryWrites && (empty || falsy)) bug.swallows.push(`${where} return ${e.getText()} after a write`);
-            else if (empty && !helper) bug.swallows.push(`${where} return ${e.getText()}`);
-          } else if (ts.isReturnStatement(s0) || ts.isContinueStatement(s0)) {
-            // `catch { continue }` / bare `return` after a read (judge 2 #9: readFileSync then continue).
-            if (tryCalls && n.block.statements.length === 1) bug.swallows.push(`${where} ${ts.isContinueStatement(s0) ? "continue" : "return"} drops the error`);
-          } else if (ts.isThrowStatement(s0)) {
-            const e = unwrap(s0.expression);
-            // Round-2 judge 3 #6: deliberate refusals (openMcpUiLink, assertLoopbackAdminUrl, reset-owner)
-            // were flagged. A generic rethrow is one that BINDS the error and drops it; a message built
-            // with context (template with values) or a binding-less `catch {` is a chosen refusal.
-            const msg = e && ts.isNewExpression(e) ? unwrap(e.arguments?.[0]) : null;
-            const withContext = !!msg && (ts.isTemplateExpression(msg) || ts.isBinaryExpression(msg));
-            if (e && ts.isNewExpression(e) && /Error$/.test(e.expression.getText()) && (e.arguments?.length ?? 0) < 2 && v && !usesErr && !withContext) bug.swallows.push(`${where} rethrows generic ${short(e.getText(), 50)}`);
-          }
-        }
-        // A catch that caches the failure in an outer variable (seed-hash:52 `catch { seedDeps = null }`
-        // behind `if (seedDeps !== undefined) return seedDeps`): one transient throw sticks until restart.
-        for (const st of n.block.statements) {
-          const e = ts.isExpressionStatement(st) ? unwrap(st.expression) : null;
-          if (e && ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(e.left) && /^(null|undefined|false)$/.test(e.right.getText())
-            && encl && !new RegExp(`\\b(let|const|var)\\s+${e.left.text}\\b`).test(encl.getText())) bug.cachedPromise.push(`catch caches ${e.left.text} = ${e.right.getText()} @${lineOf(st.getStart())}`);
-        }
-        // ...and the silent ones (deploy-config :83, agent-plugin-tokens :95): `catch {}`. v4: a calls-only
-        // catch is flagged only when it LOGS without the error (judge 1 #8: delivery/tool-registrations.ts:180
-        // logs a fixed line, then returns); cleanup calls (`image.remove()` in vanilla-host) are fail-closed.
-        const logs = n.block.statements.some((s0) => ts.isExpressionStatement(s0) && ts.isCallExpression(unwrap(s0.expression)) && /^(console\.\w+|\w*log(ger)?\.\w+|log\w*|warn|report\w*)$/i.test(unwrap(s0.expression).expression.getText().replace(/\s+/g, "")));
-        if (!n.block.statements.length && !/\/\/|\/\*/.test(blockText)) bug.swallows.push(`${where} empty catch`);
-        else if (logs && !usesErr && !visible) bug.swallows.push(`${where} logs a fixed line without the error`);
-      }
-      // Wire keys (round-2 judge 1 #4, judge 3 #1): res.locals keys, x-* header names, cookie names and
-      // console/stdout protocol lines are formats another file (or app, or Jini) reads by name.
-      if (ts.isPropertyAccessExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === "locals" && /^(res|response|reply)$/i.test(recvName(n.expression.expression) ?? "")) {
-        const w = ts.isBinaryExpression(n.parent) && n.parent.left === n && n.parent.operatorToken.kind === ts.SyntaxKind.EqualsToken;
-        f.wireKeys.push({ kind: "res.locals", key: n.name.text, line: lineOf(n.getStart()), write: w, symbol: topSymbol(n) });
-      }
-      // `res.locals[LOCAL_KEY] = ...` (render-theme-override.ts writes tovuRenderThemeIdOverride this way).
-      if (ts.isElementAccessExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === "locals" && /^(res|response|reply)$/i.test(recvName(n.expression.expression) ?? "")) {
-        const a = unwrap(n.argumentExpression); const key = ts.isStringLiteralLike(a) ? a.text : ts.isIdentifier(a) ? localStr.get(a.text) : null;
-        if (key) f.wireKeys.push({ kind: "res.locals", key, line: lineOf(n.getStart()), write: ts.isBinaryExpression(n.parent) && n.parent.left === n, symbol: topSymbol(n) });
-      }
-      if (ts.isStringLiteralLike(n) && !isModuleSpecifier(n)) {
-        if (/^x-[a-z0-9]+(-[a-z0-9]+)+$/i.test(n.text)) f.wireKeys.push({ kind: "header", key: n.text.toLowerCase(), line: lineOf(n.getStart()), symbol: topSymbol(n) });
-        const pc = n.parent && (ts.isCallExpression(n.parent) || ts.isNewExpression(n.parent)) ? lastName(n.parent.expression) ?? "" : "";
-        if ((/cookie/i.test(pc) && /^[\w.-]{4,60}$/.test(n.text)) || /^[a-z][a-z0-9]*([_-][a-z0-9]+)*[_-](session|sid|csrf|auth)$/.test(n.text)) f.wireKeys.push({ kind: "cookie", key: n.text, line: lineOf(n.getStart()), symbol: topSymbol(n) });
-      }
-      if (ts.isCallExpression(n) && /^(console\.(log|info|warn|error)|process\.(stdout|stderr)\.write)$/.test(n.expression.getText()) && n.arguments[0]) {
-        const a0 = unwrap(n.arguments[0]);
-        if (ts.isStringLiteralLike(a0) || ts.isTemplateExpression(a0)) {
-          const pat = templatePattern(a0); const head = pat.split("${}")[0];
-          // A `prefix: key=` line is a protocol another process may parse (desktop's BOOT_TOKEN_LINE).
-          if (/^[\w@./ -]{3,40}: \S*=/.test(head) || /^[\w@./ -]{3,40}: /.test(head) && /\w=\$\{\}/.test(pat)) f.wireKeys.push({ kind: "stdout-line", key: head, line: lineOf(n.getStart()), symbol: topSymbol(n) });
-          // Secret-looking values printed (round-2 judge 3 #1): a `*Token=`/`*Secret=` label or an
-          // interpolated mint*/token/secret/password value. Jini's log redactor keys on field names, not
-          // on `bootToken=` inside a free-text line, so a log tee would keep the secret.
-          const spans = ts.isTemplateExpression(a0) ? a0.templateSpans : [];
-          const hit = !/tokens|count|usage|length|limit|budget|max[A-Z_]/i.test(pat + spans.map((sp) => sp.expression.getText()).join(" ")) && spans.find((sp, i) => /(token|secret|password|apikey|credential)=?\s*$/i.test(i === 0 ? a0.head.text : spans[i - 1].literal.text) || /\b(mint\w*|\w*(token|secret|password|apiKey|credential)\w*)\b/i.test(sp.expression.getText()));
-          if (hit) bug.secretLogs.push(`${short(pat, 50)} @${lineOf(n.getStart())}`);
-        }
-      }
-      if (ts.isCallExpression(n)) {
-        const c = lastName(n.expression) ?? "";
-        if (/^ensure[A-Z]\w*$/.test(c)) f.ensureCalls.add(c);
-      }
-      // Promise cached for good (round-2 judge 1 #11: seed-hash, worker-sandbox): `x ??= load()` with no
-      // reset of x anywhere in the file keeps a rejected promise (or a cached null) forever.
-      if (ts.isBinaryExpression(n) && (n.operatorToken.kind === ts.SyntaxKind.QuestionQuestionEqualsToken || n.operatorToken.kind === ts.SyntaxKind.BarBarEqualsToken)) {
-        const rhs = unwrap(n.right); const lhs = n.left.getText();
-        // Only promises: the RHS chains/imports/builds one, or the variable is awaited / typed Promise
-        // (worker-sandbox `sourceWorkers ??= compileSourceWorkers()` then `await sourceWorkers`).
-        const esc = lhs.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const promiseLike = /\.then\(|\bimport\(|\bPromise\./.test(rhs?.getText() ?? "") || new RegExp(`await\\s+\\(?${esc}\\b|\\b${esc}\\s*:\\s*Promise<`).test(text);
-        // v4 (judge 1 #8: cli-probe-cache): `Promise.resolve(sync())` cannot cache a rejection, and a
-        // variable the file reassigns elsewhere (`snapshot = Promise.resolve(result)`) is refreshed.
-        const reassigned = new RegExp(`(^|[^?|&=!<>])\\b${esc}\\s*=(?!=)`, "m").test(text.replace(n.getText(), ""));
-        if (rhs && ts.isCallExpression(rhs) && n.parent && !ts.isAwaitExpression(n.parent) && promiseLike && !/^Promise\.resolve$/.test(rhs.expression.getText()) && !reassigned) {
-          const reset = new RegExp(`${lhs.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*=\\s*(null|undefined)\\b|delete\\s+${lhs.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(text);
-          if (!reset) bug.cachedPromise.push(`${short(n.getText().replace(/\s+/g, " "), 60)} @${lineOf(n.getStart())}`);
-        }
-      }
-      // Whole-collection PUT (pilot DE #3, bug 3): a PUT that replaces a whole map/list loses a
-      // concurrent writer's change. Flag PUT requests and PUT routes with no trailing :param.
-      if (ts.isPropertyAssignment(n) && memberName(n) === "method" && ts.isStringLiteralLike(n.initializer) && n.initializer.text.toUpperCase() === "PUT") bug.wholePut.push(`PUT request @${lineOf(n.getStart())}`);
-      if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === "put" && /^(app|router|server|fastify|routes?|r)$/i.test(recvName(n.expression.expression) ?? "")
-        && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text.startsWith("/")) {
-        // "(collection)" only for a plural last segment with no :param (round-2 judge 1 #3: the explore PUT
-        // writes one file and was tagged collection).
-        const route = n.arguments[0].text; const last = route.replace(/\/$/, "").split("/").pop() ?? "";
-        bug.wholePut.push(`PUT route ${route} @${lineOf(n.getStart())}${!last.startsWith(":") && /[a-z]s$/.test(last) ? " (collection)" : ""}`);
-      }
-    }
-    // --- v4 facts --------------------------------------------------------------------------------
-    // Path-loaded entries (judge 1 #1, judge 2 #2): `lib: { entry: path.resolve(dir, "src/loader-entry.ts") }`,
-    // `new URL("../../x.js", import.meta.url)`, `path.join(dir, "../../inbound/assistant", "x.ts")` spawn paths.
-    if (info.repo === "tovu" && info.role !== "test") {
-      if (ts.isStringLiteralLike(n) && !isModuleSpecifier(n) && /\.[mc]?[jt]sx?$/.test(n.text) && n.text.includes("/") && n.text.length <= 200) f.pathLits.push(n.text);
-      const pc = ts.isCallExpression(n) || ts.isNewExpression(n) ? (n.expression.getText(sf)) : "";
-      if (/^(path\.(posix\.)?)?(join|resolve)$|^URL$/.test(pc) && n.arguments?.length) {
-        const lits = []; for (const a0 of n.arguments) { const a = unwrap(a0);
-          if (ts.isStringLiteralLike(a)) lits.push(a.text);
-          else if (ts.isConditionalExpression(a)) { const b = [a.whenTrue, a.whenFalse].map(unwrap).find((x) => ts.isStringLiteralLike(x) && /\.ts$/.test(x.text)) ?? unwrap(a.whenFalse); if (ts.isStringLiteralLike(b)) lits.push(b.text); } }
-        const joined = lits.join("/").replace(/\/+/g, "/");
-        if (lits.length > 1 && /\.[mc]?[jt]sx?$/.test(joined)) f.pathLits.push(joined);
-      }
-    }
-    if (full) {
-      // Property names read or destructured here: member-level dead code (judge 3 #4: `replace`, `setDraftToken`).
-      if (ts.isPropertyAccessExpression(n)) f.propNames.add(n.name.text);
-      else if (ts.isBindingElement(n) && ts.isObjectBindingPattern(n.parent)) f.propNames.add((n.propertyName ?? n.name).getText(sf));
-      // Thrown messages (Tovu and Jini) and `err.message === "..."` / `.includes("...")` compares (judge 2 #8:
-      // a service exact-matching another file's error text is a private format coupling).
-      if (ts.isThrowStatement(n) && n.expression && ts.isNewExpression(unwrap(n.expression))) { const a = unwrap(unwrap(n.expression).arguments?.[0]); if (a && (ts.isStringLiteralLike(a) || ts.isTemplateExpression(a))) { const t = templatePattern(a).split("${}")[0].trim(); if (t.length >= 12) f.thrown.add(t); } }
-      if (info.repo === "tovu") {
-        const isMsg = (e) => { e = unwrap(e); return !!e && ts.isPropertyAccessExpression(e) && e.name.text === "message"; };
-        if (ts.isBinaryExpression(n) && /^[!=]==?$/.test(ts.tokenToString(n.operatorToken.kind) ?? "")) { const [m, l] = isMsg(n.left) ? [n.left, n.right] : isMsg(n.right) ? [n.right, n.left] : []; if (m && ts.isStringLiteralLike(l) && l.text.trim().length >= 12) f.errCompares.push({ text: l.text.trim(), line: lineOf(n.getStart()), symbol: topSymbol(n), op: "===" }); }
-        if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && /^(includes|startsWith|endsWith)$/.test(n.expression.name.text) && isMsg(n.expression.expression) && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text.trim().length >= 12) f.errCompares.push({ text: n.arguments[0].text.trim(), line: lineOf(n.getStart()), symbol: topSymbol(n), op: n.expression.name.text });
-      }
-      // Permission literals in a permission context (WIRE-DRIFT, tool-calls): `permission: "x"`,
-      // `permissions: ["x"]`, `const X_PERMISSION = "x"`, `grants.has("x")`, `requireToolPermission(..."x")`.
-      if (ts.isStringLiteralLike(n) && PERM_RE.test(n.text) && !isModuleSpecifier(n)) {
-        let p = n.parent; if (p && ts.isArrayLiteralExpression(p)) p = p.parent;
-        const def = !!p && ts.isVariableDeclaration(p) && /PERMISSION/i.test(p.name.getText(sf));
-        const ctx = def || (!!p && ts.isPropertyAssignment(p) && /permission/i.test(memberName(p)))
-          || (!!p && ts.isCallExpression(p) && /^(has|can|hasPermission|require\w*Permission|assert\w*Permission|authorize\w*|check\w*Permission)$/.test(lastName(p.expression) ?? ""));
-        if (ctx) f.permLits.push({ value: n.text, line: lineOf(n.getStart()), def, name: def ? p.name.getText(sf) : null });
-      }
-      // Route-path literals (WIRE-DRIFT and client-route checks): "/system/site-key", `${base}/system/site-token`.
-      if ((ts.isStringLiteralLike(n) || ts.isTemplateExpression(n)) && !isModuleSpecifier(n)) {
-        const pat = templatePattern(n).replace(/^(\$\{\})+/, "").replace(/\?.*$/, "");
-        if (/^\/[a-z][\w.-]*(\/[\w:.${}-]+)+\/?$/i.test(pat) && pat.length <= 160) f.routeLits.add(pat.replace(/\$\{\}|:\w+/g, ":p").replace(/\/$/, ""));
-      }
-      if (ts.isCallExpression(n) && /^(get|post|put|patch|delete|all)$/.test(lastName(n.expression) ?? "") && ts.isPropertyAccessExpression(n.expression) && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text.startsWith("/"))
-        f.routeDefs.push({ method: n.expression.name.text.toUpperCase(), path: n.arguments[0].text.replace(/:\w+/g, ":p").replace(/\/$/, ""), line: lineOf(n.getStart()) });
-      // Tool definitions (TOOL-CALL check): an object literal with `name` plus `authorization`, or plus
-      // `inputSchema` and `description` (AgentToolDefinition shape).
-      if (info.repo === "tovu" && ts.isObjectLiteralExpression(n)) {
-        const props = new Map(n.properties.filter((p) => p.name).map((p) => [memberName(p), p]));
-        if (props.has("name") && (props.has("authorization") || (props.has("inputSchema") && props.has("description")))) {
-          const val = (p) => { const i = p && ts.isPropertyAssignment(p) ? unwrap(p.initializer) : p && ts.isShorthandPropertyAssignment(p) ? p.name : null; if (!i) return null; if (ts.isStringLiteralLike(i)) return i.text; if (ts.isIdentifier(i)) return localStr.get(i.text) ?? `${i.text}`; return short(i.getText(sf), 40); };
-          const auth = props.get("authorization"); const ai = auth && ts.isPropertyAssignment(auth) ? unwrap(auth.initializer) : null;
-          const perm = ai && ts.isObjectLiteralExpression(ai) ? val(ai.properties.find((p) => p.name && memberName(p) === "permission")) : null;
-          f.tools.push({ name: val(props.get("name")), line: lineOf(n.getStart()), permission: perm, hasAuthorization: !!auth, hasSchema: props.has("inputSchema") });
-        }
-      }
-    }
-    if (full) {
-      if (ts.isObjectLiteralExpression(n)) collectPorts(n);
-      if (ts.isFunctionLike(n) && "body" in n && n.body) {
-        fnCount++;
-        const name = fnName(n);
-        // Jini private closures as twin targets (pilot DE #1: toWireSurfacePayload <-> a closure in
-        // delegated-tool-bridge). Tovu nested functions stay out: rows label top-level symbols.
-        if (info.repo === "jini" && ts.isBlock(n.body) && !unitBodies.has(n.body) && name !== "(anon)") addUnit(`${topSymbol(n) ?? "?"}>${name}`, "fn", n.body, n, false, { closure: true });
-        if (tovuFull) {
-          // A function that talks about process exit (SIGTERM, .kill(, exit codes) uses `signal` for
-          // an OS signal, not cancellation (pilot DE #3: kill, classifyExit, computeExitReasonCode).
-          // `(code, signal)` / `{ code, signal }` is a child-process exit pair.
-          const osFn = /SIG[A-Z]{3,}|\.kill\(|\bexit(Code)?\b|\bkill\b/i.test(name) || (n.parameters ?? []).some((p) => /\bcode\b/.test(p.name.getText())) || ((n.parameters ?? []).some((p) => /signal/i.test(p.name.getText())) && /SIG[A-Z]{3,}|\.kill\(|exitCode|on\(["'](exit|close)["']/.test(n.getText()));
-          if (!osFn) for (const p of n.parameters ?? []) {
-            const pn = p.name; const ptype = p.type?.getText() ?? "";
-            // OS signals (NodeJS.Signals, "SIGTERM" strings, exit-code helpers) are not cancellation.
-            if (/Signals|^string|^number/.test(ptype)) continue;
-            const names = ts.isIdentifier(pn) ? [pn.text] : ts.isObjectBindingPattern(pn) ? pn.elements.map((el) => el.name.getText()) : [];
-            if (/AbortSignal|CancelToken/.test(ptype) || names.some((x) => /^(signal|abortSignal|cancel\w*)$/.test(x))) bug.signalParams.push(`${name}@${lineOf(n.getStart())}`);
-            else if (/\bsignal\??:\s*AbortSignal/.test(ptype)) bug.signalParams.push(`${name}(opts.signal)@${lineOf(n.getStart())}`);
-          }
-          if (CRUD_RE.test(name)) bug.crud.push(`${name}@${lineOf(n.getStart())}`);
-          timing(n, name);
-        }
-      }
-      // Jini symbols that write, so a Tovu bare call into Jini resolves one hop too.
-      if (info.repo === "jini" && ts.isCallExpression(n) && writeKind(n) === "write") { const s0 = topSymbol(n); if (s0) f.directWriteSyms.add(s0); }
-      if (tovuFull && ts.isCallExpression(n)) {
-        const callee = lastName(n.expression);
-        if (callee === "throwIfAborted") bug.abortChecks.push(lineOf(n.getStart()));
-        const encl = ts.findAncestor(n.parent, ts.isFunctionLike);
-        const osSignal = /kill|exit|signal|^on$|^once$|^String$|^log$|^warn$|^error$/i.test(callee ?? "") || (!!encl && (/SIG[A-Z]{3,}|\.kill\(|exitCode/.test(encl.getText()) || (encl.parameters ?? []).some((p) => /\bcode\b/.test(p.name.getText()))));
-        const passes = !osSignal && n.arguments.some((a) => (ts.isIdentifier(a) && /^(signal|abortSignal)$/.test(a.text)) || (ts.isPropertyAccessExpression(a) && a.name.text === "signal")
-          || (ts.isObjectLiteralExpression(a) && a.properties.some((p) => p.name && /^signal$/.test(memberName(p)))));
-        const label = short(n.expression.getText().replace(/\s+/g, ""), 48);
-        if (passes) bug.forwards.push(`${label}@${lineOf(n.getStart())}`);
-        // Bare verb-noun calls (settleWithin, trashDaysRemaining, pushRefusal) are writes only if the
-        // callee itself writes: resolved one hop after the parse (round-2 judge 1 #3, judge 2 #9).
-        const wk = writeKind(n, (id) => localStr.get(id)) ?? (portWrite(n) ? "write" : null);
-        // Map-cached promise with no delete-on-reject (judge 2 #9: decoyKeyHash memoises hasher.hash() in a
-        // Map; a rejected hash stays cached for the process). `M.set(k, v)` in a Promise-returning function
-        // (or a Map typed with Promise) and no `M.delete(` anywhere in the file.
-        if (ts.isPropertyAccessExpression(unwrap(n.expression)) && unwrap(n.expression).name.text === "set" && n.arguments.length === 2) {
-          const m = unwrap(n.expression).expression.getText().replace(/\s+/g, ""); const encl = ts.findAncestor(n.parent, ts.isFunctionLike);
-          const esc = m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          // A non-async function typed `Promise<...>` returns the cached value itself: that is a cached promise.
-          const promiseFn = (!!encl && /Promise</.test(encl.type?.getText() ?? "") && !ts.getModifiers?.(encl)?.some((x) => x.kind === ts.SyntaxKind.AsyncKeyword)) || new RegExp(`${esc.split(".").pop()}[^;\\n]*Map<[^>]*Promise<`).test(text);
-          const raw = n.arguments[1]; const v0 = unwrap(raw);
-          const isCall = !ts.isAwaitExpression(raw) && (ts.isCallExpression(v0) || (ts.isIdentifier(v0) && !!encl && new RegExp(`\\b${v0.text}\\s*=\\s*[\\w.]+\\(`).test(encl.getText())));
-          if (promiseFn && isCall && !new RegExp(`${esc}\\.(delete|clear)\\(`).test(text)) bug.cachedPromise.push(`${m}.set(...) caches a promise, no delete-on-reject @${lineOf(n.getStart())}`);
-        }
-        if (wk === "write") { bug.writes.push(`${label}@${lineOf(n.getStart())}${passes ? "+sig" : ""}`); const ts0 = topSymbol(n); if (ts0) f.directWriteSyms.add(ts0); }
-        else if (wk === "bare") f.bareWrites.push({ callee: unwrap(n.expression).text, text: `${label}@${lineOf(n.getStart())}${passes ? "+sig" : ""}` });
-      } else if (tovuFull && ts.isPropertyAccessExpression(n) && n.name.text === "aborted") bug.abortChecks.push(lineOf(n.getStart()));
-    }
-    ts.forEachChild(n, visit);
   };
+}
 
-  /** Port-implementation candidates: `key: tovuSymbol` inside an object literal that is typed with,
-   * or passed into, something (resolved in pass 2 to Jini or not). Item 2 of canary-2. */
-  function portContext(obj) {
+function createReturnedObject() {
+  return function returnedObject(body) {
+    if (!body) return null;
+    if (!ts.isBlock(body)) { const e = unwrap(body); return e && ts.isObjectLiteralExpression(e) ? e : null; }
+    const last = [...body.statements].reverse().find((x) => ts.isReturnStatement(x));
+    const e = last?.expression ? unwrap(last.expression) : null;
+    if (e && ts.isObjectLiteralExpression(e)) return e;
+    // `return useMemo(() => ({ ... }), deps)`
+    if (e && ts.isCallExpression(e) && /^(useMemo|useCallback)$/.test(lastName(e.expression) ?? "")) { const cb = unwrap(e.arguments[0]); if (cb && ts.isArrowFunction(cb)) return returnedObject(cb.body); }
+    return null;
+  };
+}
+
+function createConstSetOf() {
+  return function constSetOf(init) {
+    let a = unwrap(init);
+    // Regex alternations are sets too (round-2 judge 2 #8: LOCAL_HOSTS array <-> a /^(localhost|127.0.0.1|::1)$/ in
+    // platform/net): `(a|b|c)` of plain tokens, >= 3, keyed like an array of the same strings.
+    if (a && ts.isRegularExpressionLiteral(a)) {
+      const m = /\(\??:?([\w.:\\-]+(?:\|[\w.:\\-]+){2,})\)/.exec(a.text);
+      return m ? [...new Set(m[1].split("|").map((x) => x.replace(/\\(.)/g, "$1")))].sort().join("\u0001") : null;
+    }
+    if (a && (ts.isNewExpression(a) || ts.isCallExpression(a)) && a.arguments?.[0]) a = unwrap(a.arguments[0]);
+    if (!a || !ts.isArrayLiteralExpression(a) || a.elements.length < 3 || !a.elements.every((x) => ts.isStringLiteralLike(x))) return null;
+    return [...new Set(a.elements.map((x) => x.text))].sort().join("\u0001");
+  };
+}
+
+function createUnitBeh() {
+  return function unitBeh(body) {
+    const toks = new Set();
+    const w = (n) => {
+      if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) && n.text.length >= 3 && n.text.length <= 60) toks.add(`s:${n.text}`);
+      else if (ts.isCallExpression(n)) { const c = lastName(n.expression); if (c) toks.add(`c:${c}`); }
+      else if (ts.isPropertyAccessExpression(n)) toks.add(`p:${n.name.text}`);
+      ts.forEachChild(n, w);
+    };
+    w(body);
+    return toks.size >= UNIT_BEH_MIN_SHARED ? [...toks] : null;
+  };
+}
+
+function createPortContext() {
+  return function portContext(obj) {
     const p = obj.parent;
     if (ts.isVariableDeclaration(p) && p.type) { const r = typeRoot(p.type); return r ? { root: r, label: short(p.type.getText(), 50) } : null; }
     if ((ts.isSatisfiesExpression?.(p) || ts.isAsExpression(p)) && p.type) { const r = typeRoot(p.type); return r ? { root: r, label: short(p.type.getText(), 50) } : null; }
@@ -1055,8 +1198,32 @@ function parseFile(abs, info) {
     const fn = ts.isReturnStatement(p) ? ts.findAncestor(p, ts.isFunctionLike) : ts.isArrowFunction(p) && p.body === obj ? p : null;
     if (fn?.type) { const r = typeRoot(fn.type); return r ? { root: r, label: short(fn.type.getText(), 50) } : null; }
     return null;
-  }
-  function collectPorts(obj) {
+  };
+}
+
+function createDynamicNames() {
+  return function dynamicNames(call) {
+    let p = call.parent; while (p && (ts.isAwaitExpression(p) || ts.isParenthesizedExpression(p))) p = p.parent;
+    if (p && ts.isVariableDeclaration(p) && ts.isObjectBindingPattern(p.name)) return { names: p.name.elements.map((el) => (el.propertyName ?? el.name).getText()) };
+    if (p && ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) return { names: ["*"], local: p.name.text };
+    if (p && ts.isPropertyAccessExpression(p) && p.name.text !== "then") return { names: [p.name.text] };
+    if (p && ts.isPropertyAccessExpression(p) && ts.isCallExpression(p.parent)) {
+      const cb = unwrap(p.parent.arguments[0]);
+      if (cb && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb)) && cb.parameters[0]) {
+        const pn = cb.parameters[0].name;
+        if (ts.isObjectBindingPattern(pn)) return { names: pn.elements.map((el) => (el.propertyName ?? el.name).getText()) };
+        if (ts.isIdentifier(pn)) {
+          const used = new Set(); const w = (n) => { if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === pn.text) used.add(n.name.text); ts.forEachChild(n, w); };
+          w(cb.body); if (used.size) return { names: [...used] };
+        }
+      }
+    }
+    return { names: ["*"] };
+  };
+}
+
+function createCollectPorts(portContext, f, lineOf) {
+  return function collectPorts(obj) {
     let ctx;
     // Key set of every top-level host object (typed with / passed into a binding): two Tovu files
     // wiring the same Jini host with the same keys are duplicate wiring even when bodies differ.
@@ -1083,61 +1250,65 @@ function parseFile(abs, info) {
       if (!ctx) return;
       f.ports.push({ line: lineOf(prop.getStart()), root: ctx.root, label: ctx.label, field: memberName(prop), value });
     }
-  }
-  visit(sf);
+  };
+}
 
-  // --- comments: stale path references (canary-2 item 8) --------------------------------------
-  if (full) {
-    const seen = new Set();
-    const scanComments = (ranges) => { for (const r of ranges ?? []) { if (seen.has(r.pos)) continue; seen.add(r.pos);
-      const c = text.slice(r.pos, r.end); for (const m of c.matchAll(PATH_REF_RE)) f.staleCandidates.push({ ref: m[1], line: lineOf(r.pos + m.index) });
-      // v4 (judge 1 #9, judge 2 #11): `file.ts:44-50` line cites (bare names too) are checked against the
-      // file's length, and `@jini-ai/pkg/sub` mentions against that package's `exports` map.
-      for (const m of c.matchAll(LINE_REF_RE)) f.staleCandidates.push({ ref: m[1], refLine: +(m[3] ?? m[2]), line: lineOf(r.pos + m.index), kind: "line" });
-      for (const m of c.matchAll(/@jini-ai\/[\w-]+(?:\/[\w-]+)*(?![\w./-]*\.\w{2,4}\b)/g)) f.staleCandidates.push({ ref: m[0], line: lineOf(r.pos + m.index), kind: "jini-spec" }); } };
-    const walkC = (n) => { scanComments(ts.getLeadingCommentRanges(text, n.pos)); ts.forEachChild(n, walkC); };
-    walkC(sf); scanComments(ts.getLeadingCommentRanges(text, sf.endOfFileToken.pos));
-  }
-  f.jiniLits = jiniLits;
-  // The hermetic default composition (composition/app.ts: in-memory adapters, "what tests exercise"):
-  // its edges to memory/console/seed adapters are not prod reach (judge 2 #11).
-  f.hermetic = info.repo === "tovu" && /\bhermetic\b/i.test(text.slice(0, 40000)) && f.imports.length >= 30;
-  // TOOL-CALL check, per file: hand-written permission checks, ctx.signal reads, hand-parsed input,
-  // generic error wording. Files that define tools, or tool/registration files that hold their handlers.
-  if (full && info.repo === "tovu" && (f.tools.length || /tool|registration/i.test(path.basename(info.rel)))) {
-    const checks = []; const generic = []; let handParse = 0;
-    const w = (n) => {
-      if (ts.isCallExpression(n)) {
-        const c = lastName(n.expression);
-        if (c && HAND_CHECK_RE.test(c)) {
-          let perm = null; for (const a of n.arguments) { const x = unwrap(a); if (ts.isStringLiteralLike(x) && PERM_RE.test(x.text)) perm = x.text;
-            else if (ts.isObjectLiteralExpression(x)) { const pp = x.properties.find((q) => q.name && memberName(q) === "permission"); const iv = pp && ts.isPropertyAssignment(pp) ? unwrap(pp.initializer) : null; if (iv) perm = ts.isStringLiteralLike(iv) ? iv.text : ts.isIdentifier(iv) ? (localStr.get(iv.text) ?? iv.text) : null; } }
-          checks.push({ fn: c, perm, line: lineOf(n.getStart()) });
-        }
-        if (/^JSON\.parse$/.test(n.expression.getText())) handParse++;
-      }
-      // `typeof input.x === "string"` / `typeof ctx.input...` instead of the declared schema.
-      if (ts.isTypeOfExpression(n) && /^(ctx\.)?(input|args|params|raw)\b/.test(n.expression.getText())) handParse++;
-      if (ts.isStringLiteralLike(n) && GENERIC_ERR_RE.test(n.text) && n.parent && ((ts.isNewExpression(n.parent) && /Error$/.test(n.parent.expression.getText())) || (ts.isPropertyAssignment(n.parent) && /^(error|message|reason)$/.test(memberName(n.parent))))) generic.push(`"${n.text}"@${lineOf(n.getStart())}`);
-      ts.forEachChild(n, w);
+function createSingleCall() {
+  return function singleCall(body, params = []) {
+    let e = null;
+    if (!body) return null;
+    if (!ts.isBlock(body)) e = body;
+    else if (body.statements.length === 1) { const s = body.statements[0]; e = ts.isReturnStatement(s) ? s.expression : ts.isExpressionStatement(s) ? s.expression : null; }
+    e = unwrap(e);
+    if (!e || !(ts.isCallExpression(e) || ts.isNewExpression(e))) return null;
+    // Round-2 judge 1 #9, judge 2 #3: builders (buildDeployOpsRegistrations, buildSettingsRegistrations)
+    // read as pass-throughs because their one call is into Jini. A pass-through FORWARDS: every argument
+    // is a parameter, `...param` or `param.x` - no literals, no extra object properties, no closures.
+    const pnames = new Set(params.flatMap((p) => ts.isIdentifier(p.name) ? [p.name.text] : ts.isObjectBindingPattern(p.name) ? p.name.elements.map((el) => el.name.getText()) : []));
+    const fwd = (a) => { a = unwrap(a); if (ts.isSpreadElement(a) || ts.isSpreadAssignment?.(a)) a = unwrap(a.expression);
+      // `{ deps }` / `{ ...opts, deps: d }` re-packs parameters: still forwarding (no new values).
+      if (ts.isObjectLiteralExpression(a)) return a.properties.every((p) => ts.isShorthandPropertyAssignment(p) ? pnames.has(p.name.text) : ts.isSpreadAssignment(p) ? fwd(p.expression) : ts.isPropertyAssignment(p) && fwd(p.initializer));
+      const r = ts.isIdentifier(a) ? a.text : ts.isPropertyAccessExpression(a) ? rootIdent(a) : null; return !!r && pnames.has(r); };
+    const forwardsOnly = (e.arguments ?? []).every(fwd);
+    const args = { lit: false, idents: [], hostMsg: false, forwardsOnly };
+    const scan = (a, depth) => {
+      a = unwrap(a); if (!a) return;
+      if (ts.isStringLiteralLike(a) || ts.isTemplateExpression(a) || ts.isNumericLiteral(a)) args.lit = true;
+      else if (ts.isIdentifier(a)) { args.idents.push(a.text); if (/messages|copy|strings|i18n|labels|wording/i.test(a.text)) args.hostMsg = true; }
+      else if (ts.isPropertyAccessExpression(a)) { const r = rootIdent(a); if (r) args.idents.push(r); if (/messages|copy|strings|i18n|labels|wording/i.test(a.name.text)) args.hostMsg = true; }
+      else if (depth < 2 && ts.isObjectLiteralExpression(a)) for (const p of a.properties) { if (ts.isPropertyAssignment(p)) scan(p.initializer, depth + 1); else if (ts.isShorthandPropertyAssignment(p)) scan(p.name, depth + 1); }
+      else if (depth < 2 && ts.isArrayLiteralExpression(a)) a.elements.forEach((x) => scan(x, depth + 1));
     };
-    w(sf);
-    f.toolFile = { checks, ctxSignal: /\bctx\.signal\b|\{[^}]*\bsignal\b[^}]*\}\s*=\s*ctx\b|\bsignal\s*:\s*ctx\.signal/.test(text), handParse, generic };
-  }
-  if (full) {
-    f.bug = bug; f.fnCount = fnCount;
-    f.toolRegistration = /\bbuildDomainRegistrations\b|AgentToolDefinition\[\]/.test(text);
-    f.dataIsh = /(i18n|locales?|copy|messages|strings)\b/i.test(info.rel);
-    // An approval handler or ctx.signal use is behaviour a Tier 0 skim misses (pilot ABC #7:
-    // project-keys/tools.ts and consent/tool-registrations.ts sat at Tier 0 as R9).
-    f.approvalOrCtxSignal = /\b(requiresApproval|needsApproval|approvalRequired|approval\w*\s*[:(]|onApprove\w*|approve[A-Z]\w*\s*\(|ctx\.signal)/.test(text);
-    // Rule check (pilot DE #7, D2): Jini must not name a specific server framework (owner 11-07).
-    // Partial batches (round-2 judge 2 #1): a prepared/approval batch whose prepare step pins a
-    // version/hash reads every item against ONE original; two items on the same target then conflict.
-    f.batchPin = /\b(createPreparedBatchHandler|createBatchApprovalHandler)\b/.test(text) && /\bprepare\w*\s*[:(]/.test(text) && /\b\w*(Hash|hash|Version|version|etag|Etag|sha|revision)\w*\b/.test(text);
-    f.expressType = f.imports.some((i) => /^(express|@types\/express)$/.test(i.spec)) || /(:\s*|<\s*)(Express|express\.(Application|Router|Request|Response))\b/.test(text);
-  }
-  return f;
+    for (const a of e.arguments ?? []) scan(a, 0);
+    return { root: rootIdent(e.expression), args };
+  };
+}
+
+function createNormHash(sf) {
+  return function normHash(body, params) {
+    const txt = body.getText(); if (txt.length < NORM_MIN_CHARS || txt.length > 6000) return null;
+    const declared = new Set();
+    const addName = (nm) => { if (!nm) return; if (ts.isIdentifier(nm)) declared.add(nm.text); else if (ts.isObjectBindingPattern(nm) || ts.isArrayBindingPattern(nm)) nm.elements.forEach((el) => el.name && addName(el.name)); };
+    for (const p of params) addName(p.name);
+    const w = (n) => { if (ts.isVariableDeclaration(n) || ts.isParameter(n) || ts.isBindingElement(n)) addName(n.name); else if ((ts.isFunctionDeclaration(n) || ts.isClassDeclaration(n)) && n.name) declared.add(n.name.text); ts.forEachChild(n, w); };
+    w(body);
+    const ids = new Map(); const out = [];
+    const emit = (n) => {
+      if (ts.isTypeNode(n) && n.kind !== ts.SyntaxKind.ThisType) return;
+      if (ts.isIdentifier(n)) {
+        const p = n.parent; const isMember = p && ((ts.isPropertyAccessExpression(p) && p.name === n) || (ts.isPropertyAssignment(p) && p.name === n));
+        if (declared.has(n.text) && !isMember) { if (!ids.has(n.text)) ids.set(n.text, `$${ids.size}`); out.push(ids.get(n.text)); } else out.push(n.text);
+        return;
+      }
+      if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) { out.push(JSON.stringify(n.text)); return; }
+      const kids = n.getChildren(sf);
+      if (!kids.length) { out.push(n.getText(sf)); return; }
+      kids.forEach(emit);
+    };
+    emit(body);
+    let h = 2166136261; const s = out.join(" "); for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    return `${out.length}:${h >>> 0}`;
+  };
 }
 
 const facts = new Map();

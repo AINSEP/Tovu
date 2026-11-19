@@ -36,6 +36,8 @@ function eventsUrl({ workspaceId }: { workspaceId: string }, _options = {}): str
   return `/api/admin/v1/workspaces/${encodeURIComponent(workspaceId)}/settings/events?themePreview=1`;
 }
 
+type Frame = { kind: "settings-changed" | "theme-preview-refresh" | "open"; data: string; id: string };
+
 /**
  * Shares the change feed for this workspace/principal across tabs and returns a disposer.
  * Existing hook consumers share this workspace-scoped subscription.
@@ -48,6 +50,8 @@ function eventsUrl({ workspaceId }: { workspaceId: string }, _options = {}): str
  * `EventSource` retries forever otherwise, including after the component that opened it is gone.
  * @complexity O(1).
  */
+
+
 export function subscribeToSettingsChanges({ workspaceId }: { workspaceId: string }, {
   open = (url: string) => new EventSource(url, { withCredentials: true }),
   principalId = "session", ports, activity = adminStreamActivity,
@@ -57,17 +61,52 @@ export function subscribeToSettingsChanges({ workspaceId }: { workspaceId: strin
   principalId?: string; ports?: BrowserStreamPorts; activity?: StreamActivity;
   publishSettings?: typeof publishSettingsRefresh; publishPreview?: typeof publishThemePreviewRefresh;
 } = {}): () => void {
-  let cursor = "";
-  let themeRevision = "";
-  let opened = false;
-  type Frame = { kind: "settings-changed" | "theme-preview-refresh" | "open"; data: string; id: string };
+  const state = {
+    cursor: "",
+    themeRevision: "",
+    opened: false,
+  };
+  
   return startBrowserStream<Frame>({
     // Workspace and principal are both disclosure boundaries; never share across identities.
     key: `settings/${encodeURIComponent(workspaceId)}/${encodeURIComponent(principalId)}`,
-    connect: ({ emit }) => {
+    connect: createSettingsFeedConnector(state, open, workspaceId),
+    receive: ({ frame }) => {
+      if (frame.id) state.cursor = frame.id;
+      if (frame.kind === "open") {
+        // A new leader/follower connection may have no cursor yet. Re-read after boot so a
+        // handoff cannot leave stale values even when no settings frame preceded it.
+        // Theme's durable marker replays independently.
+        // The FIRST attach belongs to boot's fresh reads, not a change. Later opens still cover
+        // reconnects/leadership handoffs, including those for which no cursor was received.
+        // A prior frame can supply the resume cursor even if that source never emitted open.
+        if (state.opened || state.cursor) publishSettings();
+        state.opened = true;
+        return;
+      }
+      if (frame.kind === "theme-preview-refresh") {
+        try {
+          const preview = JSON.parse(frame.data) as ThemePreviewRefresh;
+          publishPreview(preview);
+          state.themeRevision = preview.revision;
+        } catch { /* A malformed theme frame must not break the independent settings feed. */ }
+        return;
+      }
+      try {
+        const changed = JSON.parse(frame.data) as SettingsChangedFrame;
+        // A frame with no usable namespace list still means "something changed" — refresh everything
+        // rather than dropping a notification because its payload shape was unexpected.
+        publishSettings(Array.isArray(changed.namespaces) ? changed.namespaces : undefined);
+      } catch { publishSettings(); }
+    },
+  }, { ports, activity });
+}
+
+function createSettingsFeedConnector(state: { cursor: string; themeRevision: string; opened: boolean; }, open: (url: string) => Pick<EventSource, "addEventListener" | "close" | "readyState">, workspaceId: string): Parameters<typeof startBrowserStream<Frame>>[0]["connect"] {
+  return ({ emit }) => {
       let source: Pick<EventSource, "addEventListener" | "close" | "readyState">;
-      const afterRevision = cursor ? "&afterRevision=" + encodeURIComponent(cursor) : "";
-      const themeRevisionParam = themeRevision ? "&themeRevision=" + encodeURIComponent(themeRevision) : "";
+      const afterRevision = state.cursor ? "&afterRevision=" + encodeURIComponent(state.cursor) : "";
+      const themeRevisionParam = state.themeRevision ? "&themeRevision=" + encodeURIComponent(state.themeRevision) : "";
       const resume = afterRevision + themeRevisionParam;
       try { source = open(eventsUrl({ workspaceId }) + resume); }
       catch (error) {
@@ -87,34 +126,5 @@ export function subscribeToSettingsChanges({ workspaceId }: { workspaceId: strin
         if (source.readyState === 2) console.warn("[admin] settings change feed closed by the server; no further updates on this connection");
       });
       return () => source.close();
-    },
-    receive: ({ frame }) => {
-      if (frame.id) cursor = frame.id;
-      if (frame.kind === "open") {
-        // A new leader/follower connection may have no cursor yet. Re-read after boot so a
-        // handoff cannot leave stale values even when no settings frame preceded it.
-        // Theme's durable marker replays independently.
-        // The FIRST attach belongs to boot's fresh reads, not a change. Later opens still cover
-        // reconnects/leadership handoffs, including those for which no cursor was received.
-        // A prior frame can supply the resume cursor even if that source never emitted open.
-        if (opened || cursor) publishSettings();
-        opened = true;
-        return;
-      }
-      if (frame.kind === "theme-preview-refresh") {
-        try {
-          const preview = JSON.parse(frame.data) as ThemePreviewRefresh;
-          publishPreview(preview);
-          themeRevision = preview.revision;
-        } catch { /* A malformed theme frame must not break the independent settings feed. */ }
-        return;
-      }
-      try {
-        const changed = JSON.parse(frame.data) as SettingsChangedFrame;
-        // A frame with no usable namespace list still means "something changed" — refresh everything
-        // rather than dropping a notification because its payload shape was unexpected.
-        publishSettings(Array.isArray(changed.namespaces) ? changed.namespaces : undefined);
-      } catch { publishSettings(); }
-    },
-  }, { ports, activity });
+    };
 }

@@ -112,7 +112,24 @@ function buildSources(): readonly BackfillSource[] {
           FROM media
          WHERE status = 'trashed'`,
     },
+    buildRedirectBackfillSource(),
     {
+      entityType: "comment",
+      table: COMMENTS_TABLE,
+      selectSql: `
+        SELECT lower(hex(randomblob(16))) AS id, workspace_id AS workspace_id, 'comment' AS entity_type,
+               id AS entity_id, updated_at AS trashed_at, ? AS purge_after, ? AS actor_principal_id,
+               'Comment on ' || entry_id AS display_title,
+               substr(body_text, 1, ${COMMENT_SUBTITLE_MAX}) AS display_subtitle,
+               version AS entity_version
+          FROM "${COMMENTS_TABLE}"
+         WHERE status = 'trash'`,
+    },
+  ];
+}
+
+function buildRedirectBackfillSource(): BackfillSource {
+  return {
       entityType: "redirect",
       table: "redirects",
       // BOTH conditions, not either: see this file's header on why `status = 'disabled'` alone
@@ -135,21 +152,9 @@ function buildSources(): readonly BackfillSource[] {
                                     WHERE x.redirect_id = r.id
                                       AND x.workspace_id = r.workspace_id)
                )`,
-    },
-    {
-      entityType: "comment",
-      table: COMMENTS_TABLE,
-      selectSql: `
-        SELECT lower(hex(randomblob(16))) AS id, workspace_id AS workspace_id, 'comment' AS entity_type,
-               id AS entity_id, updated_at AS trashed_at, ? AS purge_after, ? AS actor_principal_id,
-               'Comment on ' || entry_id AS display_title,
-               substr(body_text, 1, ${COMMENT_SUBTITLE_MAX}) AS display_subtitle,
-               version AS entity_version
-          FROM "${COMMENTS_TABLE}"
-         WHERE status = 'trash'`,
-    },
-  ];
+    };
 }
+
 
 /** Whether a table exists in this file at all — the comments table only exists once the tier-2
  *  plugin has been installed, so a site without it must be skipped, not fail.

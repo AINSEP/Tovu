@@ -81,21 +81,8 @@ function createConversationStore(
     withLock: withFileLock,
     ...optional,
   };
-  const load = (): StoredConversation[] => {
-    const read = ports.read({ filePath: required.filePath });
-    if (read.state !== "ok") return [];
-    const rows = (read.value as { conversations?: unknown } | null)?.conversations;
-    return Array.isArray(rows) ? (rows as StoredConversation[]) : [];
-  };
-  const readGaps = (): ToolGapEntry[] => {
-    const read = ports.read({ filePath: required.filePath });
-    if (read.state !== "ok") return [];
-    const entries = (read.value as { toolGaps?: unknown } | null)?.toolGaps;
-    return Array.isArray(entries) ? entries.flatMap(entry => {
-      const decoded = decodeToolGapEntry({ json: JSON.stringify(entry) }, {});
-      return decoded ? [decoded] : [];
-    }) : [];
-  };
+  const load = createConversationReader(ports, required);
+  const readGaps = createToolGapReader(ports, required);
   // Every chat write preserves audit metadata; renderer message saves cannot erase it.
   const save = ({ rows }: { rows: StoredConversation[] }, _options = {}) => ports.write({ filePath: required.filePath, value: { conversations: rows, toolGaps: readGaps() } });
   const locked = <T>({ critical }: { critical: () => T }, _options = {}) => ports.withLock({ filePath: required.filePath, critical });
@@ -130,6 +117,27 @@ function createConversationStore(
       else row.messages[index] = message;
       row.title ??= titleFrom(message);
     } }),
+  };
+}
+
+function createConversationReader(ports: ConversationStorePorts, required: { filePath: string }) {
+  return (): StoredConversation[] => {
+    const read = ports.read({ filePath: required.filePath });
+    if (read.state !== "ok") return [];
+    const rows = (read.value as { conversations?: unknown } | null)?.conversations;
+    return Array.isArray(rows) ? (rows as StoredConversation[]) : [];
+  };
+}
+
+function createToolGapReader(ports: ConversationStorePorts, required: { filePath: string }) {
+  return (): ToolGapEntry[] => {
+    const read = ports.read({ filePath: required.filePath });
+    if (read.state !== "ok") return [];
+    const entries = (read.value as { toolGaps?: unknown } | null)?.toolGaps;
+    return Array.isArray(entries) ? entries.flatMap(entry => {
+      const decoded = decodeToolGapEntry({ json: JSON.stringify(entry) }, {});
+      return decoded ? [decoded] : [];
+    }) : [];
   };
 }
 

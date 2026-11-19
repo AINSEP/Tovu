@@ -56,10 +56,140 @@ export function createAdminChatDriver(
    */
   const fileInput = root.getByTestId("composer-attachment-input");
   const attachmentChips = root.getByTestId("attachment-chip");
-  let priorAssistantIds = new Set<string>();
-  let answerId: string | null = null;
+  const answers = {
+    priorAssistantIds: new Set<string>(),
+    answerId: null as string | null,
+  };
 
-  const ui = {
+  const ui = buildUi({ dock, root, messages, assistantMessages, userMessages, fileInput, attachmentChips });
+
+  async function currentAnswer(): Promise<Locator | null> {
+    const ids = await assistantMessages.evaluateAll((rows) => rows.map((row) => row.getAttribute("data-message-id")!));
+    const id = answers.answerId ?? ids.filter((candidate) => !answers.priorAssistantIds.has(candidate)).at(-1);
+    if (!id) return null;
+    answers.answerId = id;
+    return assistantMessages.and(root.locator(`[data-message-id=${JSON.stringify(id)}]`));
+  }
+
+  /** Open the dock idempotently; navigate when requested or when outside /admin. Does not log in. */
+  const open = createOpen({ page, adminPath, actionTimeoutMs, dock, ui });
+
+  /** Read the currently selected conversation, not the newest row or a remembered storage value. */
+  async function currentConversationId(_required = {}, _optional = {}): Promise<string | null> {
+    return (await root.getAttribute("data-conversation-id")) || null;
+  }
+
+  /** Create a durable conversation through the real switcher, and wait for the empty pane. */
+  const newConversation = createNewConversation({ open, currentConversationId, root, actionTimeoutMs, messages, answers });
+
+  /**
+   * Select one batch, then wait for the upload to settle (including rejections). Assertions own
+   * success/failure, so zero-byte/oversize tests can use the same path. The hidden input always
+   * exists after mount in both Jini composer branches; no menu click is necessary for input mode.
+   * picker mode also proves the visible Attach files action opens that very input.
+   */
+  const attach = createAttach({ fileInput, actionTimeoutMs, root, page });
+
+  /**
+   * Submit text; omit text to submit the existing draft without changing it. enter also drives
+   * typed answers and queueing while Stop replaces Send. Returns after submission, without
+   * waiting for completion. doubleClick preserves duplicate-send proof.
+   */
+  const send = createSend({ answers, assistantMessages, ui, actionTimeoutMs });
+
+  /** Read chips in the draft, or sent attachments from the persisted transcript (with their paths). */
+  async function attachments(
+    { scope = "composer" }: { scope?: "composer" | "transcript" } = {}, _optional = {},
+  ): Promise<readonly AttachmentObservation[]> {
+    if (scope === "transcript") return (await transcript({}, { source: "persisted" })).flatMap((message) => message.attachments);
+    return attachmentChips.evaluateAll((chips) => chips.map((chip) => ({
+      name: chip.getAttribute("data-attachment-name") ?? "",
+      kind: chip.getAttribute("data-attachment-kind"), path: null,
+    })));
+  }
+
+  /** Read ordered rendered messages, or raw persisted markdown/attachment metadata via the real API. */
+  const transcript = createTranscript(currentConversationId, page, messages);
+
+  /**
+   * Wait for THIS submission's terminal lifecycle state. A visible sentence or missing Stop alone
+   * is insufficient: tools can still be running. Fail promptly on a different terminal outcome.
+   */
+  const waitForAnswer = createWaitForAnswer({ answerTimeoutMs, currentAnswer, actionTimeoutMs, transcript, answers });
+
+  /**
+   * Reload only after nonempty output arrives during a live run; never silently reload a finished
+   * answer. Wait for the same conversation and message to reopen. A controllably slow provider is
+   * required for deterministic timing; live runs fail this precondition if they finish too quickly.
+   */
+  const reloadMidAnswer = createReloadMidAnswer({ answerTimeoutMs, currentAnswer, actionTimeoutMs, ui, currentConversationId, page, open });
+
+  return { ui, open, newConversation, attach, send, waitForAnswer, reloadMidAnswer, transcript, attachments, currentConversationId };
+}
+
+function createNewConversation({ open, currentConversationId, root, actionTimeoutMs, messages, answers }: { open: ReturnType<typeof createOpen>; currentConversationId: (_required?: {}, _optional?: {}) => Promise<string | null>; root: Locator; actionTimeoutMs: number; messages: Locator; answers: { priorAssistantIds: Set<string>; answerId: string | null; } }) {
+  return async function newConversation(_required = {}, _optional = {}): Promise<string> {
+    await open();
+    const previous = await currentConversationId();
+    await root.getByTestId("conversation-trigger").click();
+    await root.getByTestId("conversation-new").click();
+    await expect.poll(currentConversationId, { timeout: actionTimeoutMs }).toEqual(expect.any(String));
+    await expect.poll(currentConversationId, { timeout: actionTimeoutMs }).not.toBe(previous);
+    await expect(messages).toHaveCount(0, { timeout: actionTimeoutMs });
+    answers.priorAssistantIds.clear();
+    answers.answerId = null;
+    return (await currentConversationId())!;
+  };
+}
+
+function createWaitForAnswer({ answerTimeoutMs, currentAnswer, actionTimeoutMs, transcript, answers }: { answerTimeoutMs: number; currentAnswer: () => Promise<Locator | null>; actionTimeoutMs: number; transcript: ReturnType<typeof createTranscript>; answers: { priorAssistantIds: Set<string>; answerId: string | null; } }) {
+  return async function waitForAnswer(
+    { outcome }: { outcome: AnswerOutcome }, { timeoutMs = answerTimeoutMs }: { timeoutMs?: number } = {},
+  ): Promise<TranscriptMessage> {
+    await expect.poll(async () => {
+      const answer = await currentAnswer();
+      const status = await answer?.getAttribute("data-run-status", { timeout: actionTimeoutMs });
+      if (status && ["succeeded", "failed", "canceled"].includes(status)) return status;
+      return null;
+    }, { timeout: timeoutMs, message: "Assistant answer never reached a terminal run status" }).toEqual(expect.any(String));
+    const answer = (await currentAnswer())!;
+    await expect(answer).toHaveAttribute("data-run-status", outcome);
+    return (await transcript()).find((message) => message.id === answers.answerId)!;
+  };
+}
+
+function createSend({ answers, assistantMessages, ui, actionTimeoutMs }: { answers: { priorAssistantIds: Set<string>; answerId: string | null; }; assistantMessages: Locator; ui: ReturnType<typeof buildUi>; actionTimeoutMs: number }) {
+  return async function send(
+    { text }: { text?: string },
+    { submission = "button", doubleClick = false }: { submission?: "button" | "enter"; doubleClick?: boolean } = {},
+  ): Promise<void> {
+    answers.priorAssistantIds = new Set(await assistantMessages.evaluateAll((rows) => rows.map((row) => row.getAttribute("data-message-id")!)));
+    answers.answerId = null;
+    if (text !== undefined) await ui.composer.fill(text);
+    if (submission === "enter") await ui.composer.press("Enter");
+    else {
+      await expect(ui.send).toBeEnabled({ timeout: actionTimeoutMs });
+      if (doubleClick) await ui.send.dblclick();
+      else await ui.send.click();
+    }
+  };
+}
+
+function createOpen({ page, adminPath, actionTimeoutMs, dock, ui }: { page: Page; adminPath: string; actionTimeoutMs: number; dock: Locator; ui: ReturnType<typeof buildUi> }) {
+  return async function open({ navigate = false }: { navigate?: boolean } = {}, _optional = {}): Promise<void> {
+    if (navigate || !new URL(page.url()).pathname.startsWith("/admin")) {
+      // Never networkidle: the app holds streams open. A visible composer proves React mounted.
+      await page.goto(adminPath, { waitUntil: "domcontentloaded" });
+    }
+    await page.locator(".admin-layout").waitFor({ state: "visible", timeout: actionTimeoutMs });
+    if (!(await dock.isVisible())) await page.getByRole("button", { name: "Open assistant", exact: true }).click();
+    await expect(dock).not.toHaveAttribute("hidden", "", { timeout: actionTimeoutMs });
+    await ui.composer.waitFor({ state: "visible", timeout: actionTimeoutMs });
+  };
+}
+
+function buildUi({ dock, root, messages, assistantMessages, userMessages, fileInput, attachmentChips }: { dock: Locator; root: Locator; messages: Locator; assistantMessages: Locator; userMessages: Locator; fileInput: Locator; attachmentChips: Locator }) {
+  return {
     dock, root, messages, assistantMessages, userMessages, fileInput, attachmentChips,
     composer: root.getByRole("textbox"),
     send: root.getByRole("button", { name: "Send", exact: true }),
@@ -77,53 +207,31 @@ export function createAdminChatDriver(
       return attachmentChips.and(root.locator(`[data-attachment-name=${JSON.stringify(name)}]`));
     },
   };
+}
 
-  async function currentAnswer(): Promise<Locator | null> {
-    const ids = await assistantMessages.evaluateAll((rows) => rows.map((row) => row.getAttribute("data-message-id")!));
-    const id = answerId ?? ids.filter((candidate) => !priorAssistantIds.has(candidate)).at(-1);
-    if (!id) return null;
-    answerId = id;
-    return assistantMessages.and(root.locator(`[data-message-id=${JSON.stringify(id)}]`));
-  }
-
-  /** Open the dock idempotently; navigate when requested or when outside /admin. Does not log in. */
-  async function open({ navigate = false }: { navigate?: boolean } = {}, _optional = {}): Promise<void> {
-    if (navigate || !new URL(page.url()).pathname.startsWith("/admin")) {
-      // Never networkidle: the app holds streams open. A visible composer proves React mounted.
-      await page.goto(adminPath, { waitUntil: "domcontentloaded" });
-    }
-    await page.locator(".admin-layout").waitFor({ state: "visible", timeout: actionTimeoutMs });
-    if (!(await dock.isVisible())) await page.getByRole("button", { name: "Open assistant", exact: true }).click();
-    await expect(dock).not.toHaveAttribute("hidden", "", { timeout: actionTimeoutMs });
-    await ui.composer.waitFor({ state: "visible", timeout: actionTimeoutMs });
-  }
-
-  /** Read the currently selected conversation, not the newest row or a remembered storage value. */
-  async function currentConversationId(_required = {}, _optional = {}): Promise<string | null> {
-    return (await root.getAttribute("data-conversation-id")) || null;
-  }
-
-  /** Create a durable conversation through the real switcher, and wait for the empty pane. */
-  async function newConversation(_required = {}, _optional = {}): Promise<string> {
+function createReloadMidAnswer({ answerTimeoutMs, currentAnswer, actionTimeoutMs, ui, currentConversationId, page, open }: { answerTimeoutMs: number; currentAnswer: () => Promise<Locator | null>; actionTimeoutMs: number; ui: ReturnType<typeof buildUi>; currentConversationId: (_required?: {}, _optional?: {}) => Promise<string | null>; page: Page; open: ReturnType<typeof createOpen> }) {
+  return async function reloadMidAnswer(_required = {}, { timeoutMs = answerTimeoutMs }: { timeoutMs?: number } = {}): Promise<string> {
+    await expect.poll(async () => {
+      const answer = await currentAnswer();
+      // MessageRow's activity placeholder lives outside .jini-message-content. Observing it
+      // would reload before any actual answer text arrived, despite the nonempty-output contract.
+      const text = answer ? await answer.locator(".jini-message-content").allTextContents() : [];
+      return !!answer && await answer.getAttribute("data-run-status", { timeout: actionTimeoutMs }) === "running"
+        && text.some((part) => part.trim().length > 0) && await ui.stop.isVisible();
+    }, { timeout: timeoutMs, message: "No streaming answer observed before reload" }).toBe(true);
+    const id = await currentConversationId();
+    if (!id) throw new Error("Streaming answer has no active conversation");
+    await expect((await currentAnswer())!).toHaveAttribute("data-run-status", "running");
+    await page.reload({ waitUntil: "domcontentloaded" });
     await open();
-    const previous = await currentConversationId();
-    await root.getByTestId("conversation-trigger").click();
-    await root.getByTestId("conversation-new").click();
-    await expect.poll(currentConversationId, { timeout: actionTimeoutMs }).toEqual(expect.any(String));
-    await expect.poll(currentConversationId, { timeout: actionTimeoutMs }).not.toBe(previous);
-    await expect(messages).toHaveCount(0, { timeout: actionTimeoutMs });
-    priorAssistantIds.clear();
-    answerId = null;
-    return (await currentConversationId())!;
-  }
+    await expect.poll(currentConversationId, { timeout: actionTimeoutMs }).toBe(id);
+    await expect((await currentAnswer())!).toBeVisible({ timeout: actionTimeoutMs });
+    return id;
+  };
+}
 
-  /**
-   * Select one batch, then wait for the upload to settle (including rejections). Assertions own
-   * success/failure, so zero-byte/oversize tests can use the same path. The hidden input always
-   * exists after mount in both Jini composer branches; no menu click is necessary for input mode.
-   * picker mode also proves the visible Attach files action opens that very input.
-   */
-  async function attach(
+function createAttach({ fileInput, actionTimeoutMs, root, page }: { fileInput: Locator; actionTimeoutMs: number; root: Locator; page: Page }) {
+  return async function attach(
     { files }: { files: readonly AdminChatFile[] },
     { via = "input" }: { via?: "input" | "picker" } = {},
   ): Promise<void> {
@@ -148,41 +256,11 @@ export function createAdminChatDriver(
       await fileInput.setInputFiles(selected);
     }
     await expect(fileInput).toBeEnabled({ timeout: actionTimeoutMs });
-  }
+  };
+}
 
-  /**
-   * Submit text; omit text to submit the existing draft without changing it. enter also drives
-   * typed answers and queueing while Stop replaces Send. Returns after submission, without
-   * waiting for completion. doubleClick preserves duplicate-send proof.
-   */
-  async function send(
-    { text }: { text?: string },
-    { submission = "button", doubleClick = false }: { submission?: "button" | "enter"; doubleClick?: boolean } = {},
-  ): Promise<void> {
-    priorAssistantIds = new Set(await assistantMessages.evaluateAll((rows) => rows.map((row) => row.getAttribute("data-message-id")!)));
-    answerId = null;
-    if (text !== undefined) await ui.composer.fill(text);
-    if (submission === "enter") await ui.composer.press("Enter");
-    else {
-      await expect(ui.send).toBeEnabled({ timeout: actionTimeoutMs });
-      if (doubleClick) await ui.send.dblclick();
-      else await ui.send.click();
-    }
-  }
-
-  /** Read chips in the draft, or sent attachments from the persisted transcript (with their paths). */
-  async function attachments(
-    { scope = "composer" }: { scope?: "composer" | "transcript" } = {}, _optional = {},
-  ): Promise<readonly AttachmentObservation[]> {
-    if (scope === "transcript") return (await transcript({}, { source: "persisted" })).flatMap((message) => message.attachments);
-    return attachmentChips.evaluateAll((chips) => chips.map((chip) => ({
-      name: chip.getAttribute("data-attachment-name") ?? "",
-      kind: chip.getAttribute("data-attachment-kind"), path: null,
-    })));
-  }
-
-  /** Read ordered rendered messages, or raw persisted markdown/attachment metadata via the real API. */
-  async function transcript(
+function createTranscript(currentConversationId: (_required?: {}, _optional?: {}) => Promise<string | null>, page: Page, messages: Locator) {
+  return async function transcript(
     _required = {}, { source = "rendered" }: { source?: "rendered" | "persisted" } = {},
   ): Promise<readonly TranscriptMessage[]> {
     if (source === "persisted") {
@@ -209,51 +287,7 @@ export function createAdminChatDriver(
         name: button.getAttribute("aria-label")!.slice(5), kind: null, path: null,
       })),
     })));
-  }
-
-  /**
-   * Wait for THIS submission's terminal lifecycle state. A visible sentence or missing Stop alone
-   * is insufficient: tools can still be running. Fail promptly on a different terminal outcome.
-   */
-  async function waitForAnswer(
-    { outcome }: { outcome: AnswerOutcome }, { timeoutMs = answerTimeoutMs }: { timeoutMs?: number } = {},
-  ): Promise<TranscriptMessage> {
-    await expect.poll(async () => {
-      const answer = await currentAnswer();
-      const status = await answer?.getAttribute("data-run-status", { timeout: actionTimeoutMs });
-      if (status && ["succeeded", "failed", "canceled"].includes(status)) return status;
-      return null;
-    }, { timeout: timeoutMs, message: "Assistant answer never reached a terminal run status" }).toEqual(expect.any(String));
-    const answer = (await currentAnswer())!;
-    await expect(answer).toHaveAttribute("data-run-status", outcome);
-    return (await transcript()).find((message) => message.id === answerId)!;
-  }
-
-  /**
-   * Reload only after nonempty output arrives during a live run; never silently reload a finished
-   * answer. Wait for the same conversation and message to reopen. A controllably slow provider is
-   * required for deterministic timing; live runs fail this precondition if they finish too quickly.
-   */
-  async function reloadMidAnswer(_required = {}, { timeoutMs = answerTimeoutMs }: { timeoutMs?: number } = {}): Promise<string> {
-    await expect.poll(async () => {
-      const answer = await currentAnswer();
-      // MessageRow's activity placeholder lives outside .jini-message-content. Observing it
-      // would reload before any actual answer text arrived, despite the nonempty-output contract.
-      const text = answer ? await answer.locator(".jini-message-content").allTextContents() : [];
-      return !!answer && await answer.getAttribute("data-run-status", { timeout: actionTimeoutMs }) === "running"
-        && text.some((part) => part.trim().length > 0) && await ui.stop.isVisible();
-    }, { timeout: timeoutMs, message: "No streaming answer observed before reload" }).toBe(true);
-    const id = await currentConversationId();
-    if (!id) throw new Error("Streaming answer has no active conversation");
-    await expect((await currentAnswer())!).toHaveAttribute("data-run-status", "running");
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await open();
-    await expect.poll(currentConversationId, { timeout: actionTimeoutMs }).toBe(id);
-    await expect((await currentAnswer())!).toBeVisible({ timeout: actionTimeoutMs });
-    return id;
-  }
-
-  return { ui, open, newConversation, attach, send, waitForAnswer, reloadMidAnswer, transcript, attachments, currentConversationId };
+  };
 }
 
 export type AdminChatDriver = ReturnType<typeof createAdminChatDriver>;

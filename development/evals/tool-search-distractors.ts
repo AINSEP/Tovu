@@ -594,45 +594,7 @@ function toolsForDomain(domain: DomainSpec, category: DistractorCategory): Gener
   for (const kind of seq) {
     const id = idForKind(domain.prefix, kind);
     const rng = rngFor(id);
-    let description: string;
-    switch (kind) {
-      case "list":
-        description = describeList(rng, domain.s, domain.p, "status", `${domain.prefix}_get`, domain.nearNote);
-        break;
-      case "get":
-        description = describeGet(rng, domain.s, domain.idField);
-        break;
-      case "create":
-        description = describeCreate(rng, domain.s, domain.requiredField, domain.rejectCond);
-        break;
-      case "update":
-        description = describeUpdate(rng, domain.s, domain.mutableFields ?? "editable fields", domain.immutableNote);
-        break;
-      case "delete":
-        description = describeDelete(rng, domain.s);
-        break;
-      case "toggle":
-        description = describeToggle(rng, domain.s, domain.states);
-        break;
-      case "plan":
-        description = describePlan(rng, domain.s, "processing", "changed");
-        break;
-      case "archive":
-        description = describeArchive(rng, domain.s);
-        break;
-      case "restore":
-        description = describeRestore(rng, domain.s);
-        break;
-      case "duplicate":
-        description = describeDuplicate(rng, domain.s);
-        break;
-      case "settingsGet":
-        description = describeSettingsGet(rng, domain.prefix.replace(/_/g, " "), domain.mutableFields ?? "workspace preferences");
-        break;
-      default:
-        description = describeSettingsSet(rng, domain.prefix.replace(/_/g, " "));
-        break;
-    }
+    const description = describeDomainTool(kind, domain, rng);
     tools.push({ id, description, category, nearOf: domain.nearOf, kind });
   }
   for (const e of domain.extra ?? []) {
@@ -640,6 +602,45 @@ function toolsForDomain(domain: DomainSpec, category: DistractorCategory): Gener
   }
   return tools;
 }
+
+function describeDomainTool(kind: (typeof seq)[number], domain: DomainSpec, rng: () => number): string {
+  if (["list", "get", "create", "update", "delete", "toggle"].includes(kind)) return describeRecordOperation(kind, domain, rng);
+  return describeAuxiliaryOperation(kind, domain, rng);
+}
+
+function describeRecordOperation(kind: Parameters<typeof idForKind>[1], domain: DomainSpec, rng: ReturnType<typeof rngFor>): string {
+  switch (kind) {
+case "list":
+        return describeList(rng, domain.s, domain.p, "status", `${domain.prefix}_get`, domain.nearNote);
+case "get":
+        return describeGet(rng, domain.s, domain.idField);
+case "create":
+        return describeCreate(rng, domain.s, domain.requiredField, domain.rejectCond);
+case "update":
+        return describeUpdate(rng, domain.s, domain.mutableFields ?? "editable fields", domain.immutableNote);
+case "delete":
+        return describeDelete(rng, domain.s);
+    default: return describeToggle(rng, domain.s, domain.states);
+  }
+}
+
+function describeAuxiliaryOperation(kind: Parameters<typeof idForKind>[1], domain: DomainSpec, rng: ReturnType<typeof rngFor>): string {
+  switch (kind) {
+case "plan":
+        return describePlan(rng, domain.s, "processing", "changed");
+case "archive":
+        return describeArchive(rng, domain.s);
+case "restore":
+        return describeRestore(rng, domain.s);
+case "duplicate":
+        return describeDuplicate(rng, domain.s);
+case "settingsGet":
+        return describeSettingsGet(rng, domain.prefix.replace(/_/g, " "), domain.mutableFields ?? "workspace preferences");
+default:
+        return describeSettingsSet(rng, domain.prefix.replace(/_/g, " "));
+  }
+}
+
 
 function interleaveDomains(newDomains: readonly DomainSpec[], nearDomains: readonly DomainSpec[], ratio: number): ReadonlyArray<{ domain: DomainSpec; category: DistractorCategory }> {
   const out: Array<{ domain: DomainSpec; category: DistractorCategory }> = [];

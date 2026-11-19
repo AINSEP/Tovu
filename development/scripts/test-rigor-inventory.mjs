@@ -94,90 +94,167 @@ function lex(src) {
     if (arr[i] !== "\n") arr[i] = " ";
   };
   const tplStack = []; // brace depth at which each open `${` returns to its template
-  let braceDepth = 0;
-  let lastSig = ""; // last significant code char
-  let lastWord = "";
-  let i = 0;
+  const state = {
+    braceDepth: 0,
+    lastSig: "", // last significant code char
+    lastWord: "",
+    i: 0,
+  };
 
   const scanTemplateEscape = () => {
-    blank(skel, i);
-    if (i + 1 < n) blank(skel, i + 1);
-    i += 2;
+    blank(skel, state.i);
+    if (state.i + 1 < n) blank(skel, state.i + 1);
+    state.i += 2;
   };
 
-  const scanTemplate = () => {
-    // at a position inside template text; runs until the closing backtick or a `${`
-    while (i < n) {
-      const c = src[i];
-      if (c === "\\") {
-        scanTemplateEscape();
-        continue;
-      }
-      if (c === "`") {
-        i++;
-        lastSig = "`";
-        return;
-      }
-      if (c === "$" && src[i + 1] === "{") {
-        tplStack.push(braceDepth);
-        braceDepth++;
-        i += 2;
-        lastSig = "{";
-        return;
-      }
-      blank(skel, i);
-      i++;
-    }
-  };
+  const scanTemplate = createScanTemplate({ state, n, src, scanTemplateEscape, tplStack, blank, skel });
 
   const scanLineComment = () => {
-    while (i < n && src[i] !== "\n") {
-      blank(code, i);
-      blank(skel, i);
-      i++;
+    while (state.i < n && src[state.i] !== "\n") {
+      blank(code, state.i);
+      blank(skel, state.i);
+      state.i++;
     }
   };
 
-  const scanBlockComment = () => {
-    const end = src.indexOf("*/", i + 2);
+  const scanBlockComment = createScanBlockComment({ src, state, n, blank, code, skel });
+
+  const scanComment = createScanComment({ src, state, scanLineComment, scanBlockComment });
+
+  const scanQuoted = createScanQuoted({ state, n, src, blank, skel });
+
+  const findRegexEnd = createFindRegexEnd(state, n, src);
+
+  const scanRegex = createScanRegex({ findRegexEnd, state, blank, skel, n, src });
+
+  const scanLiteral = createScanLiteral({ src, state, scanQuoted, scanTemplate, scanRegex });
+
+  const scanBrace = createScanBrace(state, tplStack, scanTemplate);
+
+  const scanCode = createScanCode(state, n, src);
+
+  while (state.i < n) {
+    const c = src[state.i];
+    if (scanComment()) continue;
+    if (scanLiteral()) continue;
+    if (scanBrace({ c })) continue;
+    scanCode({ c });
+  }
+  return { code: code.join(""), skel: skel.join("") };
+}
+
+function createScanBlockComment({ src, state, n, blank, code, skel }) {
+  return () => {
+    const end = src.indexOf("*/", state.i + 2);
     const stop = end === -1 ? n : end + 2;
-    for (; i < stop; i++) {
-      blank(code, i);
-      blank(skel, i);
+    for (; state.i < stop; state.i++) {
+      blank(code, state.i);
+      blank(skel, state.i);
     }
   };
+}
 
-  const scanComment = () => {
-    if (src[i] !== "/") return false;
-    if (src[i + 1] === "/") {
+function createScanRegex({ findRegexEnd, state, blank, skel, n, src }) {
+  return () => {
+    const j = findRegexEnd();
+    if (j === -1) return false;
+    for (let k = state.i + 1; k < j; k++) blank(skel, k);
+    state.i = j + 1;
+    while (state.i < n && /[a-z]/i.test(src[state.i])) state.i++;
+    state.lastSig = "/";
+    state.lastWord = "";
+    return true;
+  };
+}
+
+function createScanComment({ src, state, scanLineComment, scanBlockComment }) {
+  return () => {
+    if (src[state.i] !== "/") return false;
+    if (src[state.i + 1] === "/") {
       scanLineComment();
       return true;
     }
-    if (src[i + 1] === "*") {
+    if (src[state.i + 1] === "*") {
       scanBlockComment();
       return true;
     }
     return false;
   };
+}
 
-  const scanQuoted = ({ quote }, _options = {}) => {
-    i++;
-    while (i < n && src[i] !== quote && src[i] !== "\n") {
-      if (src[i] === "\\" && i + 1 < n && src[i + 1] !== "\n") {
-        blank(skel, i);
-        i++;
+function createScanBrace(state, tplStack, scanTemplate) {
+  return ({ c }, _options = {}) => {
+    if (c === "{") state.braceDepth++;
+    else if (c === "}") {
+      state.braceDepth--;
+      if (tplStack.length && tplStack[tplStack.length - 1] === state.braceDepth) {
+        tplStack.pop();
+        state.i++;
+        scanTemplate();
+        return true;
       }
-      blank(skel, i);
-      i++;
     }
-    i++;
-    lastSig = quote;
-    lastWord = "";
+    return false;
   };
+}
 
-  const findRegexEnd = () => {
+function createScanQuoted({ state, n, src, blank, skel }) {
+  return ({ quote }, _options = {}) => {
+    state.i++;
+    while (state.i < n && src[state.i] !== quote && src[state.i] !== "\n") {
+      if (src[state.i] === "\\" && state.i + 1 < n && src[state.i + 1] !== "\n") {
+        blank(skel, state.i);
+        state.i++;
+      }
+      blank(skel, state.i);
+      state.i++;
+    }
+    state.i++;
+    state.lastSig = quote;
+    state.lastWord = "";
+  };
+}
+
+function createScanCode(state, n, src) {
+  return ({ c }, _options = {}) => {
+    if (/[A-Za-z0-9_$]/.test(c)) {
+      let j = state.i;
+      while (j < n && /[A-Za-z0-9_$]/.test(src[j])) j++;
+      state.lastWord = src.slice(state.i, j);
+      state.lastSig = src[j - 1];
+      state.i = j;
+      return;
+    }
+    if (!/\s/.test(c)) {
+      state.lastSig = c;
+      state.lastWord = "";
+    }
+    state.i++;
+  };
+}
+
+function createScanLiteral({ src, state, scanQuoted, scanTemplate, scanRegex }) {
+  return () => {
+    const c = src[state.i];
+    if (c === "'" || c === '"') {
+      scanQuoted({ quote: c });
+      return true;
+    }
+    if (c === "`") {
+      state.i++;
+      scanTemplate();
+      state.lastWord = "";
+      return true;
+    }
+    const regexPosition = state.lastSig === "" || REGEX_PREV_CHARS.has(state.lastSig) || REGEX_PREV_WORDS.has(state.lastWord);
+    return c === "/" && regexPosition && scanRegex();
+  };
+}
+
+function createFindRegexEnd(state, n, src) {
+  return () => {
     // regex literal
-    let j = i + 1;
+    let j = state.i + 1;
     let inClass = false;
     while (j < n && src[j] !== "\n") {
       const r = src[j];
@@ -194,72 +271,33 @@ function lex(src) {
     }
     return -1;
   };
+}
 
-  const scanRegex = () => {
-    const j = findRegexEnd();
-    if (j === -1) return false;
-    for (let k = i + 1; k < j; k++) blank(skel, k);
-    i = j + 1;
-    while (i < n && /[a-z]/i.test(src[i])) i++;
-    lastSig = "/";
-    lastWord = "";
-    return true;
-  };
-
-  const scanLiteral = () => {
-    const c = src[i];
-    if (c === "'" || c === '"') {
-      scanQuoted({ quote: c });
-      return true;
-    }
-    if (c === "`") {
-      i++;
-      scanTemplate();
-      lastWord = "";
-      return true;
-    }
-    const regexPosition = lastSig === "" || REGEX_PREV_CHARS.has(lastSig) || REGEX_PREV_WORDS.has(lastWord);
-    return c === "/" && regexPosition && scanRegex();
-  };
-
-  const scanBrace = ({ c }, _options = {}) => {
-    if (c === "{") braceDepth++;
-    else if (c === "}") {
-      braceDepth--;
-      if (tplStack.length && tplStack[tplStack.length - 1] === braceDepth) {
-        tplStack.pop();
-        i++;
-        scanTemplate();
-        return true;
+function createScanTemplate({ state, n, src, scanTemplateEscape, tplStack, blank, skel }) {
+  return () => {
+    // at a position inside template text; runs until the closing backtick or a `${`
+    while (state.i < n) {
+      const c = src[state.i];
+      if (c === "\\") {
+        scanTemplateEscape();
+        continue;
       }
+      if (c === "`") {
+        state.i++;
+        state.lastSig = "`";
+        return;
+      }
+      if (c === "$" && src[state.i + 1] === "{") {
+        tplStack.push(state.braceDepth);
+        state.braceDepth++;
+        state.i += 2;
+        state.lastSig = "{";
+        return;
+      }
+      blank(skel, state.i);
+      state.i++;
     }
-    return false;
   };
-
-  const scanCode = ({ c }, _options = {}) => {
-    if (/[A-Za-z0-9_$]/.test(c)) {
-      let j = i;
-      while (j < n && /[A-Za-z0-9_$]/.test(src[j])) j++;
-      lastWord = src.slice(i, j);
-      lastSig = src[j - 1];
-      i = j;
-      return;
-    }
-    if (!/\s/.test(c)) {
-      lastSig = c;
-      lastWord = "";
-    }
-    i++;
-  };
-
-  while (i < n) {
-    const c = src[i];
-    if (scanComment()) continue;
-    if (scanLiteral()) continue;
-    if (scanBrace({ c })) continue;
-    scanCode({ c });
-  }
-  return { code: code.join(""), skel: skel.join("") };
 }
 
 function lineIndex(src) {
@@ -737,43 +775,13 @@ function loadPlaywrightConfigs(tracked, blobs) {
 
 function packShards(items, capBytes, keyOf) {
   // items: [{ path, bytes }]
-  const root = { name: "", dirs: new Map(), files: [], total: 0 };
-  for (const it of items) {
-    const parts = it.path.split("/");
-    let node = root;
-    node.total += it.bytes;
-    for (const part of parts.slice(0, -1)) {
-      if (!node.dirs.has(part)) node.dirs.set(part, { name: part, dirs: new Map(), files: [], total: 0 });
-      node = node.dirs.get(part);
-      node.total += it.bytes;
-    }
-    node.files.push(it);
-  }
+  const root = buildShardDirectoryTree(items);
   const allFiles = (node) => [
     ...node.files,
     ...[...node.dirs.keys()].sort().flatMap((k) => allFiles(node.dirs.get(k))),
   ];
   const units = [];
-  const walk = (node, prefix) => {
-    if (node.total <= capBytes) {
-      units.push({ folder: prefix || ".", files: allFiles(node).sort((a, b) => a.path.localeCompare(b.path)), bytes: node.total });
-      return;
-    }
-    const direct = [...node.files].sort((a, b) => a.path.localeCompare(b.path));
-    let chunk = [];
-    let bytes = 0;
-    for (const f of direct) {
-      if (chunk.length && bytes + f.bytes > capBytes) {
-        units.push({ folder: `${prefix}/*`, files: chunk, bytes });
-        chunk = [];
-        bytes = 0;
-      }
-      chunk.push(f);
-      bytes += f.bytes;
-    }
-    if (chunk.length) units.push({ folder: `${prefix}/*`, files: chunk, bytes });
-    for (const k of [...node.dirs.keys()].sort()) walk(node.dirs.get(k), prefix ? `${prefix}/${k}` : k);
-  };
+  const walk = createWalk(capBytes, units, allFiles);
   walk(root, "");
   units.sort((a, b) => a.files[0].path.localeCompare(b.files[0].path));
 
@@ -798,6 +806,47 @@ function packShards(items, capBytes, keyOf) {
     oversize: s.bytes > capBytes,
     files: s.files.map((f) => f.path),
   }));
+}
+
+function buildShardDirectoryTree(items) {
+  const root = { name: "", dirs: new Map(), files: [], total: 0 };
+  for (const it of items) {
+    const parts = it.path.split("/");
+    let node = root;
+    node.total += it.bytes;
+    for (const part of parts.slice(0, -1)) {
+      if (!node.dirs.has(part)) node.dirs.set(part, { name: part, dirs: new Map(), files: [], total: 0 });
+      node = node.dirs.get(part);
+      node.total += it.bytes;
+    }
+    node.files.push(it);
+  }
+  return root;
+}
+
+
+function createWalk(capBytes, units, allFiles) {
+  const walk = (node, prefix) => {
+    if (node.total <= capBytes) {
+      units.push({ folder: prefix || ".", files: allFiles(node).sort((a, b) => a.path.localeCompare(b.path)), bytes: node.total });
+      return;
+    }
+    const direct = [...node.files].sort((a, b) => a.path.localeCompare(b.path));
+    let chunk = [];
+    let bytes = 0;
+    for (const f of direct) {
+      if (chunk.length && bytes + f.bytes > capBytes) {
+        units.push({ folder: `${prefix}/*`, files: chunk, bytes });
+        chunk = [];
+        bytes = 0;
+      }
+      chunk.push(f);
+      bytes += f.bytes;
+    }
+    if (chunk.length) units.push({ folder: `${prefix}/*`, files: chunk, bytes });
+    for (const k of [...node.dirs.keys()].sort()) walk(node.dirs.get(k), prefix ? `${prefix}/${k}` : k);
+  };
+  return walk;
 }
 
 // ---------------------------------------------------------------------------------------------------

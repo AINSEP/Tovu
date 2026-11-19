@@ -83,82 +83,92 @@ import { rules as sonarRules } from "eslint-plugin-sonarjs";
 export function stripComments(source: string): string {
   const out = source.split("");
   const templateStack: number[] = [];
-  let i = 0;
-  let state: "code" | "single" | "double" | "template" | "line-comment" | "block-comment" = "code";
+  const cursor = {
+    i: 0,
+    state: "code" as "code" | "single" | "double" | "template" | "line-comment" | "block-comment",
+  };
 
   const blank = (from: number, to: number): void => {
     for (let k = from; k < to; k++) if (out[k] !== "\n") out[k] = " ";
   };
 
   const consumeBlockComment = (_required: Record<string, never>, _options = {}): void => {
-    while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i++;
-    i = Math.min(i + 2, source.length);
+    while (cursor.i < source.length && !(source[cursor.i] === "*" && source[cursor.i + 1] === "/")) cursor.i++;
+    cursor.i = Math.min(cursor.i + 2, source.length);
   };
-  const skipComment = ({ c, next }: { c: string; next: string | undefined }, _options = {}): boolean => {
-    if (c === "/" && next === "/") {
-      const start = i;
-      while (i < source.length && source[i] !== "\n") i++;
-      blank(start, i);
-      return true;
-    }
-    if (c === "/" && next === "*") {
-      const start = i;
-      i += 2;
-      consumeBlockComment({});
-      blank(start, i);
-      return true;
-    }
-    return false;
-  };
+  const skipComment = createSkipComment({ cursor, source, blank, consumeBlockComment });
   const scanCode = ({ c, next }: { c: string; next: string | undefined }, _options = {}): void => {
     if (skipComment({ c, next })) return;
-    if (c === "'") state = "single";
-    else if (c === '"') state = "double";
+    if (c === "'") cursor.state = "single";
+    else if (c === '"') cursor.state = "double";
     else if (c === "`") {
-      state = "template";
+      cursor.state = "template";
       templateStack.push(0);
     } else if (c === "}" && templateStack.length > 0) {
       // closing a `${ ... }` interpolation returns us to the enclosing template literal
-      state = "template";
+      cursor.state = "template";
     }
-    i++;
+    cursor.i++;
   };
 
-  const scanString = ({ c, next }: { c: string | undefined; next: string | undefined }, _options = {}): boolean => {
-    if (state === "single" && c === "'") state = "code";
-    else if (state === "double" && c === '"') state = "code";
-    else if (state === "template") {
-      if (c === "`") {
-        state = "code";
-        templateStack.pop();
-      } else if (c === "$" && next === "{") {
-        state = "code";
-        i += 2;
-        return true;
-      }
-    }
-    return false;
-  };
+  const scanString = createScanString(cursor, templateStack);
 
-  while (i < source.length) {
-    const c = source[i];
-    const next = source[i + 1];
+  while (cursor.i < source.length) {
+    const c = source[cursor.i];
+    const next = source[cursor.i + 1];
 
-    if (state === "code") {
+    if (cursor.state === "code") {
       scanCode({ c: c!, next });
       continue;
     }
 
     if (c === "\\") {
-      i += 2;
+      cursor.i += 2;
       continue;
     }
 
     if (scanString({ c, next })) continue;
-    i++;
+    cursor.i++;
   }
 
   return out.join("");
+}
+
+function createScanString(cursor: { i: number; state: "code" | "single" | "double" | "template" | "line-comment" | "block-comment"; }, templateStack: number[]) {
+  return ({ c, next }: { c: string | undefined; next: string | undefined }, _options = {}): boolean => {
+    if (cursor.state === "single" && c === "'") cursor.state = "code";
+    else if (cursor.state === "double" && c === '"') cursor.state = "code";
+    else if (cursor.state === "template") {
+      if (c === "`") {
+        cursor.state = "code";
+        templateStack.pop();
+      } else if (c === "$" && next === "{") {
+        cursor.state = "code";
+        cursor.i += 2;
+        return true;
+      }
+    }
+    return false;
+  };
+}
+
+function createSkipComment({ cursor, source, blank, consumeBlockComment }: { cursor: { i: number; state: "code" | "single" | "double" | "template" | "line-comment" | "block-comment"; }; source: string; blank: (from: number, to: number) => void; consumeBlockComment: (_required: Record<string, never>, _options?: {}) => void }) {
+  return ({ c, next }: { c: string; next: string | undefined }, _options = {}): boolean => {
+    if (c === "/" && next === "/") {
+      const start = cursor.i;
+      while (cursor.i < source.length && source[cursor.i] !== "\n") cursor.i++;
+      blank(start, cursor.i);
+      return true;
+    }
+    if (c === "/" && next === "*") {
+      const start = cursor.i;
+      cursor.i += 2;
+      consumeBlockComment({});
+      blank(start, cursor.i);
+      return true;
+    }
+    return false;
+  };
 }
 
 /** 1-based line number of a byte offset. */

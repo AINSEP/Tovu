@@ -198,7 +198,9 @@ async function main(): Promise<void> {
   const catalog = buildToolCatalogQuery(registry);
 
   const captured: CapturedSearch[] = [];
-  let currentRunLabel = "(unset)";
+  const state = {
+    currentRunLabel: "(unset)",
+  };
 
   const app = express();
   app.use(express.json());
@@ -209,7 +211,7 @@ async function main(): Promise<void> {
   app.use((req, _res, next) => {
     if (req.path === "/api/tools/search") {
       const q = typeof req.query.q === "string" ? req.query.q : "";
-      captured.push({ runLabel: currentRunLabel, rawQuery: q, tsMs: Date.now() });
+      captured.push({ runLabel: state.currentRunLabel, rawQuery: q, tsMs: Date.now() });
     }
     next();
   });
@@ -218,6 +220,34 @@ async function main(): Promise<void> {
   const lifecycle = createRunLifecycle({ eventLog });
   await lifecycle.rehydrate({});
 
+  const server = mountComplianceHarnessRoutes(lifecycle, app, catalog);
+  await new Promise<void>((resolve, reject) => {
+    server.once("listening", () => resolve());
+    server.once("error", reject);
+  });
+  console.log(`[harness] scratch daemon listening on ${DAEMON_URL}`);
+
+  const results: Array<{
+    caseId: string;
+    query: string;
+    expect: string;
+    startMs: number;
+    endMs: number;
+    status: string;
+    searchToolsCalled: boolean;
+    capturedQueries: string[];
+  }> = [];
+
+  await runComplianceCases({ state, results, captured, lifecycle });
+
+  console.log("\n[harness] === SUMMARY ===");
+  console.log(JSON.stringify(results, null, 2));
+
+  server.close();
+  process.exit(0);
+}
+
+function mountComplianceHarnessRoutes(lifecycle: ReturnType<typeof createRunLifecycle>, app: ReturnType<typeof express>, catalog: ReturnType<typeof buildToolCatalogQuery>) {
   const promptAugmenter: PromptAugmenter = {
     contextKinds: () => [],
     augmentUserRequest: ({ basePrompt }) => basePrompt,
@@ -231,7 +261,7 @@ async function main(): Promise<void> {
   const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => principalByRunId.get(runId) }, {});
   const agentExecutor = createAgentExecutor(
     { lifecycle },
-    { mcpJsonInjection: resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: (runId) => runCredentials.mint({ runId }, {}) }), promptAugmenter },
+    { mcpJsonInjection: resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: (runId) => runCredentials.mint({ runId }, {}) }), promptAugmenter }
   );
 
   // Trimmed copy of agent-daemon-server.ts's onStarted — same contract, minus attachment/frontend-
@@ -241,7 +271,102 @@ async function main(): Promise<void> {
   // principalId shape check below stays, since it still validates the dispatched contextRef payload).
   // Same <<SUBAGENT_DISPATCH>> prefix, same contextRef decode shape. (2026-10-05: a `principalByRunId`
   // map is back above, but only so the bridge credential can be minted — still no per-run route.)
-  const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
+  const onStarted: RunStartHandler = createOnStarted(principalByRunId, agentExecutor);
+
+  const harnessAdapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => PORT, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+  // 100 KiB: the default limit of the `express.json()` parser above.
+  const routeHost = daemonRouteHost({ context: harnessAdapter, parserLimitBytes: 100 * 1024 });
+  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted }, host: routeHost }) });
+  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog }, host: routeHost }) });
+
+  const server = app.listen(PORT, "127.0.0.1");
+  return server;
+}
+
+
+async function runComplianceCases({ state, results, captured, lifecycle }: { state: { currentRunLabel: string; }; results: Array<{
+    caseId: string;
+    query: string;
+    expect: string;
+    startMs: number;
+    endMs: number;
+    status: string;
+    searchToolsCalled: boolean;
+    capturedQueries: string[];
+  }>; captured: CapturedSearch[]; lifecycle: ReturnType<typeof createRunLifecycle> }) {
+  for (const c of CASES) {
+    state.currentRunLabel = c.id;
+    const startMs = Date.now();
+    console.log(`\n[harness] === case "${c.id}" === "${c.query}"`);
+    const res = await postComplianceRun(c);
+    if (!res.ok) {
+      console.error(`[harness] case "${c.id}": /api/runs POST failed`, res.status, await res.text());
+      results.push({ caseId: c.id, query: c.query, expect: c.expect, startMs, endMs: Date.now(), status: "post-failed", searchToolsCalled: false, capturedQueries: [] });
+      continue;
+    }
+    const body = (await res.json()) as { run?: { id?: string; }; };
+    const runId = body.run?.id;
+    if (!runId) {
+      console.error(`[harness] case "${c.id}": no run id in response`, body);
+      results.push({ caseId: c.id, query: c.query, expect: c.expect, startMs, endMs: Date.now(), status: "no-run-id", searchToolsCalled: false, capturedQueries: [] });
+      continue;
+    }
+
+    const beforeCount = captured.length;
+    let status = await waitForHarnessRun(lifecycle, runId, c);
+
+    const endMs = Date.now();
+    const theseQueries = captured.slice(beforeCount).map((e) => e.rawQuery);
+    console.log(`[harness] case "${c.id}": status=${status} durationMs=${endMs - startMs} search_tools calls=${theseQueries.length}`);
+    for (const q of theseQueries) console.log(`         query: "${q}"`);
+    results.push({
+      caseId: c.id,
+      query: c.query,
+      expect: c.expect,
+      startMs,
+      endMs,
+      status,
+      searchToolsCalled: theseQueries.length > 0,
+      capturedQueries: theseQueries,
+    });
+  }
+}
+
+function postComplianceRun(c: { readonly id: string; readonly query: string; readonly expect: string; }) {
+  return fetch(`${DAEMON_URL}/api/runs`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        agentId: "claude",
+        contextRef: JSON.stringify({ prompt: c.query, principalId: "harness-admin" }),
+      }),
+    });
+}
+
+
+
+async function waitForHarnessRun(lifecycle: ReturnType<typeof createRunLifecycle>, runId: string | undefined, c: (typeof CASES)[number]) {
+  let status = "timed-out";
+  try {
+    const terminal = await Promise.race([
+      lifecycle.waitForTerminal({ runId }).then((s) => ({ ok: true as const, s })),
+      new Promise<{ ok: false; }>((resolve) => setTimeout(() => resolve({ ok: false }), RUN_TIMEOUT_MS)),
+    ]);
+    if (terminal.ok) {
+      status = terminal.s.state;
+    } else {
+      console.warn(`[harness] case "${c.id}": exceeded ${RUN_TIMEOUT_MS}ms — cancelling`);
+      await lifecycle.cancel({ runId, reason: "harness timeout" });
+    }
+  } catch (error) {
+    status = `error: ${error instanceof Error ? error.message : String(error)}`;
+  }
+  return status;
+}
+
+
+function createOnStarted(principalByRunId: Map<string, string>, agentExecutor: ReturnType<typeof createAgentExecutor>): RunStartHandler {
+  return ({ request, run, lifecycle: runLifecycle }) => {
     let prompt: string;
     try {
       const parsed = JSON.parse(request.contextRef) as { prompt?: unknown; principalId?: unknown };
@@ -262,94 +387,6 @@ async function main(): Promise<void> {
         console.error(`[harness] run ${run.id} failed to start`, error);
       });
   };
-
-  const harnessAdapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => PORT, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
-  // 100 KiB: the default limit of the `express.json()` parser above.
-  const routeHost = daemonRouteHost({ context: harnessAdapter, parserLimitBytes: 100 * 1024 });
-  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted }, host: routeHost }) });
-  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog }, host: routeHost }) });
-
-  const server = app.listen(PORT, "127.0.0.1");
-  await new Promise<void>((resolve, reject) => {
-    server.once("listening", () => resolve());
-    server.once("error", reject);
-  });
-  console.log(`[harness] scratch daemon listening on ${DAEMON_URL}`);
-
-  const results: Array<{
-    caseId: string;
-    query: string;
-    expect: string;
-    startMs: number;
-    endMs: number;
-    status: string;
-    searchToolsCalled: boolean;
-    capturedQueries: string[];
-  }> = [];
-
-  for (const c of CASES) {
-    currentRunLabel = c.id;
-    const startMs = Date.now();
-    console.log(`\n[harness] === case "${c.id}" === "${c.query}"`);
-    const res = await fetch(`${DAEMON_URL}/api/runs`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        agentId: "claude",
-        contextRef: JSON.stringify({ prompt: c.query, principalId: "harness-admin" }),
-      }),
-    });
-    if (!res.ok) {
-      console.error(`[harness] case "${c.id}": /api/runs POST failed`, res.status, await res.text());
-      results.push({ caseId: c.id, query: c.query, expect: c.expect, startMs, endMs: Date.now(), status: "post-failed", searchToolsCalled: false, capturedQueries: [] });
-      continue;
-    }
-    const body = (await res.json()) as { run?: { id?: string } };
-    const runId = body.run?.id;
-    if (!runId) {
-      console.error(`[harness] case "${c.id}": no run id in response`, body);
-      results.push({ caseId: c.id, query: c.query, expect: c.expect, startMs, endMs: Date.now(), status: "no-run-id", searchToolsCalled: false, capturedQueries: [] });
-      continue;
-    }
-
-    const beforeCount = captured.length;
-    let status = "timed-out";
-    try {
-      const terminal = await Promise.race([
-        lifecycle.waitForTerminal({ runId }).then((s) => ({ ok: true as const, s })),
-        new Promise<{ ok: false }>((resolve) => setTimeout(() => resolve({ ok: false }), RUN_TIMEOUT_MS)),
-      ]);
-      if (terminal.ok) {
-        status = terminal.s.state;
-      } else {
-        console.warn(`[harness] case "${c.id}": exceeded ${RUN_TIMEOUT_MS}ms — cancelling`);
-        await lifecycle.cancel({ runId, reason: "harness timeout" });
-      }
-    } catch (error) {
-      status = `error: ${error instanceof Error ? error.message : String(error)}`;
-    }
-
-    const endMs = Date.now();
-    const theseQueries = captured.slice(beforeCount).map((e) => e.rawQuery);
-    console.log(`[harness] case "${c.id}": status=${status} durationMs=${endMs - startMs} search_tools calls=${theseQueries.length}`);
-    for (const q of theseQueries) console.log(`         query: "${q}"`);
-    results.push({
-      caseId: c.id,
-      query: c.query,
-      expect: c.expect,
-      startMs,
-      endMs,
-      status,
-      searchToolsCalled: theseQueries.length > 0,
-      capturedQueries: theseQueries,
-    });
-  }
-
-  console.log("\n[harness] === SUMMARY ===");
-  console.log(JSON.stringify(results, null, 2));
-
-  server.close();
-  process.exit(0);
 }
 
 main().catch((error) => {

@@ -47,20 +47,7 @@ test("native capture memory floors after 50 captures", async ({}, info) => {
     // Untracked: capture targets the soak launcher's site directly; the desktop never manages it.
     launch = await launchDesktop({}, { electronArgs: ["--js-flags=--expose-gc"] });
     phase = "native capture bridge setup";
-    const { env, versions } = await launch.app.evaluate(async ({ BrowserWindow }, { adapterURL, siteURL }) => {
-      const { startDesktopCaptureBridge } = await import(adapterURL);
-      const state = (globalThis as MainState).__memorySoak = { close(_required = {}, _options = {}) {}, created: 0, loaded: 0, destroyed: 0 };
-      const bridge = await startDesktopCaptureBridge({ createWindow: (options: ConstructorParameters<typeof BrowserWindow>[0]) => {
-        if (options?.show !== false) throw new Error("Capture window must be hidden");
-        const window = new BrowserWindow(options);
-        state.created++;
-        window.webContents.on("did-finish-load", () => { if (window.webContents.getURL().startsWith(siteURL)) state.loaded++; });
-        window.webContents.once("destroyed", () => { state.destroyed++; });
-        return window;
-      } }, {});
-      state.close = bridge.close;
-      return { env: bridge.env, versions: { node: process.versions.node, electron: process.versions.electron } };
-    }, { adapterURL: pathToFileURL(path.join(REPO_ROOT, "apps/desktop/src/desktop-capture.ts")).href, siteURL: site.apiURL });
+    const { env, versions } = await launch.app.evaluate(startCaptureBridgeInMain, { adapterURL: pathToFileURL(path.join(REPO_ROOT, "apps/desktop/src/desktop-capture.ts")).href, siteURL: site.apiURL });
     evidence.metadata.node = versions.node;
     evidence.metadata.electron = versions.electron!;
     const capture = renderBridgeFromEnv({ env });
@@ -101,3 +88,19 @@ test("native capture memory floors after 50 captures", async ({}, info) => {
   }
   evidence.finish();
 });
+
+async function startCaptureBridgeInMain({ BrowserWindow }: typeof import("electron"), { adapterURL, siteURL }: { adapterURL: string; siteURL: string }) {
+      const { startDesktopCaptureBridge } = await import(adapterURL);
+      const state = (globalThis as MainState).__memorySoak = { close(_required = {}, _options = {}) {}, created: 0, loaded: 0, destroyed: 0 };
+      const bridge = await startDesktopCaptureBridge({ createWindow: (options: ConstructorParameters<typeof BrowserWindow>[0]) => {
+        if (options?.show !== false) throw new Error("Capture window must be hidden");
+        const window = new BrowserWindow(options);
+        state.created++;
+        window.webContents.on("did-finish-load", () => { if (window.webContents.getURL().startsWith(siteURL)) state.loaded++; });
+        window.webContents.once("destroyed", () => { state.destroyed++; });
+        return window;
+      } }, {});
+      state.close = bridge.close;
+      return { env: bridge.env, versions: { node: process.versions.node, electron: process.versions.electron } };
+    }
+

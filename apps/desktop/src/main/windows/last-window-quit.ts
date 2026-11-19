@@ -111,38 +111,19 @@ function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
   const windows = new Set<W>();
   // One-shot: a page's `beforeunload` can veto the close Keep running starts, and the next must ask.
   const released = new WeakSet<W>();
-  let quitStarted = false;
-  let openBox: AbortController | null = null;
+  const state = {
+    quitStarted: false,
+    openBox: null as AbortController | null,
+  };
 
-  function keepRunning({ window }: { window: W }): void {
-    ports.keepSitesRunning();
-    if (ports.platform !== "darwin") {
-      window.minimize();
-      return;
-    }
-    released.add(window);
-    window.close();
-  }
+  const keepRunning = createBackgroundWindowKeeper(ports, released);
 
-  function ask({ window, stops, keeps }: { window: W; stops: number; keeps: number }): void {
-    const box = new AbortController();
-    openBox = box;
-    ports.showMessageBox({ window, options: { ...lastWindowQuitDialog({ locale: ports.locale(), stops, keeps }), signal: box.signal } })
-      .then(({ response }) => {
-        openBox = null;
-        if (response === QUIT_BUTTON) ports.quit();
-        if (response === KEEP_RUNNING_BUTTON) keepRunning({ window });
-      })
-      .catch((error: unknown) => {
-        openBox = null;
-        ports.logError({ message: `[tovu-desktop] could not ask before quitting: ${(error as Error).message}` });
-      });
-  }
+  const ask = createAsk(state, ports, keepRunning);
 
   function onClose({ window, event }: { window: W; event: { preventDefault(): void } }): void {
-    if (quitStarted || released.delete(window)) return;
+    if (state.quitStarted || released.delete(window)) return;
     // While the box is open the answer decides; the close that opened it is already held.
-    if (openBox) {
+    if (state.openBox) {
       event.preventDefault();
       return;
     }
@@ -162,10 +143,39 @@ function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
       window.on("closed", () => windows.delete(window));
     },
     onQuitStarted() {
-      quitStarted = true;
-      openBox?.abort();
-      openBox = null;
+      state.quitStarted = true;
+      state.openBox?.abort();
+      state.openBox = null;
     },
+  };
+}
+
+function createAsk<W extends QuitPromptWindow>(state: { quitStarted: boolean; openBox: AbortController | null; }, ports: LastWindowQuitPorts<W>, keepRunning: ReturnType<typeof createBackgroundWindowKeeper<W>>) {
+  return function ask({ window, stops, keeps }: { window: W; stops: number; keeps: number }): void {
+    const box = new AbortController();
+    state.openBox = box;
+    ports.showMessageBox({ window, options: { ...lastWindowQuitDialog({ locale: ports.locale(), stops, keeps }), signal: box.signal } })
+      .then(({ response }) => {
+        state.openBox = null;
+        if (response === QUIT_BUTTON) ports.quit();
+        if (response === KEEP_RUNNING_BUTTON) keepRunning({ window });
+      })
+      .catch((error: unknown) => {
+        state.openBox = null;
+        ports.logError({ message: `[tovu-desktop] could not ask before quitting: ${(error as Error).message}` });
+      });
+  };
+}
+
+function createBackgroundWindowKeeper<W extends QuitPromptWindow>(ports: LastWindowQuitPorts<W>, released: WeakSet<W>) {
+  return function keepRunning({ window }: { window: W }): void {
+    ports.keepSitesRunning();
+    if (ports.platform !== "darwin") {
+      window.minimize();
+      return;
+    }
+    released.add(window);
+    window.close();
   };
 }
 

@@ -140,20 +140,7 @@ function run(): void {
   // configuration no earlier eval ever measured.
   const production = buildToolCatalogQuery(registry);
 
-  const doc2Db = new Database(":memory:");
-  ensureToolCatalogTables({ db: doc2Db });
-  reseedToolCatalog({
-    db: doc2Db,
-    entries: descriptors.map((d) => {
-      const qs = DOC2QUERY[d.id];
-      return {
-        id: d.id,
-        description: qs ? `${d.description ?? ""} — ${qs.join(" ")}` : (d.description ?? ""),
-        inputSchema: d.inputSchema,
-        source: sourceForToolId(d.id),
-      };
-    }),
-  });
+  const doc2Db = buildAdoptionDoc2queryCatalog(descriptors);
 
   const hydeAlone = hitVectors((c) => withKeywords.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id));
   const stacked = hitVectors((c) => searchToolCatalog({ db: doc2Db, query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id));
@@ -178,6 +165,38 @@ function run(): void {
   pairedRow("B: doc2query vs keywords (raw)", keywordsRaw, doc2Raw, n);
   console.log(`\n  (+N = N more cases won than lost. w/l = cases won / cases LOST. p is exact two-sided paired.)`);
 
+  const recallAt = reportAdoptionDiscordanceAndRecall({ armA, withKeywords, doc2Db, n });
+
+  // --- What does a result row actually COST? ---
+  // The recall sweep says what a bigger `limit` buys; this says what it costs. `search_tools` returns
+  // {id, description, source, score} and deliberately NO inputSchema — that omission is the whole
+  // staged-discovery design (`byok-tool-surface.ts`: the real catalog is ~119 KB / ~30k tokens per
+  // message, the 3 meta-tools are under 1 KB). So the marginal row is one authored description, and
+  // the question "10 or 5?" is really "is 5 more descriptions worth 3 cases of recall?".
+  // Measured on the real payload, over every case, at the shipped serialization.
+  reportAdoptionPayloadCostsAndMisses({ production, n, recallAt, descriptors, hydeAlone, withKeywords, stacked, doc2Db });
+}
+
+function buildAdoptionDoc2queryCatalog(descriptors: ReturnType<ReturnType<typeof buildEvalToolRegistry>["list"]>) {
+  const doc2Db = new Database(":memory:");
+  ensureToolCatalogTables({ db: doc2Db });
+  reseedToolCatalog({
+    db: doc2Db,
+    entries: descriptors.map((d) => {
+      const qs = DOC2QUERY[d.id];
+      return {
+        id: d.id,
+        description: qs ? `${d.description ?? ""} — ${qs.join(" ")}` : (d.description ?? ""),
+        inputSchema: d.inputSchema,
+        source: sourceForToolId(d.id),
+      };
+    }),
+  });
+  return doc2Db;
+}
+
+
+function reportAdoptionDiscordanceAndRecall({ armA, withKeywords, doc2Db, n }: { armA: { refOnly: number[]; candOnly: number[]; }; withKeywords: ReturnType<typeof buildToolCatalogQuery>; doc2Db: ReturnType<typeof buildAdoptionDoc2queryCatalog>; n: number }) {
   console.log(`\n  ARM A top-1 discordance, case by case — is the regression systematic or idiosyncratic?\n`);
   console.log(`  WON by adopting doc2query (${armA.candOnly.length}):`);
   for (const i of armA.candOnly) {
@@ -213,14 +232,11 @@ function run(): void {
   for (const [label, r] of [["HyDE alone (shipped)", hydeRank25], ["doc2query + HyDE", stackedRank25]] as const) {
     console.log(`  ${label.padEnd(26)}${KS.map((k) => `${((recallAt(r, k) / n) * 100).toFixed(0)}% (${recallAt(r, k)})`.padEnd(11)).join("")}`);
   }
+  return recallAt;
+}
 
-  // --- What does a result row actually COST? ---
-  // The recall sweep says what a bigger `limit` buys; this says what it costs. `search_tools` returns
-  // {id, description, source, score} and deliberately NO inputSchema — that omission is the whole
-  // staged-discovery design (`byok-tool-surface.ts`: the real catalog is ~119 KB / ~30k tokens per
-  // message, the 3 meta-tools are under 1 KB). So the marginal row is one authored description, and
-  // the question "10 or 5?" is really "is 5 more descriptions worth 3 cases of recall?".
-  // Measured on the real payload, over every case, at the shipped serialization.
+
+function reportAdoptionPayloadCostsAndMisses({ production, n, recallAt, descriptors, hydeAlone, withKeywords, stacked, doc2Db }: { production: ReturnType<typeof buildToolCatalogQuery>; n: number; recallAt: ReturnType<typeof reportAdoptionDiscordanceAndRecall>; descriptors: ReturnType<ReturnType<typeof buildEvalToolRegistry>["list"]>; hydeAlone: Record<1 | 3 | 5 | 10, boolean[]>; withKeywords: ReturnType<typeof buildToolCatalogQuery>; stacked: Record<1 | 3 | 5 | 10, boolean[]>; doc2Db: ReturnType<typeof buildAdoptionDoc2queryCatalog> }) {
   console.log(`\n  PAYLOAD COST per search_tools call (real ranked rows, no input schemas)\n`);
   console.log(`  ${"limit".padEnd(10)}${"avg bytes".padEnd(14)}${"~tokens".padEnd(12)}${"x4 calls".padEnd(14)}recall@limit`);
   for (const k of [3, 5, 10, 20, 25] as const) {
@@ -232,7 +248,7 @@ function run(): void {
     const avg = total / n;
     const rec = recallAt((c) => production.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 25 }).map((h) => h.id), k);
     console.log(
-      `  ${String(k).padEnd(10)}${avg.toFixed(0).padEnd(14)}${`~${Math.round(avg / 4)}`.padEnd(12)}${`~${Math.round(avg / 4) * 4}`.padEnd(14)}${((rec / n) * 100).toFixed(0)}% (${rec})`,
+      `  ${String(k).padEnd(10)}${avg.toFixed(0).padEnd(14)}${`~${Math.round(avg / 4)}`.padEnd(12)}${`~${Math.round(avg / 4) * 4}`.padEnd(14)}${((rec / n) * 100).toFixed(0)}% (${rec})`
     );
   }
 
@@ -256,5 +272,6 @@ function run(): void {
   diagnose("doc2query + HyDE", stacked, (c) => searchToolCatalog({ db: doc2Db, query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id));
   console.log();
 }
+
 
 run();

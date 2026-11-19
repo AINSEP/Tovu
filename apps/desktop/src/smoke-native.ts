@@ -229,7 +229,11 @@ export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string },
       join(dirname(createRequire(join(asar, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js"),
       join(asar, "src", "desktop-mcp-http.ts"),
     );
-    const loaded = new Set();
+${buildEntryResolutionScript()}`;
+}
+
+function buildEntryResolutionScript(): string {
+  return `    const loaded = new Set();
     // What Node itself resolved each requested specifier to: loaded URLs are canonical (macOS
     // /private/var, Windows long names inside app.asar), so an entry is matched by its resolution.
     const resolvedUrls = new Map();
@@ -269,6 +273,7 @@ export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string },
 })();
 `;
 }
+
 
 /**
  * Parses {@link buildEntryLoadScript}'s one JSON line. Anything but `ok: true` with an empty
