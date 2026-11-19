@@ -114,6 +114,23 @@ test("an unexpected failure is logged and answered with a 500", async (t) => {
   const base = await serve(t, runtime);
   const res = await fetch(`${base}/api/search?q=x`);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  const body = await res.json();
+  assert.ok(body.errorId);
+  assert.match(body.error, /couldn’t load the search results/);
   assert.equal(errors.mock.callCount(), 1);
+});
+
+test("unexpected search error has one redacted incident and preserves private JSON headers", async t => {
+  const logs = t.mock.method(console, "error", () => {});
+  const { runtime } = fakeRuntime(async () => { throw new Error("search context password=SEARCH_CANARY"); });
+  const base = await serve(t, runtime);
+  const res = await fetch(`${base}/api/search?q=hello`);
+  const body = await res.json();
+  assert.equal(res.status, 500);
+  assert.match(res.headers.get("content-type") ?? "", /^application\/json/);
+  assert.equal(res.headers.get("cache-control"), "private, no-store");
+  assert.ok(body.errorId);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(logs.mock.calls), /SEARCH_CANARY/);
 });

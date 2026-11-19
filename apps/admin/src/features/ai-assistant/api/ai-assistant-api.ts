@@ -93,8 +93,8 @@ export const aiAssistantApi = {
     }
     try {
       return (await res.json()) as { ready: boolean; assistantDaemonKnownFailed?: true };
-    } catch {
-      throw new Error(`Could not check the assistant's status (malformed response, HTTP ${res.status}).`);
+    } catch (cause) {
+      throw new Error(`Could not check the assistant's status (malformed response, HTTP ${res.status}).`, { cause });
     }
   },
   // The SITE's encrypted provider credential (ADR-058) — a DIFFERENT key from the browser-local one

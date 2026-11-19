@@ -108,3 +108,15 @@ test("delete-taxonomy and delete-term hide storage failures behind a generic 500
     } }, { failure: {"message":"The taxonomy operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"taxonomy operation"} });
   }
 });
+
+test("create-term unexpected failure emits one redacted incident with a matching reply ID", async t => {
+  const logs = t.mock.method(console, "error", () => {});
+  const invoke = harness({ taxonomyRepo: { findById: async () => { throw new Error("create context password=TERM_CANARY"); } } });
+  const reply = await invoke("post", createPath, { params: { taxonomyId: "tax-1" }, body: { name: "News" } });
+  assert.equal(reply.statusCode, 500);
+  const body = reply.jsonBody as { errorId: string };
+  assert.ok(body.errorId);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(reply) + JSON.stringify(logs.mock.calls), /TERM_CANARY/);
+});

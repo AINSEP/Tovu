@@ -22,12 +22,14 @@ for (const failure of [new Error('private exporter failure'), 'opaque exporter f
     }) });
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'owner' };
+    res.locals.adminFailureTracker = { error: (...args: unknown[]) => { reports.push(args); } };
     await extractRouteHandler(app, 'post', `${ROOT}/observability/test-error`)({ params: { workspaceId: 'ws' } }, res);
     assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
     assert.equal(reports.length, 1);
     const [{ error }, context] = reports[0] as [{ error: Error }, unknown];
-    assert.equal(error.message, failure instanceof Error ? failure.message : 'telemetry test failed');
-    assert.deepEqual(context, { context: { operation: 'telemetry.test_action' } });
+    assert.ok(error.message.includes(String(failure instanceof Error ? failure.message : failure)));
+    const body = capture.jsonBody as { errorId: string };
+    assert.deepEqual(context, { context: { operation: 'routes/system/observability-status', attributes: { errorId: body.errorId } } });
   });
 }
 

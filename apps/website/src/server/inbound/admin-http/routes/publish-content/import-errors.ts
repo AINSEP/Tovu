@@ -29,13 +29,12 @@ export interface ImportErrorResponse {
  * @complexity O(1).
  */
 export function importErrorResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): ImportErrorResponse {
-  const error = err instanceof Error ? err.message : "internal error";
-  if (err instanceof ForbiddenError) return { status: 403, body: { error, code: err.reasonCode } };
-  if (err instanceof PlanStaleError) return { status: 409, body: { error, code: "PLAN_STALE" } };
-  if (err instanceof TokenExpiredError) return { status: 409, body: { error, code: "TOKEN_EXPIRED" } };
-  if (err instanceof TokenAlreadyRedeemedError) return { status: 409, body: { error, code: "TOKEN_ALREADY_REDEEMED" } };
-  if (err instanceof RestorePointUnavailableError) return { status: 409, body: { error, code: "RESTORE_POINT_UNAVAILABLE" } };
-  if (err instanceof PublishContentBundleNotFoundError) return { status: 404, body: { error, code: "BUNDLE_NOT_FOUND" } };
+  if (err instanceof ForbiddenError) return { status: 403, body: { error: err.message, code: err.reasonCode } };
+  if (err instanceof PlanStaleError) return { status: 409, body: { error: err.message, code: "PLAN_STALE" } };
+  if (err instanceof TokenExpiredError) return { status: 409, body: { error: err.message, code: "TOKEN_EXPIRED" } };
+  if (err instanceof TokenAlreadyRedeemedError) return { status: 409, body: { error: err.message, code: "TOKEN_ALREADY_REDEEMED" } };
+  if (err instanceof RestorePointUnavailableError) return { status: 409, body: { error: err.message, code: "RESTORE_POINT_UNAVAILABLE" } };
+  if (err instanceof PublishContentBundleNotFoundError) return { status: 404, body: { error: err.message, code: "BUNDLE_NOT_FOUND" } };
   // Same envelope as the posts routes' `sendPluginHookFailedError`, so a client tells a plugin's
   // refusal apart from any other internal error — and the same fixed text, never the plugin's own.
   if (err instanceof PluginHookFailedError) return { status: 500, body: pluginHookFailedBody(err) };

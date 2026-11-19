@@ -47,8 +47,8 @@ export class InitDirNotEmptyError extends Error {
 
 /** `VALIDATION` (exit 2) — bad/missing arguments (empty `--name`, out-of-range `--port`, etc.). */
 export class ValidationError extends Error {
-  constructor({ message }: { message: string }) {
-    super(message);
+  constructor({ message }: { message: string }, { cause }: { cause?: unknown } = {}) {
+    super(message, { cause });
     this.name = "ValidationError";
   }
 }

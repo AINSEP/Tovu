@@ -61,15 +61,17 @@ export function useJsonFieldControl(props: {
 
   function handleTextChange({ nextText }: { nextText: string }, _optional = {}) {
     setText(nextText);
+    let parsed: unknown;
     try {
-      const parsed: unknown = JSON.parse(nextText);
-      setParseError(false);
-      setFieldValidity(fieldName, true);
-      props.onChange(parsed);
+      parsed = JSON.parse(nextText);
     } catch {
       setParseError(true);
       setFieldValidity(fieldName, false);
+      return;
     }
+    setParseError(false);
+    setFieldValidity(fieldName, true);
+    props.onChange(parsed);
   }
 
   return { text, parseError, handleTextChange };

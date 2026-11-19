@@ -1,3 +1,5 @@
+import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
+import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -182,7 +184,7 @@ test("GET /llms.txt: a post-read failure is caught and reported as a plain-text 
   const res = await fetch(`${baseUrl}/llms.txt`);
   assert.equal(res.status, 500);
   assert.match(res.headers.get("content-type") ?? "", /text\/plain/);
-  assert.equal(await res.text(), "internal error");
+  assert.match(await res.text(), /couldn’t load the site index.*Error ID:/);
 });
 
 
@@ -205,3 +207,26 @@ for (const description of ["Field notes from the garden.", undefined]) {
     assert.doesNotMatch(body, /# Tovu|content platform you own|nothing that phones home/);
   });
 }
+
+test("unexpected site index failure keeps plain text and one redacted matching incident", async t => {
+  const cause = new Error("site index storage context password=PUBLIC_CANARY");
+  const reports: unknown[] = [];
+  const logs = t.mock.method(console, "error", () => {});
+  const deps = errorPortFake<ErrorSeoDeps>({ get seoReady() { return Promise.reject(cause); } });
+  const app = express();
+  app.use((_req, res, next) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
+  registerLlmsTxtRoute({ app, deps });
+  const base = await startTestServer(app, t);
+  const res = await fetch(`${base}/llms.txt`);
+  const text = await res.text();
+  assert.equal(res.status, 500);
+  assert.match(res.headers.get("content-type") ?? "", /^text\/plain/);
+  assert.match(text, /couldn’t load the site index/);
+  const id = text.match(/Error ID: ([a-f0-9-]{36})/)?.[1];
+  assert.ok(id);
+  assert.equal(reports.length, 1);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(reports).includes(id));
+  assert.ok(JSON.stringify(logs.mock.calls).includes(id));
+  assert.doesNotMatch(text + JSON.stringify(reports) + JSON.stringify(logs.mock.calls), /PUBLIC_CANARY/);
+});

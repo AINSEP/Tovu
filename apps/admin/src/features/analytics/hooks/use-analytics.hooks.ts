@@ -44,7 +44,7 @@ export interface AnalyticsController {
 export function useAnalytics({ port, t }: { port: AnalyticsPort; t: (required: { key: string }, optional?: Record<string, never>) => string }, _optional = {}): AnalyticsController {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return (await port.listRecentAnalyticsHits()).hits; }
-    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load recent hits"); }
+    catch (error) { if (error instanceof Error) throw error; throw new Error("failed to load recent hits", { cause: error }); }
   }, [port]);
   const query = useFetchQuery({ key: ["analytics", "recent-hits"], fetch: queryFetch }, { staleTime: 0 });
   const hits = query.data ?? null;

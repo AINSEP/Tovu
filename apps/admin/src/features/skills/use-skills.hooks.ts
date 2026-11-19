@@ -46,18 +46,19 @@ function getSkillsAvailability(
 
 /** Writes take presentation precedence over a read error without losing their original cause. */
 function skillsFailureState({ actionError, actionCause, queryError, t }: { actionError: string | null; actionCause: unknown; queryError: Error | null; t: Translate }) {
-  const error = actionError ?? queryError?.message ?? null;
-  return { error, failure: error ? skillFailure({ error: actionError ? actionCause : queryError, message: error, t }) : null };
+  const message = actionError ?? (queryError ? "Could not load skills." : null);
+  const failure = message ? skillFailure({ error: actionError ? actionCause : queryError, message, t }) : null;
+  return { error: failure?.message ?? null, failure };
 }
 
 type SkillsPort = typeof defaultSkillsPort;
 
 /** The cached skills list: the query that renders it and the loader that force-refreshes it. */
-function useSkillsList({ port }: { port: SkillsPort }) {
+function useSkillsList({ port, t }: { port: SkillsPort; t: Translate }) {
   const queryFetch = useCallback(async () => {
     try { return await port.listSkills(); }
-    catch (error) { if (error instanceof Error) throw error; throw new Error("Could not load skills."); }
-  }, [port]);
+    catch (error) { if (error instanceof Error) throw error; throw new Error(skillFailure({ error, message: "Could not load skills.", t }).message, { cause: error }); }
+  }, [port, t]);
   const key = useMemo(() => ["skills", "list"] as const, []);
   const query = useFetchQuery({ key, fetch: queryFetch }, { staleTime: 0 });
   const skills = query.data ?? null;
@@ -90,7 +91,7 @@ function useSkillsReload({ list, setError }: { list: SkillsList; setError: (erro
 }
 
 /** Enable/disable and remove writes, with the busy flag, the pending-removal row and its confirmation dialog. */
-function useSkillChanges({ port, list, mounted, errors }: { port: SkillsPort; list: SkillsList; mounted: { current: boolean }; errors: { setError: (error: string | null) => void; setActionCause: (cause: unknown) => void } }) {
+function useSkillChanges({ port, list, mounted, errors, t }: { t: Translate; port: SkillsPort; list: SkillsList; mounted: { current: boolean }; errors: { setError: (error: string | null) => void; setActionCause: (cause: unknown) => void } }) {
   const { loader } = list;
   const { setError, setActionCause } = errors;
   // The skills API publishes SKILLS_CHANGED_EVENT after accepted writes; that notification
@@ -109,7 +110,7 @@ function useSkillChanges({ port, list, mounted, errors }: { port: SkillsPort; li
     } catch (e) {
       if (mounted.current) {
         setActionCause(e);
-        setError(e instanceof Error ? e.message : "Could not change skill.");
+        setError(skillFailure({ error: e, message: "Could not change skill.", t }).message);
       }
     } finally {
       if (mounted.current) setBusy(false);
@@ -148,7 +149,7 @@ function buildSkillRows({ skills, busy, expandedIds, actions }: { skills: readon
  * The injected port lets action tests exercise retry/refetch ordering without module mocks. */
 export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?: typeof defaultSkillsPort; t?: Translate } = {}, _optional?: Record<string, never>) {
   const tabs = useSkillsTabs();
-  const list = useSkillsList({ port });
+  const list = useSkillsList({ port, t });
   const { query, skills, loader } = list;
   const [actionError, setError] = useState<string | null>(null);
   const [actionCause, setActionCause] = useState<unknown>(null);
@@ -159,7 +160,7 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
   const filesInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const { mounted, reload } = useSkillsReload({ list, setError });
-  const changes = useSkillChanges({ port, list, mounted, errors: { setError, setActionCause } });
+  const changes = useSkillChanges({ port, list, mounted, t, errors: { setError, setActionCause } });
   const { removing, setRemoving, busy, confirmation, onCancelRemove, onConfirmRemove, toggleEnabled } = changes;
   const onInstalled = useCallback(async () => {
     await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.

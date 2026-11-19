@@ -11,12 +11,15 @@ export async function activateAssistantDaemon(
     method: "POST", credentials: "same-origin", signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
   }).catch((error: unknown) => {
     signal?.throwIfAborted();
-    const detail = error instanceof Error ? error.name : 'request failed';
-    throw new Error(`The assistant could not reach its page service. Retry your message; if it keeps failing, restart the site. Details: POST /api/frontend-sessions/activate; ${detail}`);
+    const detail = error instanceof Error ? error.name : 'No response from the page service.';
+    throw new Error(`The assistant could not reach its page service. Retry your message; if it keeps failing, restart the site. Details: POST /api/frontend-sessions/activate; ${detail}`, { cause: error });
   });
   if (!response.ok) {
     // A non-JSON refusal still surfaces the HTTP status and recovery guidance below.
-    const body = await response.json().catch(() => undefined) as { error?: unknown; code?: unknown; detail?: unknown } | undefined;
+    const body = await response.json().catch((cause: unknown) => {
+      if (cause instanceof SyntaxError) return undefined;
+      throw new Error(`The assistant could not read its page service response (HTTP ${response.status}). Reload this admin page, then retry your message.`, { cause });
+    }) as { error?: unknown; code?: unknown; detail?: unknown } | undefined;
     throw new Error(activationRefusalMessage({ status: response.status, body }));
   }
 }
@@ -50,9 +53,9 @@ export async function prepareAssistantPageBinding(
   const deadline = AbortSignal.timeout(5_000);
   const waitSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
   waitSignal.throwIfAborted();
-  await bridge.rebind({ signal: waitSignal }, {}).catch(() => {
+  await bridge.rebind({ signal: waitSignal }, {}).catch(cause => {
     signal?.throwIfAborted();
-    throw new Error('The assistant could not attach to this page. Reload this admin page, then retry your message. Details: page attachment did not finish after service activation.');
+    throw new Error('The assistant could not attach to this page. Reload this admin page, then retry your message. Details: page attachment did not finish after service activation.', { cause });
   });
   signal?.throwIfAborted();
   const token = bridge.bindToken();

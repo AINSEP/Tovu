@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
 import { serializeSitemapXml } from "@jini-ai/cms/seo";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
@@ -19,8 +20,9 @@ export const registerSeoSitemapRoute: SeoRouteRegistrar = ({ app, deps }, _optio
       const entries = await deps.sitemapService.buildSitemap({ workspaceId: deps.workspaceId }, { renderBaseUrl: seoDeps.renderBaseUrl });
       const body = serializeSitemapXml({ entries });
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/xml").send(body);
-    } catch {
-      res.status(500).type("text/plain").send("internal error");
+    } catch (error) {
+      const { errorId } = reportServerFailure({ error, operation: "public:sitemap" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).type("text/plain").send(`The site couldn’t load the sitemap. Reload this page and report this error ID if it keeps happening. Error ID: ${errorId}`);
     }
   });
 };

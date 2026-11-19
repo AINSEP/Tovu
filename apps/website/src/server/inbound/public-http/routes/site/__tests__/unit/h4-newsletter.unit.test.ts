@@ -31,19 +31,24 @@ for (const [path, register, title, message] of [
 </html>` });
     });
   }
-  test(`${path} redacts unexpected dependency failures in its HTML error page`, async () => {
+  test(`${path} redacts unexpected dependency failures in its HTML error page`, async t => {
+    const logs = t.mock.method(console, "error", () => {});
     const app = express();
     register({ app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
-      newsletterConfirmationTokenRepo: { findByTokenHash: async () => { throw new Error('private database path'); } },
-      newsletterKeyring: { derive: async () => { throw new Error('private key path'); } },
+      newsletterConfirmationTokenRepo: { findByTokenHash: async () => { throw new Error('private database path password=NEWSLETTER_CANARY'); } },
+      newsletterKeyring: { derive: async () => { throw new Error('private key path password=NEWSLETTER_CANARY'); } },
       clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
     }) });
     const { res, capture } = createCapturingResponse();
     Object.assign(res, { type: () => res, send: (html: string) => { capture.jsonBody = html; return res; } });
     await extractRouteHandler(app, 'get', path)({ query: { token: `${Buffer.from('{}').toString('base64url')}.signature` } }, res);
     assert.equal(capture.statusCode, 500);
-    assert.match(String(capture.jsonBody), /<h1>Something went wrong<\/h1>/);
-    assert.match(String(capture.jsonBody), /<p>Unexpected server error\.<\/p>/);
+    assert.match(String(capture.jsonBody), /couldn’t complete/);
+    const id = String(capture.jsonBody).match(/Error ID: ([a-f0-9-]{36})/)?.[1];
+    assert.ok(id);
+    assert.equal(logs.mock.calls.length, 1);
+    assert.ok(JSON.stringify(logs.mock.calls).includes(id));
+    assert.doesNotMatch(String(capture.jsonBody) + JSON.stringify(logs.mock.calls), /NEWSLETTER_CANARY/);
     assert.doesNotMatch(String(capture.jsonBody), /private/);
   });
 }

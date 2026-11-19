@@ -1,3 +1,6 @@
+import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
+import { useSkills } from "../use-skills.hooks";
+import { ApiError } from "@/lib/admin-http/request";
 import userEvent from "@testing-library/user-event";
 import { captureSkillDrop } from "../skill-drop";
 import { readFileSync } from "node:fs";
@@ -185,4 +188,21 @@ describe("SkillRemoveConfirmDialog", () => {
     expect(within(dialog).getByRole("button", { name: "Confirm remove" })).toBeDisabled();
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
   });
+});
+
+it("the confirmation details redact the original cause and preserve its incident", () => {
+  const cause = new Error("Could not install skill.", { cause: new Error("password=SKILL_DIALOG_CANARY") });
+  render(<SkillInstallConfirmation install={install({ error: "Could not install skill.", cause })} />);
+  expect(screen.getByRole("alert")).toHaveTextContent("Could not install skill.");
+  expect(document.body.textContent).not.toContain("SKILL_DIALOG_CANARY");
+  expect(screen.getByRole("button", { name: /Copy details/i })).toBeTruthy();
+});
+
+it("the skills list preserves API incident identity and redacts its displayed text", async () => {
+  const cause = new ApiError({ message: "password=SKILL_LIST_CANARY", status: 500 }, { body: { errorId: "skills-list-incident" } });
+  const port = { listSkills: async () => { throw cause; }, enableSkill: async () => {}, removeSkill: async () => {} };
+  const { result } = renderHook(() => useSkills({ port }));
+  await waitFor(() => expect(result.current.failure?.errorId).toBe("skills-list-incident"));
+  expect(result.current.error).not.toContain("SKILL_LIST_CANARY");
+  expect(result.current.failure?.copyText).not.toContain("SKILL_LIST_CANARY");
 });

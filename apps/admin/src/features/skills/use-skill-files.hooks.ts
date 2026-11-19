@@ -27,7 +27,7 @@ export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
   const queryFetch = useQueryFetchCallback(async () => {
     if (toolId === null) throw new Error("skill files have no selected skill id");
     try { return await read({ toolId }); }
-    catch (error) { if (error instanceof Error) throw error; throw new Error("Could not load skill files."); }
+    catch (error) { if (error instanceof Error) throw error; throw new Error("Could not load skill files.", { cause: error }); }
   }, [read, toolId]);
   const query = useFetchQuery({ key: ["skills", "files", toolId ?? ""], fetch: queryFetch }, { enabled: toolId !== null, staleTime: 0 });
   const skillCopy: Translate = key => {

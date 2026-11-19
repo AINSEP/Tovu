@@ -319,3 +319,20 @@ test("a crash after rename but before permission restoration never leaves the mi
     assert.deepEqual((await listInstalledPlugins({ workspaceRoot: f.workspace.root })).map(plugin => plugin.archiveDigest), [digest]);
   } finally { await forceRemove(f.temporary); }
 });
+
+test("invalid legacy workspace diagnostics are redacted without blocking active migration", async t => {
+  const f = await fixture();
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.join(" ")));
+  try {
+    await fs.mkdir(path.join(f.layout.root, "ws", "legacy-bad"), { recursive: true });
+    const layout = { ...f.layout, forWorkspace: (input: { workspaceId: string }) => {
+      if (input.workspaceId === "legacy-bad") throw new Error("workspace context password=WORKSPACE_CANARY");
+      return f.layout.forWorkspace(input);
+    } };
+    const result = await migrateSiteAgentPluginLayouts({ contain: containAgentPluginStatePath, layout, workspaceId });
+    assert.equal(typeof result.complete, "boolean");
+    assert.match(warnings.join(" "), /invalid legacy workspace folder legacy-bad.*workspace context/);
+    assert.doesNotMatch(warnings.join(" "), /WORKSPACE_CANARY/);
+  } finally { await forceRemove(f.temporary); }
+});

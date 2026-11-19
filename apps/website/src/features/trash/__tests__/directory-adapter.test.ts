@@ -355,3 +355,16 @@ test("hide gives an empty existing park the minimum blocked count before conside
   });
   assert.deepEqual(await adapter.hide(markerArgs()), { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: 1 });
 });
+
+test("cross-filesystem refusal retains cause and restores the original directory mode", async t => {
+  const { liveParent, liveDir, parkedDir } = await harness(t);
+  await makeLive(liveDir);
+  await chmod(liveDir, 0o500);
+  const cause = Object.assign(new Error("cross-device canary"), { code: "EXDEV" });
+  const adapter = createDirectoryTrashAdapter({ entityType: ENTITY, locate: () => ({ liveParent, parkedDir, liveNames: [ID] }) }, {
+    rename: async () => { throw cause; },
+  });
+  await assert.rejects(adapter.hide(markerArgs()), error => error instanceof Error && error.cause === cause && /across filesystems/.test(error.message));
+  assert.equal((await stat(liveDir)).mode & 0o777, 0o500);
+  assert.equal(await pathExists(liveDir), true);
+});

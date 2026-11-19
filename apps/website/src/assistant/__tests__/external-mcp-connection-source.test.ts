@@ -146,3 +146,14 @@ test("buildExternalMcpFederationDeps wires a per-call confirmer when a surface e
   const deps = buildExternalMcpFederationDeps(testSiteLayoutContext({ authorize: allow, workspaceId: WORKSPACE, repo: new InMemoryExternalMcpServerRepo(), surfaceExchanges }));
   assert.equal(typeof deps.confirmCall, "function");
 });
+
+test("legacy desktop cleanup keeps suppression and emits redacted cause", async t => {
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.join(" ")));
+  const repo = new InMemoryExternalMcpServerRepo();
+  t.mock.method(repo, "findByServerId", async () => { throw new Error("legacy lookup context password=MCP_CLEANUP_CANARY"); });
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ repo, sealer: new AesGcmSecretSealer(new InMemoryKeyring()), workspaceId: WORKSPACE, log: "[cleanup-test]", desktopOwned: true }));
+  assert.deepEqual(await source.resolve(), []);
+  assert.match(warnings.join(" "), /legacy desktop MCP cleanup.*legacy lookup context/);
+  assert.doesNotMatch(warnings.join(" "), /MCP_CLEANUP_CANARY/);
+});

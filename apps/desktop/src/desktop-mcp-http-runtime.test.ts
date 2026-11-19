@@ -152,3 +152,19 @@ test('a site that exits after it was connected stops receiving capabilities, and
   await runtime.close({});
   assert.equal(exits.length, 2);
 });
+
+test('a runtime factory rejection records redacted cause and preserves degraded boot', async t => {
+  const mcp = await import('@jini-ai/mcp');
+  t.mock.module('@jini-ai/mcp', { namedExports: { ...mcp, createMcpHttpToolServerRuntime: () => { throw new Error('factory context password=MCP_BOOT_CANARY'); } } });
+  const modulePath = './desktop-mcp-http.ts?factory-failure';
+  const { createDesktopMcpHttpRuntime: create } = await import(modulePath);
+  const warnings: string[] = [];
+  const runtime = create({ context, warn: ({ message }: { message: string }) => warnings.push(message) });
+  t.after(() => runtime.close({}));
+  const environment = await runtime.environment({});
+  assert.equal(environment.TOVU_DESKTOP_MCP_URL, undefined);
+  assert.ok(environment.TOVU_DESKTOP_MCP_HANDOFF_TOKEN);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0]!, /factory context/);
+  assert.doesNotMatch(warnings[0]!, /MCP_BOOT_CANARY/);
+});

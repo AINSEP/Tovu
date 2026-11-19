@@ -1,3 +1,5 @@
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 /** Electron-main adapter: Jini owns HTTP/SDK hosting, the desktop table owns tool behavior. */
 import { createMcpHttpToolServerRuntime, startMcpHttpToolServer, type McpHttpToolServerHandle } from '@jini-ai/mcp';
 import { startCapabilityDelivery } from '@jini-ai/mcp/federation/hosted';
@@ -40,8 +42,8 @@ export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolCo
   // during the preparation/release handoff. Jini owns listener retries once available.
   const runtime = Promise.resolve().then(() => createMcpHttpToolServerRuntime({
     name: SITES_MCP_SERVER_ID, version: '1', tools: table.tools, resolveBaseUrl: () => '',
-  }, { warn: (message) => warn({ message }), ...(start ? { start: () => start({ context }, { warn: (message) => warn({ message }) }) } : {}) })).catch(() => {
-    warn({ message: 'tovu-desktop: desktop tools host unavailable for this application release.' });
+  }, { warn: (message) => warn({ message }), ...(start ? { start: () => start({ context }, { warn: (message) => warn({ message }) }) } : {}) })).catch(error => {
+    warn({ message: `tovu-desktop: desktop tools host unavailable for this application release. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` });
     return undefined;
   });
   return {

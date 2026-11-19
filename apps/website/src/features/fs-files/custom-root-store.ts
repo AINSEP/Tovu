@@ -122,9 +122,10 @@ function readPersistedPaths({ filePath }: { filePath: string }, _optional = {}):
       return parsed as Record<string, string>;
     }
   } catch {
-    // Malformed JSON — fall through to the empty-store return below rather than throwing. This file
+    // Malformed JSON — return an empty store rather than throwing. This file
     // holds nothing that cannot be re-derived (the operator can just re-set the folder), so refusing
     // every read until a human manually repairs the file would be a worse failure mode.
+    return {};
   }
   return {};
 }

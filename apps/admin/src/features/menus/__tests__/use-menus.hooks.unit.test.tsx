@@ -1,3 +1,4 @@
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCachedLoader } from "@jini-ai/ui/fetch-query";
@@ -396,4 +397,16 @@ describe("useMenus — overlapping list reads keep the newest", () => {
     expect(result.current.menus?.map((m) => m.status)).toEqual(["trash", "trash"]);
     expect(result.current.listCache.peek()?.map((m) => m.status)).toEqual(["trash", "trash"]);
   });
+});
+
+it.each([new Error("adapter canary"), { rejected: "adapter canary" }])("keeps adapter rejection ownership: %s", async cause => {
+  const port = createFakeMenusPort();
+  vi.spyOn(port, "listMenus").mockRejectedValue(cause);
+  const { result } = renderHook(() => {
+    useMenus({ port, t: k => k });
+    return useFetchQuery({ key: ["menus", "list"], fetch: async () => { throw new Error("observer must join the active read"); } }, { staleTime: 0 });
+  });
+  await waitFor(() => expect(result.current.error).toBeTruthy());
+  if (cause instanceof Error) expect(result.current.error).toBe(cause);
+  else expect(result.current.error).toMatchObject({ message: "failed to load menus", cause });
 });

@@ -1,3 +1,5 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
 import { planAgentPluginUpdate, AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
@@ -379,6 +381,6 @@ async function retireReplacedPackages(
   // an old tree whose cleanup already succeeded. Quarantine names are excluded from discovery.
   for (const tree of staged) {
     try { await removeFrozenPackageTree({ root: tree.quarantined }); }
-    catch { console.warn(`[agent-plugins] retired package cleanup pending for '${pluginId}'`); }
+    catch (error) { console.warn(`[agent-plugins] retired package cleanup pending for '${pluginId}' ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); }
   }
 }

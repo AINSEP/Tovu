@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { computeIndexableEntries, renderLlmsTxt } from "@jini-ai/cms/seo";
 import { resolveSiteTitle } from "#src/features/settings/index";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
@@ -41,8 +42,9 @@ export const registerLlmsTxtRoute: SeoRouteRegistrar = ({ app, deps }, _options 
       );
       const { defaultDescription: description } = await deps.seoDeps.settings.getSeoSettings({ workspaceId: deps.workspaceId });
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/markdown").send(renderLlmsTxt({ entries, title }, { description }));
-    } catch {
-      res.status(500).type("text/plain").send("internal error");
+    } catch (error) {
+      const { errorId } = reportServerFailure({ error, operation: "public:llms" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).type("text/plain").send(`The site couldn’t load the site index. Reload this page and report this error ID if it keeps happening. Error ID: ${errorId}`);
     }
   });
 };

@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import type { Express, Request, Response } from "express";
@@ -156,8 +157,8 @@ export function registerSiteSearchRoute(app: Pick<Express, "get">, deps: SiteSea
       send(res, result);
     } catch (error) {
       // Express 4 does not catch a rejected async handler; answer instead of hanging the caller.
-      console.error("[site-search] GET /api/search failed:", error);
-      res.status(500).json({ error: "internal error" });
+      const { errorId } = reportServerFailure({ error, operation: "public:search" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).json({ error: "The site couldn’t load the search results. Reload this page and report this error ID if it keeps happening.", errorId });
     }
   });
 }

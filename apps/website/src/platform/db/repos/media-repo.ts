@@ -710,7 +710,7 @@ export class SqlTransformDefinitionRepo implements TransformDefinitionRepoPort {
     } catch (err) {
       if (isUniqueViolation({ err })) {
         throw new Error(
-          `transform_registry row (workspace=${record.workspaceId}, name=${record.name}, v${record.version}) already exists — append-only violation`
+          `transform_registry row (workspace=${record.workspaceId}, name=${record.name}, v${record.version}) already exists — append-only violation`, { cause: err }
         );
       }
       throw err;

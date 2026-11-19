@@ -69,3 +69,13 @@ describe("useJsonFieldControl — M2 validity reporting", () => {
     expect(setFieldValidity).toHaveBeenCalledWith("extra_notes", false);
   });
 });
+
+it("propagates a field callback rejection without marking valid JSON invalid", () => {
+  const cause = new Error("callback canary");
+  const setFieldValidity = vi.fn();
+  const { result } = renderHook(() => useJsonFieldControl({ value: {}, fieldName: "meta", setFieldValidity, onChange: () => { throw cause; } }));
+  act(() => expect(() => result.current.handleTextChange({ nextText: '{"price":2}' })).toThrow(cause));
+  expect(result.current.parseError).toBe(false);
+  expect(setFieldValidity).toHaveBeenLastCalledWith("meta", true);
+  expect(setFieldValidity).not.toHaveBeenCalledWith("meta", false);
+});

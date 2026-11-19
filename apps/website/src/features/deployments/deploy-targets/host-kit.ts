@@ -46,7 +46,7 @@ async function fetchWithTimeout({ fetchFn, url, init, options }: { fetchFn: type
   try {
     return await fetchFn(url, { ...init, signal });
   } catch (error) {
-    if (timeoutSignal.aborted && !init.signal?.aborted) throw new Error(`fetch timed out after ${options.timeoutMs}ms: ${URL.canParse(url) ? new URL(url).origin : "the requested server"}`);
+    if (timeoutSignal.aborted && !init.signal?.aborted) throw new Error(`fetch timed out after ${options.timeoutMs}ms: ${URL.canParse(url) ? new URL(url).origin : "the requested server"}`, { cause: error });
     throw error;
   }
 }

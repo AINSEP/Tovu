@@ -1,3 +1,6 @@
+import { formatUserFacingError, type UserFacingError } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
+import { ApiError } from '../../lib/admin-http/request';
 import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHostMediaPicker } from '../../integrations/jini-admin/module-context';
@@ -14,7 +17,7 @@ export function useJiniMediaPicker(props: MediaPickerDialogProps, { port = defau
   const media = useCachedLoader({ key, fetch: fetchMedia }, { staleTime: 0 });
   const enabled = !!picker && !props.useDialog;
   const callbacks = useRef(props); callbacks.current = props;
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UserFacingError | null>(null);
   useEffect(() => {
     if (!enabled || !picker) return undefined;
     const abort = new AbortController();
@@ -25,7 +28,13 @@ export function useJiniMediaPicker(props: MediaPickerDialogProps, { port = defau
       const row = rows.media.find(item => item.id === selected.id && item.status === 'active');
       if (!row) throw new Error('Selected media is unavailable');
       if (!abort.signal.aborted) callbacks.current.onSelect(row);
-    }).catch(() => { if (!abort.signal.aborted) setError('Unable to choose media. Please try again.'); });
+    }).catch(cause => {
+      if (!abort.signal.aborted) setError(formatUserFacingError({ message: 'The media could not be chosen.',
+        action: 'Cancel and choose the media again.', step: 'Choose media', cause }, {
+        ...TOVU_ERROR_REDACTION_OPTIONS,
+        errorId: cause instanceof ApiError && typeof cause.body?.errorId === 'string' ? cause.body.errorId : undefined,
+      }));
+    });
     return () => abort.abort();
   }, [picker, enabled, media]);
   return { enabled, error, onCancel: props.onCancel };

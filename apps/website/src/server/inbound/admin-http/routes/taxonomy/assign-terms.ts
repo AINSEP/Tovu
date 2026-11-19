@@ -18,7 +18,7 @@ import type { TaxonomyRouteDeps } from "./deps.js";
 
 /** The `EntityNotLiveError` arm is S10 (web-high fix plan, 2026-09-24) — assigning terms to a
  * trashed post/page now 409s instead of silently joining terms to it. */
-function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string; message: string } {
+function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string; message: string } | null {
   if (err instanceof EntityNotLiveError) return { status: 409, code: err.code, message: err.message };
   if (err instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN", message: err.message };
   if (err instanceof TermRecordNotFoundError) return { status: 404, code: "TERM_NOT_FOUND", message: err.message };
@@ -30,7 +30,7 @@ function statusFor({ err }: { err: unknown }, _optional = {}): { status: number;
   ) {
     return { status: 400, code: "VALIDATION_ERROR", message: err.message };
   }
-  return { status: 500, code: "INTERNAL_ERROR", message: "internal error" };
+  return null;
 }
 
 const TAXONOMY_PERMISSION = "admin.taxonomy.manage";
@@ -64,9 +64,9 @@ function readAssignmentBody(req: Request, res: Response): { contentType: string;
 }
 
 function sendError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
-  const { status, code, message } = statusFor({ err });
-  if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-  res.status(status).json({ error: message, code });
+  const failure = statusFor({ err });
+  if (!failure) { sendAdminFailure({ res, error: err }); return; }
+  res.status(failure.status).json({ error: failure.message, code: failure.code });
 }
 
 /**

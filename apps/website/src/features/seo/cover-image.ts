@@ -32,7 +32,7 @@ function readCoverSeoOverrides(
   try {
     const value: unknown = JSON.parse(seoExtJson ?? "{}");
     if (typeof value === "object" && value !== null && !Array.isArray(value)) return value as Record<string, unknown>;
-  } catch { /* Match the existing SEO evaluator's malformed-JSON fallback. */ }
+  } catch { /* Match the existing SEO evaluator's malformed-JSON fallback. */ return {}; }
   return {};
 }
 
@@ -88,9 +88,7 @@ export function withContentImageSource(
   _optional: Record<string, never> = {},
 ): SeoMeta {
   if (!rawPost || meta.openGraph.imageSource !== "override") return meta;
-  try {
-    if (JSON.parse(rawPost.seoExtJson ?? "{}")?.ogImage) return meta;
-  } catch { /* Match the existing SEO evaluator's malformed-JSON fallback. */ }
+  if (readCoverSeoOverrides({ seoExtJson: rawPost.seoExtJson }).ogImage) return meta;
   const { imageOverridden: _overridden, ...openGraph } = meta.openGraph;
   return { ...meta, openGraph: { ...openGraph, imageSource: "content" } };
 }

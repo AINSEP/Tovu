@@ -12,9 +12,9 @@ describe("visitorFacingError", () => {
     assert.equal(visitorFacingError({ error: NO_REPLY_REASON }).message, "Couldn't get an answer: the assistant sent no reply. Try again.");
   });
 
-  it("falls back to a generic reason when the message is blank", () => {
-    assert.equal(visitorFacingError({ error: new Error("  ") }).message, "Couldn't get an answer: something went wrong. Try again.");
-    assert.equal(visitorFacingError({ error: undefined }).message, "Couldn't get an answer: something went wrong. Try again.");
+  it("gives page recovery guidance when the message is blank", () => {
+    assert.equal(visitorFacingError({ error: new Error("  ") }).message, "Couldn't get an answer from this site. Reload the page and try again.");
+    assert.equal(visitorFacingError({ error: undefined }).message, "Couldn't get an answer from this site. Reload the page and try again.");
   });
 
   it("maps each browser's fetch network TypeError to one plain reason", () => {

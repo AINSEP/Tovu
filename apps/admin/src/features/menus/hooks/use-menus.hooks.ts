@@ -83,7 +83,7 @@ function describeMenuTrashError(
 export function useMenus({ port, t }: MenusDependencies): MenusController {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return (await port.listMenus()).menus; }
-    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load menus"); }
+    catch (error) { if (error instanceof Error) throw error; throw new Error("failed to load menus", { cause: error }); }
   }, [port]);
   const query = useFetchQuery({ key: ["menus", "list"], fetch: queryFetch }, { staleTime: 0 });
   const menus = query.data ?? null;

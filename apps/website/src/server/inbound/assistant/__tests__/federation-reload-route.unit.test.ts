@@ -81,15 +81,33 @@ test("a rejected reload() is reported as a real failure — never a silent 200 �
   const res = await postReload(baseUrl, { authorization: `Bearer ${TOKEN}` });
 
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { ok: false, error: "federation reload failed" });
+  const body = await res.json();
+  assert.equal(body.ok, false);
+  assert.ok(body.errorId);
+  assert.match(body.error, /Restart.*error ID/);
 });
 
 test("a reload() that rejects with a non-Error value is still a visible 500 and logs the stringified reason", async (t) => {
   const logged: string[] = [];
-  t.mock.method(console, "error", (line: string) => { logged.push(line); });
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(JSON.stringify(args)); });
   const baseUrl = await startTestServer(buildApp(async () => { throw "roster lock busy"; }), t);
   const res = await postReload(baseUrl, { authorization: `Bearer ${TOKEN}` });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { ok: false, error: "federation reload failed" });
-  assert.deepEqual(logged, ["[agent-daemon] mcp-federation: reload failed — roster lock busy"]);
+  const body = await res.json();
+  assert.equal(body.ok, false);
+  assert.equal(logged.length, 1);
+  assert.match(logged[0]!, /roster lock busy/);
+  assert.ok(logged[0]!.includes(body.errorId));
+});
+
+test("reload failure redacts private evidence and correlates one incident", async t => {
+  const logs = t.mock.method(console, "error", () => {});
+  const base = await startTestServer(buildApp(async () => { throw new Error("reload context password=RELOAD_CANARY"); }), t);
+  const res = await postReload(base, { authorization: `Bearer ${TOKEN}` });
+  const body = await res.json();
+  assert.equal(res.status, 500);
+  assert.equal(body.ok, false);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(logs.mock.calls), /RELOAD_CANARY/);
 });

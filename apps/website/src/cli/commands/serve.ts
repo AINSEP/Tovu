@@ -1,3 +1,5 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { tidyImportDatabases } from "../../features/site-backup/import-database.js";
 import { reportSitesSyncWarning } from "../../platform/site-dir/sites-home.js";
 import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases.js";
@@ -187,7 +189,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   // ahead of it, for the same reason `index.ts`'s own call site gives.
   (optional.registerPluginSdkResolver ?? registerPluginSdkResolver)();
   // Verification folders are shared across sites; cleanup must never delay or refuse serving.
-  void tidyImportDatabases({}).catch(() => console.warn("Temporary import database cleanup could not finish; it will retry at the next server start."));
+  void tidyImportDatabases({}).catch(error => console.warn(`Temporary import database cleanup could not finish; it will retry at the next server start. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`));
 
   // The resolver must remain synchronous before startup IPC's first await. Never put the
   // received capabilities back into process.env: every later child inherits that environment.

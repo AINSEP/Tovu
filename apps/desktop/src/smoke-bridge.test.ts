@@ -251,3 +251,13 @@ test("bridge failures redact split native stderr and retain exit code and signal
     return true;
   });
 });
+
+test("the packaged smoke's failed HTTP call preserves its response status", async () => {
+  const script = buildJiniEntryScript({ resourcesDir: "/bundle", executablePath: "/Tovu" });
+  const start = script.indexOf("const send = async");
+  const end = script.indexOf("const refused =", start);
+  const send = new Function("fetch", "host", script.slice(start, end) + "return send;")(
+    async () => new Response(null, { status: 502 }), { url: "http://127.0.0.1/mcp", token: "smoke" },
+  );
+  await assert.rejects(send("initialize"), { message: "Desktop tools smoke call returned HTTP 502." });
+});

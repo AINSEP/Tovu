@@ -24,21 +24,21 @@ const MIGRATE_PERMISSION = "database.migrate";
  * `migrate-forward/execute.ts`'s own `executeMigrateForward` orchestration wrapper (U-003-ORD1:
  * lock acquired strictly before the gateway's own `execute()` runs).
  */
-function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string } {
-  if (err instanceof ForbiddenError) return { status: 403, code: err.reasonCode };
-  if (err instanceof PlanStaleError) return { status: 409, code: "PLAN_STALE" };
-  if (err instanceof TokenExpiredError) return { status: 409, code: "TOKEN_EXPIRED" };
-  if (err instanceof TokenAlreadyRedeemedError) return { status: 409, code: "TOKEN_ALREADY_REDEEMED" };
-  if (err instanceof RestorePointUnavailableError) return { status: 409, code: "RESTORE_POINT_UNAVAILABLE" };
-  if (err instanceof MigrationAlreadyInFlightError) return { status: 409, code: "OPERATION_IN_FLIGHT" };
-  return { status: 500, code: "INTERNAL_ERROR" };
+function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string; message: string } | null {
+  if (err instanceof ForbiddenError) return { status: 403, code: err.reasonCode, message: err.message };
+  if (err instanceof PlanStaleError) return { status: 409, code: "PLAN_STALE", message: err.message };
+  if (err instanceof TokenExpiredError) return { status: 409, code: "TOKEN_EXPIRED", message: err.message };
+  if (err instanceof TokenAlreadyRedeemedError) return { status: 409, code: "TOKEN_ALREADY_REDEEMED", message: err.message };
+  if (err instanceof RestorePointUnavailableError) return { status: 409, code: "RESTORE_POINT_UNAVAILABLE", message: err.message };
+  if (err instanceof MigrationAlreadyInFlightError) return { status: 409, code: "OPERATION_IN_FLIGHT", message: err.message };
+  return null;
 }
 
 function sendMigrateForwardFailure(input: { res: Response; err: unknown }): void {
   const { res, err } = input;
-  const { status, code } = statusFor({ err });
-  if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-  res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+  const failure = statusFor({ err });
+  if (!failure) { sendAdminFailure({ res, error: err }); return; }
+  res.status(failure.status).json({ error: failure.message, code: failure.code });
 }
 
 /** The migrate hooks every plan/execute call builds the same way. */

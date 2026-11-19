@@ -339,3 +339,24 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
     assert.equal(final.content, settled ? "The answer" : "");
   });
 });
+
+describeEachChatDialect("Run ledger attribution failure", kernel => ({ kernel }), make => {
+  test("a committed settlement retains its result after redacted attribution failure", async t => {
+    const { kernel } = make();
+    const runtime = await import("@jini-ai/chat/store/runtime");
+    const reports: { error: Error; context: unknown }[] = [];
+    t.mock.module("@jini-ai/chat/store/runtime", { namedExports: { ...runtime, createChatRunLedger: () => ({
+      settle: async () => true,
+      durable: { find: async () => { throw new Error("attribution context password=ATTRIBUTION_CANARY"); } },
+    }) } });
+    const modulePath = "../run-ledger.js?attribution-failure";
+    const { createChatRunLedger: create } = await import(modulePath);
+    const tracker = { error: ({ error }: { error: Error }, context: unknown) => reports.push({ error, context }) };
+    const ledger = create({ store: kernel }, { tracker });
+    assert.equal(await ledger.settle(settlement("Done")), true);
+    assert.equal(reports.length, 1);
+    assert.match(reports[0]!.error.message, /attribution context/);
+    assert.doesNotMatch(reports[0]!.error.message, /ATTRIBUTION_CANARY/);
+    assert.deepEqual(reports[0]!.context, { context: { operation: "assistant.run.product-event" } });
+  });
+});

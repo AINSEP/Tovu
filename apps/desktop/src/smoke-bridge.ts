@@ -90,7 +90,7 @@ export function buildJiniEntryScript(
       const response = await fetch(host.url, { method: "POST", headers: { Authorization: "Bearer " + host.token,
         "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(5000) });
-      if (!response.ok) throw new Error("desktop HTTP request failed");
+      if (!response.ok) throw new Error("Desktop tools smoke call returned HTTP " + response.status + ".");
       const reply = await response.json();
       if (reply.error || reply.result?.isError) throw new Error("desktop HTTP protocol failed");
       return reply.result;

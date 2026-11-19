@@ -214,3 +214,15 @@ test("deployment timeout details identify the origin without the resource path o
     });
   });
 });
+
+test("only the host timeout is wrapped and it retains its original cause", async t => {
+  const deadline = new AbortController();
+  deadline.abort(new DOMException("deadline", "TimeoutError"));
+  t.mock.method(AbortSignal, "timeout", () => deadline.signal);
+  const cause = new Error("fetch rejection canary");
+  const kit = createDeployHostKit({ fetchFn: async () => { throw cause; } });
+  await assert.rejects(kit.fetch("https://example.test/path", {}, { timeoutMs: 17 }), error => error instanceof Error && error.cause === cause && /timed out after 17ms/.test(error.message));
+  const caller = new AbortController();
+  caller.abort(cause);
+  await assert.rejects(kit.fetch("https://example.test/path", { signal: caller.signal }, { timeoutMs: 17 }), error => error === cause);
+});

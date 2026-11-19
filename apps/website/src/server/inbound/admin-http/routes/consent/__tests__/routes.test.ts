@@ -116,3 +116,25 @@ test('a hand-built request with no :workspaceId is 404 before authorization (dir
   assert.deepEqual({ statusCode: capture.statusCode, jsonBody: capture.jsonBody }, { statusCode: 404, jsonBody: { error: 'workspace was not found' } });
   assert.equal(authorized, 0);
 });
+
+test('unexpected consent failure preserves 503 enforcement guidance and one redacted incident', async t => {
+  const f = consentFixture({ t });
+  const cause = new Error('consent storage context password=CONSENT_CANARY');
+  t.mock.method(f.service, 'read', async () => { throw cause; });
+  const logs = t.mock.method(console, 'error', () => {});
+  const reports: unknown[] = [];
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
+  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
+  const base = await startTestServer(app, t);
+  const res = await fetch(`${base}/api/admin/v1/workspaces/ws/consent/settings`);
+  const body = await res.json();
+  assert.equal(res.status, 503);
+  assert.equal(body.code, 'CONSENT_UNAVAILABLE');
+  assert.match(body.error, /Published enforcement remains in place/);
+  assert.ok(body.errorId);
+  assert.equal(reports.length, 1);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(reports).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(reports) + JSON.stringify(logs.mock.calls), /CONSENT_CANARY/);
+});

@@ -1,3 +1,4 @@
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -191,4 +192,16 @@ describe("useWiredAnalytics — locale binding", () => {
     const { result } = renderHook(() => useWiredAnalytics());
     await waitFor(() => expect(result.current.t({ key: "Analytics" })).toBe("Analítica"));
   });
+});
+
+it.each([new Error("adapter canary"), { rejected: "adapter canary" }])("keeps adapter rejection ownership: %s", async cause => {
+  const port = createFakeAnalyticsPort();
+  vi.spyOn(port, "listRecentAnalyticsHits").mockRejectedValue(cause);
+  const { result } = renderHook(() => {
+    useAnalytics({ port, t: fakeT });
+    return useFetchQuery({ key: ["analytics", "recent-hits"], fetch: async () => { throw new Error("observer must join the active read"); } }, { staleTime: 0 });
+  });
+  await waitFor(() => expect(result.current.error).toBeTruthy());
+  if (cause instanceof Error) expect(result.current.error).toBe(cause);
+  else expect(result.current.error).toMatchObject({ message: "failed to load recent hits", cause });
 });
