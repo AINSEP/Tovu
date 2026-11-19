@@ -39,7 +39,7 @@ function conversationRun(
   const liveRunTracker = createLiveRunTracker({}, {});
   if (concurrent) liveRunTracker.register({ conversationId: CONVERSATION, runId: OTHER_RUN }, {});
   const lifecycle = { waitForTerminal: () => new Promise(() => {}), stream: async () => {}, onCancelRequested: () => () => {} };
-  const bindings = {
+  const bindings: Record<string, unknown> = {
     liveRunTracker, waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 0, CONCURRENT_RUN_REFUSAL_MESSAGE,
     routeDeps: { workspaceId: "ws-pinned", agentSessions, chatRunLedger: { durable } },
     console: { error: (...args: unknown[]) => { calls.errors.push(args.map(String).join(" ")); }, log() {}, warn: (...args: unknown[]) => { calls.warnings.push(args.map(String).join(" ")); } },

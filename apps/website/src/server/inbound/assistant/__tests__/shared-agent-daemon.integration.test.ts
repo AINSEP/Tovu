@@ -5,12 +5,12 @@ import express from "express";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createSiteScope } from "../agent-daemon-scope.js";
+import { createSiteScope, type SiteScopeOptions } from "../agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "../agent-daemon-idle-park.js";
-import { captureDaemonRun } from "./helpers/daemon-source.js";
+import { captureDaemonRun, daemonManifest } from "./helpers/daemon-source.js";
 
 test("site scopes never read ambient environment or working directory", async () => {
-  const source = await readFile(new URL("../agent-daemon-scope.ts", import.meta.url), "utf8");
+  const source = [...daemonManifest.values()].flatMap(bodies => bodies.get("<file>") ?? []).map(statement => statement.getText(statement.getSourceFile())).join("\n");
   assert.doesNotMatch(source, /process\s*\.\s*(env|cwd)\b/);
 });
 
@@ -33,6 +33,8 @@ async function harness() {
   app.post('/internal/agent-plugin-preflight', (_req, res) => res.json({ prefix: '', refusalPrefix: '' }));
   async function site(instance: number, siteLabel: string, db: "memory" | "sqlite" = "memory", options: {
     prepare?: { entered(): void; resume: Promise<void> };
+    probeBridge?: SiteScopeOptions["probeBridge"];
+    onStoreOpened?: NonNullable<SiteScopeOptions["coreOptions"]>["onStoreOpened"];
   } = {}) {
     const dir = join(root, `${instance}-${siteLabel}`);
     await mkdir(dir, { recursive: true });
@@ -52,7 +54,8 @@ async function harness() {
       TOVU_AGENT_DAEMON_TOKEN: token, TOVU_AGENT_PERMISSION_MODE: instance ? "restricted" : "bypass",
       JINI_AGENT_DAEMON_URL: `${url}/s/${instance}-${siteLabel}` };
     const scope = await createSiteScope({ siteId: "workspace-local", env, token: `rpc-${instance}-${siteLabel}` }, {
-      idlePark, probeBridge: async () => {}, coreOptions: {
+      idlePark, probeBridge: options.probeBridge ?? (async () => {}), coreOptions: {
+        onStoreOpened: options.onStoreOpened,
         storage: { kind: "sqlite" },
         fetch: async (_input, init) => {
           assert.equal(new Headers(init?.headers).get("authorization"), `Bearer rpc-${instance}-${siteLabel}`);
@@ -170,8 +173,14 @@ test("withdrawing a site while its reply prepares finishes disposal and leaves a
       }),
     ]);
     closing = a.scope.dispose({}, {});
+    assert.strictEqual(a.scope.dispose({}, {}), closing);
+    let disposed = false;
+    void closing.then(() => { disposed = true; });
     // Let withdrawal fence launch and deliver cancellation while preference I/O is held.
+    // Settle cancellation so only accepted work keeps disposal open.
+    await a.scope.lifecycle.finish({ runId, status: "cancelled", code: null, signal: null, resumable: false });
     await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(disposed, false, "disposal drains accepted preparation before closing");
     resume();
     const terminal = await a.scope.lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(2_000) });
     assert.equal(terminal.state, 'cancelled');
@@ -260,5 +269,44 @@ test("withdrawing a site releases its finished-run owner retention timers", asyn
     const ownerRetention = retention[0]!;
     await site.scope.dispose({}, {});
     assert.ok(cleared.mock.calls.some(call => call.arguments[0] === ownerRetention.result));
+  } finally { await h.close(); }
+});
+
+test("staged attachment bytes survive disposing and recreating the same site directory", async () => {
+  const h = await harness();
+  try {
+    const first = await h.site(0, "retained");
+    const response = await fetch(`${first.base}/api/attachments?batch=retained&name=note.txt`, {
+      method: "POST", headers: { authorization: `Bearer ${first.token}`, "x-tovu-principal-id": "owner", "content-type": "application/octet-stream" },
+      body: "retained attachment bytes",
+    });
+    assert.equal(response.status, 201);
+    const { attachment } = await response.json() as { attachment: { path: string } };
+    const closing = first.scope.dispose({}, {});
+    assert.strictEqual(first.scope.dispose({}, {}), closing);
+    await closing;
+    const second = await h.site(0, "retained");
+    const pending = await fetch(`${second.base}/internal/attachment-lookup`, {
+      method: "POST", headers: { authorization: `Bearer ${second.token}`, "content-type": "application/json" },
+      body: JSON.stringify({ op: "listPendingForOwner", ownerId: "owner" }),
+    });
+    assert.equal(pending.status, 200);
+    const body = await pending.json() as { value: { ref: string }[] };
+    assert.deepEqual(body.value.map(value => value.ref), [attachment.path]);
+  } finally { await h.close(); }
+});
+
+test("a supplied probe failure closes the opened resource before rejecting with the same object", async () => {
+  const h = await harness();
+  const sentinel = new Error("probe sentinel");
+  let closed = false;
+  try {
+    await assert.rejects(h.site(0, "probe", "memory", {
+      probeBridge: async () => { throw sentinel; },
+      onStoreOpened: ({ resource }) => {
+        const close = resource.close.bind(resource);
+        resource.close = async () => { await close(); closed = true; };
+      },
+    }), error => { assert.strictEqual(error, sentinel); assert.equal(closed, true); return true; });
   } finally { await h.close(); }
 });

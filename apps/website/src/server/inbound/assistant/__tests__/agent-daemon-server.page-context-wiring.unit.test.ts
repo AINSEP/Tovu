@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
 import { createRunActiveContextStore } from "#src/assistant/run-active-context";
-import { captureDaemonRun } from "./helpers/daemon-source.js";
+import { captureDaemonRun, daemonFunction } from "./helpers/daemon-source.js";
 
 /**
  * @file Proves `agent-daemon-server.ts`'s `onStarted` actually puts the decoded `pageContext` into
@@ -16,7 +16,7 @@ import { captureDaemonRun } from "./helpers/daemon-source.js";
  * module opens a real SQLite connection and binds a real port as a side effect of being loaded.
  */
 
-const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = daemonFunction("assembleRunPrompt").body!.getText();
 
 test("the run prompt renders decoded.pageContext directly after the dispatch marker", () => {
   assert.match(

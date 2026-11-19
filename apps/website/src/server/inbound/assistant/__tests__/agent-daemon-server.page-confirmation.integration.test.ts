@@ -1,3 +1,4 @@
+import { statementsFor } from "./helpers/daemon-source.js";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -41,12 +42,12 @@ async function fixture({ missingRevision = false } = {}) {
     handler: async () => { reads++; return missingRevision ? { elements: [] } : { elements: [], navigationRevision: revision }; },
   };
   const registry = createToolRegistry({});
-  const loop = daemonSource.statements.find(statement => ts.isForOfStatement(statement) && statement.expression.getText(daemonSource).includes("frontendControl.toolRegistrations"));
+  const loop = statementsFor("agent-daemon-scope-tools.ts", "createScopeToolRegistry").find(statement => ts.isForOfStatement(statement) && statement.expression.getText(statement.getSourceFile()).includes("frontendControl.toolRegistrations"));
   assert.ok(loop);
   await evaluateDaemonStatements([loop], {
     registry, surfaceExchanges, withReadOnlyFrontendCapabilities, withPageNavigateErrorRewrap,
     applyToolApprovalPolicy, pageApprovalOptions,
-    toolExecutor: { execute: (...args: Parameters<typeof toolExecutor.execute>) => toolExecutor.execute(...args) },
+    execute: (...args: Parameters<typeof toolExecutor.execute>) => toolExecutor.execute(...args),
     lostFrontendBindings: createLostFrontendBindings(),
     frontendControl: { toolRegistrations: [registration, readRegistration] },
   });

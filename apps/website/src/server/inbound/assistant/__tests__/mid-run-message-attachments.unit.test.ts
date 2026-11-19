@@ -1,7 +1,8 @@
+import { createRunUserMessageDelivery } from "../agent-daemon-scope-attachments.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { prepareByokMessageAttachments } from "../byok-message-attachments.js";
-import { daemonFunction, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+
 
 /** Exercises the production adapter and shared byte preparation without booting the daemon. */
 function harness({ mime = "image", delivery = "delivered", owner = "alice" }: {
@@ -10,8 +11,7 @@ function harness({ mime = "image", delivery = "delivered", owner = "alice" }: {
   const reads: unknown[] = [];
   const sends: unknown[] = [];
   const principalByRunId = new Map([["live-run", { id: "alice" }]]);
-  const deliver = evaluateDaemonExpression<(input: { runId: string; text: string; id?: string; attachmentIds?: string[] }, options: {}) => Promise<string>>(
-    daemonFunction("deliverRunUserMessage"), {
+  const deliver = createRunUserMessageDelivery({
       principalByRunId, ATTACHMENT_UPLOAD_DIRECTORY: "/booted-site/chat-attachments",
       prepareByokMessageAttachments: (input: Parameters<typeof prepareByokMessageAttachments>[0]) => {
         assert.equal(input.uploadDirectory, "/booted-site/chat-attachments");

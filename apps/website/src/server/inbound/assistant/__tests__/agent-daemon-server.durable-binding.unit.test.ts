@@ -6,14 +6,14 @@ import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { ChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import { registerDurableToolGuard } from "../durable-run-routes.js";
-import { captureDaemonRun, daemonSource, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { captureDaemonRun, statementsFor, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 type GuardDeps = Parameters<typeof registerDurableToolGuard>[0];
 
 /** Evaluate the actual registration's dependencies: a test-written message-id resolver would
  * hide the public RunStatus/contextRef bug. Importing the entrypoint would boot its server. */
 function guardDependencies(bindings: Record<string, unknown>): GuardDeps {
-  const statement = daemonSource.statements.find((node) => ts.isExpressionStatement(node)
+  const statement = statementsFor("agent-daemon-scope-http.ts", "mountDelegatedRoutes").find((node) => ts.isExpressionStatement(node)
     && ts.isCallExpression(node.expression) && ts.isIdentifier(node.expression.expression)
     && node.expression.expression.text === "registerDurableToolGuard");
   assert.ok(statement && ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression),

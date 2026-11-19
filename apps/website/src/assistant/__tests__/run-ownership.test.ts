@@ -1,4 +1,4 @@
-import { daemonSource, daemonStatements } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
+import { daemonSource, daemonStatements, statementsFor } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer, type Server } from "node:http";
@@ -14,13 +14,7 @@ import { runRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
-import {
-  createOwnedRunListHandler,
-  createRunOwnerRegistry,
-  requireRunOwnership,
-  RUN_PRINCIPAL_HEADER,
-  type RunOwnerRegistry,
-} from "../daemon-access.js";
+import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER, type RunOwnerRegistry } from "../daemon-access.js";
 
 /**
  * @file Cross-principal authorization coverage for the agent daemon's `/api/runs` surface
@@ -334,9 +328,11 @@ test("the production daemon mounts ownership before run routes and records the d
   const source = readFileSync(new URL("../../server/inbound/assistant/agent-daemon-scope.ts", import.meta.url), "utf8");
   const parsed = daemonSource;
   const printer = ts.createPrinter({ removeComments: true });
-  const text = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim();
+  const text = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile()).replace(/\s+/g, " ").trim();
   // Only unconditional top-level statements count: dead branches and comments cannot satisfy this.
-  const statements = daemonStatements.map(text);
+  const httpStatements = ['mountIntake', 'mountGuards', 'mountRunRoutes', 'mountDelegatedRoutes', 'mountSurfaceRoutes']
+    .flatMap(owner => statementsFor('agent-daemon-scope-http.ts', owner));
+  const statements = httpStatements.map(text);
   const gate = statements.indexOf('app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));');
   const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));');
   const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));');
@@ -346,20 +342,21 @@ test("the production daemon mounts ownership before run routes and records the d
     && node.expression.arguments.some((argument) => ts.isObjectLiteralExpression(argument) && argument.properties.some((property) =>
       ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === "routes"
       && ts.isCallExpression(property.initializer) && ts.isIdentifier(property.initializer.expression) && property.initializer.expression.text === "runRoutes"));
-  const routes = daemonStatements.findIndex(mountsRunRoutes);
+  const routes = httpStatements.findIndex(mountsRunRoutes);
   assert.ok(gate >= 0 && ownership > gate && list > gate && routes > ownership && routes > list,
     "both owner gates must execute after authentication and before the unscoped http-kit routes");
 
-  const declaration = daemonStatements.flatMap((node) => ts.isVariableStatement(node) ? [...node.declarationList.declarations] : [])
-    .find((node) => ts.isIdentifier(node.name) && node.name.text === "onStarted");
-  assert.ok(declaration?.initializer && ts.isArrowFunction(declaration.initializer));
-  const body = declaration.initializer.body;
-  assert.ok(ts.isBlock(body));
-  const record = body.statements.findIndex((node) => text(node) === "runOwners.record({ runId: run.id, principalId: principal.id }, {});");
-  assert.ok(record >= 0, "the decoded principal must be recorded unconditionally before starting work");
-  const decode = body.statements.findIndex((node) => ts.isTryStatement(node)
-    && node.tryBlock.statements.some((statement) => text(statement) === "const decoded = parseRunStartContextRef({ contextRef: request.contextRef });")
-    && node.tryBlock.statements.some((statement) => text(statement) === "principal = Object.freeze({ id: decoded.principalId });")
-    && node.catchClause?.block.statements.some(ts.isReturnStatement));
-  assert.ok(decode >= 0 && decode < record, "ownership must use the validated contextRef principal, with malformed input returning before recording");
+  const registration = statementsFor("agent-daemon-run-start.ts", "registerLiveRun");
+  assert.ok(registration.some(node => text(node) === "runOwners.record({ runId: run.id, principalId: principal.id }, {});"));
+  const decoding = statementsFor("agent-daemon-run-start.ts", "decodeRunStart");
+  assert.ok(decoding.some(node => ts.isTryStatement(node)
+    && node.tryBlock.statements.some(statement => text(statement) === "const decoded = parseRunStartContextRef({ contextRef: request.contextRef });")
+    && node.tryBlock.statements.some(statement => text(statement) === "principal = Object.freeze({ id: decoded.principalId });")
+    && node.catchClause?.block.statements.some(ts.isReturnStatement)));
+  const handler = statementsFor("agent-daemon-run-start.ts", "onStarted").map(text);
+  const decode = handler.findIndex(statement => statement.startsWith("const decoded = decodeRunStart("));
+  const refusal = handler.findIndex(statement => statement === "if (!decoded) return;");
+  const record = handler.indexOf("registerLiveRun(runPorts);");
+  assert.ok(decode >= 0 && refusal > decode && record > refusal);
+
 });

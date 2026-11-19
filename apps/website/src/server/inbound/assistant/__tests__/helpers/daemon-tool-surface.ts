@@ -3,7 +3,7 @@ import { createToolRegistry, type ToolRegistry } from "@jini-ai/core";
 
 import { createAssistantByokModule } from "#src/server/runtime/composition/modules/assistant-byok";
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
-import { daemonInitializer, evaluateDaemonExpression } from "./daemon-source.js";
+import { statementsFor, daemonInitializer, evaluateDaemonExpression } from "./daemon-source.js";
 
 /** Build the actual daemon adapter over the real server composition. Only HTTP transport is
  * injected: the daemon must discover server-owned descriptors without registering handlers.
@@ -13,8 +13,8 @@ export async function buildDaemonToolSurface(routeDeps: Parameters<typeof create
   const server = createAssistantByokModule({ routeDeps });
   await server.toolSurface.ready;
   const registry = createToolRegistry({});
-  const host = evaluateDaemonExpression<ReturnType<typeof createDaemonSiteTools>>(daemonInitializer("siteTools"), {
-    routeDeps, registry, env: { TOVU_SITE_LISTENER_ORIGIN: "https://fixture.invalid" }, siteToolToken: "fixture",
+  const host = evaluateDaemonExpression<ReturnType<typeof createDaemonSiteTools>>(daemonInitializer("siteTools", statementsFor("agent-daemon-scope-tools.ts", "createScopeToolRegistry")), {
+    contextFor: () => ({}), routeDeps, registry, env: { TOVU_SITE_LISTENER_ORIGIN: "https://fixture.invalid" }, siteToolToken: "fixture",
     createDaemonSiteTools: (required: Parameters<typeof createDaemonSiteTools>[0]) => createDaemonSiteTools(required, {
       fetch: async url => {
         assert.equal(new URL(String(url)).pathname, "/internal/tool-catalog");

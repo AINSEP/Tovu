@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import { type PromptAugmenter } from "@jini-ai/core/contracts/agents";
-import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { statementsFor, captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from "../assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
@@ -202,7 +202,7 @@ for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carr
   const runtime = new AsyncLocalStorage();
   const prefix = 'BEGIN_PRIMARY\n' + 'complete guidance '.repeat(600) + '\nEND_PRIMARY';
   const custom = 'CUSTOM_INSTRUCTIONS_SENTINEL';
-  const augmenter = evaluateDaemonExpression<PromptAugmenter>(daemonInitializer('assistantPromptAugmenter'), {
+  const augmenter = evaluateDaemonExpression<PromptAugmenter>(daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
     getAgentDef, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, buildAssistantRuntimeGuidance,
     buildAssistantFilesystemNotices, assistantCliPermissions, bashProhibitionEnabled: false,
     assistantCliCapabilitiesContext: capabilities,

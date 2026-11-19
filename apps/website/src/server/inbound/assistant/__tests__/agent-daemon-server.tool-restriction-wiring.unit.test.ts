@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
 import { getAgentDef } from "@jini-ai/agent-runtime";
-import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
-import { captureDaemonRun, daemonSource, evaluateDaemonStatements, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
+import { captureDaemonRun, statementsFor, evaluateDaemonStatements, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { AsyncResource, AsyncLocalStorage } from "node:async_hooks";
 import ts from "typescript";
 import { createDaemonSiteTools } from "../agent-daemon-site-tools.js";
@@ -27,7 +27,7 @@ import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js"
  * without updating the runtime plumbing (`AgentExecutorRunInput.disallowedTools`).
  */
 
-const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-run-launch.ts"), "utf8");
 
 describe("Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted", () => {
   test("imports the shared tool policy resolver from assistant-system-overlay.ts", () => {
@@ -162,10 +162,10 @@ test("catalog identity survives a parser continuation using the pre-existing req
   await siteTools.start({ runId: "owner-run", principalId: "owner" });
   type Middleware = (req: { parsed?: boolean; get(name: string): string | undefined }, res: object, next: (error?: unknown) => void) => void;
   const stack: Middleware[] = [];
-  const statements = daemonSource.statements.filter(statement => ts.isExpressionStatement(statement) &&
-    ts.isCallExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "app.use" &&
-    ((statement.expression.arguments.length === 1 && statement.getText(daemonSource).includes("express.json(")) ||
-      (ts.isArrayLiteralExpression(statement.expression.arguments[0]!) && statement.getText(daemonSource).includes("siteTools.withRun("))));
+  const statements = statementsFor("agent-daemon-scope-http.ts", "mountGuards").filter(statement => ts.isExpressionStatement(statement) &&
+    ts.isCallExpression(statement.expression) && statement.expression.expression.getText(statement.getSourceFile()) === "app.use" &&
+    ((statement.expression.arguments.length === 1 && statement.getText(statement.getSourceFile()).includes("express.json(")) ||
+      (ts.isArrayLiteralExpression(statement.expression.arguments[0]!) && statement.getText(statement.getSourceFile()).includes("siteTools.withRun("))));
   assert.equal(statements.length, 2, "capture the real JSON parser and live-run scope registrations");
   try {
     await evaluateDaemonStatements(statements, {
@@ -196,7 +196,7 @@ test("catalog identity survives a parser continuation using the pre-existing req
 test("the real prompt augmenter receives the same fresh grant as each concurrent launch", async () => {
   const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string; turnIndex: number }): string }>(
-    daemonInitializer("assistantPromptAugmenter"), {
+    daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
       getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantCliCapabilitiesContext,
       assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
       bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => "Owner custom guidance" },

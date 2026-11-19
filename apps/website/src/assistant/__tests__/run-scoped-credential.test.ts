@@ -1,4 +1,4 @@
-import { daemonSource, daemonStatements } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
+import { daemonSource, statementsFor } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { readFileSync } from "node:fs";
@@ -17,12 +17,7 @@ import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/cor
 import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-access.js";
-import {
-  createOwnedRunListHandler,
-  createRunOwnerRegistry,
-  requireRunOwnership,
-  RUN_PRINCIPAL_HEADER,
-} from "../daemon-access.js";
+import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { createRunScopedCredentials, type RunScopedCredentials } from "../daemon-access.js";
 
 /**
@@ -581,7 +576,9 @@ test("SCOPE: production closes the exemption and binds delegated runId after par
   const source = readFileSync(new URL("../../server/inbound/assistant/agent-daemon-scope.ts", import.meta.url), "utf8");
   const parsed = daemonSource;
   const printer = ts.createPrinter({ removeComments: true });
-  const statements = daemonStatements.map((node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim());
+  const httpStatements = ['mountIntake', 'mountGuards', 'mountRunRoutes', 'mountDelegatedRoutes', 'mountSurfaceRoutes']
+    .flatMap(owner => statementsFor('agent-daemon-scope-http.ts', owner));
+  const statements = httpStatements.map((node) => printer.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile()).replace(/\s+/g, " ").trim());
   const auth = statements.indexOf("app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));");
   const json = statements.indexOf('app.use(express.json({ limit: "6mb" }));');
   const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));");

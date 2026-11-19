@@ -7,7 +7,7 @@ import { createDaemonAuthMiddleware, messageRelayRoutes } from "@jini-ai/daemon/
 import { mountJiniRoutes } from "../../../runtime/composition/jini-routes.js";
 import { bearerTokenFromHeader } from "@jini-ai/core/contracts/server";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, createRunOwnerRegistry, requireAgentDaemonToken, requireRunOwnership } from "#src/assistant/daemon-access";
-import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
+import { statementsFor, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
 const CLAIM = "/api/runs/live-run/messages/claim";
 
@@ -21,11 +21,16 @@ async function harness(t: TestContext) {
   runOwners.record({ runId: "live-run", principalId: "alice" }, {});
   runOwners.record({ runId: "other-run", principalId: "bob" }, {});
   // Read only top-level AST statements, preserving the real mount order and route middleware.
-  const start = daemonSource.statements.findIndex(statement => statement.getText(daemonSource).startsWith('app.post("/api/runs/:runId/messages/claim",'));
-  const end = daemonSource.statements.findIndex(statement => statement.getText(daemonSource).startsWith('app.use(express.json('));
-  const ownership = daemonSource.statements.find(statement => statement.getText(daemonSource).startsWith('app.use("/api/runs/:runId", requireRunOwnership('));
+  const mountStatements = [
+    ...statementsFor("agent-daemon-scope-http.ts", "mountIntake"),
+    ...statementsFor("agent-daemon-scope-http.ts", "mountGuards"),
+    ...statementsFor("agent-daemon-scope-http.ts", "mountRunRoutes"),
+  ];
+  const start = mountStatements.findIndex(statement => statement.getText(statement.getSourceFile()).startsWith('app.post("/api/runs/:runId/messages/claim",'));
+  const end = mountStatements.findIndex(statement => statement.getText(statement.getSourceFile()).startsWith('app.use(express.json('));
+  const ownership = mountStatements.find(statement => statement.getText(statement.getSourceFile()).startsWith('app.use("/api/runs/:runId", requireRunOwnership('));
   assert.ok(start >= 0 && end > start && ownership);
-  const statements = [...daemonSource.statements.slice(start, end + 1), ownership];
+  const statements = [...mountStatements.slice(start, end + 1), ownership];
   assert.equal(statements.length, 5, "claim auth and mount, global auth/parser, and ownership must all be exercised");
   await evaluateDaemonStatements(statements, {
     app, express, createDaemonAuthMiddleware, bearerTokenFromHeader, messageRelayRoutes, mountJiniRoutes, runCredentials, runOwners,

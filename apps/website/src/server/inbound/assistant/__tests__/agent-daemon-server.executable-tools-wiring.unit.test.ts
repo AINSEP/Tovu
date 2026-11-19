@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { daemonSource } from "./helpers/daemon-source.js";
+import { daemonSource, daemonManifest } from "./helpers/daemon-source.js";
 
 const serverSurface = readFileSync(new URL("../../../../assistant/byok-tool-surface.ts", import.meta.url), "utf8");
 const serverModule = readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8");
@@ -15,7 +15,7 @@ test("server executable plugin tools share the server's confirmation store", () 
   assert.match(serverSurface, /surfaceExchanges,\s*\n\s*executeMetaTool/);
   assert.match(serverModule, /surfaces:\s*\{\s*surfaceExchanges:\s*resolvedToolSurface\.surfaceExchanges,\s*assertAccessApprover:\s*createAccessApprover\(routeDeps\)\s*\}/);
   assert.match(serverModule, /registry\.register\(automaticPluginRuns\.loadRegistration\)/);
-  const daemon = daemonSource.statements.map(statement => statement.getText(daemonSource)).join("\n");
+  const daemon = [...daemonManifest.values()].flatMap(bodies => bodies.get("<file>") ?? []).map(statement => statement.getText(statement.getSourceFile())).join("\n");
   assert.equal(daemon.includes("attachAssistantToolExtensions"), false);
   assert.match(daemon, /registerMcpUiToolCallsRoute\(app, \{ toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler \}\)/);
 });

@@ -104,7 +104,7 @@ test("component snapshot reads reject oversized and malformed provider metadata"
 });
 
 test("the inherited site tool token is removed before any CLI or plugin runtime can inherit it", async () => {
-  const { daemonInitializer, daemonSource, evaluateDaemonExpression } = await import("./helpers/daemon-source.js");
+  const { daemonInitializer, daemonSource, statementsFor, evaluateDaemonExpression } = await import("./helpers/daemon-source.js");
   const { ensureToolExecToken } = await import("#src/assistant/daemon-access");
   const env = { TOVU_TOOL_EXEC_TOKEN: "inherited-site-secret" };
   const token = evaluateDaemonExpression<string>(daemonInitializer("siteToolToken"), { ensureToolExecToken, env, toolExecTokenHolder: {} });
@@ -112,8 +112,11 @@ test("the inherited site tool token is removed before any CLI or plugin runtime 
   assert.equal(env.TOVU_TOOL_EXEC_TOKEN, undefined);
   const initializer = daemonInitializer("siteToolToken");
   assert.ok(initializer.pos < daemonInitializer("assistantRuntime").pos, "clear the inherited environment before constructing the agent runtime");
-  assert.ok(initializer.pos < daemonInitializer("routeDeps").pos, "clear the inherited environment before plugin composition");
-  assert.ok(initializer.pos < daemonSource.end);
+  const root = statementsFor("agent-daemon-scope.ts", "createSiteScope");
+  const runtimeIndex = root.findIndex(statement => statement.getText(statement.getSourceFile()).includes("= createScopeRuntime("));
+  const routeIndex = statementsFor("agent-daemon-scope.ts", "createSiteScope.try").findIndex(statement => statement.getText(statement.getSourceFile()).startsWith("const routeDeps ="));
+  const tryIndex = root.findIndex(statement => statement.getText(statement.getSourceFile()).startsWith("try"));
+  assert.ok(runtimeIndex >= 0 && tryIndex > runtimeIndex && routeIndex >= 0, "clear the inherited environment before plugin composition");
 });
 
 test("an obsolete start failure cannot remove a newer start of the same run", async () => {

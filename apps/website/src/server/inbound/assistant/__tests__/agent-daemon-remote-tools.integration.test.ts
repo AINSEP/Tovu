@@ -11,23 +11,24 @@ import { createDiskAttachmentStore, createRemoteAttachmentLookup } from "@jini-a
 import { createRunScopedCredentials, registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";
 import { daemonRouteHost, mountJiniRoutes } from "#src/server/runtime/composition/jini-routes";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
-import { daemonStatements, daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
+import { daemonStatements, statementsFor, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
 /** Execute the real entry's lookup registration without booting its databases or agent CLIs. */
 async function bootAttachmentOwner(t: import("node:test").TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), "daemon-attachment-owner-"));
   const store = await createDiskAttachmentStore({ uploadDirectory: directory }, { retainAcrossRestarts: true });
   t.after(async () => { await store.dispose(); await rm(directory, { recursive: true, force: true }); });
-  const statements = daemonStatements;
+  const statements = statementsFor("agent-daemon-scope-attachments.ts", "mountScopeAttachments");
   const registration = statements.find(statement => ts.isExpressionStatement(statement)
     && ts.isCallExpression(statement.expression)
-    && statement.expression.expression.getText(daemonSource) === "registerDaemonAttachmentLookup");
+    && statement.expression.expression.getText(statement.getSourceFile()) === "registerDaemonAttachmentLookup");
   assert.ok(registration, "the daemon must mount its authenticated attachment lookup after creating its store");
-  const storeAssignment = statements.find(statement => ts.isExpressionStatement(statement)
+  const storeAssignment = daemonStatements.find(statement => ts.isExpressionStatement(statement)
     && ts.isBinaryExpression(statement.expression)
-    && statement.expression.left.getText(daemonSource) === "attachmentStore");
+    && statement.expression.left.getText(statement.getSourceFile()) === "attachmentStore");
   assert.ok(storeAssignment);
-  assert.ok(statements.indexOf(storeAssignment) < statements.indexOf(registration), "lookup must capture the initialized store");
+  const mount = daemonStatements.findIndex(statement => statement.getText(statement.getSourceFile()).startsWith("mountScopeAttachments("));
+  assert.ok(daemonStatements.indexOf(storeAssignment) < mount, "lookup must capture the initialized store");
   const app = express();
   const token = "attachment-owner-test-token";
   await evaluateDaemonStatements([registration], {
@@ -120,7 +121,7 @@ async function bootDaemonRpc(t: import("node:test").TestContext, options: { drop
   const siteTools = createDaemonSiteTools({ baseUrl, token: ensureToolExecToken({}, {}), localRegistry: registry, contextFor: () => ({}) });
   await siteTools.start({ runId: "remote-run", principalId: principal.id });
   t.after(() => siteTools.finish({ runId: "remote-run" }));
-  const toolExecutor = evaluateDaemonExpression<import("@jini-ai/daemon").ToolExecutor>(daemonInitializer("toolExecutor"), {
+  const toolExecutor = evaluateDaemonExpression<import("@jini-ai/daemon").ToolExecutor>(daemonInitializer("toolExecutor", statementsFor("agent-daemon-scope-tools.ts", "createScopeToolExecutor")), {
     createRoutingToolExecutor, withReadOnlyToolConstraint, registry, siteTools,
     idlePark: { hold: () => () => {} },
     localToolExecutor: createToolExecutor({ registry }),

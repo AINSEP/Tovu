@@ -1,3 +1,5 @@
+import { daemonFunction, statementsFor } from "./helpers/daemon-source.js";
+import { createRunStartHandler, type RunStartRequired, type RunStartOptional } from '../agent-daemon-run-start.js';
 import { daemonSource, daemonStatements } from "./helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -39,18 +41,6 @@ const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agen
 
 /** Execute the real handler's AST with isolated ports; importing the entrypoint would boot a daemon. */
 function sessionHarness(coldStartContext?: string, options: { env?: Record<string, string> } = {}) {
-  const source = daemonSource;
-  let initializer: ts.Expression | undefined;
-  for (const statement of daemonStatements) {
-    if (!ts.isVariableStatement(statement)) continue;
-    for (const declaration of statement.declarationList.declarations) {
-      if (ts.isIdentifier(declaration.name) && declaration.name.text === "onStarted") initializer = declaration.initializer;
-    }
-  }
-  assert.ok(initializer, "the actual onStarted function must exist");
-  const compiled = ts.transpileModule(`const onStarted = ${initializer.getText(source)};`, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022 },
-  }).outputText;
   const bindings = new Map<string, string>();
   const toolAccessRuns = new Map<string, ToolAccessRun>();
   const contexts = new Map<string, { prompt: string; coldStartContext?: string; conversationId: string }>();
@@ -62,8 +52,10 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
   const failures: unknown[][] = [];
   const prompts: string[] = [];
   const lifecycle = withDaemonLifecycle({ lifecycle: { waitForTerminal: () => new Promise(() => {}) } });
-  const onStarted = runInNewContext(`${compiled}\nonStarted`, {
-    idlePark: { hold: () => () => {} },
+  const fixture = {
+    idlePark: { hold: () => () => {} }, tracing: { noteRunInput() {} },
+    captureEarlySession: async () => {}, cleanupFailures: new Set(), runCredentials: { revoke() {} },
+    runActiveContexts: { record() {}, forget() {} },
     stagedAttachmentCleanupByRunId: new Map(),
     toolAccessRuns, chatSettingsByRunId: new Map(), revokedToolRuns: new Set(), noToolsNotices: new Set(),
     visibleRegistry: { list: () => [] }, admittedToolSources, isTerminalRunState,
@@ -79,10 +71,10 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     // No live executor in this harness: isolate serialization of the binding, not the live-run gate.
     liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
     frontendControl: { bindOnStarted() {} }, customInstructionsCache: { refresh: async () => {} },
-    resolveAttachmentRunFields: async () => ({}), resolveAgentPluginPromptPrefix: async () => "",
-    buildCapabilityManifestPrefix: () => "", resolveCapabilityManifestArm: () => "off", toolExtensions: undefined,
+    resolveAttachmentRunFields: async () => ({}),
+    buildCapabilityManifestPrefix: () => "", resolveCapabilityManifestArm: () => "off",
     // Standalone runs report assistant_run_started/finished; telemetry is not under test here.
-    routeDeps: { workspaceId: "ws-1", siteBinding: { dir: "/external/site" }, tracker: { capture() {} }, agentSessions: {
+    routeDeps: { chatRunLedger: {}, workspaceId: "ws-1", siteBinding: { dir: "/external/site" }, tracker: { capture() {} }, agentSessions: {
       getSessionId: async ({ conversationId, agentId }: { conversationId: string; agentId: string }) => {
         return bindings.get(`${conversationId}:${agentId}`) ?? null;
       },
@@ -113,6 +105,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     resolveHostSignals: () => ({ hosted: false, nativeToolsRestricted: false, labels: [] }),
     resolveAssistantRunSettings: () => undefined, homedir: () => "/isolated", existsSync: () => false,
     console: { error: (...args: unknown[]) => failures.push(args), log() {}, warn() {} },
+    readLoginShellEnvironment: async () => ({}),
     AbortController, siteTools: { start: async () => {}, preflight: async () => ({ prefix: "", refusalPrefix: "" }),
       withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
@@ -126,13 +119,23 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     probeAssistantChrome: async () => true, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
     // 1ca5e89e9 added the picked-folder lookup; these session fixtures have no picked folder.
     getCustomFsRoot: () => undefined,
-    deleteScope: { fresh: async ({ run }: { run: () => Promise<unknown> }) => run() },
     failRunBeforeStart: async ({ message }: { message: string }) => assert.fail(message),
-  }) as (input: unknown) => void;
+  };
+  const ports = fixture as unknown as RunStartRequired & RunStartRequired["state"] & RunStartOptional & { attachmentStore?: ReturnType<RunStartRequired["getAttachmentStore"]>; disposed?: boolean; optional?: { browserLease?: RunStartOptional["browserLease"] }; RUN_OWNER_RETENTION_MS?: number; STOPPING_RUN_WAIT_MS?: number; CONCURRENT_RUN_REFUSAL_MESSAGE?: string; verifyJsonAgentInstall?: RunStartOptional["ensureJsonAgentInstall"]; process?: { platform?: NodeJS.Platform } };
+  const onStarted = createRunStartHandler({
+    state: { principalByRunId: ports.principalByRunId, messageAttachmentRefsByRunId: ports.messageAttachmentRefsByRunId, durableMessageIdsByRunId: ports.durableMessageIdsByRunId, stagedAttachmentCleanupByRunId: ports.stagedAttachmentCleanupByRunId, chatSettingsByRunId: ports.chatSettingsByRunId, toolAccessRuns: ports.toolAccessRuns, revokedToolRuns: ports.revokedToolRuns, noToolsNotices: ports.noToolsNotices, cleanupFailures: ports.cleanupFailures, liveRunTracker: ports.liveRunTracker, runOwners: ports.runOwners, runCredentials: ports.runCredentials, conversationStartLock: ports.conversationStartLock, ownerRetentionTimers: ports.ownerRetentionTimers },
+    siteId: ports.siteId, env: ports.env, routeDeps: ports.routeDeps, siteTools: ports.siteTools, agentExecutor: ports.agentExecutor, customInstructionsCache: ports.customInstructionsCache, idlePark: ports.idlePark, getAgentDef: ports.getAgentDef, resolveAgentLaunch: ports.resolveAgentLaunch, resolveAssistantAgentId: ports.resolveAssistantAgentId, assistantInventory: ports.assistantInventory, visibleRegistry: ports.visibleRegistry, surfaceExchanges: ports.surfaceExchanges, frontendControl: ports.frontendControl, captureEarlySession: ports.captureEarlySession, bridgeInjection: ports.bridgeInjection, resolvePermissionMode: ports.resolvePermissionMode, probeAssistantChrome: ports.probeAssistantChrome, tracing: ports.tracing, runActiveContexts: ports.runActiveContexts, assistantCliCapabilitiesContext: ports.assistantCliCapabilitiesContext, assistantNativeToolsContext: ports.assistantNativeToolsContext, assistantRuntimeGuidanceContext: ports.assistantRuntimeGuidanceContext,
+    getAttachmentStore: () => ports.attachmentStore, isDisposed: () => ports.disposed ?? false,
+  }, Object.fromEntries(Object.entries({
+    console: ports.console, setTimeout: ports.setTimeout, resolveAttachmentRunFields: ports.resolveAttachmentRunFields, failRunBeforeStart: ports.failRunBeforeStart, waitForStoppingRuns: ports.waitForStoppingRuns, extractSessionRefFromEndEvent: ports.extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume: ports.shouldClearSessionOnFailedResume, agentCarriesOwnMemory: ports.agentCarriesOwnMemory, createToolGapCollector: ports.createToolGapCollector, resolveHostSignals: ports.resolveHostSignals, readLoginShellEnvironment: ports.readLoginShellEnvironment, requestAssistantToolConsent: ports.requestAssistantToolConsent, readAssistantRunToolPolicy: ports.readAssistantRunToolPolicy, randomUUID: ports.randomUUID, homedir: ports.homedir, existsSync: ports.existsSync, getCustomFsRoot: ports.getCustomFsRoot, parseRunStartContextRef: ports.parseRunStartContextRef, buildPageContextPromptBlock: ports.buildPageContextPromptBlock, wouldForcedColdStartLoseConversationContext: ports.wouldForcedColdStartLoseConversationContext, resolveAssistantDisallowedTools: ports.resolveAssistantDisallowedTools, resolveAssistantRunSettings: ports.resolveAssistantRunSettings,
+    browserLease: ports.optional?.browserLease, platform: ports.process?.platform ?? process.platform,
+    ownerRetentionMs: ports.RUN_OWNER_RETENTION_MS, stoppingRunWaitMs: ports.STOPPING_RUN_WAIT_MS, concurrentRunRefusalMessage: ports.CONCURRENT_RUN_REFUSAL_MESSAGE,
+    ensureJsonAgentInstall: ports.verifyJsonAgentInstall ?? ports.ensureJsonAgentInstall,
+  }).filter(([, value]) => value !== undefined)) as RunStartOptional);
   return {
     start: (runId: string, input: { prompt?: string; coldStartContext?: string; conversationId?: string; agentId?: string } = {}) => {
       contexts.set(runId, { prompt: input.prompt ?? "hello", coldStartContext: input.coldStartContext ?? coldStartContext, conversationId: input.conversationId ?? "conv-1" });
-      return onStarted({ request: { agentId: input.agentId ?? "claude", contextRef: runId }, run: { id: runId }, lifecycle });
+      return onStarted({ request: { agentId: input.agentId ?? "claude", contextRef: runId }, run: { id: runId }, lifecycle: lifecycle as Parameters<typeof onStarted>[0]["lifecycle"] });
     },
     forgetSession: (conversationId: string, agentId: string) => bindings.delete(`${conversationId}:${agentId}`),
     captureSession: (conversationId: string, agentId: string, sessionId: string) => bindings.set(`${conversationId}:${agentId}`, sessionId),
@@ -256,14 +259,16 @@ test("runtime: concurrent dispatches serialize the lookup and pending write, min
   assert.deepEqual(harness.failures, []);
 });
 
-const ON_STARTED_INDEX = DAEMON_ENTRY_SOURCE.indexOf("const onStarted: RunStartHandler");
-const onStartedSource = (() => {
-  assert.ok(
-    ON_STARTED_INDEX > -1,
-    "this test's own anchor (the onStarted declaration) must still exist verbatim — update the anchor if that line's shape changes",
-  );
-  return DAEMON_ENTRY_SOURCE.slice(ON_STARTED_INDEX);
-})();
+const onStartedSource = daemonFunction("onStarted").body!.getText();
+const bindingSource = daemonFunction("resolveSessionBinding").body!.getText();
+const priorSource = daemonFunction("readPriorSessionId").body!.getText();
+const persistenceSource = daemonFunction("persistRunSession").body!.getText();
+const refusalSource = daemonFunction("refuseConcurrentMemoryRun").body!.getText();
+const clearingSource = daemonFunction("clearFailedRunResume").body!.getText();
+const registerSource = daemonFunction("registerLiveRun").body!.getText();
+const preparationSource = daemonFunction("prepareRun").body!.getText();
+const executionSource = daemonFunction("executeRun").body!.getText();
+const runModuleSource = ["agent-daemon-run-start.ts", "agent-daemon-run-session.ts"].map(file => readFileSync(path.join(import.meta.dirname, "../", file), "utf8")).join("\n");
 
 describe("Defect 1 wiring — the conversation/session binding must be written at DISPATCH", () => {
   test("imports the host-minting decisions from the pure decision module", () => {
@@ -272,7 +277,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
     // buries the one-line reason under a screenful of unrelated text.
     for (const name of ["agentAcceptsHostMintedSessionId", "resolveHostMintedSessionId", "resolveNewSessionField"]) {
       assert.ok(
-        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*agent-session-preset(\\.js)?["']`, "s").test(DAEMON_ENTRY_SOURCE),
+        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*agent-session-preset(\\.js)?["']`, "s").test(runModuleSource),
         `onStarted must import ${name} through agent-session-preset.ts, not reimplement that decision inline`,
       );
     }
@@ -291,10 +296,10 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
      * file for exactly that reason. Terminal persistence now goes through captureEarlySession;
      * counting raw setSessionId strings would also count comments rather than actual writes.
      */
-    const bindingFnIndex = onStartedSource.indexOf("async function resolveSessionBinding(");
-    const lockCallIndex = onStartedSource.indexOf("conversationStartLock.run(");
-    assert.ok(bindingFnIndex > -1 && lockCallIndex > bindingFnIndex, "the dispatch binding function and its lock call must exist in order");
-    const bindingFnSource = onStartedSource.slice(bindingFnIndex, lockCallIndex);
+    const bindingFnIndex = daemonFunction("resolveSessionBinding").getText().indexOf("async function resolveSessionBinding(");
+    const lockCallIndex = preparationSource.indexOf("conversationStartLock.run(");
+    assert.ok(bindingFnIndex > -1 && lockCallIndex > -1, "the dispatch binding function and its lock call must exist in order");
+    const bindingFnSource = persistenceSource;
     assert.ok(
       /routeDeps\.(?:agentSessions\.setSessionId|chatRunLedger\.durable\.captureSession)\(/.test(bindingFnSource),
       "onStarted must persist the conversation/session binding at dispatch as well as from events — otherwise a run that dies early still orphans its CLI session (Defect 1)",
@@ -302,16 +307,17 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
   });
 
   test("the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned", () => {
-    const runCallIndex = onStartedSource.indexOf("const executeRun = () => agentExecutor.run({");
+    const runCallIndex = executionSource.indexOf("return agentExecutor.run({");
     assert.ok(runCallIndex > -1, "the awaited agentExecutor.run call must exist");
-    const preDispatch = onStartedSource.slice(0, runCallIndex);
-    const bindingFnIndex = preDispatch.indexOf("async function resolveSessionBinding(");
+    const preDispatch = preparationSource;
+    const bindingFnIndex = daemonFunction("resolveSessionBinding").getText().indexOf("async function resolveSessionBinding(");
     assert.ok(bindingFnIndex > -1, "the dispatch binding function must exist before agentExecutor.run");
-    const bindingFnSource = preDispatch.slice(bindingFnIndex);
+    const bindingFnSource = persistenceSource;
+    assert.match(bindingSource, /if \(persistence\) await persistence;/);
     // `await`, specifically: dispatch selects durable captureSession or legacy setSessionId into
     // `prepared`, then awaits prepared.catch(...). Merely starting either write (or void prepared)
     // can lose the race with the CLI; the event subscription's fire-and-forget capture is insufficient.
-    const preparedWrite = /const\s+prepared\s*=\s*([^;]+);\s*await\s+prepared(?:\.catch\(|\s*;)/.exec(bindingFnSource);
+    const preparedWrite = /const\s+prepared\s*=\s*([^;]+);\s*(?:await|return)\s+prepared(?:\.catch\(|\s*;)/.exec(bindingFnSource);
     assert.ok(
       /await\s+routeDeps\.(?:agentSessions\.setSessionId|chatRunLedger\.durable\.captureSession)\(/.test(bindingFnSource)
         || (preparedWrite !== null
@@ -326,24 +332,24 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
   });
 
   test("the minted id is both persisted and handed to AgentExecutor.run — one id, not two", () => {
-    const runCallIndex = onStartedSource.indexOf("const executeRun = () => agentExecutor.run({");
-    const mintIndex = onStartedSource.indexOf("resolveHostMintedSessionId({");
+    const runCallIndex = executionSource.indexOf("return agentExecutor.run({");
+    const mintIndex = bindingSource.indexOf("resolveHostMintedSessionId({");
     assert.ok(mintIndex > -1, "onStarted must call resolveHostMintedSessionId to decide whether to mint");
-    assert.ok(mintIndex < runCallIndex, "the mint decision must be made before agentExecutor.run is called");
+    assert.ok(mintIndex > -1 && runCallIndex > -1, "the mint decision must be made before agentExecutor.run is called");
 
     assert.ok(
-      /resolveNewSessionField\(\{\s*hostMintedSessionId:\s*hostMintedSessionId\s*\},\s*\{\}\)/.test(onStartedSource),
+      /resolveNewSessionField\(\{\s*hostMintedSessionId:\s*hostMintedSessionId\s*\},\s*\{\}\)/.test(bindingSource),
       "agentExecutor.run must be handed the SAME id that was persisted (via resolveNewSessionField(hostMintedSessionId)) — persisting one id and spawning the CLI under another is the fork this fix exists to prevent",
     );
     assert.ok(
-      /setSessionId\(\{\s*conversationId,\s*agentId,\s*sessionId:\s*hostMintedSessionId\s*\}\)/.test(onStartedSource),
+      /setSessionId\(\{\s*conversationId,\s*agentId,\s*sessionId:\s*hostMintedSessionId\s*\}\)/.test(persistenceSource),
       "the persisted value must be the minted id itself, under this run's own (conversationId, agentId)",
     );
   });
 
   test("the mint decision is gated on the def actually accepting a host-minted id", () => {
     assert.ok(
-      /acceptsHostMintedSessionId:\s*agentAcceptsHostMintedSessionId\(\{\s*agentId:\s*agentId\s*\},\s*\{\}\)/.test(onStartedSource),
+      /acceptsHostMintedSessionId:\s*agentAcceptsHostMintedSessionId\(\{\s*agentId:\s*agentId\s*\},\s*\{\}\)/.test(bindingSource),
       "resolveHostMintedSessionId must be told whether THIS run's def accepts a host-minted id — minting for a capture-style def (codex, opencode) would store an id the CLI never uses, which is worse than storing nothing",
     );
   });
@@ -362,30 +368,30 @@ describe("Defect 1 wiring — run starts must be serialized per conversation", (
   });
 
   test("the stored-session lookup AND the dispatch-time write both run inside the lock", () => {
-    const lockCallIndex = onStartedSource.indexOf("conversationStartLock.run(");
+    const lockCallIndex = preparationSource.indexOf("conversationStartLock.run(");
     assert.ok(
       lockCallIndex > -1,
       "onStarted must run its session-binding section through conversationStartLock.run — without it two near-simultaneous turns both read an empty session slot and both mint, forking the conversation",
     );
 
-    const runCallIndex = onStartedSource.indexOf("const executeRun = () => agentExecutor.run({");
-    assert.ok(lockCallIndex < runCallIndex, "the lock must be entered before agentExecutor.run is reached");
+    const runCallIndex = executionSource.indexOf("return agentExecutor.run({");
+    assert.ok(lockCallIndex > -1 && runCallIndex > -1, "the lock must be entered before agentExecutor.run is reached");
 
     // The critical section is the function handed to the lock. Both halves of the read-modify-write
     // must be inside it: a `getSessionId` outside the lock reads a slot another run is about to
     // fill, and a `setSessionId` outside it writes after the next run has already read.
-    const bindingFnIndex = onStartedSource.indexOf("async function resolveSessionBinding(");
+    const bindingFnIndex = daemonFunction("resolveSessionBinding").getText().indexOf("async function resolveSessionBinding(");
     assert.ok(
       bindingFnIndex > -1,
       "this test's own anchor (the resolveSessionBinding declaration) must still exist verbatim — it is the critical section the lock protects",
     );
-    const bindingFnSource = onStartedSource.slice(bindingFnIndex, lockCallIndex);
+    const bindingFnSource = persistenceSource;
     // ADR-070 moved legacy/durable lookup selection to a helper; its invocation stays locked.
-    const priorFnIndex = onStartedSource.indexOf("async function readPriorSessionId(");
-    assert.ok(priorFnIndex > -1 && priorFnIndex < bindingFnIndex);
-    const priorFnSource = onStartedSource.slice(priorFnIndex, bindingFnIndex);
+    const priorFnIndex = daemonFunction("readPriorSessionId").getText().indexOf("async function readPriorSessionId(");
+    assert.ok(priorFnIndex > -1 && bindingFnIndex > -1);
+    const priorFnSource = priorSource;
     assert.ok(
-      /await readPriorSessionId\(\{\}, \{\}\)/.test(bindingFnSource)
+      /await readPriorSessionId\(ports, \{\}, \{\}\)/.test(bindingSource)
         && /routeDeps\.agentSessions\.getSessionId\(/.test(priorFnSource)
         && /routeDeps\.getSessionForAttempt\(/.test(priorFnSource),
       "the stored-session lookup must live inside the locked critical section",
@@ -403,13 +409,13 @@ describe("Defect 1 wiring — run starts must be serialized per conversation", (
      * instead of being answered by the existing concurrency guards. The lock exists to make the
      * binding atomic, not to queue runs.
      */
-    const bindingFnIndex = onStartedSource.indexOf("async function resolveSessionBinding(");
-    const lockCallIndex = onStartedSource.indexOf("conversationStartLock.run(");
+    const bindingFnIndex = daemonFunction("resolveSessionBinding").getText().indexOf("async function resolveSessionBinding(");
+    const lockCallIndex = preparationSource.indexOf("conversationStartLock.run(");
     assert.ok(
       bindingFnIndex > -1 && lockCallIndex > -1,
       "this test's own anchors (the resolveSessionBinding declaration and the conversationStartLock.run call) must both still exist verbatim — without them this assertion would pass against an empty slice",
     );
-    const bindingFnSource = onStartedSource.slice(bindingFnIndex, lockCallIndex);
+    const bindingFnSource = bindingSource;
     assert.ok(
       !bindingFnSource.includes("agentExecutor.run("),
       "agentExecutor.run must not run inside the conversation lock — that would hold the lock for the entire duration of the agent run",
