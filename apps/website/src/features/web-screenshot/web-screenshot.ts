@@ -365,7 +365,45 @@ export function createWebScreenshotService(
   if (!Number.isInteger(maxQueueWaitMs) || maxQueueWaitMs < 0 || maxQueueWaitMs > MAX_QUEUE_WAIT_MS) throw refusal({ message: 'maxQueueWaitMs must be an integer from 0 to 60000.' });
   let tail: Promise<void> = Promise.resolve();
 
-  async function run(
+  const run = createScreenshotRunner(ports);
+
+  return {
+    async screenshot({ input, openOwnSite, saveCaptureFiles }, { signal } = {}) {
+      const previous = tail;
+      let release!: () => void;
+      tail = new Promise<void>(resolve => { release = resolve; });
+      try {
+        await waitForScreenshotTurn({ previous, ports, input }, { signal, maxQueueWaitMs });
+        signal?.throwIfAborted();
+        return await run({ input, openOwnSite, saveCaptureFiles, signal });
+      } finally {
+        // MOVE: an expired/cancelled waiter cannot release the browser ahead of its predecessor.
+        void previous.then(release);
+      }
+    },
+  };
+}
+
+async function openSite(
+  { openOwnSite, themeId }: { openOwnSite: OpenOwnSite | undefined; themeId: string | undefined },
+  _optional = {}
+): Promise<OwnSiteServer> {
+  if (!openOwnSite) throw refusal({ message: "this assistant cannot render this site's own pages here; pass a public url instead." });
+  return openOwnSite({}, themeId === undefined ? {} : { themeId });
+}
+
+/** The loopback origin is meaningless to a model; report where the page ended up as a site path. */
+function toSitePath({ finalUrl, origin }: { finalUrl: string; origin: string }, _optional = {}): string {
+  try {
+    const url = new URL(finalUrl);
+    return url.origin === origin ? `${url.pathname}${url.search}` : finalUrl;
+  } catch {
+    return finalUrl;
+  }
+}
+
+function createScreenshotRunner(ports: WebScreenshotPorts) {
+  return async function run(
     {
       input,
       openOwnSite,
@@ -405,39 +443,5 @@ export function createWebScreenshotService(
     } finally {
       await site?.close();
     }
-  }
-
-  return {
-    async screenshot({ input, openOwnSite, saveCaptureFiles }, { signal } = {}) {
-      const previous = tail;
-      let release!: () => void;
-      tail = new Promise<void>(resolve => { release = resolve; });
-      try {
-        await waitForScreenshotTurn({ previous, ports, input }, { signal, maxQueueWaitMs });
-        signal?.throwIfAborted();
-        return await run({ input, openOwnSite, saveCaptureFiles, signal });
-      } finally {
-        // MOVE: an expired/cancelled waiter cannot release the browser ahead of its predecessor.
-        void previous.then(release);
-      }
-    },
   };
-}
-
-async function openSite(
-  { openOwnSite, themeId }: { openOwnSite: OpenOwnSite | undefined; themeId: string | undefined },
-  _optional = {}
-): Promise<OwnSiteServer> {
-  if (!openOwnSite) throw refusal({ message: "this assistant cannot render this site's own pages here; pass a public url instead." });
-  return openOwnSite({}, themeId === undefined ? {} : { themeId });
-}
-
-/** The loopback origin is meaningless to a model; report where the page ended up as a site path. */
-function toSitePath({ finalUrl, origin }: { finalUrl: string; origin: string }, _optional = {}): string {
-  try {
-    const url = new URL(finalUrl);
-    return url.origin === origin ? `${url.pathname}${url.search}` : finalUrl;
-  } catch {
-    return finalUrl;
-  }
 }

@@ -195,6 +195,27 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
       const key = { workspaceId: deps.workspaceId, id };
       switch (toolId) {
         case "media_purge_asset":
+          return prepareMediaPurge({ deps, toolId, id, principalId, key });
+        case "comments_purge_comment":
+          return prepareCommentPurge({ deps, toolId, id, principalId, key });
+        case "external_mcp_delete":
+          return prepareExternalMcpDelete({ deps, toolId, id, principalId, key });
+        case "custom_credential_delete":
+          return prepareCustomCredentialDelete({ deps, toolId, id, principalId, key });
+        case "deployment_delete_provider_credential":
+          return preparePublishCredentialDelete({ deps, toolId, id, principalId, key });
+        case "source_control_delete_credential":
+          return prepareSourceControlCredentialDelete({ deps, toolId, id, principalId, key });
+        // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
+        default: return undefined as never;
+      }
+    }) as PermanentDeleteToolDeps["prepare"],
+  };
+}
+
+function prepareMediaPurge({ deps, toolId, id, key }: { deps: Deps; toolId: PermanentDeleteToolId; id: string; principalId: string; key: Pick<Deps, "workspaceId"> & { id: string } }): Promise<PermanentDeletePlan> {
+  
+
           return recordPlan({
             toolId, id, load: async () => {
               const asset = await deps.mediaRepo.findById(key);
@@ -213,13 +234,21 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
               }
             },
           });
-        case "comments_purge_comment":
+}
+
+function prepareCommentPurge({ deps, toolId, id, principalId, key }: { deps: Deps; toolId: PermanentDeleteToolId; id: string; principalId: string; key: Pick<Deps, "workspaceId"> & { id: string } }): Promise<PermanentDeletePlan> {
+  
+
           return recordPlan({ toolId, id, load: () => deps.commentRepo.findById(key), label: ({ record: comment }) => `Comment by ${comment.authorName}`, remove: async () => {
             const result = await deps.commentWriteService.purge({ ...key, actorPrincipalId: principalId, note: null });
             if (!result.ok) throw notFound({ toolId });
             return { removed: true, id };
           } });
-        case "external_mcp_delete": {
+}
+
+function prepareExternalMcpDelete({ deps, toolId, id }: { deps: Deps; toolId: PermanentDeleteToolId; id: string; principalId: string; key: Pick<Deps, "workspaceId"> & { id: string } }): Promise<PermanentDeletePlan> {
+  
+
           if (isBuiltInExternalMcpServer({ serverId: id, ids: deps.builtInExternalMcpServerIds })) {
             throw new ToolInputError({ message: "built-in MCP connections cannot be removed" });
           }
@@ -231,13 +260,20 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
               return { removed: true, id, restartRequired: true };
             },
           });
-        }
-        case "custom_credential_delete":
+}
+
+function prepareCustomCredentialDelete({ deps, toolId, id, key }: { deps: Deps; toolId: PermanentDeleteToolId; id: string; principalId: string; key: Pick<Deps, "workspaceId"> & { id: string } }): Promise<PermanentDeletePlan> {
+  
+
           // This site's own key, else the attached project key (deletion is refused while other sites use it).
           return recordPlan({ toolId, id, load: () => describeCustomCredential({ repo: deps.customCredentialSetRepo }, key), label: ({ record: credential }) => credential.label,
             warning: "Deletes the saved custom credential. The token is not revoked at its provider.",
             remove: async () => { await deleteCustomCredential({ repo: deps.customCredentialSetRepo }, key); return { removed: true, id }; } });
-        case "deployment_delete_provider_credential":
+}
+
+function preparePublishCredentialDelete({ deps, toolId, id, key }: { deps: Deps; toolId: PermanentDeleteToolId; id: string; principalId: string; key: Pick<Deps, "workspaceId"> & { id: string } }): Promise<PermanentDeletePlan> {
+  
+
           return recordPlan({ toolId, id, load: async () => {
             const record = await findPublishCredentialRecord({ repo: deps.vendorCredentialSetRepo }, key);
             if (!record) return null;
@@ -246,13 +282,12 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
           }, label: ({ record: credential }) => `${credential.label} (${credential.vendorId}); used by publish hosts: ${credential.affectedHosts.join(", ") || "none"}`,
             warning: "Deletes this vendor credential shared by its publish hosts. Another credential may become the default. Deployed sites remain; the token is not revoked at its provider.",
             remove: async () => { await deletePublishCredential({ repo: deps.vendorCredentialSetRepo, transaction: deps.contentKernel }, key); return { removed: true, id }; } });
-        case "source_control_delete_credential":
+}
+
+function prepareSourceControlCredentialDelete({ deps, toolId, id, key }: { deps: Deps; toolId: PermanentDeleteToolId; id: string; principalId: string; key: Pick<Deps, "workspaceId"> & { id: string } }): Promise<PermanentDeletePlan> {
+  
+
           return recordPlan({ toolId, id, load: () => describeSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, key), label: ({ record: credential }) => credential.label,
             warning: "Deletes the saved source-control credential. Another credential may become the default. Repositories remain; the token is not revoked at its provider.",
             remove: async () => { await deleteSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, key); return { removed: true, id }; } });
-        // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
-        default: return undefined as never;
-      }
-    }) as PermanentDeleteToolDeps["prepare"],
-  };
 }

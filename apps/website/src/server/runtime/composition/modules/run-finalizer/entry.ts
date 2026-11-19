@@ -284,7 +284,17 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     reconcileInterrupted(required = {}, _optional = {}) {
       return options.ledger.reconcileInterrupted({ now: required.now ?? now() }, { recover: ({ message }) => recoverAtBoot({ recovery, message }) });
     },
-    watch({ principalId, conversationId, message }, optional = {}) {
+    watch: createRunWatcher({ active, registry, daemon, now, settings }),
+    async idle() {
+      while (active.size > 0) await Promise.all([...active.values()].map((entry) => entry.done));
+    },
+    activeCount: () => active.size,
+  };
+  return finalizer;
+}
+
+function createRunWatcher({ active, registry, daemon, now, settings }: { active: Registry["active"]; registry: Registry; daemon: NonNullable<AssistantRunFinalizerOptions["daemon"]>; now: () => number; settings: ReturnType<typeof recoverySettings> }): AssistantRunFinalizer["watch"] {
+  return function watch({ principalId, conversationId, message }, optional = {}) {
       const runId = message.runId;
       if (!watchable({ message }) || !runId) return;
       const existing = active.get(runId);
@@ -293,11 +303,5 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         principalId, conversationId, message, runId, daemon: optional.daemon ?? daemon, attemptBase: optional.attemptBase ?? [],
         now: now(), resolutionTimeoutMs: settings.resolutionTimeoutMs,
       }) });
-    },
-    async idle() {
-      while (active.size > 0) await Promise.all([...active.values()].map((entry) => entry.done));
-    },
-    activeCount: () => active.size,
-  };
-  return finalizer;
+    };
 }

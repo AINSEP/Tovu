@@ -117,35 +117,7 @@ export function createPlaywrightPageCapture(
     { idleCloseMs },
   );
 
-  async function shoot({ request, plan, progress }: { request: PageCaptureRequest; plan: CaptureBudget; progress: CaptureProgress }, signal: AbortSignal): Promise<PageCapture> {
-    let lease: RenderBrowserLease;
-    try {
-      lease = await browser.acquire({}, { signal });
-    } catch (error) {
-      throw new PageCaptureError({ kind: "unavailable", message: (error as Error).message });
-    }
-    const { viewport } = request;
-    const router = createRequestRouter({ httpClient, ownSiteFetch, allowedOrigins: request.allowedOrigins, signal }, { ...routerOptions, allowDataRequests: false });
-    const contextOptions: CaptureContextOptions = {
-      viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: viewport.deviceScaleFactor,
-      isMobile: viewport.isMobile, hasTouch: viewport.isMobile, serviceWorkers: "block", acceptDownloads: false,
-      ignoreHTTPSErrors: false, javaScriptEnabled: true,
-    };
-    try {
-      return await renderPage({
-        browser: { newContext: () => lease.browser.newContext({ ...contextOptions }), close: () => lease.browser.close() },
-        url: request.url,
-        consume: session => { progress.loaded = true; return consumeCapture({ session, request, router, plan, clock }); },
-      }, { originPolicy: "public", router, signal, timeoutMs: plan.totalMs, softDeadlineMs: plan.softDeadlineMs, onSoftDeadline: "consume-current", clock,
-        waitFor: request.waitFor ?? request.settleMs / 1000,
-        dismissCookieBanners: request.dismissCookieBanners === true, loadWaitMs: 5_000,
-      });
-    } catch (error) {
-      if (error instanceof PageWorkTimeout) throw timeoutError({ plan, progress });
-      if (router.report().navigationRefused) throw new PageCaptureError({ kind: "refused", message: "refused by the egress guard" });
-      throw new PageCaptureError({ kind: "failed", message: navigationErrorCode({ error }) });
-    } finally { lease.release(); }
-  }
+  const shoot = createCaptureShooter({ browser, httpClient, ownSiteFetch, routerOptions, clock });
 
   return {
     async capture(request, { signal } = {}) {
@@ -314,4 +286,36 @@ function navigationErrorCode({ error }: { error: unknown }, _optional = {}): str
   if (error instanceof Error && error.message === "too many redirects") return error.message;
   const code = /net::(ERR_[A-Z_]+)/.exec(error instanceof Error ? error.message : "")?.[1];
   return code ?? "navigation failed";
+}
+
+function createCaptureShooter({ browser, httpClient, ownSiteFetch, routerOptions, clock }: { browser: RenderBrowserPool; httpClient: HttpClientPort; ownSiteFetch: OwnSiteFetch; routerOptions: RequestRouterOptions; clock: CaptureClock }) {
+  return async function shoot({ request, plan, progress }: { request: PageCaptureRequest; plan: CaptureBudget; progress: CaptureProgress }, signal: AbortSignal): Promise<PageCapture> {
+    let lease: RenderBrowserLease;
+    try {
+      lease = await browser.acquire({}, { signal });
+    } catch (error) {
+      throw new PageCaptureError({ kind: "unavailable", message: (error as Error).message });
+    }
+    const { viewport } = request;
+    const router = createRequestRouter({ httpClient, ownSiteFetch, allowedOrigins: request.allowedOrigins, signal }, { ...routerOptions, allowDataRequests: false });
+    const contextOptions: CaptureContextOptions = {
+      viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: viewport.deviceScaleFactor,
+      isMobile: viewport.isMobile, hasTouch: viewport.isMobile, serviceWorkers: "block", acceptDownloads: false,
+      ignoreHTTPSErrors: false, javaScriptEnabled: true,
+    };
+    try {
+      return await renderPage({
+        browser: { newContext: () => lease.browser.newContext({ ...contextOptions }), close: () => lease.browser.close() },
+        url: request.url,
+        consume: session => { progress.loaded = true; return consumeCapture({ session, request, router, plan, clock }); },
+      }, { originPolicy: "public", router, signal, timeoutMs: plan.totalMs, softDeadlineMs: plan.softDeadlineMs, onSoftDeadline: "consume-current", clock,
+        waitFor: request.waitFor ?? request.settleMs / 1000,
+        dismissCookieBanners: request.dismissCookieBanners === true, loadWaitMs: 5_000,
+      });
+    } catch (error) {
+      if (error instanceof PageWorkTimeout) throw timeoutError({ plan, progress });
+      if (router.report().navigationRefused) throw new PageCaptureError({ kind: "refused", message: "refused by the egress guard" });
+      throw new PageCaptureError({ kind: "failed", message: navigationErrorCode({ error }) });
+    } finally { lease.release(); }
+  };
 }

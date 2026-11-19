@@ -224,24 +224,7 @@ function bindDaemonSupervisor(ports: DaemonProcessPorts, options: DaemonHostOpti
       clear: clearAssistantDaemonFailure,
       record: ({ reason }) => recordAssistantDaemonFailure({ reasonCode: formatFailureReason({ reason }) }),
     },
-    logger: {
-      emit(event) {
-        if (event.type === "failure") {
-          console.error(`[daemon-supervisor] ${formatFailureReason({ reason: event.reason })}`);
-          return;
-        }
-        const at = new Date(event.at).toISOString();
-        if (event.type === "spawn") {
-          log(`[daemon-supervisor] ${at} spawned agent daemon pid=${event.pid ?? "unknown"}`);
-          return;
-        }
-        if (event.code === AGENT_DAEMON_EXIT_CODE.IDLE_PARK) {
-          log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} parked after idle`);
-          return;
-        }
-        log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} exited (code=${String(event.code)}, signal=${String(event.signal)}, deliberate=${event.deliberate}) — any run in flight died with it`);
-      },
-    },
+    logger: daemonSupervisorLogger(log),
   }, {
     parkedExitCodes: [AGENT_DAEMON_EXIT_CODE.IDLE_PARK],
     onDemandCooldownMs: options.onDemandCooldownMs ?? 30_000,
@@ -566,12 +549,7 @@ function registerDelegatedDaemon({ input, parent }: {
     return {};
   } });
   let pending: Promise<void> | undefined;
-  const config: { siteId: string; token: string | undefined; env: NodeJS.ProcessEnv } = { siteId: input.workspaceId, token: currentToolExecToken(), env: {
-    ...process.env, TOVU_SITE_DIR: input.siteDir, TOVU_WORKSPACE: input.workspaceId,
-    TOVU_SITE_CALLBACK_ORIGIN: input.siteCallbackOrigin ?? input.siteApiOrigin,
-    TOVU_SITE_LISTENER_ORIGIN: input.siteApiOrigin, TOVU_SITE_PROCESS_CWD: process.cwd(),
-    ...(input.pgSocketPath ? { TOVU_PG_SOCKET: input.pgSocketPath } : {}),
-  } };
+  const config: { siteId: string; token: string | undefined; env: NodeJS.ProcessEnv } = delegatedDaemonConfig(input);
   // The private credential is a separate IPC field, never inherited by a later CLI child.
   delete config.env[TOOL_EXEC_TOKEN_ENV_VAR];
   delegated = {
@@ -786,4 +764,34 @@ export function isAssistantDaemonReady(): boolean {
 export function noteAssistantDaemonParking(required: { pid: number }, _optional = {}): void {
   delegated?.parking({ pid: required.pid });
   singleton?.markParking(required, {});
+}
+
+function daemonSupervisorLogger(log: (line: string) => void): NonNullable<Parameters<typeof createSidecarSupervisor>[0]["logger"]> {
+  return {
+      emit(event) {
+        if (event.type === "failure") {
+          console.error(`[daemon-supervisor] ${formatFailureReason({ reason: event.reason })}`);
+          return;
+        }
+        const at = new Date(event.at).toISOString();
+        if (event.type === "spawn") {
+          log(`[daemon-supervisor] ${at} spawned agent daemon pid=${event.pid ?? "unknown"}`);
+          return;
+        }
+        if (event.code === AGENT_DAEMON_EXIT_CODE.IDLE_PARK) {
+          log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} parked after idle`);
+          return;
+        }
+        log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} exited (code=${String(event.code)}, signal=${String(event.signal)}, deliberate=${event.deliberate}) — any run in flight died with it`);
+      },
+    };
+}
+
+function delegatedDaemonConfig(input: Parameters<typeof registerDelegatedDaemon>[0]["input"]): { siteId: string; token: string | undefined; env: NodeJS.ProcessEnv } {
+  return { siteId: input.workspaceId, token: currentToolExecToken(), env: {
+    ...process.env, TOVU_SITE_DIR: input.siteDir, TOVU_WORKSPACE: input.workspaceId,
+    TOVU_SITE_CALLBACK_ORIGIN: input.siteCallbackOrigin ?? input.siteApiOrigin,
+    TOVU_SITE_LISTENER_ORIGIN: input.siteApiOrigin, TOVU_SITE_PROCESS_CWD: process.cwd(),
+    ...(input.pgSocketPath ? { TOVU_PG_SOCKET: input.pgSocketPath } : {}),
+  } };
 }

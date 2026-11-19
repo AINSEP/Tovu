@@ -9,7 +9,7 @@ import {
 } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
@@ -85,10 +85,27 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ app, deps 
             idempotencyKey,
             permission: "content.write",
           },
-          mutation: {
+          mutation: createPageMutation(deps, { pageId, principal, req }),
+        });
+
+        // A page created directly as `status: "published"` now enqueues `entry.published`
+        // (`createPost`'s own `deps.outbox` doc) — drained here so SEO's sitemap-cache
+        // invalidation subscriber actually sees it, mirroring `posts/create.ts`'s identical fix.
+        await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
+
+        res.status(201).json(toAdminPostResponse(result.post));
+      } catch (err) {
+        sendPageCreateError({ res, err });
+      }
+    }
+  );
+};
+
+function createPageMutation(deps: Parameters<ContentRouteRegistrar>[0]["deps"], { pageId, principal, req }: { pageId: string; principal: ReturnType<typeof getAuthedPrincipal>; req: Request }) {
+  return {
             entityType: "post",
             entityId: pageId,
-            operation: "create",
+            operation: "create" as const,
             captureInverse: async () => null,
             execute: () =>
               createPost({
@@ -105,19 +122,6 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ app, deps 
                   analyticsSource: "admin",
                 },
               }),
-            captureEntityVersion: ({ result }) => result.post.version,
-          },
-        });
-
-        // A page created directly as `status: "published"` now enqueues `entry.published`
-        // (`createPost`'s own `deps.outbox` doc) — drained here so SEO's sitemap-cache
-        // invalidation subscriber actually sees it, mirroring `posts/create.ts`'s identical fix.
-        await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
-
-        res.status(201).json(toAdminPostResponse(result.post));
-      } catch (err) {
-        sendPageCreateError({ res, err });
-      }
-    }
-  );
-};
+            captureEntityVersion: ({ result }: { result: Awaited<ReturnType<typeof createPost>> }) => result.post.version,
+          };
+}

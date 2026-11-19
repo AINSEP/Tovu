@@ -104,17 +104,7 @@ export function closeStoreOnShutdown(
   const closeBounded = (): Promise<void> => {
     closing ??= closeWithinBound(
       { label: `the ${store.storage.kind} store`, close: async () => {
-        await stopServing();
-        await awaitBootWorkWithinBound({ work: bootWork() }, { timeoutMs: timeoutMs / 2, log });
-        // The daemon shares content.db and chat.db, and SQLite removes the WAL/SHM only on the LAST
-        // connection's close: two processes closing at once can both leave them. So the daemon goes
-        // first, but only for a quarter of the bound, so an unresponsive daemon cannot keep ours open.
-        const daemon = Promise.allSettled([daemonStopped]);
-        await Promise.race([daemon, new Promise((resolve) => setTimeout(resolve, timeoutMs / 4).unref())]);
-        await store.close();
-        // Wait for its outcome too, so a failed tree-stop is logged rather than lost.
-        const [stopped] = await daemon;
-        if (stopped.status === "rejected") throw stopped.reason;
+        await closeStoreAfterDaemon({ store, stopServing, bootWork, timeoutMs, log, daemonStopped: () => daemonStopped });
       } },
       { timeoutMs, log }
     );
@@ -190,4 +180,21 @@ export async function stopServingWithinGrace(
   cut.unref();
   await Promise.all([workersStopped, serverClosed]);
   clearTimeout(cut);
+}
+
+async function closeStoreAfterDaemon({ store, stopServing, bootWork, timeoutMs, log, daemonStopped }: {
+  store: NonNullable<Parameters<typeof closeStoreOnShutdown>[0]["store"]>; stopServing: () => Promise<void>; bootWork: () => readonly Promise<unknown>[];
+  timeoutMs: number; log: (message: string) => void; daemonStopped: () => unknown;
+}): Promise<void> {
+        await stopServing();
+        await awaitBootWorkWithinBound({ work: bootWork() }, { timeoutMs: timeoutMs / 2, log });
+        // The daemon shares content.db and chat.db, and SQLite removes the WAL/SHM only on the LAST
+        // connection's close: two processes closing at once can both leave them. So the daemon goes
+        // first, but only for a quarter of the bound, so an unresponsive daemon cannot keep ours open.
+        const daemon = Promise.allSettled([daemonStopped()]);
+        await Promise.race([daemon, new Promise((resolve) => setTimeout(resolve, timeoutMs / 4).unref())]);
+        await store.close();
+        // Wait for its outcome too, so a failed tree-stop is logged rather than lost.
+        const [stopped] = await daemon;
+        if (stopped.status === "rejected") throw stopped.reason;
 }

@@ -67,7 +67,17 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = ({ app, deps }, _
       // needed this pass; a future pagination pass would mirror `MemberRepoPort.list`'s
       // afterId/limit shape if this workspace's operator count ever grows unexpectedly large.
       const users = await Promise.all(
-        humanPrincipals.map(async (principal) => {
+        humanPrincipals.map((principal) => adminUserResponse(deps, principal, seededOwnerPrincipalId))
+      );
+
+      res.json({ users: users.filter((user): user is NonNullable<typeof user> => user !== null) });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/users/list", code: "INTERNAL_ERROR" });
+    }
+  });
+};
+
+async function adminUserResponse(deps: Parameters<UsersRouteRegistrar>[0]["deps"], principal: Awaited<ReturnType<Parameters<UsersRouteRegistrar>[0]["deps"]["principalRepo"]["list"]>>[number], seededOwnerPrincipalId: Awaited<Parameters<UsersRouteRegistrar>[0]["deps"]["ownerPrincipalId"]>) {
           const userRow = await deps.userRepo.findByPrincipalId({
             workspaceId: deps.workspaceId,
             principalId: principal.id,
@@ -90,12 +100,4 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = ({ app, deps }, _
             roleIds: roleLinks.map((link) => link.roleId),
             policyIds: policyLinks.map((link) => link.policyId),
           }) };
-        })
-      );
-
-      res.json({ users: users.filter((user): user is NonNullable<typeof user> => user !== null) });
-    } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/users/list", code: "INTERNAL_ERROR" });
-    }
-  });
-};
+        }

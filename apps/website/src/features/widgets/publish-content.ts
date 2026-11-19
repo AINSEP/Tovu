@@ -155,40 +155,9 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
         return row ? toWidgetRow(row) : null;
       },
     },
-    references: ({ entity }) => {
-      const config = (entity.state.config ?? {}) as Record<string, unknown>;
-      const refs = Object.entries(WIDGET_CONFIG_REFERENCES).flatMap(([field, entityType]) => {
-        const key = config[field];
-        return typeof key === "string" && key.length > 0 ? [{ entityType, key }] : [];
-      });
-      return [...refs, ...widgetMediaReferences({ widgetType: String(entity.state.widgetType), config })];
-    },
-    validate: async ({ entity }) => {
-      const widgetType = entity.state.widgetType as WidgetTypeKey;
-      const registration = findWidgetTypeRegistration({ raw: widgetType });
-      if (!registration) return `widget '${entity.id}': widget type '${widgetType}' is not installed on the destination`;
-      const check = validateWidgetConfig({ schema: registration.configSchema, config: entity.state.config as Record<string, unknown> });
-      return check.valid ? null : `widget '${entity.id}': its settings do not fit the destination's '${widgetType}' widget`;
-    },
-    write: async (ctx) => {
-      const { id, state, expectedVersion, principalId, workspaceId, ports } = ctx;
-      const widgetType = state.widgetType as WidgetTypeKey;
-      const config = await swapFormRef({ widgetType, config: state.config as Record<string, unknown>, swap: async (slug) => (await ports.forms.findBySlug({ workspaceId, slug }))?.id });
-      const { instance } = await importWidgetInstance({
-        deps: serviceDeps({ ctx, entityType: "widget" }),
-        input: {
-          workspaceId,
-          actor: { principalId },
-          id,
-          slug: state.slug as string,
-          title: state.title as string,
-          widgetType,
-          config,
-          expectedVersion,
-        },
-      });
-      return { version: instance.version };
-    },
+    references: collectWidgetPublishReferences,
+    validate: validateWidgetPublish,
+    write: writePublishedWidget,
     errors: {
       conflict: [VersionConflictError, WidgetVersionConflictError],
       blocked: [WidgetForbiddenError, WidgetTypeUnregisteredError, WidgetConfigValidationError, EntrySlugConflictError, EntryFieldValidationError, ContentTypeNotActiveError],
@@ -254,3 +223,40 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
       blocked: [WidgetForbiddenError, WidgetInstanceNotFoundError, WidgetAreaNotFoundError, EntrySlugConflictError],
     },
   });
+
+function collectWidgetPublishReferences({ entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["references"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["references"]>> {
+      const config = (entity.state.config ?? {}) as Record<string, unknown>;
+      const refs = Object.entries(WIDGET_CONFIG_REFERENCES).flatMap(([field, entityType]) => {
+        const key = config[field];
+        return typeof key === "string" && key.length > 0 ? [{ entityType, key }] : [];
+      });
+      return [...refs, ...widgetMediaReferences({ widgetType: String(entity.state.widgetType), config })];
+    }
+
+async function validateWidgetPublish({ entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["validate"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["validate"]>> {
+      const widgetType = entity.state.widgetType as WidgetTypeKey;
+      const registration = findWidgetTypeRegistration({ raw: widgetType });
+      if (!registration) return `widget '${entity.id}': widget type '${widgetType}' is not installed on the destination`;
+      const check = validateWidgetConfig({ schema: registration.configSchema, config: entity.state.config as Record<string, unknown> });
+      return check.valid ? null : `widget '${entity.id}': its settings do not fit the destination's '${widgetType}' widget`;
+    }
+
+async function writePublishedWidget(ctx: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["write"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["write"]>> {
+      const { id, state, expectedVersion, principalId, workspaceId, ports } = ctx;
+      const widgetType = state.widgetType as WidgetTypeKey;
+      const config = await swapFormRef({ widgetType, config: state.config as Record<string, unknown>, swap: async (slug) => (await ports.forms.findBySlug({ workspaceId, slug }))?.id });
+      const { instance } = await importWidgetInstance({
+        deps: serviceDeps({ ctx, entityType: "widget" }),
+        input: {
+          workspaceId,
+          actor: { principalId },
+          id,
+          slug: state.slug as string,
+          title: state.title as string,
+          widgetType,
+          config,
+          expectedVersion,
+        },
+      });
+      return { version: instance.version };
+    }

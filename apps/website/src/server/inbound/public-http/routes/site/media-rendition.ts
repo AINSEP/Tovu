@@ -568,45 +568,7 @@ async function sendMediaRenditionResult(
       input: { workspaceId: deps.workspaceId, assetId, transformName, version },
     });
 
-    if (result.outcome === "gone") {
-      // ADR-027 §4: a purged/gone asset is `410 no-store`. See
-      // `rendition-service.ts`'s doc comment for the disclosed
-      // trashed-stands-in-for-purged mapping this build uses.
-      res.status(410).set(CACHE_CONTROL_HEADER, "no-store").end();
-      return;
-    }
-
-    if (result.outcome === "not-found") {
-      // Not-yet-generated-and-not-generatable-anonymously (or a wholly unknown assetId/transform).
-      //
-      // `private, no-store`, matching the gate-denied 404 above BYTE FOR BYTE (2026-09-05 fix).
-      // This branch used to send `public, max-age=60`, which made the two 404s trivially
-      // distinguishable on a header alone: any caller could ask "does this assetId exist and is it
-      // gated?" and read the answer off `Cache-Control`, defeating the indistinguishability the
-      // gate branch's own comment says it is there to provide. The two headers can only be
-      // reconciled downwards — the gate's outcome depends on the caller's session cookie, so it can
-      // never be given a shared-cacheable header. The cost is the 60s negative cache on a
-      // not-found rendition, which is the correct thing to trade for closing the oracle.
-      sendMediaNotFound({ res, error: "rendition not found" });
-      return;
-    }
-
-    if (result.contentType === "image/svg+xml") {
-      // Vector passthroughs do not receive the raster pipeline's re-encode protection.
-      res.set("X-Content-Type-Options", "nosniff");
-      res.set("Content-Security-Policy", SVG_CONTENT_SECURITY_POLICY);
-    }
-    // Prefer source/rendition identities; legacy sources without stored evidence still hash bytes.
-    if (!access.gated) {
-      const identity = `${access.record?.source.sha256}:${transformName}:${version}:`;
-      const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
-      res.set("ETag", etag ?? `"${createHash("sha256").update(identity).update(result.bytes).digest("hex")}"`);
-    }
-    res
-      .status(200)
-      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access }))
-      .set("Content-Type", result.contentType)
-      .send(Buffer.from(result.bytes));
+    await sendResolvedRendition({ deps, res, access, transformName, version }, result);
   } catch (err) {
     sendRenditionFailure({ res, err });
   }
@@ -751,3 +713,48 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = ({ 
     }
   });
 };
+
+async function sendResolvedRendition(
+  { deps, res, access, transformName, version }: { deps: MediaRenditionRouteDeps; res: Response; access: { gated: boolean; record: MediaRecord | null }; transformName: string; version: number },
+  result: Awaited<ReturnType<typeof resolveMediaRendition>>,
+): Promise<void> {
+    if (result.outcome === "gone") {
+      // ADR-027 §4: a purged/gone asset is `410 no-store`. See
+      // `rendition-service.ts`'s doc comment for the disclosed
+      // trashed-stands-in-for-purged mapping this build uses.
+      res.status(410).set(CACHE_CONTROL_HEADER, "no-store").end();
+      return;
+    }
+
+    if (result.outcome === "not-found") {
+      // Not-yet-generated-and-not-generatable-anonymously (or a wholly unknown assetId/transform).
+      //
+      // `private, no-store`, matching the gate-denied 404 above BYTE FOR BYTE (2026-09-05 fix).
+      // This branch used to send `public, max-age=60`, which made the two 404s trivially
+      // distinguishable on a header alone: any caller could ask "does this assetId exist and is it
+      // gated?" and read the answer off `Cache-Control`, defeating the indistinguishability the
+      // gate branch's own comment says it is there to provide. The two headers can only be
+      // reconciled downwards — the gate's outcome depends on the caller's session cookie, so it can
+      // never be given a shared-cacheable header. The cost is the 60s negative cache on a
+      // not-found rendition, which is the correct thing to trade for closing the oracle.
+      sendMediaNotFound({ res, error: "rendition not found" });
+      return;
+    }
+
+    if (result.contentType === "image/svg+xml") {
+      // Vector passthroughs do not receive the raster pipeline's re-encode protection.
+      res.set("X-Content-Type-Options", "nosniff");
+      res.set("Content-Security-Policy", SVG_CONTENT_SECURITY_POLICY);
+    }
+    // Prefer source/rendition identities; legacy sources without stored evidence still hash bytes.
+    if (!access.gated) {
+      const identity = `${access.record?.source.sha256}:${transformName}:${version}:`;
+      const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
+      res.set("ETag", etag ?? `"${createHash("sha256").update(identity).update(result.bytes).digest("hex")}"`);
+    }
+    res
+      .status(200)
+      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access }))
+      .set("Content-Type", result.contentType)
+      .send(Buffer.from(result.bytes));
+}

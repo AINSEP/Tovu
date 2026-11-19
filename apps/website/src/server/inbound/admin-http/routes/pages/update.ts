@@ -21,7 +21,7 @@ import {
 } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
@@ -135,11 +135,7 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps 
       const pageId = String(req.params.pageId ?? "");
       const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
-      // Full pre-edit record, captured in captureInverse and reused verbatim by
-      // rollback so the gateway's unit-of-work compensation (SPEC-001
-      // REQ-01/EC-08/AC-17) restores the page exactly — version included — if the
-      // change-set record fails to persist after updatePost applies.
-      let priorPost: PostRecord | null = null;
+
 
       try {
         // Inside the try: requireAdminSession always sets res.locals.principal before this
@@ -161,10 +157,33 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps 
             idempotencyKey,
             permission: "content.write",
           },
-          mutation: {
+          mutation: updatePageMutation(deps, { pageId, principal, req }),
+        });
+
+        // SPEC-008 (ADR-PIPE-008 Decision §5) — drains the outbox so `updatePost`'s
+        // `entry.published`/`entry.updated`/`entry.unpublished` event (if any) actually reaches
+        // `bus.subscribe`d consumers, mirroring `posts/update.ts`'s identical inline `processOutbox` call.
+        await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
+
+        // Owner-action product event on the draft → published transition only (consent-gated port).
+        res.json(toAdminPostResponse(result.post));
+      } catch (err) {
+        sendPageUpdateError({ res, err });
+      }
+    }
+  );
+};
+
+function updatePageMutation(deps: Parameters<ContentRouteRegistrar>[0]["deps"], { pageId, principal, req }: { pageId: string; principal: ReturnType<typeof getAuthedPrincipal>; req: Request }) {
+      // Full pre-edit record, captured in captureInverse and reused verbatim by
+      // rollback so the gateway's unit-of-work compensation (SPEC-001
+      // REQ-01/EC-08/AC-17) restores the page exactly — version included — if the
+      // change-set record fails to persist after updatePost applies.
+  let priorPost: PostRecord | null = null;
+  return {
             entityType: "post",
             entityId: pageId,
-            operation: "update",
+            operation: "update" as const,
             captureInverse: async () => {
               const existing = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: pageId });
               if (existing?.kind !== "page") {
@@ -182,7 +201,24 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps 
                 featuredMediaId: priorPost.featuredMediaId ?? null,
               };
             },
-            execute: async () => {
+            execute: () => executePageUpdate(deps, { pageId, principal, req }),
+            captureEntityVersion: ({ result }: { result: Awaited<ReturnType<typeof updatePost>> }) => result.post.version,
+            rollback: async () => {
+              if (!priorPost) return;
+              await restorePostForward({
+                deps: {
+                  repo: deps.postRepo,
+                  clock: deps.clock,
+                  outbox: deps.outbox,
+                  forgetRemoved: deps.forgetRemovedPost,
+                },
+                input: { prior: priorPost, actorId: principal.id },
+              });
+            },
+          };
+}
+
+async function executePageUpdate(deps: Parameters<ContentRouteRegistrar>[0]["deps"], { pageId, principal, req }: { pageId: string; principal: ReturnType<typeof getAuthedPrincipal>; req: Request }) {
               const body = parsePageUpdateBody({ rawBody: req.body });
               return updatePost({
                 deps: {
@@ -208,33 +244,4 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps 
                   analyticsSource: "admin",
                 },
               });
-            },
-            captureEntityVersion: ({ result }) => result.post.version,
-            rollback: async () => {
-              if (!priorPost) return;
-              await restorePostForward({
-                deps: {
-                  repo: deps.postRepo,
-                  clock: deps.clock,
-                  outbox: deps.outbox,
-                  forgetRemoved: deps.forgetRemovedPost,
-                },
-                input: { prior: priorPost, actorId: principal.id },
-              });
-            },
-          },
-        });
-
-        // SPEC-008 (ADR-PIPE-008 Decision §5) — drains the outbox so `updatePost`'s
-        // `entry.published`/`entry.updated`/`entry.unpublished` event (if any) actually reaches
-        // `bus.subscribe`d consumers, mirroring `posts/update.ts`'s identical inline `processOutbox` call.
-        await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
-
-        // Owner-action product event on the draft → published transition only (consent-gated port).
-        res.json(toAdminPostResponse(result.post));
-      } catch (err) {
-        sendPageUpdateError({ res, err });
-      }
-    }
-  );
-};
+            }
