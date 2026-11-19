@@ -68,4 +68,4 @@ M1-M3 were also applied in a scratch worktree (never pushed) and all the sheets'
 The Codex judge reviews the 14 new sheets plus the two B-sheet fixes. Then an executor runs M1 (60k budget) from `v4/M1-overrides.md`; its result is already de-risked by the probe.
 
 ## Commits (this run)
-COMMITS-LINE
+`9b42de05a` (14 sheets + census evidence + B relative-specifier fix + test run), `b992f89e8` (B05 helpers, L3 readTovuVersion/error debt, type rule, INDEX-v4/REVISION-4), `50a7c6252` (M1-M3 probe evidence), `293e70fcb` (this report, M2 reader edit), and the commit that adds this list.
