@@ -28,16 +28,24 @@ function nativeFormToolRanges({ html }: { html: string }, _options = {}): { star
     const node = stack.pop();
     if (node === undefined) throw new Error('Published WebMCP scan has no pending node');
     if (!('tagName' in node)) continue;
-    if (node.tagName === 'script' && node.attrs.some(attr => attr.name === SCRIPT_MARKER) && node.sourceCodeLocation) {
-      ranges.push(node.sourceCodeLocation);
-    } else {
-      ranges.push(...formToolAttributeRanges({ node }));
-      stack.push(...node.childNodes);
-      if (node.tagName === 'template') stack.push(...(node as DefaultTreeAdapterMap['template']).content.childNodes);
-    }
+    collectNativeFormNodeRanges(node, ranges, stack);
   }
   ranges.sort((a, b) => b.startOffset - a.startOffset);
   return ranges;
+}
+
+function collectNativeFormNodeRanges(
+  node: DefaultTreeAdapterMap['element'],
+  ranges: { startOffset: number; endOffset: number }[],
+  stack: Node[],
+): void {
+  if (node.tagName === 'script' && node.attrs.some(attr => attr.name === SCRIPT_MARKER) && node.sourceCodeLocation) {
+    ranges.push(node.sourceCodeLocation);
+  } else {
+    ranges.push(...formToolAttributeRanges({ node }));
+    stack.push(...node.childNodes);
+    if (node.tagName === 'template') stack.push(...(node as DefaultTreeAdapterMap['template']).content.childNodes);
+  }
 }
 
 /** Remove only actual HTML attribute ranges. Re-serializing trusted HTML would

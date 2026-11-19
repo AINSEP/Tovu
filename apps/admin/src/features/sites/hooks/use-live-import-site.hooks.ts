@@ -67,9 +67,18 @@ async function startAndWait(
   for (let tries = 0; !hasRunningAdmin({ state }); tries += 1) {
     if (tries >= attempts || state?.status === "crashed") return null;
     await wait({ ms: 1000 });
-    state = (await port.listSites()).localSites?.find((site) => site.name === name);
+    state = findLocalImportSite(await port.listSites(), name);
   }
   return state?.adminUrl ?? null;
+}
+
+function findLocalImportSite(snapshot: Awaited<ReturnType<SitesPort["listSites"]>>, name: string) {
+  return snapshot.localSites?.find((site) => site.name === name);
+}
+
+function liveImportFailureReason(failure: unknown, t: Translate): string {
+  const key = siteWriteErrorKey({ e: failure });
+  return key ? t(key) : describeApiError({ e: failure instanceof Error ? failure : new Error("Request failed"), fallback: t("Couldn't make the new site.") });
 }
 
 /**
@@ -99,8 +108,7 @@ export function useLiveImportSite(
       if (adminUrl) port.openSite?.({ url: liveImportAdminUrl({ adminUrl, address }) });
       else setError(interpolate({ template: t(NOT_STARTED), vars: { name: made } }));
     } catch (failure) {
-      const key = siteWriteErrorKey({ e: failure });
-      const reason = key ? t(key) : describeApiError({ e: failure instanceof Error ? failure : new Error("Request failed"), fallback: t("Couldn't make the new site.") });
+      const reason = liveImportFailureReason(failure, t);
       setError(made === null ? reason : `${interpolate({ template: t(NOT_STARTED), vars: { name: made } })} ${reason}`);
     } finally {
       busy.current = false;

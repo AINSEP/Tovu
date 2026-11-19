@@ -8,12 +8,16 @@ function hasBareMediaToken({ html }: { html: string }, _options = {}): boolean {
   while (nodes.length) {
     const node = nodes.pop();
     if (node === undefined) throw new Error('Page HTML scan has no node to inspect');
-    if ('value' in node && token.test(node.value)) return true;
-    if ('attrs' in node && node.attrs.some(attr => attr.name !== 'data-embed-config' && token.test(attr.value))) return true;
+    if (nodeHasBareMediaToken(node, token)) return true;
     if ('childNodes' in node) nodes.push(...node.childNodes);
     if ('content' in node) nodes.push(...node.content.childNodes);
   }
   return false;
+}
+
+function nodeHasBareMediaToken(node: DefaultTreeAdapterMap['childNode'], token: RegExp): boolean {
+  if ('value' in node && token.test(node.value)) return true;
+  return 'attrs' in node && node.attrs.some(attr => attr.name !== 'data-embed-config' && token.test(attr.value));
 }
 
 /** Refuse widget-only tokens before a page write or doc-to-HTML conversion can persist them.

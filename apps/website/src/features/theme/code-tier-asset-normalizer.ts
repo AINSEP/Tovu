@@ -285,12 +285,7 @@ function rewriteCssUrlSegment({ segment }: { segment: string }, _options = {}): 
     const leading = whitespace.exec(segment);
     if (!leading) throw new Error("CSS URL scan could not read leading whitespace");
     const start = leading.index + leading[0].length;
-    while (quoteIndex < quotes.length) {
-      const quote = quotes[quoteIndex];
-      if (quote === undefined) throw new Error("CSS URL scan has no quote at its recorded position");
-      if (quote.index >= start) break;
-      quoteIndex++;
-    }
+    quoteIndex = advanceCssQuoteIndex(quotes, quoteIndex, start);
     const parsed = cssUrlContent({ segment, start, contentEnd, quotes, quoteIndex });
     if (parsed) {
       if (!isRelativeCssUrl({ value: parsed.rawUrl })) return segment;
@@ -298,6 +293,16 @@ function rewriteCssUrlSegment({ segment }: { segment: string }, _options = {}): 
     }
   }
   return segment;
+}
+
+function advanceCssQuoteIndex(quotes: readonly RegExpExecArray[], quoteIndex: number, start: number): number {
+  while (quoteIndex < quotes.length) {
+    const quote = quotes[quoteIndex];
+    if (quote === undefined) throw new Error("CSS URL scan has no quote at its recorded position");
+    if (quote.index >= start) break;
+    quoteIndex++;
+  }
+  return quoteIndex;
 }
 
 /** Unquoted URLs retain trailing whitespace; quoted URLs require a matching final quote.
