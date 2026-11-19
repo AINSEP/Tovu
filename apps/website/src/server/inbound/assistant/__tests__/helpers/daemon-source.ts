@@ -43,26 +43,51 @@ const rawSource = ts.createSourceFile(
 // Arbitrary nested conditionals or dead helpers must never satisfy the wiring assertions.
 const scopeFactory = rawSource.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "createSiteScope");
 assert.ok(scopeFactory && ts.isFunctionDeclaration(scopeFactory) && scopeFactory.body);
+const scopeTry = scopeFactory.body.statements.find(ts.isTryStatement);
+assert.ok(scopeTry);
+export const daemonManifest = new Map<string, Map<string, readonly ts.Statement[]>>([
+  ["agent-daemon-scope.ts", new Map([
+    ["<file>", [...rawSource.statements]],
+    ["createSiteScope", [...scopeFactory.body.statements]],
+    ["createSiteScope.try", [...scopeTry.tryBlock.statements]],
+  ])],
+]);
 export const daemonStatements = [
   ...rawSource.statements.filter(statement => statement !== scopeFactory),
   ...scopeFactory.body.statements.flatMap(statement => ts.isTryStatement(statement) ? [...statement.tryBlock.statements] : [statement]),
 ];
 export const daemonSource = ts.factory.updateSourceFile(rawSource, daemonStatements);
 
+export function statementsFor(file: string, owner: string): readonly ts.Statement[] {
+  const statements = daemonManifest.get(file)?.get(owner);
+  assert.ok(statements, `No manifest body ${file}:${owner}`);
+  return statements;
+}
+
 export function daemonInitializer(name: string): ts.Expression {
-  for (const statement of daemonStatements) {
-    if (!ts.isVariableStatement(statement)) continue;
-    const declaration = statement.declarationList.declarations.find((entry) => entry.name.getText(daemonSource) === name);
-    if (declaration?.initializer) return declaration.initializer;
+  const initializers = new Map<string, ts.Expression[]>();
+  for (const bodies of daemonManifest.values()) {
+    for (const statements of bodies.values()) {
+      for (const statement of statements) {
+        if (!ts.isVariableStatement(statement)) continue;
+        for (const declaration of statement.declarationList.declarations) {
+          if (!declaration.initializer) continue;
+          const key = declaration.name.getText(declaration.getSourceFile());
+          initializers.set(key, [...(initializers.get(key) ?? []), declaration.initializer]);
+        }
+      }
+    }
   }
-  throw new Error(`No module-level initializer for ${name}`);
+  const matches = initializers.get(name) ?? [];
+  assert.equal(matches.length, 1, `Expected one direct initializer for ${name}; found ${matches.length}`);
+  return matches[0]!;
 }
 
 /** Execute the actual source expression, with its external dependencies supplied by the test.
  * AST boundaries exclude comments and nested lookalikes. This avoids booting the entry script's
  * database, listeners, federation and agent processes, without duplicating its run assembly. */
 export function evaluateDaemonExpression<T>(expression: ts.Node, bindings: Record<string, unknown>): T {
-  const code = ts.transpileModule(`return (${expression.getText(daemonSource)});`, {
+  const code = ts.transpileModule(`return (${expression.getText(expression.getSourceFile())});`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
   const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), ...bindings };
@@ -204,19 +229,29 @@ export function withDaemonLifecycle({ lifecycle }: { lifecycle: unknown }, _opti
 
 /** Select only direct statements: a commented-out or unreachable lookalike cannot satisfy a seam. */
 export function daemonFunction(name: string): ts.FunctionDeclaration {
-  const declaration = daemonStatements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
-  assert.ok(declaration && ts.isFunctionDeclaration(declaration), `No module-level function ${name}`);
-  return declaration;
+  const functions = new Map<string, ts.FunctionDeclaration[]>();
+  for (const bodies of daemonManifest.values()) {
+    for (const statements of bodies.values()) {
+      for (const statement of statements) {
+        if (!ts.isFunctionDeclaration(statement) || !statement.name) continue;
+        const key = statement.name.text;
+        functions.set(key, [...(functions.get(key) ?? []), statement]);
+      }
+    }
+  }
+  const matches = functions.get(name) ?? [];
+  assert.equal(matches.length, 1, `Expected one direct function ${name}; found ${matches.length}`);
+  return matches[0]!;
 }
 
 export function daemonVariableStatement(statements: readonly ts.Statement[], name: string): ts.VariableStatement {
-  const statement = statements.find((entry) => ts.isVariableStatement(entry) && entry.declarationList.declarations.some((declaration) => declaration.name.getText(daemonSource) === name));
+  const statement = statements.find((entry) => ts.isVariableStatement(entry) && entry.declarationList.declarations.some((declaration) => declaration.name.getText(declaration.getSourceFile()) === name));
   assert.ok(statement && ts.isVariableStatement(statement), `No direct variable statement ${name}`);
   return statement;
 }
 
 export function evaluateDaemonStatements<T>(statements: readonly ts.Statement[], bindings: Record<string, unknown>, result = "undefined"): Promise<T> {
-  const code = ts.transpileModule(`return (async () => { ${statements.map((statement) => statement.getText(daemonSource)).join("\n")} return (${result}); })();`, {
+  const code = ts.transpileModule(`return (async () => { ${statements.map((statement) => statement.getText(statement.getSourceFile())).join("\n")} return (${result}); })();`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
   const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), ...bindings };
