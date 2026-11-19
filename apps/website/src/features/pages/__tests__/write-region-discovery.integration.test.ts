@@ -135,13 +135,13 @@ test("describe_tool returns pages_write_region's real schema — the handle, the
   };
   assert.equal(entry.id, "pages_write_region");
   // Default-on batching moves the top-level `required` into the per-item contract (same change as
-  // agent-plugin-search-discovery's 6664d6df update); the three fields stay required on every item.
+  // agent-plugin-search-discovery's 6664d6df update); all four fields stay required on every item.
   assert.equal(entry.inputSchema?.required, undefined);
   const properties = entry.inputSchema?.properties;
   assert.equal(properties?.items.minItems, 1);
   assert.equal(properties?.items.maxItems, 25);
   // why: N3 (42773ffa) publishes regionId as the canonical region field; handle is an executor-side alias.
-  assert.match(properties?.items.description ?? "", /Each item needs id, regionId, html \(inside each item\)/);
+  assert.match(properties?.items.description ?? "", /Each item needs id, regionId, html, expectedVersion \(inside each item\)/);
   assert.equal(properties?.expectedVersion.type, "integer");
   assert.equal(properties?.expectedVersion.minimum, 0);
   for (const field of ["id", "regionId", "html"]) assert.equal(properties?.[field].type, "string");

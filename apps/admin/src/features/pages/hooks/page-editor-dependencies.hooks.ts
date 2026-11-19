@@ -31,7 +31,7 @@ export const defaultPageEditorPort: PageEditorPort = {
       activeThemeTier: activeTheme?.tier ?? null,
     };
   },
-  updatePageHtml: ({ id, html }, _options = {}) => pagesApi.updatePageHtml({ id, html }),
+  updatePageHtml: ({ id, html, expectedVersion }, _options = {}) => pagesApi.updatePageHtml({ id, html, expectedVersion }),
   // The shared posts route saves pages too; `entry` makes a failure notice say "page".
   updatePost: ({ target, patch }, _options = {}) => postsApi.updatePost(target, { options: patch, entry: "page" }),
   deletePage: ({ id }, _options = {}) => pagesApi.deletePage({ id }),
@@ -116,15 +116,15 @@ function fakeWrites({ state }: { state: FakePageState }): Pick<PageEditorPort, "
     // here rather than only storing `bodyHtml`, so a test that saves twice sees the same row shape the
     // server would hand back on the second load — without it this fake would report a converted page
     // as still `doc`-format forever, which is exactly the state `pageAcceptsHtmlBody` branches on.
-    async updatePageHtml({ id, html }) {
+    async updatePageHtml({ id, html, expectedVersion }) {
       if (id !== state.page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       state.updatePageHtmlCalls.push(html);
-      // `version` is bumped because the real writer bumps it: `PagesHtmlDocumentStore.write()`
-      // (`apps/website/src/features/pages/html-document-store.sqlite.ts`) sets `version: version + 1`
-      // on every successful body write. The fake used to leave it alone, which made a save that
-      // wrote BOTH routes look — to any test — like it had only consumed one version step. That
-      // hid the ordering bug this fake now models: with the body written first, the basis the
-      // editor loaded is already stale by the time the metadata write claims it.
+      // Guard the metadata-to-HTML gap, then advance the next save's basis like the real route.
+      if (expectedVersion !== state.page.version) {
+        throw new ApiError({ message: `page '${id}' changed before its HTML save`, status: 409 }, {
+          code: "CONCURRENT_EDIT", body: { details: { expectedVersion, currentVersion: state.page.version } },
+        });
+      }
       state.page = { ...state.page, bodyFormat: "html", bodyJson: {}, bodyHtml: html, version: state.page.version + 1 };
       return { post: state.page };
     },

@@ -1,7 +1,7 @@
+import { pageToolInputWithBasis } from "./page-tool-input.js";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
-
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 import { type IdentityRepos } from "@jini-ai/user-management";
 
@@ -373,13 +373,13 @@ async function toolHarness() {
   });
 
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
-  const call = (name: string, principalId: string, input: Record<string, unknown>) => {
+  const call = async (name: string, principalId: string, input: Record<string, unknown>) => {
     const entry = byName.get(name);
     assert.ok(entry, `tool '${name}' is not registered`);
     return entry.handler({
       principal: { id: principalId, kind: "user" },
       signal: new AbortController().signal,
-      input,
+      input: await pageToolInputWithBasis({ toolId: name, input, repo: postRepo, workspaceId: WORKSPACE }),
     } as never);
   };
 

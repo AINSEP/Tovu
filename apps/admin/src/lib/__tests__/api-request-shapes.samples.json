@@ -255,13 +255,13 @@
   "min": [
    {
     "id": "<id>",
-    "html": "<html>"
+    "html": "<html>", "expectedVersion": 1
    }
   ],
   "full": [
    {
     "id": "<id>",
-    "html": "<html>"
+    "html": "<html>", "expectedVersion": 1
    },
    {}
   ]

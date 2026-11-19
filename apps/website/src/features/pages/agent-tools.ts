@@ -45,17 +45,15 @@ const EXPECTED_VERSION_SCHEMA = {
   type: "integer",
   minimum: 0,
   description:
-    "OPTIONAL optimistic-concurrency basis — the 'version' pages_read_html returned for this page. " +
-    "Omit it and this write simply overwrites whatever is currently stored, INCLUDING an edit a human " +
-    "or another agent turn made that you never saw. Send it and the write is rejected with " +
-    "VERSION_CONFLICT (nothing written) if anyone saved in the meantime. Send it whenever you have " +
-    "one — which is every time you read the page before editing it.",
+    "Required optimistic-concurrency basis — the 'version' pages_read_html returned for this page. " +
+    "Read the page first and send its version. The write is rejected with " +
+    "VERSION_CONFLICT (nothing written) if anyone saved in the meantime.",
 } as const;
 
 /** Appended to both writers' descriptions so the conflict protocol is stated where it is used. */
 const VERSION_CONFLICT_GUIDANCE =
   "\n\n" + ASSISTANT_CONTENT_EDIT_GUIDANCE +
-  "\n\nCONCURRENCY: pass expectedVersion (from pages_read_html) whenever you read the page before " +
+  "\n\nCONCURRENCY: read with pages_read_html and pass its version as expectedVersion before " +
   "editing it. On VERSION_CONFLICT nothing was written — re-read with pages_read_html, reapply your " +
   "change to what you get back, and resend with the new version.";
 
@@ -114,7 +112,7 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id", "html"],
+      required: ["id", "html", "expectedVersion"],
       properties: {
         id: PAGE_ID_SCHEMA,
         html: {
@@ -154,7 +152,7 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id", "regionId", "html"],
+      required: ["id", "regionId", "html", "expectedVersion"],
       properties: {
         id: PAGE_ID_SCHEMA,
         regionId: {
@@ -193,7 +191,7 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id", "regionId"],
+      required: ["id", "regionId", "expectedVersion"],
       properties: {
         id: PAGE_ID_SCHEMA,
         regionId: {

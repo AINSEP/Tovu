@@ -21,7 +21,7 @@ test('H2: guidance points to plugin embeds, and owner-authorized page HTML is st
     assert.match(tool.descriptor.description, /no <script src>/i, 'raw external scripts stay out of the assistant page guidance');
     assert.match(tool.descriptor.description, /plugin's embed/, 'the model learns the supported path');
     assert.doesNotMatch(tool.descriptor.description, /calendly/i, 'no vendor belongs in core guidance');
-    await tool.handler(context(name === 'pages_write_html' ? { id: 'booking', html: `<section data-agent-element="booking">${embed}</section>` } : { id: 'booking', regionId: 'booking', html: embed }), {});
+    await tool.handler(context(name === 'pages_write_html' ? { id: 'booking', expectedVersion: 1, html: `<section data-agent-element="booking">${embed}</section>` } : { id: 'booking', expectedVersion: 2, regionId: 'booking', html: embed }), {});
     const saved = await kernel.run(q => q.selectFrom('posts').select(['body_html', 'body_format']).where('id', '=', 'booking').executeTakeFirstOrThrow());
     assert.equal(saved.body_format, 'html');
     assert.equal(saved.body_html, `<section data-agent-element="booking">${embed}</section>`);

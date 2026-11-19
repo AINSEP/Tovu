@@ -1,13 +1,16 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/pages.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
+// Core keeps missing/malformed bases model-facing: ToolInputError survives delegated transport's
+// internal-error redaction, so the model receives the read-and-retry instruction.
+import { requireExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { EXPECTED_VERSION_REJECTION, isTrashed, PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
+import { isTrashed, PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -78,29 +81,6 @@ const pagesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffec
 const CATALOG_BY_ID = indexCatalogById({ catalog: pagesAgentToolCatalog });
 
 /**
- * The optimistic-concurrency basis off an untyped tool input.
- *
- * Same contract, same rejection TEXT, and the same reason for existing as `features/post`'s
- * `parseExpectedVersion` — a value this handler failed to recognize must not coerce to "no basis
- * sent" and be written through as an unguarded save. The rejection TYPE differs on purpose:
- * `features/post`'s throws `PostValidationError` because every one of its arms wraps handlers in
- * `withSchemaOnRejection`, which reclassifies it. Pages has no such wrapper, and `@jini-ai/daemon`'s
- * `ToolExecutor` tags anything that is not a `ToolInputError` as `errorKind: 'internal'`, which
- * `@jini-ai/daemon/http`'s `delegatedToolExecuteRoute` then SEC-005-redacts to a bare INTERNAL_ERROR.
- * Reusing the class here would tell the model its site fell over when it actually sent `"3"` instead
- * of `3`. The message constant IS imported, so the two arms cannot drift on what they say.
- *
- * @complexity O(1).
- */
-function parsePageExpectedVersion({ raw }: { raw: unknown }, _optional = {}): number | undefined {
-  if (raw === undefined) return undefined;
-  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
-    throw new ToolInputError({ message: EXPECTED_VERSION_REJECTION });
-  }
-  return raw;
-}
-
-/**
  * The version the store captured on its most recent read — the exact predicate its next `write()`
  * will use.
  *
@@ -129,12 +109,12 @@ function requireCapturedVersion(store: PagesHtmlDocumentStorePort): number {
  * arrive. The classification is honest rather than a trick: a stale basis IS a caller-input problem
  * that a different (freshly re-read) input resolves.
  *
- * @throws {ToolInputError} When a basis was sent and does not match.
+ * @throws {ToolInputError} When the required basis does not match.
  * @complexity O(1).
  */
-function assertExpectedVersion(required: { id: string; expectedVersion: number | undefined; basis: number }): void {
+function assertExpectedVersion(required: { id: string; expectedVersion: number; basis: number }): void {
   const { id, expectedVersion, basis } = required;
-  if (expectedVersion === undefined || expectedVersion === basis) return;
+  if (expectedVersion === basis) return;
   throw new ToolInputError({ message: `${VERSION_CONFLICT_CODE}: page '${id}' is at version ${basis}, not the version ${expectedVersion} you based this edit on. ` +
       "Someone else saved it after you read it, so your edit was NOT applied and nothing was overwritten. " +
       "Re-read the page with pages_read_html, reapply your change on top of the body you get back, and resend " +
@@ -146,8 +126,8 @@ function assertExpectedVersion(required: { id: string; expectedVersion: number |
  * through untouched.
  *
  * The window this catches is narrower than {@link assertExpectedVersion}'s and is not the same
- * check: a writer can land between this turn's `read()` and its `write()` even when the caller sent
- * no basis at all, and `PagesHtmlDocumentStore` refuses that write by design (CIC-1). Before this,
+ * check: a writer can land between this turn's `read()` and its `write()` after the caller
+ * supplied a matching basis, and `PagesHtmlDocumentStore` refuses that write by design (CIC-1). Before this,
  * both page writers let that rejection propagate as a bare `Error`, which the delegated transport
  * redacts — so a genuine concurrent edit reached the model as an unexplained server error.
  *
@@ -386,7 +366,7 @@ async function openForFullWrite(
     store: PagesHtmlDocumentStorePort;
     seedHtml: string;
     scan: HtmlRegionScan;
-    guard: { postRepo: PostRepoPort; workspaceId: string; id: string; expectedVersion: number | undefined };
+    guard: { postRepo: PostRepoPort; workspaceId: string; id: string; expectedVersion: number };
   },
   _options: Record<string, never> = {},
 ): Promise<FullWriteOpening> {
@@ -403,7 +383,7 @@ async function openForFullWrite(
 
   const row = await guard.postRepo.findById({ workspaceId: guard.workspaceId, id: guard.id });
   if (row) assertExpectedVersion({ id: guard.id, expectedVersion: guard.expectedVersion, basis: row.version });
-  await store.ensureHtmlFormat({ seedHtml });
+  await store.ensureHtmlFormat({ seedHtml, expectedVersion: guard.expectedVersion });
   return { basis: null };
 }
 
@@ -560,7 +540,7 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
 
       const id = requireString({ input: input, key: "id" });
       const html = requirePageAuthoringHtml({ html: requireString({ input: input, key: "html" }) });
-      const expectedVersion = parsePageExpectedVersion({ raw: input.expectedVersion });
+      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "pages_read_html" });
       // Before anything is opened or converted, so a refused write leaves the row exactly as it was
       // — including a `doc`-format row that would otherwise have been converted one-way by
       // `ensureHtmlFormat` on the way to a rejection.
@@ -610,7 +590,7 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
       const id = requireString({ input: input, key: "id" });
       const handle = requireString({ input: input, key: "regionId" });
       const fragment = requirePageAuthoringHtml({ html: requireString({ input: input, key: "html" }) });
-      const expectedVersion = parsePageExpectedVersion({ raw: input.expectedVersion });
+      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "pages_read_html" });
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       let current: string;
@@ -686,7 +666,7 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
       const id = requireString({ input: input, key: "id" });
       const handle = requireString({ input: input, key: "regionId" });
       const { placement, targetHandle } = parseMovePlacement(input);
-      const expectedVersion = parsePageExpectedVersion({ raw: input.expectedVersion });
+      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "pages_read_html" });
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       let current: string;
