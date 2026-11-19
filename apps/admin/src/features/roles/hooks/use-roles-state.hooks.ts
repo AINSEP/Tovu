@@ -18,7 +18,7 @@ export function useRolesState(
   const list = useFetchQuery({
     key: KEYS.list,
     fetch: async () => {
-      const [r, p] = await Promise.all([port.listRoles(), port.listPolicies()]);
+      const [r, p] = await Promise.all([port.listRoles({}), port.listPolicies({})]);
       return { roles: r.roles, policies: p.policies };
     },
   });

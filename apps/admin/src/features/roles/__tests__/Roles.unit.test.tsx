@@ -8,7 +8,7 @@ import { PolicyRow, type PolicyPermissionController, type PolicyRowController } 
 import { Roles } from "../Roles";
 import { RolesSection, type RoleCreateFormController, type RoleRowController } from "../RolesSection";
 import { useRoles, type RolesController } from "../hooks/use-roles.hooks";
-import { createFakeRolesPort } from "../hooks/roles-dependencies.hooks";
+import { createFakeRolesPort } from "@jini-ai/user-management/react/testing";
 import { t as realT } from "../roles-i18n";
 
 /**
@@ -445,7 +445,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
   }
 
   it("creates a policy without an optional description and clears its form", async () => {
-    const port = createFakeRolesPort();
+    const port = createFakeRolesPort({});
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.policies).toEqual([]));
     act(() => result.current.setPolicyName("Reader"));
@@ -461,7 +461,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
   });
 
   it.each(["role", "policy"] as const)("finishing a %s deletion leaves an already-dismissed confirmation closed", async (kind) => {
-    const port = createFakeRolesPort({ roles: [CUSTOM_ROLE], policies: [CUSTOM_POLICY] });
+    const port = createFakeRolesPort({}, { roles: [CUSTOM_ROLE], policies: [CUSTOM_POLICY] });
     const pending = gate();
     const deleteRole = port.deleteRole;
     const deletePolicy = port.deletePolicy;
@@ -481,7 +481,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
   });
 
   it("reports the current policy's failed permission load and allows a later open to retry", async () => {
-    const port = createFakeRolesPort({ policies: [CUSTOM_POLICY], initialPolicyPermissions: [PERMISSION_ROW] });
+    const port = createFakeRolesPort({}, { policies: [CUSTOM_POLICY], initialPolicyPermissions: [PERMISSION_ROW] });
     const listPermissions = port.listPolicyPermissions;
     let unavailable = true;
     port.listPolicyPermissions = async id => {
@@ -505,7 +505,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
   it.each(["role", "policy"] as const)("an older %s rename cannot clear a newer rename's busy state", async (kind) => {
     const roleB = { ...CUSTOM_ROLE, id: "role-b", name: "Writer" };
     const policyB = { ...CUSTOM_POLICY, id: "policy-b", name: "Publishing" };
-    const port = createFakeRolesPort({ roles: [CUSTOM_ROLE, roleB], policies: [CUSTOM_POLICY, policyB] });
+    const port = createFakeRolesPort({}, { roles: [CUSTOM_ROLE, roleB], policies: [CUSTOM_POLICY, policyB] });
     const first = gate();
     const second = gate();
     const updateRole = port.updateRole;
@@ -539,7 +539,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
   it.each(["role", "policy"] as const)("an older %s deletion cannot unlock or dismiss a newer deletion", async (kind) => {
     const roleB = { ...CUSTOM_ROLE, id: "role-b", name: "Writer" };
     const policyB = { ...CUSTOM_POLICY, id: "policy-b", name: "Publishing" };
-    const port = createFakeRolesPort({ roles: [CUSTOM_ROLE, roleB], policies: [CUSTOM_POLICY, policyB] });
+    const port = createFakeRolesPort({}, { roles: [CUSTOM_ROLE, roleB], policies: [CUSTOM_POLICY, policyB] });
     const first = gate();
     const second = gate();
     const deleteRole = port.deleteRole;
@@ -566,7 +566,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
 
   it.each(["another row", "dismissed"] as const)("a settled permission removal preserves a confirmation that was %s while it was pending", async (replacement) => {
     const other = { ...PERMISSION_ROW, id: "pp-2", permission: "content.read" };
-    const port = createFakeRolesPort({ policies: [CUSTOM_POLICY], initialPolicyPermissions: [PERMISSION_ROW, other] });
+    const port = createFakeRolesPort({}, { policies: [CUSTOM_POLICY], initialPolicyPermissions: [PERMISSION_ROW, other] });
     const pending = gate();
     const remove = port.removePolicyPermission;
     port.removePolicyPermission = async input => { await pending.promise; return remove(input); };
@@ -586,7 +586,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
 
   it("an older permission write leaves a newer policy write busy and keeps its current inputs", async () => {
     const policyB = { ...CUSTOM_POLICY, id: "policy-b", name: "Publishing" };
-    const port = createFakeRolesPort({ policies: [CUSTOM_POLICY, policyB] });
+    const port = createFakeRolesPort({}, { policies: [CUSTOM_POLICY, policyB] });
     const first = gate();
     const second = gate();
     const write = port.writePolicyPermission;
@@ -616,7 +616,7 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
 
   it("clicking Remove asks first and leaves the permission in place until confirmed", async () => {
     const user = userEvent.setup();
-    const port = createFakeRolesPort({
+    const port = createFakeRolesPort({}, {
       roles: [CUSTOM_ROLE],
       policies: [CUSTOM_POLICY],
       initialPolicyPermissions: [PERMISSION_ROW],

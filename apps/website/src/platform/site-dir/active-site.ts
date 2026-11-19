@@ -1,11 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+// These narrow transforms use the first unquoted KEY= line; Node interprets the actual .env at boot.
 import { readEnvLine, upsertEnvLine } from "@jini-ai/platform/fs";
 
 import { writeFileAtomic } from "./atomic-write.js";
-
-// These narrow transforms use the first unquoted KEY= line; Node interprets the actual .env at boot.
-export { readEnvLine, upsertEnvLine };
 
 /**
  * @file Admin "Sites" screen backend, activate half (2026-09-04 sites-switcher decision,

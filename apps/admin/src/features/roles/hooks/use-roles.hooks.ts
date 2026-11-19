@@ -2,7 +2,7 @@ import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@/features/r
 import { describeApiError } from "../rules";
 import { t } from "../roles-i18n";
 import { defaultRolesPort } from "./roles-dependencies.hooks";
-import type { RolesPort } from "./roles-port.hooks";
+import type { RolesPort } from "@jini-ai/user-management/react";
 import { createRolesController } from "./roles-controller";
 import { createRoleActions, createPolicyActions } from "./roles-row-actions";
 import { createPermissionLoader, createPermissionWriter, createPermissionRemovalActions } from "./roles-permission-actions";
@@ -51,7 +51,7 @@ import { useRolesMutations as useRolesMutationsHook } from "./use-roles-mutation
  * directly, same shape as every other migrated create form in this sweep.
  *
  * `useX(dependencies)` / `useWiredX()` conversion (2026-08-14): every `api.xxx()` call below is now
- * `port.xxx()` — see `roles-port.hooks.ts` for the interface and `roles-dependencies.hooks.ts` for
+ * `port.xxx()` — see `@jini-ai/user-management/react` for the port and `roles-dependencies.hooks.ts` for
  * the real binding, the only file left that imports `lib/api` as a value for this feature. Same
  * "no ref/dep-array needed" note as `use-users.hooks.ts`'s identical section: every write here goes
  * through `useFetchMutation` (via `@jini-ai/ui/fetch-query`), which takes a fresh `run` closure every
