@@ -1692,6 +1692,18 @@
     {
       "id": "74d5c9974f20",
       "reason": "tv-dx-dock split AssistantDock.hooks.tsx into modules and removed the re-export of resolveComposerDiscoveryOutcome from AssistantDock.tsx (owner rule: no re-export shells); this comment only explained that re-export."
+    },
+    {
+      "id": "d468ddd99b43",
+      "reason": "tv-ex-hw removed the in-file fake roles store (hardwiring sheet A); the fixture helper this documented no longer exists."
+    },
+    {
+      "id": "6f5a1496bc11",
+      "reason": "tv-ex-err changed plainUpdateError's contract (operation-specific guidance, diagnostics redacted into copy details) and rewrote its doc to say so."
+    },
+    {
+      "id": "f59c5e000434",
+      "reason": "tv-ex-err replaced the bare console line with redacted reportServerFailure diagnostics; the new doc states the new contract."
     }
   ]
 }

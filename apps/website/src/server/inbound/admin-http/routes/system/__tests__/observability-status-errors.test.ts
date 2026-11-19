@@ -11,7 +11,7 @@ for (const method of ["get", "post"] as const) test(`observability ${method} own
   const logs = t.mock.method(console, "error", () => {});
   const tracker = { error: (...args: unknown[]) => reports.push(args) };
   const app = express();
-  registerAdminObservabilityStatusRoute(app, portFake<AdminObservabilityStatusDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "owner" }), observabilityEnabled: () => { throw cause; }, sendTelemetryTest: async () => { throw cause; }, tracker }));
+  registerAdminObservabilityStatusRoute({ app, deps: portFake<AdminObservabilityStatusDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "owner" }), observabilityEnabled: () => { throw cause; }, sendTelemetryTest: async () => { throw cause; }, tracker }) });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" }; res.locals.adminFailureTracker = tracker;
   const path = method === "get" ? "observability-status" : "observability/test-error";

@@ -12,7 +12,7 @@ for (const typed of [false, true]) test(`migration failure retains ${typed ? "ty
   const logs = t.mock.method(console, "error", () => {});
   const app = express();
   const deps = portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => { throw cause; }, gatedMutations: { gatewayDeps: portFake<RouteDeps["gatedMutations"]["gatewayDeps"]>({ authorize: async () => { throw cause; }, authorizeInstance: async () => { throw cause; } }) } });
-  registerAdminDatabaseMigrateForwardRoutes(app, deps);
+  registerAdminDatabaseMigrateForwardRoutes({ app, deps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, "post", "/api/admin/v1/database/migrate-forward/execute")({ body: { confirmationToken: "token" }, params: {} }, res);
