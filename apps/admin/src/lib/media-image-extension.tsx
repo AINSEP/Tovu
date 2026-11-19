@@ -50,13 +50,15 @@ import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
  *    `@tiptap/extension-image` behavior this replaces — only the in-editor admin surface ever
  *    reads this `src`; the public render path never does (D7/ADR-027 §4).
  */
-export function MediaImageNodeView(props: NodeViewProps) {
+export function MediaImageNodeView({
+  useWiredAdminLocaleHook = useWiredAdminLocale, ...props }: (NodeViewProps) & {
+  useWiredAdminLocaleHook?: typeof useWiredAdminLocale; }) {
   const assetId = typeof props.node.attrs.assetId === "string" ? props.node.attrs.assetId : "";
   const transformName = typeof props.node.attrs.transformName === "string" ? props.node.attrs.transformName : "";
   const legacySrc = typeof props.node.attrs.src === "string" ? props.node.attrs.src : "";
   const alt = typeof props.node.attrs.alt === "string" ? props.node.attrs.alt : "";
   const [picking, setPicking] = useState(false);
-  const locale = useWiredAdminLocale();
+  const locale = useWiredAdminLocaleHook();
   const t = createMediaImageTranslator({ locale });
 
   const isRef = assetId.length > 0 && transformName.length > 0;
@@ -66,13 +68,7 @@ export function MediaImageNodeView(props: NodeViewProps) {
 
   return (
     <NodeViewWrapper as="div" className="media-image-node" data-drag-handle contentEditable={false}>
-      {previewSrc ? (
-        <img className="media-image-node__preview" src={previewSrc} alt={alt} />
-      ) : (
-        <span className="media-image-node__broken-label" role="img" aria-label={t({ key: "Broken image reference" })}>
-          {t({ key: "⚠ Image unavailable" })}
-        </span>
-      )}
+      <MediaImagePreview previewSrc={previewSrc} alt={alt} t={t} />
       <span className="media-image-node__actions">
         <button type="button" onClick={() => setPicking(true)}>
           {t({ key: "Replace" })}
@@ -109,3 +105,13 @@ export const MediaImage = TiptapImage.extend({
     return ReactNodeViewRenderer(MediaImageNodeView);
   },
 });
+
+function MediaImagePreview({ previewSrc, alt, t }: { previewSrc: string; alt: string; t: ReturnType<typeof createMediaImageTranslator> }) {
+  return (previewSrc ? (
+        <img className="media-image-node__preview" src={previewSrc} alt={alt} />
+      ) : (
+        <span className="media-image-node__broken-label" role="img" aria-label={t({ key: "Broken image reference" })}>
+          {t({ key: "⚠ Image unavailable" })}
+        </span>
+      ));
+}

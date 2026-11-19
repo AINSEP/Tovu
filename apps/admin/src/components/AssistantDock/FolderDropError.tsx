@@ -20,6 +20,7 @@ export interface FolderDropErrorProps {
   readonly onRetry: (input: { path: string }) => void;
   /** Explicit dismiss — the composer's already-inserted path text is unaffected. */
   readonly onDismiss: () => void;
+  useTHook?: typeof useT;
 }
 
 /** One of `errors.spec.md`'s three fixed User Message Guidance strings, by `reason`.
@@ -34,8 +35,9 @@ function messageForReason(reason: FolderDropErrorProps["reason"]): string {
   return FOLDER_DROP_MESSAGES[reason];
 }
 
-export function FolderDropError({ path, reason, onRetry, onDismiss }: FolderDropErrorProps) {
-  const t = useT();
+export function FolderDropError({ path, reason, onRetry, onDismiss,
+  useTHook = useT }: FolderDropErrorProps) {
+  const t = useTHook();
   return (
     <div className="tovu-folder-drop-notice tovu-folder-drop-notice--error" role="alert">
       <span className="tovu-folder-drop-notice__icon" aria-hidden="true">

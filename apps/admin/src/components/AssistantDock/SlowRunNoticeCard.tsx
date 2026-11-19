@@ -30,8 +30,10 @@ import { isSlowRunNoticeVisible, resolveSlowRunDetail } from "./SlowRunNoticeCar
 // already uses for `resolveComposerDiscoveryOutcome`.
 export { isSlowRunNoticeVisible, resolveSlowRunDetail } from "./SlowRunNoticeCard.hooks";
 
-export function SlowRunNoticeCard({ events, runStreaming, runSucceeded, awaitingAnswer }: ExtEventRenderProps) {
-  const t = useT();
+export function SlowRunNoticeCard({ events, runStreaming, runSucceeded, awaitingAnswer,
+  useTHook = useT }: (ExtEventRenderProps) & {
+  useTHook?: typeof useT; }) {
+  const t = useTHook();
   if (!isSlowRunNoticeVisible({ runStreaming, runSucceeded }, { awaitingAnswer })) return null;
   return (
     <div className="jini-chat-pane__status" role="status">

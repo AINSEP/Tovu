@@ -89,7 +89,7 @@ export function SiteGrid({
   usePower = useSitePower,
   useLocate = useSiteLocate,
   usePreview = useSitePreview,
-  useListPrefs = useSiteListPrefs,
+  useListPrefs = useSiteListPrefs, useSiteListViewHook = useSiteListView,
 }: {
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
@@ -115,7 +115,7 @@ export function SiteGrid({
    *  the same reason as the others, so a test can render a card with a capture. */
   usePreview?: typeof useSitePreview;
   /** This window's sort, pins and hidden sites. Injectable for the same reason as the others. */
-  useListPrefs?: typeof useSiteListPrefs;
+  useListPrefs?: typeof useSiteListPrefs; useSiteListViewHook?: typeof useSiteListView;
 }) {
   const { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete } =
     useDeleteState({ onDelete });
@@ -126,7 +126,7 @@ export function SiteGrid({
   const power = usePower({}, { onSiteUpdated, onStarted: onOpen });
   const locate = useLocate({}, { onLocated: onSiteUpdated });
   const { prefs, onPrefsChange } = useListPrefs();
-  const list = useSiteListView({
+  const list = useSiteListViewHook({
     items: projects.map((project) => ({ id: project.id, name: project.displayName, createdAt: project.createdAt, running: project.status === 'running', project })),
     prefs,
     onPrefsChange,
@@ -604,7 +604,7 @@ function SiteCardMenu({
   onToggleHidden,
   onRename,
   onRequestDelete,
-  actions,
+  actions, useDismissibleDropdownHook = useDismissibleDropdown,
 }: {
   project: SiteRecord;
   status: SiteRecord['status'];
@@ -613,9 +613,9 @@ function SiteCardMenu({
   onToggleHidden: () => void;
   onRename: () => void;
   onRequestDelete: (id: string) => void;
-  actions: SiteActions;
+  actions: SiteActions; useDismissibleDropdownHook?: typeof useDismissibleDropdown;
 }) {
-  const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
+  const { open, setOpen, containerRef } = useDismissibleDropdownHook<HTMLDivElement>();
   const running = status === 'running';
 
   // Every entry closes the menu first, then acts. See `closeMenuThen`.

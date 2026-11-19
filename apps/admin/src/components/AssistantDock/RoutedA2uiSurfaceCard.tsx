@@ -65,13 +65,14 @@ export interface RoutedA2uiSurfaceCardProps extends A2uiSurfaceCardProps {
    *  `playground-render-target-bus` subscription or the hook's own local state. Destructured off
    *  separately from `...props` below so it is never spread through to the real `A2uiSurfaceCard`. */
   useRoutedA2uiSurfaceCardHook?: typeof useRoutedA2uiSurfaceCard;
+  useTHook?: typeof useT;
 }
 
 export function RoutedA2uiSurfaceCard({
   useRoutedA2uiSurfaceCardHook = useRoutedA2uiSurfaceCard,
-  ...props
+  useTHook = useT, ...props
 }: RoutedA2uiSurfaceCardProps) {
-  const t = useT();
+  const t = useTHook();
   const { registry, generation, stylesheets } = useContext(AdminChartRegistryContext);
   const { 
     target, 

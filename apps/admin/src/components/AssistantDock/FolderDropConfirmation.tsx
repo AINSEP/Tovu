@@ -23,10 +23,12 @@ export interface FolderDropConfirmationProps {
   readonly replacedPreviousPath?: string | null;
   /** Auto-timeout or explicit dismiss — no state change beyond removing this notice from view. */
   readonly onDismiss: () => void;
+  useTHook?: typeof useT;
 }
 
-export function FolderDropConfirmation({ path, paths, replacedPreviousPath, onDismiss }: FolderDropConfirmationProps) {
-  const t = useT();
+export function FolderDropConfirmation({ path, paths, replacedPreviousPath, onDismiss,
+  useTHook = useT }: FolderDropConfirmationProps) {
+  const t = useTHook();
   return (
     <div className="tovu-folder-drop-notice tovu-folder-drop-notice--confirmation" role="status">
       <span className="tovu-folder-drop-notice__icon" aria-hidden="true">

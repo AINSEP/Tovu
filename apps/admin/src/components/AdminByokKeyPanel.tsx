@@ -48,6 +48,7 @@ export interface AdminByokMigrationPromptProps {
   /** This prompt's own base handle — see this file's header for the derived `-save`/`-dismiss`
    *  sub-handles. Omit to leave it untagged. */
   agentHandle?: string;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
 /**
@@ -58,8 +59,9 @@ export interface AdminByokMigrationPromptProps {
  * @complexity Time/space: O(1) — fixed markup, no iteration.
  * @overallScore 100
  */
-export function AdminByokMigrationPrompt({ controller, agentHandle: base }: AdminByokMigrationPromptProps) {
-  const locale = useAdminLocale();
+export function AdminByokMigrationPrompt({ controller, agentHandle: base,
+  useAdminLocaleHook = useAdminLocale }: AdminByokMigrationPromptProps) {
+  const locale = useAdminLocaleHook();
   const t = createAdminByokKeyPanelTranslator({ locale });
   if (!controller.legacyKey) return null;
   const saving = controller.saveState.status === "saving";
@@ -101,6 +103,7 @@ export interface AdminByokKeyFooterProps {
   agentHandle?: string;
   /** The host screen's `t`, for the status line. Omit for English passthrough. */
   t?: (key: string) => string;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
 /**
@@ -114,8 +117,9 @@ export interface AdminByokKeyFooterProps {
  *
  * @complexity Time/space: O(1).
  */
-export function AdminByokKeyFooter({ controller, agentHandle: handle, t }: AdminByokKeyFooterProps) {
-  const locale = useAdminLocale();
+export function AdminByokKeyFooter({ controller, agentHandle: handle, t,
+  useAdminLocaleHook = useAdminLocale }: AdminByokKeyFooterProps) {
+  const locale = useAdminLocaleHook();
   const sharedT = createAdminByokKeyPanelTranslator({ locale });
   const { saveState, canSaveKey, stored, storedKeyIsForOtherEndpoint } = controller;
   const saving = saveState.status === "saving";
@@ -152,6 +156,7 @@ export interface AdminByokSettingsFooterProps {
   agentHandle?: string;
   /** The host screen's `t`, for the status line. Omit for English passthrough. */
   t?: (key: string) => string;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
 /**
@@ -190,8 +195,9 @@ export function resolveByokSettingsStatusLine({ status }: { status: AdminByokSav
  *
  * @complexity Time/space: O(1).
  */
-export function AdminByokSettingsFooter({ controller, agentHandle: handle, t }: AdminByokSettingsFooterProps) {
-  const locale = useAdminLocale();
+export function AdminByokSettingsFooter({ controller, agentHandle: handle, t,
+  useAdminLocaleHook = useAdminLocale }: AdminByokSettingsFooterProps) {
+  const locale = useAdminLocaleHook();
   const sharedT = createAdminByokKeyPanelTranslator({ locale });
   const { settingsSaveState } = controller;
   const saving = settingsSaveState.status === "saving";

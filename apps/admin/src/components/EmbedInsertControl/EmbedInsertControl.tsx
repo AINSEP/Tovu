@@ -60,6 +60,7 @@ export interface EmbedInsertControlProps {
   /** This control's own base handle — see this file's "Agent handles" doc for the full scheme.
    *  Omit to leave every element below (including the dialogs this control opens) untagged. */
   agentHandle?: string;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
 /** The inline popover behind the "Embed" trigger: the four-choice menu (Media/Form/Menu/Widget…),
@@ -196,9 +197,10 @@ function WidgetShortcutPicker(props: {
  * {@link WidgetShortcutPicker} instances as THEIR dialogs' own base. Omit `agentHandle` and none of
  * this control's own elements, or any dialog it opens, are tagged.
  */
-export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHandle: base, ...props }: EmbedInsertControlProps) {
+export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHandle: base,
+  useAdminLocaleHook = useAdminLocale, ...props }: EmbedInsertControlProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const locale = useAdminLocale();
+  const locale = useAdminLocaleHook();
   const t = createEmbedInsertControlTranslator({ locale });
   const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, galleryControl, insertWidget } =
     useEmbed({ editor: props.editor });
@@ -257,19 +259,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
         />
       ) : null}
 
-      {mediaPicking ? (
-        <MediaPickerDialog
-          onSelect={(item) => {
-            // 2026-09-11: inserts the generic `media` node (`insertMediaEmbed`), not the legacy
-            // `image`-only ref (`insertMediaRef`) — see `lib/media-embed-extension.tsx`'s own file
-            // header. A picked video asset now actually plays once saved.
-            editor.commands.insertMediaEmbed({ assetId: item.id, transformName: "public", alt: item.alt || item.title });
-            setMediaPicking(false);
-          }}
-          onCancel={() => setMediaPicking(false)}
-          agentHandle={base ? `${base}-media-dialog` : undefined}
-        />
-      ) : null}
+      <EmbedMediaPicker open={mediaPicking} editor={editor} base={base} onClose={() => setMediaPicking(false)} />
 
       <WidgetShortcutPicker
         pickerType={formControl.pickerType}
@@ -290,4 +280,22 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
       />
     </span>
   );
+}
+
+function EmbedMediaPicker({ open, editor, base, onClose }: {
+  open: boolean; editor: NonNullable<EmbedInsertControlProps['editor']>; base: string | undefined; onClose: () => void;
+}) {
+  return (open ? (
+        <MediaPickerDialog
+          onSelect={(item) => {
+            // 2026-09-11: inserts the generic `media` node (`insertMediaEmbed`), not the legacy
+            // `image`-only ref (`insertMediaRef`) — see `lib/media-embed-extension.tsx`'s own file
+            // header. A picked video asset now actually plays once saved.
+            editor.commands.insertMediaEmbed({ assetId: item.id, transformName: "public", alt: item.alt || item.title });
+            onClose();
+          }}
+          onCancel={() => onClose()}
+          agentHandle={base ? `${base}-media-dialog` : undefined}
+        />
+      ) : null);
 }

@@ -19,6 +19,8 @@ export function Toolbar({
   currentPostId,
   urlDialog,
   t,
+  useEditorStateHook = useEditorState,
+  useToolbarOverflowHook = useToolbarOverflow,
 }: {
   editor: Editor;
   /** Mention feature (2026-08-11) — every other post/page this workspace has, unfiltered (this
@@ -28,13 +30,15 @@ export function Toolbar({
   currentPostId: string;
   urlDialog: PostUrlDialogController;
   t: Translate;
+  useEditorStateHook?: typeof useEditorState;
+  useToolbarOverflowHook?: typeof useToolbarOverflow;
 }) {
-  const s = useEditorState({
+  const s = useEditorStateHook({
     editor,
     selector: ({ editor }) => probeToolbar({ editor }),
   });
 
-  const overflow = useToolbarOverflow();
+  const overflow = useToolbarOverflowHook();
 
   return (
     <div ref={overflow.toolbarRef} className="editor-toolbar" role="toolbar" aria-label={t("Formatting")} data-more-open={overflow.open}>

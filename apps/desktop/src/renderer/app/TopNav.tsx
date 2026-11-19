@@ -26,7 +26,7 @@ export function TopNav({
   onThemeChange,
   onOpenAppearance,
   onSelectSection,
-  useSiteSettings,
+  useSiteSettings, useAppVersionHook = useAppVersion,
 }: {
   activeId: RunnerSectionId;
   onSitesHome: boolean;
@@ -35,9 +35,9 @@ export function TopNav({
   onThemeChange: (next: ThemePreference) => void;
   onOpenAppearance: () => void;
   onSelectSection: (id: RunnerSectionId) => void;
-  useSiteSettings?: typeof useSiteStorageSettings;
+  useSiteSettings?: typeof useSiteStorageSettings; useAppVersionHook?: typeof useAppVersion;
 }) {
-  const { version, error } = useAppVersion({});
+  const { version, error } = useAppVersionHook({});
   return (
     <nav className="topnav" aria-label="Tovu sections">
       <span className="topnav__brand" title={error ?? undefined}>

@@ -21,7 +21,7 @@ interface WorkspaceChatPaneComponents {
 export function WorkspaceChatPane({
   onClose,
   ports,
-  components: { ConversationList: Conversations = ConversationList, ChatPane: Chat = ChatPane } = {},
+  components: { ConversationList: Conversations = ConversationList, ChatPane: Chat = ChatPane } = {}, useWorkspaceChatPaneHook = useWorkspaceChatPane,
 }: {
   onClose: () => void;
   /** `useWorkspaceChatPane`'s hook ports, passed straight through; production passes none. */
@@ -31,7 +31,7 @@ export function WorkspaceChatPane({
    * because a linked `@jini-ai/chat` resolves its own copy of React outside a bundler, and because
    * what this pane owns is the props it hands them — the components themselves are tested in Jini.
    */
-  components?: WorkspaceChatPaneComponents;
+  components?: WorkspaceChatPaneComponents; useWorkspaceChatPaneHook?: typeof useWorkspaceChatPane;
 }) {
   // Everything this pane holds and every handler it wires, including the capture-phase folder drop
   // (`captureFolderDrop`) and `WORKSPACE_RUN_CONTEXT`. See `use-workspace-chat-pane.hooks.ts`.
@@ -48,7 +48,7 @@ export function WorkspaceChatPane({
     setWorkingDirectory,
     composerHandle,
     onDropCapture,
-  } = useWorkspaceChatPane({}, ports);
+  } = useWorkspaceChatPaneHook({}, ports);
 
   return (
     <aside className="runner-chat-pane" aria-label="Runner chat" onDropCapture={onDropCapture}>

@@ -53,13 +53,13 @@ export interface SiteKeyTabProps {
   useSiteKeyRecoveryHook?: typeof useWiredSiteKeyRecovery;
 }
 
-function resolveSiteKeyHook({ override }: { override: typeof useWiredSiteKey | undefined }, _optional: Record<string, never> = {}): typeof useWiredSiteKey {
-  return override ?? useWiredSiteKey;
-}
 
-export function SiteKeyTab(props: SiteKeyTabProps) {
-  const useSiteKeyHook = resolveSiteKeyHook({ override: props.useSiteKeyHook });
-  const useRecoveryHook = props.useSiteKeyRecoveryHook ?? useWiredSiteKeyRecovery;
+
+export function SiteKeyTab({
+  useSiteKeyHook = useWiredSiteKey,
+  useSiteKeyRecoveryHook: useRecoveryHook = useWiredSiteKeyRecovery, ...props }: SiteKeyTabProps) {
+
+
   const controller = useSiteKeyHook();
   const recovery = useRecoveryHook({ onRecovered: controller.refresh });
   return (
@@ -223,8 +223,10 @@ function SiteKeyRevealAction({ controller }: { controller: SiteKeyController }) 
 /** The revealed value itself, plus Copy/Hide — the ONLY place in this tab that ever renders a key
  *  VALUE rather than a fingerprint. The value is `data-agent-private`, so no published ancestor's
  *  text carries it to the agent, and neither it nor Copy has a handle. @complexity O(1). */
-function SiteKeyRevealedValue({ hex, onHide, t: translate }: { hex: string; onHide: () => void; t: Translate }) {
-  const { copied, copy } = useRevealedKeyCopy({ hex });
+function SiteKeyRevealedValue({ hex, onHide, t: translate,
+  useRevealedKeyCopyHook = useRevealedKeyCopy }: { hex: string; onHide: () => void; t: Translate;
+  useRevealedKeyCopyHook?: typeof useRevealedKeyCopy; }) {
+  const { copied, copy } = useRevealedKeyCopyHook({ hex });
   return (
     <div className="site-key-revealed-value" {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>
       <code {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>{hex}</code>
@@ -275,8 +277,10 @@ function siteKeyGenerateFailureText({ failure, translate, locale }: { failure: S
   return failure.kind === "generic" ? siteKeyGenerateErrorMessage({ locale, error: failure.detail }) : failure.detail;
 }
 
-function SiteKeyGenerateErrorNote({ failure, t: translate }: { failure: SiteKeyGenerateFailure; t: Translate }) {
-  const locale = useAdminLocale();
+function SiteKeyGenerateErrorNote({ failure, t: translate,
+  useAdminLocaleHook = useAdminLocale }: { failure: SiteKeyGenerateFailure; t: Translate;
+  useAdminLocaleHook?: typeof useAdminLocale; }) {
+  const locale = useAdminLocaleHook();
   const text = siteKeyGenerateFailureText({ failure, translate, locale });
   return (
     <p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-generate-error" }, { role: "status", label: "Shows the error when generating a site key file failed" })}>

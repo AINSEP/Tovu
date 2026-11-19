@@ -46,13 +46,14 @@ export interface OverflowAwareMcpUiSurfaceCardProps extends McpUiSurfaceCardProp
    *  off without depending on `ResizeObserver`/real layout. Defaults to the real
    *  {@link useOverflowDetection}. */
   useOverflowDetectionHook?: typeof useOverflowDetection;
+  useTHook?: typeof useT;
 }
 
 export function OverflowAwareMcpUiSurfaceCard({
   useOverflowDetectionHook = useOverflowDetection,
-  ...surfaceProps
+  useTHook = useT, ...surfaceProps
 }: OverflowAwareMcpUiSurfaceCardProps) {
-  const t = useT();
+  const t = useTHook();
   const [expanded, setExpanded] = useState(false);
   const { containerRef, isOverflowing } = useOverflowDetectionHook<HTMLDivElement>();
 

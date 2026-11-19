@@ -2,13 +2,6 @@
   "version": 1,
   "violations": [
     {
-      "file": "apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx",
-      "function": "EmbedInsertControl#1",
-      "line": 198,
-      "rule": "max-lines-per-function",
-      "value": 85
-    },
-    {
       "file": "apps/admin/src/features/ai-assistant/AiAssistant.tsx",
       "function": "<file>",
       "line": 898,
@@ -268,13 +261,6 @@
       "value": 563
     },
     {
-      "file": "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx",
-      "function": "ExternalMcpSettingsPanel#1",
-      "line": 488,
-      "rule": "max-lines-per-function",
-      "value": 84
-    },
-    {
       "file": "apps/admin/src/features/settings/SettingsUi.tsx",
       "function": "SettingsUi#1",
       "line": 289,
@@ -399,13 +385,6 @@
       "line": 904,
       "rule": "max-lines",
       "value": 665
-    },
-    {
-      "file": "apps/desktop/src/renderer/App.tsx",
-      "function": "App#1",
-      "line": 92,
-      "rule": "max-lines-per-function",
-      "value": 168
     },
     {
       "file": "apps/desktop/src/renderer/SiteGrid.tsx",

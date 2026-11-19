@@ -146,7 +146,7 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
 }
 
 /** Existing callers keep their CMS callbacks; the mounted admin supplies Jini's promise service. */
-export function MediaPickerDialog({ useJiniMediaPickerHook = useJiniMediaPicker, ...props }: MediaPickerDialogProps, _optional: Record<string, never> = {}) {
+export function MediaPickerDialog({ useJiniMediaPickerHook = useJiniMediaPicker, ...props }: MediaPickerDialogProps) {
   const vm = useJiniMediaPickerHook(props);
   return vm.enabled ? <>{vm.error && <div role="alert"><ErrorNotice failure={vm.error} /><button type="button" onClick={vm.onCancel}>Cancel</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
 }

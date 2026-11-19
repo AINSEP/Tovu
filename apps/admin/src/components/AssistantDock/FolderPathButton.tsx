@@ -10,10 +10,12 @@ import { RemixIcon } from "@jini-ai/ui";
 export interface FolderPathButtonProps {
   readonly picking: boolean;
   readonly onPick: () => void;
+  useTHook?: typeof useT;
 }
 
-export function FolderPathButton({ picking, onPick }: FolderPathButtonProps) {
-  const t = useT();
+export function FolderPathButton({ picking, onPick,
+  useTHook = useT }: FolderPathButtonProps) {
+  const t = useTHook();
   const label = t("Choose a folder");
   return (
     <button type="button" className="jini-composer-attach tovu-composer-folder-path" onClick={onPick} disabled={picking}

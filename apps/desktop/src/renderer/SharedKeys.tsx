@@ -26,11 +26,13 @@ export function SharedKeysLauncher(_input = {}, _options = {}) {
  * @complexity O(e) metadata rows; no secret values are loaded from storage.
  * @example <SharedKeys onClose={close} bridge={bridge} />
  */
-export function SharedKeys({ onClose, bridge = ownerStoreBridge({}) }: {
+export function SharedKeys({ onClose, bridge = ownerStoreBridge({}),
+  useSharedKeysHook = useSharedKeys }: {
   onClose: () => void; bridge?: OwnerStoreBridge;
+  useSharedKeysHook?: typeof useSharedKeys;
 }, _options = {}) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const state = useSharedKeys({ bridge });
+  const state = useSharedKeysHook({ bridge });
   useEffect(() => {
     const node = dialog.current;
     if (!node) throw new Error('shared keys dialog is missing when opened');

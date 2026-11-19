@@ -260,8 +260,10 @@ function NoAccess(props: { locale: string }) {
  * effect lives in `App.hooks.ts`'s `useDefaultSectionRedirect`, so this component carries no logic
  * of its own.
  */
-function UnavailableSectionRedirect() {
-  useDefaultSectionRedirect();
+function UnavailableSectionRedirect({
+  useDefaultSectionRedirectHook = useDefaultSectionRedirect }: {
+  useDefaultSectionRedirectHook?: typeof useDefaultSectionRedirect; } = {}) {
+  useDefaultSectionRedirectHook();
   return null;
 }
 
@@ -276,8 +278,10 @@ function UnavailableSectionRedirect() {
  * rail-mode tooltip behavior every nav item gets — it must be called from inside a `<Sidebar>`,
  * which is why this is a separate component rather than inline JSX in `App`.
  */
-function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
-  const { railTooltipProps } = useSidebar();
+function SidebarLogoutButton({
+  useSidebarHook = useSidebar, ...props }: { onLogout: () => void; locale: string;
+  useSidebarHook?: typeof useSidebar; }) {
+  const { railTooltipProps } = useSidebarHook();
   const logOutLabel = translateAdminNavLabel({ locale: props.locale, key: "Log out" });
   return (
     <button className="cms-logout" onClick={props.onLogout} {...railTooltipProps(logOutLabel)}>
@@ -289,8 +293,10 @@ function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
   );
 }
 
-function SidebarLabelTooltips() {
-  useCmsSidebarLabelTooltips({});
+function SidebarLabelTooltips({
+  useCmsSidebarLabelTooltipsHook = useCmsSidebarLabelTooltips }: {
+  useCmsSidebarLabelTooltipsHook?: typeof useCmsSidebarLabelTooltips; } = {}) {
+  useCmsSidebarLabelTooltipsHook({});
   return null;
 }
 
@@ -299,9 +305,13 @@ function SidebarLabelTooltips() {
  * separate component for the same reason as `SidebarLogoutButton`: `useSidebar()` only works
  * inside `<Sidebar>`.
  */
-function SidebarEmptyClickToggle() {
-  const { toggleRail } = useSidebar();
-  useSidebarEmptyClickToggle({ toggleRail });
+function SidebarEmptyClickToggle({
+  useSidebarHook = useSidebar,
+  useSidebarEmptyClickToggleHook = useSidebarEmptyClickToggle }: {
+  useSidebarHook?: typeof useSidebar;
+  useSidebarEmptyClickToggleHook?: typeof useSidebarEmptyClickToggle; } = {}) {
+  const { toggleRail } = useSidebarHook();
+  useSidebarEmptyClickToggleHook({ toggleRail });
   return null;
 }
 
@@ -358,7 +368,8 @@ function LogoutConfirmDialog(props: { logoutConfirm: UseLogoutConfirm; locale: s
  * JSX — kept out of this component's own body for the same reason it was never inline JSX-prop
  * ternaries here.
  */
-function AssistantChrome(props: {
+function AssistantChrome({
+  useAdminThemeBoundaryHook = useAdminThemeBoundary, ...props }: {
   /** `TOVU_ADMIN_ASSISTANT=off` (`useAdminAssistantAvailability`'s own doc): the chat surface
    *  itself, not rendered at all in that state — every endpoint it calls 404s off, so mounting it
    *  anyway would show a permanently broken dock instead of nothing. Distinct from the
@@ -376,8 +387,9 @@ function AssistantChrome(props: {
   locale: string;
   /** Settings → User Interface, via `useInterfacePreferences` (`resolveChatFabClearance` reads it). */
   hideFabWhileOpen: boolean;
+  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
 }): ReactNode {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
   if (!props.enabled) return null;
 
   const { dock, agentBridge, principalId, dockT, locale } = props;
@@ -443,9 +455,7 @@ export interface AppProps {
  * a function's OWN body as one of that function's own branches — a call out to a separately-scoped
  * resolver does not.
  */
-function resolveSessionHook({ override }: { override: typeof useAdminSession | undefined }, _options: Record<string, never> = {}): typeof useAdminSession {
-  return override ?? useAdminSession;
-}
+
 function resolveDrawerHook({ override }: { override: typeof useSidebarDrawer | undefined }, _options: Record<string, never> = {}): typeof useSidebarDrawer {
   return override ?? useSidebarDrawer;
 }
@@ -461,14 +471,15 @@ function resolveAgentBridgeHook({ override }: { override: typeof useAgentPageBri
 }
 
 /** Keep the session owner mounted while every reader observes the same boot/identity boundary. */
-export function App(props: AppProps) {
+export function App({
+  useSession = useAdminSession, ...props }: AppProps) {
   // No `AppProps = {}` default on the parameter itself (2026-08-14 — the sixth branch this file's
   // debt-list note flagged as untried): every real call site is JSX (`<App />`), and JSX's own
   // `createElement`/`jsx` runtime always constructs an actual props object — `{}` when no
   // attributes are given, never `undefined` — so `App` is never invoked with zero arguments the way
   // a plain function call could be. `AppProps`' five fields are all optional, so `{}` satisfies the
   // type and this compiles the same as before for every existing call site.
-  const useSession = resolveSessionHook({ override: props.useSession });
+
   const session = useSession();
   return <AdminBootScopeContext.Provider value={{ principalId: session.user?.id ?? null, checking: session.checking }}>
     <AdminShell {...props} session={session} />
@@ -653,7 +664,19 @@ function AdminSidebar(props: {
   );
 }
 
-function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSession> }) {
+function AdminShell({
+  useShellAvailabilityHook = useShellAvailability,
+  useShellRouteHook = useShellRoute,
+  useShellDockChromeHook = useShellDockChrome,
+  useShellContentHook = useShellContent,
+  useShellLocaleHook = useShellLocale,
+  useCollapsibleNavGroupLabelsHook = useCollapsibleNavGroupLabels, ...props }: (AppProps & { session: ReturnType<typeof useAdminSession> }) & {
+  useShellAvailabilityHook?: typeof useShellAvailability;
+  useShellRouteHook?: typeof useShellRoute;
+  useShellDockChromeHook?: typeof useShellDockChrome;
+  useShellContentHook?: typeof useShellContent;
+  useShellLocaleHook?: typeof useShellLocale;
+  useCollapsibleNavGroupLabelsHook?: typeof useCollapsibleNavGroupLabels; }) {
   const useDrawer = resolveDrawerHook({ override: props.useDrawer });
   const useLinkInterceptor = resolveLinkInterceptorHook({ override: props.useLinkInterceptor });
   const useChatDock = resolveChatDockHook({ override: props.useChatDock });
@@ -662,16 +685,16 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   // `effectivePermissions` stays `undefined` until known — the nav filter and route gate below read
   // that as "show everything"; `AdminModulesProvider` gets `[]` for it, as before.
   const { user, checking, handleLogin, logout, effectivePermissions } = props.session;
-  const { logoutConfirm, adminAssistantEnabled, siteSection, sidebarSiteSection } = useShellAvailability({ user, logout });
-  const { routePath, route } = useShellRoute({ user, checking });
-  const { sidebarOpen, setSidebarOpen, dock, dockRail } = useShellDockChrome({ routePath, useDrawer, useLinkInterceptor, useChatDock });
-  const shellContent = useShellContent({ useAgentBridge });
-  const { navLocale, interfacePreferences } = useShellLocale();
+  const { logoutConfirm, adminAssistantEnabled, siteSection, sidebarSiteSection } = useShellAvailabilityHook({ user, logout });
+  const { routePath, route } = useShellRouteHook({ user, checking });
+  const { sidebarOpen, setSidebarOpen, dock, dockRail } = useShellDockChromeHook({ routePath, useDrawer, useLinkInterceptor, useChatDock });
+  const shellContent = useShellContentHook({ useAgentBridge });
+  const { navLocale, interfacePreferences } = useShellLocaleHook();
   const { navGroups, navSoonLabel } = buildShellNav({ sidebarSiteSection, effectivePermissions, navLocale });
   const { dockT, dashboardT } = createAdminShellTranslators({ locale: navLocale, translateDashboard });
 
   // See `useCollapsibleNavGroupLabels`'s own doc for which groups collapse and why.
-  const collapsibleGroups = useCollapsibleNavGroupLabels(navGroups);
+  const collapsibleGroups = useCollapsibleNavGroupLabelsHook(navGroups);
 
   if (checking) return <div className="boot-screen">{tApp({ locale: navLocale, key: "Loading Tovu…" })}</div>;
   if (!user) return <Login onLogin={handleLogin} />;
@@ -688,9 +711,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
     // `COMMON_I18N` (`lib/i18n-common.ts`, `"Cancel"` already covers all 21 locales) since
     // `app-i18n.ts`'s own `APP_DICT` defines no `"Cancel"` key of its own — see
     // `createDictionaryTranslator`'s doc comment in `Jini packages/ui/src/features/i18n/dictionary-translator.ts`.
-    <AdminModulesProvider permissions={effectivePermissions ?? NO_PERMISSIONS}>
-    <ChartRegistryProvider key={user.id} principalId={user.id}>
-    <ConfirmDialogDefaultsProvider cancelLabel={tApp({ locale: navLocale, key: "Cancel" })}>
+    <AdminShellProviders permissions={effectivePermissions} principalId={user.id} locale={navLocale}>
       <div className={resolveAdminLayoutClassName(interfacePreferences)}>
         <ShellSkipLink locale={navLocale} />
         <AdminSidebar activeId={currentPanelId(route)} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} dockRail={dockRail}
@@ -700,7 +721,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
             behavior above 900px, so this has nothing to sit behind there either — conditionally
             rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole
             page, intercepting clicks, whenever the drawer is closed). */}
-        {sidebarOpen ? <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} /> : null}
+        <SidebarBackdrop open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <ShellMain sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} navLocale={navLocale} agentPage={agentPageId(route)}
           setContentEl={shellContent.setContentEl} contentEl={shellContent.contentEl} content={content} />
         {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
@@ -709,8 +730,18 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
           dockT={dockT} locale={navLocale} hideFabWhileOpen={interfacePreferences.hideChatFabWhileOpen} />
         <ShellOverlays screenshot={shellContent.screenshot} openPublishRequest={shellContent.openPublishRequest} dockT={dockT} dashboardT={dashboardT} />
       </div>
-    </ConfirmDialogDefaultsProvider>
-    </ChartRegistryProvider>
-    </AdminModulesProvider>
+    </AdminShellProviders>
   );
+}
+
+function AdminShellProviders({ permissions, principalId, locale, children }: { permissions: readonly string[] | undefined; principalId: string; locale: string; children: ReactNode }) {
+  return <AdminModulesProvider permissions={permissions ?? NO_PERMISSIONS}>
+    <ChartRegistryProvider key={principalId} principalId={principalId}>
+      <ConfirmDialogDefaultsProvider cancelLabel={tApp({ locale, key: "Cancel" })}>{children}</ConfirmDialogDefaultsProvider>
+    </ChartRegistryProvider>
+  </AdminModulesProvider>;
+}
+
+function SidebarBackdrop({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return open ? <div className="sidebar-backdrop" onClick={onClose} /> : null;
 }

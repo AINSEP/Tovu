@@ -23,6 +23,8 @@ export function SiteStartPanel({
   onStarted,
   onSiteUpdated,
   wakeOnOpen = false,
+  useSiteStartHook = useSiteStart,
+  useWakeOnOpenHook = useWakeOnOpen,
 }: {
   project: SiteRecord;
   body?: string;
@@ -34,13 +36,15 @@ export function SiteStartPanel({
   onSiteUpdated?: (record: SiteRecord) => void;
   /** Only the visible workspace wakes automatically; hidden tabs still report presence. */
   wakeOnOpen?: boolean;
+  useSiteStartHook?: typeof useSiteStart;
+  useWakeOnOpenHook?: typeof useWakeOnOpen;
 }) {
-  const { starting: ownStart, error, start } = useSiteStart({ project }, { onSiteUpdated });
+  const { starting: ownStart, error, start } = useSiteStartHook({ project }, { onSiteUpdated });
   // Also true while another path (an import's own start) has the site booting.
   const starting = ownStart || project.status === 'starting';
 
   const handleStart = startThenNotify({ start, onStarted });
-  useWakeOnOpen({ status: project.status, wakeOnOpen, handleStart });
+  useWakeOnOpenHook({ status: project.status, wakeOnOpen, handleStart });
 
   return (
     <div className="workspace__idle">

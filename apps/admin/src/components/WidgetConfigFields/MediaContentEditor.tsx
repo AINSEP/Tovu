@@ -94,8 +94,10 @@ export function MediaContentEditor({ widgetType, config, onChange, t = (key) => 
   );
 }
 
-function EditorTabs({ vm, t, base, panelId }: { vm: MediaContentEditorController; t: Translate; base: string | undefined; panelId: string }) {
-  const { onKeyDown } = useTabBarKeyboard({ tabs: TABS, activeId: vm.mode, onChange: (id) => vm.setMode({ mode: id as MediaContentMode }) });
+function EditorTabs({ vm, t, base, panelId,
+  useTabBarKeyboardHook = useTabBarKeyboard }: { vm: MediaContentEditorController; t: Translate; base: string | undefined; panelId: string;
+  useTabBarKeyboardHook?: typeof useTabBarKeyboard; }) {
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs: TABS, activeId: vm.mode, onChange: (id) => vm.setMode({ mode: id as MediaContentMode }) });
   return (
     <div className="media-content-editor__tabs">
       <div className="segmented" role="tablist" aria-label={t("Widget content")} onKeyDown={onKeyDown}>

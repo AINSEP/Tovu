@@ -14,8 +14,10 @@ const { min: MIN, max: MAX } = LIVE_SITE_VIEWS;
  * the field itself because a tapped text field is `:focus-visible`, which is what Jini's
  * TooltipLayer needs to show a tip after a touch (a tapped button is not).
  */
-export function LoadedSitesStepper({ setting, labelledBy }: { setting: LoadedSitesSetting; labelledBy: string }) {
-  const { draft, setDraft, value, save, onChange, onKeyDown } = useLoadedSitesStepper({ setting });
+export function LoadedSitesStepper({ setting, labelledBy,
+  useLoadedSitesStepperHook = useLoadedSitesStepper }: { setting: LoadedSitesSetting; labelledBy: string;
+  useLoadedSitesStepperHook?: typeof useLoadedSitesStepper; }) {
+  const { draft, setDraft, value, save, onChange, onKeyDown } = useLoadedSitesStepperHook({ setting });
   const tipId = `${labelledBy}-tip`;
   return (
     <div className="stepper jini-tooltip" role="group" aria-labelledby={labelledBy} data-tooltip={LOADED_SITES_TIP} data-tooltip-placement="bottom">

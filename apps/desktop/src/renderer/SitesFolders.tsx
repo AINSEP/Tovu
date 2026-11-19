@@ -10,25 +10,27 @@ import { reportShellTelemetry } from './product-telemetry.js';
 import { ToolIcon } from './tool-icons.js';
 
 /** Jini supplies dialog lifecycle/accessibility; hooks own all state and preload effects. */
-export function SitesFolders({ useSettings = useSiteFolders, Shell }: {
+export function SitesFolders({ useSettings = useSiteFolders, Shell,
+  useSiteStorageSettingsHook = useSiteStorageSettings }: {
   useSettings?: typeof useSiteFolders;
   /** See {@link SitesFoldersDialog}'s `Shell`. */
   Shell?: typeof SettingsDialogShell;
+  useSiteStorageSettingsHook?: typeof useSiteStorageSettings;
 } = {}) {
-  const settings = useSiteStorageSettings({}, { useFolders: useSettings });
+  const settings = useSiteStorageSettingsHook({}, { useFolders: useSettings });
   return <SitesFoldersDialog settings={settings} Shell={Shell} />;
 }
 
 /** Kept outside the dropdown: closing its menu never unmounts a draft or a dialog.
  * `jini-tooltip` tips render through the TooltipLayer in main.tsx. */
-export function SitesFoldersDialog({ settings, showTrigger, Shell = SettingsDialogShell }: {
+export function SitesFoldersDialog({ settings, showTrigger, Shell = SettingsDialogShell, useSitesFoldersDialogHook = useSitesFoldersDialog }: {
   settings: ReturnType<typeof useSiteStorageSettings>;
   showTrigger?: boolean;
   /** The dialog frame; defaults to Jini's `SettingsDialogShell`. Injectable because a linked Jini
    *  tree brings its own React copy, whose hooks cannot run inside this app's test renderer. */
-  Shell?: typeof SettingsDialogShell;
+  Shell?: typeof SettingsDialogShell; useSitesFoldersDialogHook?: typeof useSitesFoldersDialog;
 }) {
-  const view = useSitesFoldersDialog({ settings }, { showTrigger });
+  const view = useSitesFoldersDialogHook({ settings }, { showTrigger });
   const warning = <SitesFoldersWarning settings={settings} view={view} />;
   return <>
     {view.showTrigger && <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"
@@ -95,7 +97,7 @@ export function SitesFoldersDialog({ settings, showTrigger, Shell = SettingsDial
             {view.showAppDataNote && <p className="sites-settings__note">App-data databases live outside the site folder. Copy them too when you move a site.</p>}
           </div>
 
-          {settings.error && <p role="alert" className="sites-settings__error">{settings.error}</p>}
+          <SitesFoldersError error={settings.error} />
           <footer className="sites-settings__footer">
             {settings.folders.configPath && <span className="sites-settings__saved jini-tooltip" data-tooltip={settings.folders.configPath}>Saved in {settings.folders.configPath}</span>}
             <div className="sites-settings__footer-actions">
@@ -120,4 +122,8 @@ function SitesFoldersWarning({ settings, view }: {
     </div>
     {settings.warningError && <p className="sites-settings__error">{settings.warningError}</p>}
   </div>;
+}
+
+function SitesFoldersError({ error }: { error: ReturnType<typeof useSiteStorageSettings>['error'] }) {
+  return error && <p role="alert" className="sites-settings__error">{error}</p>;
 }

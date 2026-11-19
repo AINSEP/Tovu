@@ -84,6 +84,7 @@ export interface TemplateSourceModalProps {
    *  {@link useWiredTemplateSource}; a test can pass a fake here to exercise the modal's rendering
    *  without a real `fetch`. */
   readonly useTemplateSourceHook?: typeof useWiredTemplateSource;
+  useCodeWrapHook?: typeof useCodeWrap;
 }
 
 export function TemplateSourceModal({
@@ -95,11 +96,11 @@ export function TemplateSourceModal({
   confirmLeave,
   t,
   editAgentHandleId,
-  useTemplateSourceHook = useWiredTemplateSource,
+  useTemplateSourceHook = useWiredTemplateSource, useCodeWrapHook = useCodeWrap,
 }: TemplateSourceModalProps) {
   const fetchState = useTemplateSourceHook({ themeId, themeTier, themeApiVersion, templateFilename });
   // Wrap on by default, same toggle as the plugin files viewer (owner, 2026-10-10).
-  const { wrap, toggleWrap } = useCodeWrap();
+  const { wrap, toggleWrap } = useCodeWrapHook();
 
   const goToTemplateInEditor = createGoToTemplateInEditor({ themeId, templateFilename, confirmLeave, onClose });
 
