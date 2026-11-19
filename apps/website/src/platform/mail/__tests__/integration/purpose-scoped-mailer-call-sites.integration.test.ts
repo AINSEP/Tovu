@@ -56,7 +56,7 @@ test("AC-16 (pre-fix collision, historical regression guard): both call sites mu
 test("AC-17: members' sign-in-link send resolves to the interactive lane", () => {
   assert.ok(
     /lane:\s*["']interactive["']/.test(MEMBERS_WRITE_SERVICE),
-    "members/write-service.ts's mailer send must tag its send options with lane: \"interactive\" (or the Programmer-chosen equivalent discriminating field/value — update this test's regex to match if the exact field/value name differs from the Implementation Outline's placeholder)"
+    "members/member-challenge-request.ts's mailer send must tag its send options with lane: \"interactive\" (or the Programmer-chosen equivalent discriminating field/value — update this test's regex to match if the exact field/value name differs from the Implementation Outline's placeholder)"
   );
 });
 
