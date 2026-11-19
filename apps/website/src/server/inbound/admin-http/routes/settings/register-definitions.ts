@@ -1,3 +1,4 @@
+import type { SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import {
   NON_REGISTER_DEFINITION_OPS,
@@ -16,7 +17,7 @@ import {
   registerDefinitions,
 } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { toWriteServiceDeps, type SettingsErrorMapping, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { toWriteServiceDeps, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const REGISTER_DEFINITIONS_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
   { matches: (e) => e instanceof SecretNotSupportedError, status: 400, code: "SECRET_NOT_SUPPORTED" },
