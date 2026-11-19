@@ -12,7 +12,8 @@ import {
   isNoopObservabilityPort,
   type ObservabilityPort,
 } from "@jini-ai/core/contracts/observability";
-import { createSiteRouteDeps, type CreateSiteRouteDepsOverrides } from "#src/server/runtime/composition/deps";
+import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
+import type { CreateSiteRouteDepsOverrides } from "#src/server/runtime/composition/site-deps/overrides";
 
 /**
  * @file The real composition root (`deps.ts`) decorates its storage kernels with the observability

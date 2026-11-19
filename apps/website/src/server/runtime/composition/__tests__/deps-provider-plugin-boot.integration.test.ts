@@ -12,7 +12,8 @@ import { isNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
 import { openProjectStore, projectIdFor } from "#src/server/runtime/composition/project-store";
-import { createSiteRouteDeps, siteIdentityFor } from "#src/server/runtime/composition/deps";
+import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
+import { siteIdentityFor } from "#src/server/runtime/composition/site-deps/provider-identity";
 import { ProviderStoreUnavailableError } from "#src/server/runtime/composition/provider-config-source";
 import { processBuildRelease } from '../build-release.js';
 

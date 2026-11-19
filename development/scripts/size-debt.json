@@ -625,13 +625,6 @@
       "value": 1926
     },
     {
-      "file": "apps/website/src/server/runtime/composition/deps.ts",
-      "function": "composeSiteRouteDeps#1",
-      "line": 1049,
-      "rule": "max-lines-per-function",
-      "value": 1199
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
       "function": "createAssistantByokModule#1",
       "line": 514,

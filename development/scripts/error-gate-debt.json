@@ -2245,11 +2245,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/runtime/composition/deps.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/server/runtime/composition/domain-dns-adapters.ts",
     "rule": "catch-reads-error",
     "value": 4
@@ -2398,6 +2393,16 @@
     "file": "apps/website/src/server/runtime/composition/site-cookie-consent.ts",
     "rule": "catch-reads-error",
     "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/site-deps/identity-settings.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/site-deps/route-deps-site-providers.ts",
+    "rule": "catch-reads-error",
+    "value": 1
   },
   {
     "file": "apps/website/src/server/runtime/composition/site-key-recovery.ts",

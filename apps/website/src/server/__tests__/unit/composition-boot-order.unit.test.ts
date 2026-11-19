@@ -111,20 +111,21 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
 
 test("createSiteRouteDeps: storage choice, then hydration, then the store open (the recovering site opener), then the chat sweep", () => {
   const deps = readCode("server/runtime/composition/deps.ts");
+  const store = readCode("server/runtime/composition/site-deps/open-store.ts");
   const body = functionBody(deps, "export async function createSiteRouteDeps(");
   indexOfAnchor(body, "await openCompositionStore({ dbPath }, { overrides })");
 
-  const prelude = functionBody(deps, "async function openCompositionStore(");
+  const prelude = functionBody(store, "async function openCompositionStore(");
   // why: 20d451f6 (complexity <=10) moved the storage choice into prepareCompositionStorage(),
   // which still resolves it with resolveSiteStorage; `overrides` now defaults to `{}` (no `?.`).
-  assert.match(functionBody(deps, "function prepareCompositionStorage("), /const storage = resolveSiteStorage\(/);
+  assert.match(functionBody(store, "function prepareCompositionStorage("), /const storage = resolveSiteStorage\(/);
   const storage = indexOfAnchor(prelude, "const storage = prepareCompositionStorage({ dbPath, overrides })");
   const hydrate = indexOfAnchor(prelude, "hydrateContentDbIfNeeded({ dbPath, storage }, { overrides })");
   const open = indexOfAnchor(prelude, "await openSiteStore(");
   // why: 3bcc250d7 (complexity workarounds) moved the owner sweeps into startOwnerSweeps(), which the
   // prelude calls on the opened store; the chat sweep line now lives in that helper.
   const sweep = indexOfAnchor(prelude, "startOwnerSweeps({ role, opened }, { overrides })");
-  indexOfAnchor(functionBody(deps, "function startOwnerSweeps("), "startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep })");
+  indexOfAnchor(functionBody(store, "function startOwnerSweeps("), "startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep })");
   assert.ok(storage < hydrate, "the storage choice decides whether a SQLite seed is hydrated");
   assert.ok(hydrate < open, "a hydrated seed must be in place before the database is opened");
   assert.ok(open < sweep, "the sweep runs on the chat kernel the store opened");
@@ -150,12 +151,19 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   const release = indexOfAnchor(root, "await opened.release()");
   assert.ok(openStore < compose && compose < release, "the store opens first; a failed composition releases it");
   const body = functionBody(deps, "async function composeSiteRouteDeps(");
+  const phases = readCode("server/runtime/composition/site-deps/boot-phases.ts");
+  const storage = functionBody(phases, "export function composeStoragePhase(");
+  const services = functionBody(phases, "export function composeSiteServicesPhase(");
   const open = 0;
-  const kernel = indexOfAnchor(body, "const kernel = store.content");
+  const kernel = indexOfAnchor(body, "composeStoragePhase(");
+  indexOfAnchor(storage, "const kernel = store.content");
   const workspace = indexOfAnchor(body, "await resolveWorkspaceIdOverride(kernel, overrides)");
   const denyStore = indexOfAnchor(body, "await publishTrustRevocationStoreFor(kernel)");
-  const orphanCheck = indexOfAnchor(body, "await warnOnOrphanedChatRows(");
-  const firstBootPromise = indexOfAnchor(body, "preparePostSearchIndex(");
+  const orphanCheck = indexOfAnchor(body, "await warnCompositionChatOrphans(");
+  indexOfAnchor(functionBody(deps, "async function warnCompositionChatOrphans("), "await warnOnOrphanedChatRows(");
+  const firstBootPromise = indexOfAnchor(body, "composeSiteServicesPhase(");
+  indexOfAnchor(services, "composeStoreBasics(");
+  indexOfAnchor(readCode("server/runtime/composition/site-deps/store-basics.ts"), "preparePostSearchIndex(");
   assert.ok(open < kernel && kernel < workspace, "the workspace is read on the kernel of the opened store");
   assert.ok(workspace < denyStore, "the deny store is probed after the workspace resolves");
   assert.ok(denyStore < orphanCheck, "the orphaned-chat check runs after the deny store probe (chat.db opened with the store)");
@@ -173,9 +181,12 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
     "  const providerPlugins = await providerPluginBoot({ overrides })({",
     "  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });",
   ], "only the fenced vault normalization and the listed composition steps may await after boot promises start");
-  const keyring = indexOfAnchor(body, "const siteAssistantSecretKeyring = new EnvOrFileKeyring(");
+  const keyring = indexOfAnchor(body, "composeSiteServicesPhase(");
+  indexOfAnchor(services, "composeSiteKeysMembers(");
+  indexOfAnchor(functionBody(readCode("server/runtime/composition/site-deps/site-keys-members.ts"), "export function composeSiteKeysMembers("), "const siteAssistantSecretKeyring = new EnvOrFileKeyring(");
   const normalize = indexOfAnchor(body, "await normalizeSiteVaultAtBoot(");
-  const credentials = indexOfAnchor(body, "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo(");
+  const credentials = indexOfAnchor(body, "composeAssistantCredentials(");
+  indexOfAnchor(functionBody(readCode("server/runtime/composition/site-deps/assistant-credentials.ts"), "export function composeAssistantCredentials("), "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo(");
   assert.ok(keyring < normalize && normalize < credentials, "vault normalization must finish before credential consumers are constructed");
 });
 
@@ -185,5 +196,5 @@ test("createSiteRouteDeps body: every repo is built from the kernels; the engine
   const uses = [...body.matchAll(/(?<![.\w$])db(?![\w$:])/g)].map((match) => body.slice(body.lastIndexOf("\n", match.index) + 1, body.indexOf("\n", match.index)).trim());
   assert.deepEqual(uses, [], "a Postgres/PGlite store has no SQLite `db`: anything reading it breaks there");
   assert.equal([...body.matchAll(/sqliteDb/g)].length, 0, "the SQLite handle reaches only `store-bound-services.ts`");
-  assert.match(body, /const storeBound = storeBoundServicesFor\(\{ store, dbPath \}\);/);
+  assert.match(functionBody(readCode("server/runtime/composition/site-deps/media-storage.ts"), "export function composeMediaStorage("), /const storeBound = storeBoundServicesFor\(\{ store, dbPath \}\);/);
 });
