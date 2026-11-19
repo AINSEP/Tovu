@@ -25,7 +25,8 @@ import { sniffContentType } from "../media/index.js";
 import { fetchImage } from "../media-import/fetch-image.js";
 import { openFsFileForRead } from "../fs-files/fs-files.js";
 import { fileExtension } from "./file-identity-lock.js";
-import { MAX_THEME_FILE_BYTES, resolveThemeFilePath, ThemePathError, writeThemeBinaryFile } from "./theme-files.js";
+import { MAX_THEME_FILE_BYTES, resolveThemeFilePath, ThemePathError } from "./theme-files.js";
+import { writeThemeBinaryFile } from "./theme-file-writing.js";
 
 /** Largest file this tool imports: 10 MB — room for a CJK font or a hero image, a fifth of
  *  `theme_duplicate`'s whole-theme cap. */

@@ -9,7 +9,7 @@ import type { TrashKindMover } from "#src/features/trash/index";
 
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 import type { SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
-import { findTheme } from "./theme.js";
+import { findTheme } from "./theme-discovery.js";
 
 /**
  * @file `theme_trash` (owner-approved 2026-10-08) — moves a WHOLE theme to the Trash. Before it the

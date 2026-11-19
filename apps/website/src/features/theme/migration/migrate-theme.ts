@@ -3,7 +3,9 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, r
 import { dirname, join } from "node:path";
 
 import { rewriteThemeAssetPaths } from "../asset-path-rewrites.js";
-import { loadTheme, MIGRATION_STAGING_DIR_PREFIX, type ThemeTier } from "../theme.js";
+import { loadTheme } from "../theme.js";
+import { MIGRATION_STAGING_DIR_PREFIX } from "../theme-discovery.js";
+import { type ThemeTier } from "../render-contract.js";
 import { validateThemePackage, type ValidateThemePackageResult } from "../validation/validate-theme-package.js";
 import { planV2Migration, TOKENS_MODE_FILE_PATTERN, type ThemeMigrationPlan } from "./theme-migration-plan.js";
 

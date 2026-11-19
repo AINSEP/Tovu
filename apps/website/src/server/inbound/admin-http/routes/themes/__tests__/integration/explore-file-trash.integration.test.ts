@@ -8,7 +8,8 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 
 import { discoverAllBuiltInThemes, listThemeFiles } from "#src/features/theme/index";
-import { buildThemesRegistrations, type ThemeToolDeps } from "#src/features/theme/tool-registrations";
+import { buildThemesRegistrations } from "#src/features/theme/tool-registrations";
+import { type ThemeToolDeps } from "#src/features/theme/asset-operations";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import type { ContentRouteDeps } from "../../../content/deps.js";
 import { registerAdminThemeDetailRoute, registerAdminThemeFileDeleteRoute } from "../../explore.js";

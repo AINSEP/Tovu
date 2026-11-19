@@ -1,8 +1,10 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR, type ThemeTier } from "./theme.js";
-import { isGeneratedThemePath } from "./theme-files.js";
+import { discoverAllBuiltInThemes } from "./theme-discovery.js";
+import { THEME_CATALOG_DIR } from "./theme-layout.js";
+import { type ThemeTier } from "./render-contract.js";
+import { isGeneratedThemePath } from "./theme-file-policy.js";
 
 /**
  * @file Generate `__original-themes__` from the shipped themes it is meant to mirror, instead of

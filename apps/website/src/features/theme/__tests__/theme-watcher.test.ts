@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { discoverAllBuiltInThemes } from "../theme.js";
+import { discoverAllBuiltInThemes } from "../theme-discovery.js";
 import { createThemePreviewFeed, readThemePreviewRefresh, type ThemePreviewRefresh } from "../preview-refresh.js";
 import { startThemeWatcher, type ThemeWatchPort } from "../theme-watcher.js";
 

@@ -1,9 +1,9 @@
 import { lstatSync, readdirSync, realpathSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "../theme-files.js";
+import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "../theme-file-policy.js";
 import { TRASH_DIR_NAME } from "../theme-layout.js";
-import type { ThemeBuildInfo } from "../theme.js";
+import type { ThemeBuildInfo } from "../render-contract.js";
 import type { ThemeValidationIssue } from "./profiles.js";
 
 /**

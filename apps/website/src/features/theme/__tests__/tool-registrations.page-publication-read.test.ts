@@ -5,7 +5,8 @@ import path from "node:path";
 import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
-import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations.js";
+import { buildThemesRegistrations } from "../tool-registrations.js";
+import { type ThemeToolDeps } from "../asset-operations.js";
 import { loadTheme } from "../theme.js";
 
 test("theme publication card lists only candidates, reads fresh disk state and defaults unpublished", async t => {

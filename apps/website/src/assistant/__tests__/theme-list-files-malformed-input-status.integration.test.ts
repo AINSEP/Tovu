@@ -15,7 +15,8 @@ import { delegatedToolExecuteRoute, delegatedToolRoutes } from "@jini-ai/daemon/
 import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
-import { buildThemesRegistrations, type ThemeToolDeps } from "../../features/theme/tool-registrations.js";
+import { buildThemesRegistrations } from "../../features/theme/tool-registrations.js";
+import { type ThemeToolDeps } from "../../features/theme/asset-operations.js";
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 
 /**

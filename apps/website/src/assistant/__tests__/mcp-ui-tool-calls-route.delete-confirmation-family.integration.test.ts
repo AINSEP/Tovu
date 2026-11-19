@@ -31,7 +31,8 @@ import { buildWidgetsRegistrations, type WidgetsToolDeps } from "#src/features/w
 import { memoryWidgetTrash } from "#src/features/widgets/__tests__/support/memory-widget-trash";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
-import { buildThemesRegistrations, type ThemeToolDeps } from "#src/features/theme/tool-registrations";
+import { buildThemesRegistrations } from "#src/features/theme/tool-registrations";
+import { type ThemeToolDeps } from "#src/features/theme/asset-operations";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import {

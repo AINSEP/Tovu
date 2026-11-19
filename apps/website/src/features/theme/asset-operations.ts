@@ -1,16 +1,17 @@
 /** Shared theme file gates and live reload, independent of tool registration. */
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import { isGeneratedThemePath, listThemeFiles, renameThemeFile, resolveThemeFileWriteScope, ThemePathError } from "./theme-files.js";
+import { isGeneratedThemePath, resolveThemeFileWriteScope } from "./theme-file-policy.js";
+import { listThemeFiles } from "./theme-file-listing.js";
+import { renameThemeFile } from "./theme-file-moves.js";
+import { ThemePathError } from "./theme-files.js";
 import { isInsideCompiledSourceDir, isSourceDirWritableExtension, isTrashedThemePath, trashDestinationFor, validateFileIdentityChange } from "./file-identity-lock.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";
 import { requestThemePreviewRefresh } from "./preview-refresh.js";
 
 export { THEME_WRITE_PERMISSION } from "./agent-tools.js";
-export {
-  resolveThemeFilePath,
-  writeThemeBinaryFile,
-  nextAvailableFileName,
-} from "./theme-files.js";
+export { resolveThemeFilePath } from "./theme-files.js";
+export { writeThemeBinaryFile } from "./theme-file-writing.js";
+export { nextAvailableFileName } from "./theme-file-moves.js";
 export {
   sniffThemeImportType,
   THEME_IMPORT_MAX_BYTES,

@@ -5,7 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { runReviewedThemeFileWrite } from '../reviewed-write-commit.js';
-import { readThemeFileVersion, writeThemeFile } from '../theme-files.js';
+import { readThemeFileVersion } from "../theme-file-atomic-write.js";
+import { writeThemeFile } from "../theme-file-writing.js";
 
 /** @file A reviewed write reports the version it committed, taken from its own temp file, never from a re-read. */
 

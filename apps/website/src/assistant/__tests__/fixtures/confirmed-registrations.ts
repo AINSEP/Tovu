@@ -6,7 +6,8 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExch
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
-import { buildThemesRegistrations, type ThemeToolDeps } from '../../../features/theme/tool-registrations.js';
+import { buildThemesRegistrations } from "../../../features/theme/tool-registrations.js";
+import { type ThemeToolDeps } from "../../../features/theme/asset-operations.js";
 import { buildImportThemeFileRegistrations, type ImportThemeFileToolDeps } from '../../../features/theme/import-theme-file-tool.js';
 import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../../../contracts/core/tool-metadata/theme.js';
 

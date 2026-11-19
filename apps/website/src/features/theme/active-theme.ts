@@ -1,4 +1,5 @@
-import { findStoredTheme, type DiscoveredTheme } from "./theme.js";
+import { findStoredTheme } from "./theme-discovery.js";
+import { type DiscoveredTheme } from "./theme.js";
 
 /** Temporary readiness state, removed when the assistant writes the replacement stylesheet. */
 export const UNSTYLED_THEME_MARKER = "tovu:unstyled-structure-copy";

@@ -3,7 +3,8 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { loadTheme, resolveThemeScripts } from '../theme.js';
+import { loadTheme } from "../theme.js";
+import { resolveThemeScripts } from "../theme-manifest-fields.js";
 import { validateManifestV2 } from '../validation/manifest-v2.js';
 
 const base = { id: 'declared', name: 'Declared', version: '1.0.0', apiVersion: 2, tier: 'declarative' };

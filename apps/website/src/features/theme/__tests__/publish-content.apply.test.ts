@@ -32,7 +32,7 @@ import {
 } from "#src/features/publish-content/type-registry";
 
 import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
-import { discoverAllBuiltInThemes, rescanThemes } from "../theme.js";
+import { discoverAllBuiltInThemes, rescanThemes } from "../theme-discovery.js";
 import { renderStaticPartial } from "../static-render.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";

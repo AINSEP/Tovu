@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { duplicateThemeIds, findStoredTheme, findTheme, resolveHandlebarsTemplateId, resolveLiquidTemplateId, resolveTemplateId, validThemeIds, type DiscoveredTheme } from "../theme.js";
+import { duplicateThemeIds, findStoredTheme, findTheme, validThemeIds } from "../theme-discovery.js";
+import { resolveHandlebarsTemplateId, resolveLiquidTemplateId, resolveTemplateId } from "../render-contract.js";
+import { type DiscoveredTheme } from "../theme.js";
 
 /**
  * @file Characterization tests for `resolveTemplateId`/`resolveLiquidTemplateId`/

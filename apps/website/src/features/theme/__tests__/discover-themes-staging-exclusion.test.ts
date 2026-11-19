@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { discoverAllBuiltInThemes, discoverThemes, ENGINE_SUBFOLDERS, MIGRATION_STAGING_DIR_PREFIX } from "../theme.js";
+import { discoverAllBuiltInThemes, discoverThemes, MIGRATION_STAGING_DIR_PREFIX } from "../theme-discovery.js";
+import { ENGINE_SUBFOLDERS } from "../theme-layout.js";
 
 /**
  * @file ARCH-001 (2026-08-19, Terra round-2 architecture audit) — `migrate-theme.ts`'s

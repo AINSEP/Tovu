@@ -1,30 +1,11 @@
-export {
-  discoverThemes,
-  discoverAllBuiltInThemes,
-  loadTheme,
-  findTheme,
-  findStoredTheme,
-  validThemeIds,
-  rescanThemes,
-  duplicateThemeIds,
-  nextAvailableThemeId,
-  resolveTemplateId,
-  resolveLiquidTemplateId,
-  resolveHandlebarsTemplateId,
-  isStandaloneThemePage,
-  isPublishableThemePageCandidate,
-  ENGINE_SUBFOLDERS,
-  THEME_CATALOG_DIR,
-  type ThemeManifest,
-  type ThemeBuildInfo,
-  type ThemeTier,
-  type ThemeTokens,
-  type TemplateNode,
-  type DiscoveredTheme,
-} from "./theme.js";
+export { discoverThemes, discoverAllBuiltInThemes, findTheme, findStoredTheme, validThemeIds, rescanThemes, duplicateThemeIds, nextAvailableThemeId } from "./theme-discovery.js";
+export { loadTheme, type ThemeTokens, type DiscoveredTheme } from "./theme.js";
+export { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId, type ThemeManifest, type ThemeBuildInfo, type ThemeTier, type TemplateNode } from "./render-contract.js";
+export { isStandaloneThemePage, isPublishableThemePageCandidate } from "./theme-page-eligibility.js";
+export { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 
 export { applicableThemeTemplates, type ThemeTemplateFor, type ThemeTemplateKind } from "./template-applicability.js";
-export { isPackageShippedTheme } from "./theme-files.js";
+export { isPackageShippedTheme } from "./theme-original-source.js";
 
 // 2026-10-08 — the one "make a new theme" service: the admin Themes screen's Duplicate route and the
 // `theme_duplicate` agent tool both call `duplicateDiscoveredTheme`, so neither can drift.
@@ -144,26 +125,14 @@ export {
 
 // The Explore screen's file read/write surface (`apps/website/src/server/inbound/admin-http/routes/themes/explore.ts`) —
 // genuinely public, backing an admin route, no single-caller boot-sequence caveat like site-dir's.
-export {
-  copyThemeFile,
-  isGeneratedThemePath,
-  listThemeFiles,
-  MAX_THEME_FILE_BYTES,
-  nextAvailableFileName,
-  readThemeFile,
-  renameThemeFile,
-  resetThemeFileToOriginal,
-  resolveThemeFileWriteScope,
-  resolveThemeOriginalSource,
-  restoreBuiltThemeGeneratedTree,
-  themeFileDiffersFromOriginal,
-  themeOriginalResetRefusal,
-  writeThemeFile,
-  ThemePathError,
-  type ThemeFileWriteScope,
-  type ThemeOriginalResetRefusal,
-  type ThemeOriginalSource,
-} from "./theme-files.js";
+export { copyThemeFile, nextAvailableFileName, renameThemeFile } from "./theme-file-moves.js";
+export { isGeneratedThemePath, resolveThemeFileWriteScope, type ThemeFileWriteScope } from "./theme-file-policy.js";
+export { listThemeFiles } from "./theme-file-listing.js";
+export { MAX_THEME_FILE_BYTES, readThemeFile, ThemePathError } from "./theme-files.js";
+export { resetThemeFileToOriginal, themeFileDiffersFromOriginal } from "./theme-file-originals.js";
+export { resolveThemeOriginalSource, themeOriginalResetRefusal, type ThemeOriginalResetRefusal, type ThemeOriginalSource } from "./theme-original-source.js";
+export { restoreBuiltThemeGeneratedTree } from "./theme-generated-restore.js";
+export { writeThemeFile } from "./theme-file-writing.js";
 
 // 2026-08-19 architecture audit findings 1 & 2 — the one apiVersion-aware theme-layout resolver,
 // shared by `apps/website/src/server/inbound/admin-http/routes/themes/explore.ts` and (via the `@tovu/theme-layout` alias,

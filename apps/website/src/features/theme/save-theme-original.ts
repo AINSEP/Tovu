@@ -1,8 +1,9 @@
 import { isAbsolute, join, relative, resolve } from "node:path";
 
 import { writeGeneratedThemeOriginal } from "./sync-originals.js";
-import { resolveThemeOriginalSource } from "./theme-files.js";
-import { THEME_CATALOG_DIR, type DiscoveredTheme } from "./theme.js";
+import { resolveThemeOriginalSource } from "./theme-original-source.js";
+import { THEME_CATALOG_DIR } from "./theme-layout.js";
+import { type DiscoveredTheme } from "./theme.js";
 
 /**
  * @file Explore's "Save as original" (owner 2026-10-08): a theme with no stored original — so Reset

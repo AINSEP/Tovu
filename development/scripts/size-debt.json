@@ -1010,34 +1010,6 @@
       "value": 512
     },
     {
-      "file": "apps/website/src/features/theme/theme-files.ts",
-      "function": "<file>",
-      "line": 1149,
-      "rule": "max-lines",
-      "value": 592
-    },
-    {
-      "file": "apps/website/src/features/theme/theme.ts",
-      "function": "<file>",
-      "line": 949,
-      "rule": "max-lines",
-      "value": 600
-    },
-    {
-      "file": "apps/website/src/features/theme/tool-registrations.ts",
-      "function": "buildThemesRegistrations#1",
-      "line": 562,
-      "rule": "max-lines-per-function",
-      "value": 297
-    },
-    {
-      "file": "apps/website/src/features/theme/tool-registrations.ts",
-      "function": "<file>",
-      "line": 830,
-      "rule": "max-lines",
-      "value": 627
-    },
-    {
       "file": "apps/website/src/features/trash/adapters/user.ts",
       "function": "createUserTrashAdapter#1",
       "line": 90,

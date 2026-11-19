@@ -1,7 +1,7 @@
 import { validateScripts } from '@jini-ai/cookie-consent/policy';
 import type { JsonValue } from "@jini-ai/core/primitives";
 
-import { isSourceDirGeneratedConflict } from "../theme-files.js";
+import { isSourceDirGeneratedConflict } from "../theme-file-policy.js";
 import { parseTemplateFor } from "../template-applicability.js";
 import type { ThemeValidationIssue } from "./profiles.js";
 

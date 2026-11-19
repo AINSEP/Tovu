@@ -1,6 +1,8 @@
 import nodeFs, { type Dirent, existsSync } from "node:fs";
 import { join } from "node:path";
-import { isGeneratedThemePath, MAX_LISTED_FILES, MAX_WALK_DEPTH } from "./theme-files.js";
+import { isGeneratedThemePath } from "./theme-file-policy.js";
+import { MAX_LISTED_FILES } from "./theme-file-listing.js";
+import { MAX_WALK_DEPTH } from "./theme-files.js";
 
 /** D-22: advertise an existing thumbnail instead of making each browser probe jpg then png. */
 export function themePreviewImage(

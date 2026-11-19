@@ -102,7 +102,12 @@ import { installFirstPartyPublishContentTypes } from "./publish-content-manifest
 import { contributePostTools, contributePostDuplicateHandlers, contributeContentStatsTools, contributePostPreviewTools } from "#src/features/post/tool-registrations";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
-import { contributeThemesTools, contributeSetActiveThemeTools, contributePreviewSwitcherTools, contributeDuplicateThemeTools, contributeImportThemeFileTools, contributeTrashThemeTools } from "#src/features/theme/tool-registrations";
+import { contributeThemesTools } from "#src/features/theme/tool-registrations";
+import { contributeSetActiveThemeTools } from "#src/features/theme/set-active-theme-tool";
+import { contributePreviewSwitcherTools } from "#src/features/theme/preview-switcher-tools";
+import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-theme-tool";
+import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
+import { contributeTrashThemeTools } from "#src/features/theme/trash-theme-tool";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
 import { contributeWorkspaceTools } from "#src/features/workspace/index";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";

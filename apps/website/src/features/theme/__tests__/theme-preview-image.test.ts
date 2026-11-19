@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mock, test } from "node:test";
 import { themeCardPreviewUrl, themeContentVersion, themePreviewImage } from "../theme-preview-image.js";
-import { MAX_LISTED_FILES, MAX_WALK_DEPTH } from "../theme-files.js";
+import { MAX_LISTED_FILES } from "../theme-file-listing.js";
+import { MAX_WALK_DEPTH } from "../theme-files.js";
 
 test("D-22: thumbnail discovery reports no image, actual PNG, then preferred JPEG", () => {
   const dir = mkdtempSync(join(tmpdir(), "tovu-theme-preview-"));

@@ -4,18 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import {
-  copyThemeFile,
-  isPackageShippedTheme,
-  listThemeFiles,
-  MAX_LISTED_FILES,
-  MAX_WALK_DEPTH,
-  resolveThemeFilePath,
-  themeFileDiffersFromOriginal,
-  ThemePathError,
-  writeThemeFile,
-} from "../theme-files.js";
-import { THEME_CATALOG_DIR } from "../theme.js";
+import { copyThemeFile } from "../theme-file-moves.js";
+import { isPackageShippedTheme } from "../theme-original-source.js";
+import { listThemeFiles, MAX_LISTED_FILES } from "../theme-file-listing.js";
+import { MAX_WALK_DEPTH, resolveThemeFilePath, ThemePathError } from "../theme-files.js";
+import { themeFileDiffersFromOriginal } from "../theme-file-originals.js";
+import { writeThemeFile } from "../theme-file-writing.js";
+import { THEME_CATALOG_DIR } from "../theme-layout.js";
 
 /**
  * @file Boundary cases of the theme file service: listing bounds and refusals, deep not-yet-existing

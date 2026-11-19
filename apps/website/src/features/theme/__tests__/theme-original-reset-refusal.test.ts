@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { MAX_THEME_FILE_BYTES, themeOriginalResetRefusal } from "../theme-files.js";
+import { MAX_THEME_FILE_BYTES } from "../theme-files.js";
+import { themeOriginalResetRefusal } from "../theme-original-source.js";
 
 /**
  * @file `themeOriginalResetRefusal`, the guard both per-file resets and the Explore listing share: a

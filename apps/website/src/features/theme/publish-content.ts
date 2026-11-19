@@ -28,8 +28,9 @@ import type {
   SkippedPackEntity,
 } from "#src/features/publish-content/type-registry";
 
-import { MIGRATION_STAGING_DIR_PREFIX, PUBLISH_PREVIOUS_DIR, PUBLISH_STAGING_DIR, THEME_CATALOG_DIR } from "./theme.js";
-import { isGeneratedThemePath } from "./theme-files.js";
+import { MIGRATION_STAGING_DIR_PREFIX, PUBLISH_PREVIOUS_DIR, PUBLISH_STAGING_DIR } from "./theme-discovery.js";
+import { THEME_CATALOG_DIR } from "./theme-layout.js";
+import { isGeneratedThemePath } from "./theme-file-policy.js";
 
 const THEME_FILES_KIND = "theme-files";
 
