@@ -224,6 +224,8 @@ test("desktop main's source module graph resolves without the test-only TypeScri
 const SHARED_ENTRIES: ReadonlyArray<{ entry: string; specifier: string }> = [
   { entry: 'platform/site-dir/sites-home', specifier: new URL('../../website/src/platform/site-dir/sites-home.ts', import.meta.url).href },
   { entry: 'contracts assistant-native-fallbacks', specifier: '@tovu/contracts/assistant-native-fallbacks' },
+  { entry: 'contracts startup-secret-keys', specifier: '@tovu/contracts/startup-secret-keys' },
+  { entry: 'contracts daemon-connection', specifier: '@tovu/contracts/daemon-connection' },
 ];
 for (const { entry, specifier } of SHARED_ENTRIES) {
   test(`shared desktop source ${entry} imports without a test remapper`, () => {

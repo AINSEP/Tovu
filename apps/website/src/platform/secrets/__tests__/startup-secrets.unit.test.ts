@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { initializeStartupSecrets, startupSecretEnvironment, STARTUP_SECRET_KEYS } from '../startup-secrets.js';
+import { initializeStartupSecrets, startupSecretEnvironment } from '../startup-secrets.js';
+import { STARTUP_SECRET_KEYS } from '@tovu/contracts/startup-secret-keys';
 import { ensureAgentDaemonToken, requireAgentDaemonToken } from '#src/assistant/daemon-access';
 import express from 'express';
 import { desktopRenderForHost } from '../../headless-browser/desktop-render.js';
@@ -111,4 +112,49 @@ test('startup delivery preserves the process runtime and configured owner after 
   assert.equal(status, 0, stderr);
   assert.match(stdout, /startup-consumers-ready/);
   assert.doesNotMatch(stderr, /default-owner-password/);
+});
+
+test('a second initializeStartupSecrets call returns the same promise', async () => {
+  const first = initializeStartupSecrets({}, {});
+  assert.equal(initializeStartupSecrets({}, {}), first);
+  await first;
+});
+
+// The child reads its state synchronously right after the call: the IPC answer is a later event-loop
+// turn, so `before` shows exactly what the module did before any startup IPC reply could arrive.
+test('inherited credentials are adopted before the startup IPC answer, and every case variant is scrubbed', { timeout: 30_000 }, async t => {
+  const moduleUrl = new URL('../startup-secrets.ts', import.meta.url).href;
+  const script = `
+    const { initializeStartupSecrets, startupSecretEnvironment } = await import(${JSON.stringify(moduleUrl)});
+    const pending = initializeStartupSecrets();
+    const before = {
+      configured: startupSecretEnvironment({ env: process.env }).TOVU_AGENT_DAEMON_TOKEN ?? null,
+      exported: process.env.TOVU_AGENT_DAEMON_TOKEN ?? null,
+      lowercase: 'tovu_tool_exec_token' in process.env,
+      marker: ${JSON.stringify(STARTUP_SECRETS_ENV)} in process.env,
+    };
+    await pending;
+    const after = startupSecretEnvironment({ env: process.env }).TOVU_AGENT_DAEMON_TOKEN ?? null;
+    const scoped = 'TOVU_AGENT_DAEMON_TOKEN' in startupSecretEnvironment({ env: {} });
+    console.log(JSON.stringify({ before, after, scoped }));
+    process.disconnect();
+  `;
+  const child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', script], {
+    cwd: process.cwd(),
+    env: { ...process.env, TOVU_AGENT_DAEMON_TOKEN: 'inherited', tovu_tool_exec_token: 'lower', [STARTUP_SECRETS_ENV]: '1' },
+    stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+  });
+  t.after(() => { if (child.exitCode === null) child.kill(); });
+  const delivery = provideNodeStartupSecrets({ peer: child, secrets: { TOVU_AGENT_DAEMON_TOKEN: 'received' } });
+  let stdout = ''; let stderr = '';
+  child.stdout!.setEncoding('utf8').on('data', chunk => { stdout += chunk; });
+  child.stderr!.setEncoding('utf8').on('data', chunk => { stderr += chunk; });
+  const status = await new Promise<number | null>((resolve, reject) => { child.once('error', reject); child.once('close', resolve); });
+  delivery.dispose({});
+  assert.equal(status, 0, stderr);
+  assert.deepEqual(JSON.parse(stdout.trim().split('\n').pop() ?? ''), {
+    before: { configured: 'inherited', exported: null, lowercase: false, marker: false },
+    after: 'received',
+    scoped: false,
+  });
 });

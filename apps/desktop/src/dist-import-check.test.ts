@@ -119,6 +119,7 @@ const MOVED_WEBSITE_MODULES = [
   "contracts/headless/assistant-subagents-policy",
   "platform/server-logs/redact-local-text",
   "platform/server-logs/console-tee",
+  "server/runtime/lifecycle/assistant-daemon-connection",
 ];
 const WEBSITE_CONTRACT_PATHS = new RegExp(`['"](?:\\.\\./)+website/src/(?:${MOVED_WEBSITE_MODULES.join("|")})[^'"]*['"]`);
 
