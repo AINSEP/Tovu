@@ -138,14 +138,14 @@ function commitArgs({ deps, input }: { deps: CommitSiteDeps; input: CommitSiteIn
 
 /** Previews what {@link commitSiteToSourceControl} would export, for the tool's `dryRun`: the same validation and fresh export, no credential read, no provider call. */
 export async function previewCommitExport(input: CommitSiteInput, { providerId = "preview", validateTarget }: { providerId?: string; validateTarget?: RepositoryTargetValidator } = {}): Promise<sourceControl.PreviewCommitExportResult> {
-  const configError = validateCommitTarget(input, validateTarget);
+  const configError = validateCommitTarget(input, { validateTarget });
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
   return sourceControl.previewCommitExport(exportArgs({ input, providerId }), { branch: input.branch });
 }
 
 /** Commits Tovu's current site export to `input.owner/input.repo` through Jini's orchestration; a success adds the normalized folder and entry file. */
 export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: CommitSiteInput): Promise<SourceControlCommitOutcome> {
-  const configError = validateCommitTarget(input, deps.validateTarget);
+  const configError = validateCommitTarget(input, { validateTarget: deps.validateTarget });
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
   const outcome = await sourceControl.commitSiteToSourceControl(commitArgs({ deps, input }), { branch: input.branch });
   if (!outcome.ok) return outcome;

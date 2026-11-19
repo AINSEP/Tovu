@@ -994,11 +994,11 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     const { saved, nextStatus } = outcome;
     const fields = savedPostFields(saved);
     setPost(withEverPublished({ previous: post, saved }));
-    setStoredSlug(keepNewerEdit(storedSlug, fields.slug));
-    setHideCoverImageInBody(keepNewerEdit(hideCoverImageInBody, fields.hideCoverImageInBody));
+    setStoredSlug(keepNewerEdit({ sent: storedSlug, fromSaved: fields.slug }));
+    setHideCoverImageInBody(keepNewerEdit({ sent: hideCoverImageInBody, fromSaved: fields.hideCoverImageInBody }));
     setStatus(nextStatus);
-    setAuthor(keepNewerEdit(author, fields.author));
-    setShowAuthor(keepNewerEdit(showAuthor, fields.showAuthor));
+    setAuthor(keepNewerEdit({ sent: author, fromSaved: fields.author }));
+    setShowAuthor(keepNewerEdit({ sent: showAuthor, fromSaved: fields.showAuthor }));
     setMessage(formatSaveSuccessMessage({ statusOverride: outcome.statusOverride, saved: saved, t: t }, { expectedVersion: outcome.expectedVersion }));
     setOriginal({ title, slug: fields.slug, status: nextStatus, bodyJson: outcome.bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author: fields.author, showAuthor: fields.showAuthor, hideCoverImageInBody: fields.hideCoverImageInBody });
     // The save can move the slug (it follows the title until first publish, `0e8ca8ac7`, or the

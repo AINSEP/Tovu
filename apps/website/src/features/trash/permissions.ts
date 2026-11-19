@@ -65,7 +65,7 @@ export const TRASH_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, strin
  *
  * @complexity O(1).
  */
-export function trashPermissionFor(entityType: TrashEntityType, deps: { registry: TrashRegistry }): string | null {
+export function trashPermissionFor({ entityType, deps }: { entityType: TrashEntityType; deps: { registry: TrashRegistry } }, _optional: Record<string, never> = {}): string | null {
   return TRASH_PERMISSION_BY_ENTITY_TYPE.get(entityType) ?? deps.registry.get(entityType)?.permission ?? null;
 }
 
@@ -90,7 +90,7 @@ export async function mayActOnEntityType(
   deps: { authorize: TrashAuthorizeFn; workspaceId: string; registry: TrashRegistry },
   required: { principalId: string; entityType: TrashEntityType; entityId?: string }
 ): Promise<{ permission: string | null; allowed: boolean; reason: string }> {
-  const permission = trashPermissionFor(required.entityType, deps);
+  const permission = trashPermissionFor({ entityType: required.entityType, deps });
   if (!permission) {
     return { permission: null, allowed: false, reason: `'${required.entityType}' is not a kind the Trash owns` };
   }

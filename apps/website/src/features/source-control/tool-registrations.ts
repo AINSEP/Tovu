@@ -290,7 +290,7 @@ function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
  */
 function requireValidTarget({ command, validateTarget }: { command: ParsedCommitCommand; validateTarget: RepositoryTargetValidator | undefined }, _optional = {}): void {
   const { owner, repo, branch, commitMessage } = command;
-  const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage }, validateTarget);
+  const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage }, { validateTarget });
   if (configError !== null) {
     throw new ToolInputError({ message: `source_control_execute_commit: ${configError}` });
   }

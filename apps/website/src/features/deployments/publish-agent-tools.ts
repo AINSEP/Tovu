@@ -310,7 +310,7 @@ function planToolPublish(
   requireOnlyDeclaredFields(raw, target.descriptor);
   const read = readStaticPublishConfig({ target, raw, options: { blankAsAbsent: true } });
   if (!read.ok) throw new ToolInputError({ message: read.message });
-  return { config: read.config, plan: planStaticPublish(registry, read.config), detailRows: configDetailRows(read.config, target) };
+  return { config: read.config, plan: planStaticPublish({ registry, config: read.config }), detailRows: configDetailRows(read.config, target) };
 }
 
 /** The publish request's own keys; every other input key must be one of the host's config fields. */

@@ -135,8 +135,8 @@ test("validateCommitTarget accepts a well-formed target", () => {
 });
 
 test("validateCommitTarget rejects an invalid owner, repo, branch, or commit message", () => {
-  assert.equal(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }, exampleValidator), "invalid Example Git owner 'not valid!!'");
-  assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }, exampleValidator), "invalid Example Git repo '..'");
+  assert.equal(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }, { validateTarget: exampleValidator }), "invalid Example Git owner 'not valid!!'");
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }, { validateTarget: exampleValidator }), "invalid Example Git repo '..'");
   assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", branch: "not a branch", commitMessage: "x" }), "invalid branch name 'not a branch'");
   for (const branch of ["topic@{1}", "topic\tname", "x".repeat(251)]) {
     assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", branch, commitMessage: "x" }), `invalid branch name '${branch.slice(0, 60)}'`);
@@ -160,11 +160,11 @@ test('T28: commit targets reject traversal and malformed Git branch names', () =
  * literal-equality check, never via the regex). Both remaining arms are proven here, distinctly.
  */
 test("validateCommitTarget rejects a repo with characters REPO_PATTERN itself refuses (not merely '.' or '..')", () => {
-  assert.match(validateCommitTarget({ owner: "octo", repo: "not/a valid repo!", commitMessage: "x" }, exampleValidator) ?? "", /invalid Example Git repo/);
+  assert.match(validateCommitTarget({ owner: "octo", repo: "not/a valid repo!", commitMessage: "x" }, { validateTarget: exampleValidator }) ?? "", /invalid Example Git repo/);
 });
 
 test("validateCommitTarget rejects a repo that is the single-character literal '.', distinctly from the '..' case", () => {
-  assert.match(validateCommitTarget({ owner: "octo", repo: ".", commitMessage: "x" }, exampleValidator) ?? "", /invalid Example Git repo/);
+  assert.match(validateCommitTarget({ owner: "octo", repo: ".", commitMessage: "x" }, { validateTarget: exampleValidator }) ?? "", /invalid Example Git repo/);
 });
 
 test("validateCommitTarget without a host check applies only the generic one-path-segment rule, naming no host", () => {
@@ -182,8 +182,8 @@ test("validateCommitTarget: the host's own check runs first and its message is r
     calls.push(target);
     return target.owner === "bad" ? "invalid Example owner 'bad'" : null;
   };
-  assert.equal(validateCommitTarget({ owner: "bad", repo: "a/b", commitMessage: "" }, host), "invalid Example owner 'bad'");
-  assert.equal(validateCommitTarget({ owner: "ok", repo: "a/b", commitMessage: "x" }, host), "invalid repo 'a/b'", "the generic rule still applies after the host's check");
+  assert.equal(validateCommitTarget({ owner: "bad", repo: "a/b", commitMessage: "" }, { validateTarget: host }), "invalid Example owner 'bad'");
+  assert.equal(validateCommitTarget({ owner: "ok", repo: "a/b", commitMessage: "x" }, { validateTarget: host }), "invalid repo 'a/b'", "the generic rule still applies after the host's check");
   assert.deepEqual(calls, [{ owner: "bad", repo: "a/b" }, { owner: "ok", repo: "a/b" }]);
 });
 

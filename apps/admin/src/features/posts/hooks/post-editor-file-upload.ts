@@ -55,8 +55,7 @@ export const FILE_HANDLER_ALLOWED_MIME_TYPES = [
  * the base64 payload — same cost {@link readFileAsDataUrl}'s own doc already states.
  */
 export async function uploadDroppedFile(
-  port: PostEditorPort,
-  file: File,
+  { port, file }: { port: PostEditorPort; file: File },
   { onError }: { onError?: UploadFailureHandler } = {},
 ): Promise<{ assetId: string; alt: string } | null> {
   try {
@@ -123,7 +122,7 @@ export function uploadFailureReporter(
  */
 export function handleFileDrop({ port, editor, files, pos, onError }: { port: PostEditorPort; editor: Editor; files: File[]; pos: number; onError?: UploadFailureHandler }, _options: Record<string, never> = {}): void {
   for (const file of files) {
-    uploadDroppedFile(port, file, { ...(onError ? { onError } : {}) }).then((result) => {
+    uploadDroppedFile({ port, file }, { ...(onError ? { onError } : {}) }).then((result) => {
       if (!result) return;
       editor
         .chain()
@@ -146,7 +145,7 @@ export function handleFileDrop({ port, editor, files, pos, onError }: { port: Po
  */
 export function handleFilePaste({ port, editor, files, onError }: { port: PostEditorPort; editor: Editor; files: File[]; onError?: UploadFailureHandler }, _options: Record<string, never> = {}): void {
   for (const file of files) {
-    uploadDroppedFile(port, file, { ...(onError ? { onError } : {}) }).then((result) => {
+    uploadDroppedFile({ port, file }, { ...(onError ? { onError } : {}) }).then((result) => {
       if (!result) return;
       editor.commands.insertMediaEmbed({ assetId: result.assetId, transformName: "public", alt: result.alt });
     });

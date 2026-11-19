@@ -107,7 +107,7 @@ test("lists a provider from an enabled, Tovu-bundled plugin and builds it from i
 
     assert.deepEqual(registry.refusals, []);
     assert.deepEqual(registry.list().map((loaded) => [loaded.descriptor.id, loaded.descriptor.label, loaded.pluginId]), [["fixture-git", "Fixture Git", "fixture-git"]]);
-    const provider = buildLoadedSourceControlProvider(registry.get({ providerId: "fixture-git" })!, {} as never);
+    const provider = buildLoadedSourceControlProvider({ loaded: registry.get({ providerId: "fixture-git" })!, kit: {} as never });
     // The host facts come from the plugin's DECLARED descriptor, the operations from its module.
     assert.deepEqual([provider.id, provider.label, provider.apiOrigin, provider.maxFileBytes], ["fixture-git", "Fixture Git", "https://git.fixture.test", 1024]);
     assert.equal(await provider.readAccountLabel("t"), "fixture-account");
@@ -187,7 +187,7 @@ test("reservedPaths: parsed from the descriptor, carried on the built provider, 
   const parsed = parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, reservedPaths: [".example-ci", "ci/hooks"] }]) });
   assert.ok(parsed.ok);
   assert.deepEqual(parsed.descriptors[0]?.reservedPaths, [".example-ci", "ci/hooks"]);
-  const provider = buildLoadedSourceControlProvider({ descriptor: parsed.descriptors[0]!, pluginId: "a", module: { create: () => ({}) as never } }, {} as never);
+  const provider = buildLoadedSourceControlProvider({ loaded: { descriptor: parsed.descriptors[0]!, pluginId: "a", module: { create: () => ({}) as never } }, kit: {} as never });
   assert.deepEqual(provider.reservedPaths, [".example-ci", "ci/hooks"]);
 
   const noneDeclared = parseSourceControlProvidersFile({ raw: descriptorJson([entry]) });
@@ -213,7 +213,7 @@ test("workflowPaths: parsed from the descriptor, carried on the built provider, 
   const parsed = parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, workflowPaths: [".ci/pipelines"] }]) });
   assert.ok(parsed.ok);
   assert.deepEqual(parsed.descriptors[0]?.workflowPaths, [".ci/pipelines"]);
-  const provider = buildLoadedSourceControlProvider({ descriptor: parsed.descriptors[0]!, pluginId: "a", module: { create: () => ({}) as never } }, {} as never);
+  const provider = buildLoadedSourceControlProvider({ loaded: { descriptor: parsed.descriptors[0]!, pluginId: "a", module: { create: () => ({}) as never } }, kit: {} as never });
   assert.deepEqual(provider.workflowPaths, [".ci/pipelines"]);
 
   const noneDeclared = parseSourceControlProvidersFile({ raw: descriptorJson([entry]) });
