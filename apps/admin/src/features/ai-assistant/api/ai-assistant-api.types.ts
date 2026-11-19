@@ -1,4 +1,4 @@
-import type { CredentialTokenHint } from "../../../lib/credential-copy";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 
 /** Mirrors `@jini-ai/ui`'s `ExecutionTab` `DetectedAgent` shape — see
  *  `apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts`'s `toExecutionTabAgent`.

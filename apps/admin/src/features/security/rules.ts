@@ -1,4 +1,4 @@
-import type { CredentialTokenHint } from "@/lib/credential-copy";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { AdminCustomConnectionInput, AdminPublishConnectionInput, AdminPublishCredentialProviderId } from "./api/security-api.types";
 import type { AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField } from "../deployment/api/deployment-api.types";
 import type { AdminSourceControlConnectionInput, AdminSourceControlProviderDescriptor } from "../source-control/api/source-control-api.types";

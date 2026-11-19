@@ -1,7 +1,7 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { SurfaceEmission } from "@jini-ai/core";
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
-import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import type { DatabaseDestinationStorePort } from './destination-store.js';
 import { buildDestinationOutcome } from './destination-ui.js';
 

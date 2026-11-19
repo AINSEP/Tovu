@@ -1,4 +1,5 @@
-import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage, credentialDraftError } from "@/lib/credential-copy";
+import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useCallback, useMemo, useRef, useState } from "react";
 

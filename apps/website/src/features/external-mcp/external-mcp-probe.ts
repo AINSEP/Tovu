@@ -1,7 +1,7 @@
 /** Saved-server probe used by the admin route and assistant tools. Jini's hosted probe resolves, connects once and
  * classifies; this file binds Tovu's store read and HTTP session and keeps Tovu's response contract: statuses,
  * legacy codes, copy and settings links. Never spawns local commands or invokes remote tools (D-7). */
-import { credentialText } from "../../contracts/core/credential-copy.js";
+import { credentialText } from "@tovu/contracts/credential-copy";
 import { connectMcpHttpSession, createFetchMcpHttpExchange } from "../../assistant/index.js";
 import type { McpHttpLaunchSpec, McpSessionPort } from "@jini-ai/mcp/federation";
 import { probeExternalMcpServer as probeHostedMcpServer, type ExternalMcpProbeFailure, type ExternalMcpProbeSessionFactory } from "@jini-ai/mcp/federation/hosted";

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CREDENTIAL_COPY, credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "../../credential-copy.js";
+import { CREDENTIAL_COPY, credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@tovu/contracts/credential-copy";
 import { CREDENTIAL_MESSAGES, type CredentialMessageId } from "@jini-ai/platform/secrets/credential-token";
 
 test("every offered locale translates every credential message id", () => {

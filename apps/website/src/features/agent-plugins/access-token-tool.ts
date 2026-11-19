@@ -6,7 +6,7 @@
 import type { AgentPluginMcpPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "./service-ports.js";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
-import { credentialText, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+import { credentialText, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { assertCredentialToken, CredentialInputError, type CredentialMessageId } from '@jini-ai/platform/secrets/credential-token';
 import type { ToolExecutionOptions, ToolExecutionContext } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";

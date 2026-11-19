@@ -9,7 +9,7 @@ import { InMemorySourceControlCredentialSetRepo } from '../repo.memory.js';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { githubFromSource } from './fixtures/github-from-source.js';
-import { credentialText, formatCredentialHint } from '../../../contracts/core/credential-copy.js';
+import { credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 
 type Prep = { descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string };
 type Saved = Awaited<ReturnType<typeof createSourceControlCredential>>;

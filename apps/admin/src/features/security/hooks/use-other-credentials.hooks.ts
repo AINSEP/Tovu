@@ -1,4 +1,5 @@
-import { credentialDraftError, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@/lib/credential-copy";
+import { formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";

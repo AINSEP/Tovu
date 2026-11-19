@@ -18,7 +18,7 @@ import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from 
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
-import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import { resolveOperatorLocale } from '../settings/index.js';
 import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from './publish-credentials/store.js';

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { credentialText } from "@tovu/contracts/credential-copy";
 import { createHash, createHmac } from "node:crypto";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -762,7 +763,6 @@ test("verifyPublishCredentialById: a host removed or re-specified between the re
 });
 
 test("verifyPublishCredential: a provider-side timeout (408 or 504) reads as the fixed timeout text, not a rejection", async () => {
-  const { credentialText } = await import("#src/contracts/core/credential-copy");
   for (const status of [408, 504]) {
     const cache = new InMemoryPublishCredentialVerificationCache();
     const fetchFn = (async () => new Response(JSON.stringify({ message: "gateway body" }), { status })) as typeof fetch;
