@@ -161,7 +161,7 @@ test("index.ts hands the legacy tail and createServingApp's bootWork to the stor
 test("the automatic form pull trigger is built only by createServingApp, the only runner of autoPull", () => {
   assert.deepEqual(filesCalling(/(?<!function )\bcreateServingFormPullTrigger\(/), ["server/runtime/composition/serving-app.ts"]);
   assert.deepEqual(filesCalling(/(?<!function )\bcreateFormPullTrigger\(/), ["server/runtime/composition/form-pull-triggers.ts"]);
-  assert.deepEqual(filesCalling(/\.formSubmissionsAutoPull\b/), ["server/runtime/composition/deps.ts", "server/runtime/composition/serving-app.ts"]);
+  assert.deepEqual(filesCalling(/\.formSubmissionsAutoPull\b/), ["server/runtime/composition/serving-app.ts", "server/runtime/composition/site-deps/after-assembly-forms-search.ts"]);
   assert.deepEqual(filesCalling(/\bonAdminSignIn: formPull\.signIn\b/), ["server/runtime/composition/serving-app.ts"]);
 });
 

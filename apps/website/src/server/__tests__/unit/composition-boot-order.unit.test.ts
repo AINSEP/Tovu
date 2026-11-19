@@ -155,7 +155,8 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   const kernel = indexOfAnchor(body, "const kernel = store.content");
   const workspace = indexOfAnchor(body, "await resolveWorkspaceIdOverride(kernel, overrides)");
   const denyStore = indexOfAnchor(body, "await publishTrustRevocationStoreFor(kernel)");
-  const orphanCheck = indexOfAnchor(body, "await warnOnOrphanedChatRows(");
+  const orphanCheck = indexOfAnchor(body, "await warnCompositionChatOrphans(");
+  indexOfAnchor(functionBody(deps, "async function warnCompositionChatOrphans("), "await warnOnOrphanedChatRows(");
   const firstBootPromise = indexOfAnchor(body, "composeStoreBasics(");
   indexOfAnchor(readCode("server/runtime/composition/site-deps/store-basics.ts"), "preparePostSearchIndex(");
   assert.ok(open < kernel && kernel < workspace, "the workspace is read on the kernel of the opened store");
@@ -178,7 +179,8 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   const keyring = indexOfAnchor(body, "composeSiteKeysMembers(");
   indexOfAnchor(functionBody(readCode("server/runtime/composition/site-deps/site-keys-members.ts"), "export function composeSiteKeysMembers("), "const siteAssistantSecretKeyring = new EnvOrFileKeyring(");
   const normalize = indexOfAnchor(body, "await normalizeSiteVaultAtBoot(");
-  const credentials = indexOfAnchor(body, "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo(");
+  const credentials = indexOfAnchor(body, "composeAssistantCredentials(");
+  indexOfAnchor(functionBody(readCode("server/runtime/composition/site-deps/assistant-credentials.ts"), "export function composeAssistantCredentials("), "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo(");
   assert.ok(keyring < normalize && normalize < credentials, "vault normalization must finish before credential consumers are constructed");
 });
 
