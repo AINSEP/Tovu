@@ -1,4 +1,4 @@
-import { checkTreePath } from "../publish-content/file-tree-policy.js";
+import { checkTreePath } from "../publish-content/file-tree-path-policy.js";
 import { SiteShareRefusal, SHARE_LIMITS, archiveRefusalName } from "./share-policy.js";
 import { warnCredentialContent, addCredentialWarning, type CredentialWarning } from "./credential-warnings.js";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";

@@ -1,11 +1,7 @@
 import { describeApiError } from "../rules";
 import { t } from "../roles-i18n";
-import type { useRolesMutations, useRolesState } from "./use-roles.hooks";
-
-/**
- * @file The policy-permission write/remove/load actions `useRoles` composes. Split from
- * `use-roles.hooks.ts` to keep that file under the max-lines budget; behaviour is unchanged.
- */
+import type { useRolesState } from "./use-roles-state.hooks";
+import type { useRolesMutations } from "./use-roles-mutations.hooks";
 
 export function createPermissionWriter(
   {
@@ -153,4 +149,3 @@ export function createPermissionLoader(
   }
   return { loadPermissions, togglePermissionForm };
 }
-

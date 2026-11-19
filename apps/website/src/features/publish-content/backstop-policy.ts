@@ -1,4 +1,4 @@
-import { checkTreePath, credentialBaseName } from "./file-tree-policy.js";
+import { checkTreePath, credentialBaseName } from "./file-tree-path-policy.js";
 import { scanTextForSecrets } from "#src/features/webhooks/index";
 
 /** An expected manual-publishing refusal with a caller-safe message.

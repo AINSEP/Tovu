@@ -1,4 +1,4 @@
-import { runFind, type FindableGuest } from './use-find-in-page.hooks.js';
+import { runFind, type FindableGuest } from './find-target.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { siteNameError, namePasteHandler } from '../contracts/site-name.js';
