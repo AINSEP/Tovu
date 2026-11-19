@@ -7,7 +7,8 @@ import path from "node:path";
 import { createNodeAtomicFilesystem } from "@jini-ai/platform/fs";
 import { addSitePointer } from "./add-site-pointer.ts";
 import { createSitesWorkspace, shareSiteDirectories } from "./shared-sites.ts";
-import { handleAddSite, handleStart } from "./project-ipc.ts";
+import { handleAddSite } from "./project-ipc.import.ts";
+import { handleStart } from "./project-ipc.server.ts";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
 import { readTrackedSites, trackSite } from "./tracked-sites.ts";
 

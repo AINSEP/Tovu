@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parse, type DefaultTreeAdapterTypes } from "parse5";
 
-import { renderStaticPage, renderStaticPartial, scanMenuEmbedIds, type StaticMenuItem } from "../static-render.js";
+import { renderStaticPage, renderStaticPartial } from "../static-render.js";
+import { scanMenuEmbedIds, type StaticMenuItem } from "../static-render-menus.js";
 import type { DiscoveredTheme } from "../theme.js";
 import { withoutVisitorToolMarks } from "./visitor-tool-marks.fixture.js";
 

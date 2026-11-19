@@ -1,6 +1,6 @@
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { collectCoverMediaRefs } from "#src/features/post/rendering";
-import type { StaticFeaturedImage } from "#src/features/theme/static-render";
+import type { StaticFeaturedImage } from "#src/features/theme/static-render-content";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/bootstrap";
 import type { MediaAssetRenderMeta } from "../../../../http/site/render-context.js";

@@ -4,15 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPolicy, AdminRole } from "@/features/roles/api/roles-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import {
-  PolicyRow,
-  Roles,
-  RolesSection,
-  type PolicyPermissionController,
-  type PolicyRowController,
-  type RoleCreateFormController,
-  type RoleRowController,
-} from "../Roles";
+import { PolicyRow, type PolicyPermissionController, type PolicyRowController } from "../PolicyRow";
+import { Roles } from "../Roles";
+import { RolesSection, type RoleCreateFormController, type RoleRowController } from "../RolesSection";
 import { useRoles, type RolesController } from "../hooks/use-roles.hooks";
 import { createFakeRolesPort } from "../hooks/roles-dependencies.hooks";
 import { t as realT } from "../roles-i18n";

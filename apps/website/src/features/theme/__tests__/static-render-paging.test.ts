@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
-import { renderStaticPage, type StaticPostPreview } from "../static-render.js";
+import { renderStaticPage } from "../static-render.js";
+import { type StaticPostPreview } from "../static-render-previews.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**

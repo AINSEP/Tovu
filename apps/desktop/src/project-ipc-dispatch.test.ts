@@ -10,7 +10,7 @@ import type { TestContext } from "node:test";
 import { createSitesWorkspace, attachRunningSite, shareSiteDirectories } from "./shared-sites.ts";
 import { createSiteFolders } from "./site-folders.ts";
 import { SITE_IPC_CHANNELS, registerSiteIpcHandlers } from "./project-ipc.ts";
-import type { ProjectIpcDeps } from "./project-ipc.ts";
+import type { ProjectIpcDeps } from "./project-ipc.types.ts";
 import { sitesFilePath, trackSite, readTrackedSites, readProjectsFile } from "./tracked-sites.ts";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
 import { writeSiteName } from "./site-config.ts";

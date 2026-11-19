@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
 import { LISTING_SEE_MORE_SCRIPT } from "@jini-ai/cms/listing";
-import { renderStaticPage, type StaticListingBatch, type StaticPostPreview } from "../static-render.js";
+import { renderStaticPage } from "../static-render.js";
+import { type StaticListingBatch, type StaticPostPreview } from "../static-render-previews.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**

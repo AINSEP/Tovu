@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { FEATURED_IMAGE_MARKER_TYPE, markersOfType } from "@jini-ai/cms/widgets/markers";
-import { injectFeaturedImage, type StaticFeaturedImage } from "../static-render.js";
+import { injectFeaturedImage, type StaticFeaturedImage } from "../static-render-content.js";
 
 /**
  * @file A post's featured image on a STATIC-tier post template (2026-10-05). The templated tiers

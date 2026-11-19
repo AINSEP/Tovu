@@ -86,11 +86,18 @@ export {
   type NormalizeBuildOutputResult,
 } from "./code-tier-asset-normalizer.js";
 
-export { renderStaticPage, renderStaticPartial, injectCurrentEntityContentId, injectPageTitle, postAuthorForContentHeader, resolveTemplate, isEligibleForTemplateBranch, isBarePageChoice, resolveStaticTierPageShellFallback, resolveTemplateBranchChoice, type TemplateBranchChoice, scanMenuEmbedIds, postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPreviewsPage, type StaticMenuItem, type StaticHtmlMenu, type StaticMenuContent, type StaticPostPreview, type StaticListingBatch, type PostTemplateResolution, // C5 (collections plan, 2026-09-23): the route layer (`pages.ts`'s
+export { renderStaticPage, renderStaticPartial } from "./static-render.js";
+export { injectCurrentEntityContentId, injectPageTitle, postAuthorForContentHeader, type StaticFeaturedImage } from "./static-render-content.js";
+export { resolveTemplate, type PostTemplateResolution } from "./static-template-resolution.js";
+export { isEligibleForTemplateBranch, isBarePageChoice, resolveTemplateBranchChoice, type TemplateBranchChoice } from "./static-template-choice.js";
+export { resolveStaticTierPageShellFallback } from "./static-page-shell.js";
+export { scanMenuEmbedIds, type StaticMenuItem, type StaticHtmlMenu, type StaticMenuContent } from "./static-render-menus.js";
+export { postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPreviewsPage, type StaticPostPreview, type StaticListingBatch } from "./static-render-previews.js";
+export { // C5 (collections plan, 2026-09-23): the route layer (`pages.ts`'s
   // `resolveCollectionListsForRender`) needs the same per-marker identity key and inner-content
   // splitter `injectCollectionEmbeds` uses, so both sides agree on how a `collection` marker is
   // addressed and how its authored `<template>` is found.
-  collectionMarkerKey, splitCollectionMarkerInner, type StaticCollectionList, type StaticFeaturedImage } from "./static-render.js";
+  collectionMarkerKey, splitCollectionMarkerInner, type StaticCollectionList } from "./static-render-collections.js";
 
 
 // C5 (collections plan, 2026-09-23) — the pure entry-list renderer `pages.ts`'s

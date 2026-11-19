@@ -6,7 +6,10 @@ import test from "node:test";
 
 import { scanEmbedMarkers, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
-import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render.js";
+import { injectCurrentEntityContentId } from "../static-render-content.js";
+import { renderStaticPage } from "../static-render.js";
+import { resolveTemplate } from "../static-template-resolution.js";
+import { scanMenuEmbedIds } from "../static-render-menus.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 import { loadTheme } from "../theme.js";
 import { CHROMELESS_TEMPLATES } from "./chromeless-templates.fixture.js";

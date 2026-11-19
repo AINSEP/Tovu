@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveStaticTierPageShellFallback, resolveTemplateBranchChoice } from "../static-render.js";
+import { resolveStaticTierPageShellFallback } from "../static-page-shell.js";
+import { resolveTemplateBranchChoice } from "../static-template-choice.js";
 import type { DiscoveredTheme, ThemeTier } from "../theme.js";
 
 /**

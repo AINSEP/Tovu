@@ -7,7 +7,9 @@ import { encodeListCursor } from "@jini-ai/core/list-page";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
-import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterCampaignRepo, SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSendRepo, SqlNewsletterSubscriptionRepo } from "../repo.js";
+import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterSendRepo } from "../repo-sends.js";
+import { SqlNewsletterCampaignRepo } from "../repo.js";
+import { SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "../repo-subscribers.js";
 import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, ConfirmationTokenRecord, NewsletterListRow, SendRow, SubscriptionRow } from "../types.js";
 
 /**

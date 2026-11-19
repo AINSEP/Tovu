@@ -5,7 +5,8 @@ import type { PublicPostRecord as PostRecord } from "#src/features/post/contract
 import { createPublicPostReader } from "#src/features/post/post";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 // Keep request rendering separate from theme installation, imports, and agent tools.
-import { renderStaticPage, type StaticFeaturedImage } from "#src/features/theme/static-render";
+import { renderStaticPage } from "#src/features/theme/static-render";
+import { type StaticFeaturedImage } from "#src/features/theme/static-render-content";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { expandPartials } from "../../../../../../contracts/core/expand-partials.js";
 import { markersOfType, MENU_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";

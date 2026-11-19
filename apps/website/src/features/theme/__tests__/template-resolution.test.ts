@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveTemplate } from "../static-render.js";
+import { resolveTemplate } from "../static-template-resolution.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**

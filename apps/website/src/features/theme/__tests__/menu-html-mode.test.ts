@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseFragment, type DefaultTreeAdapterTypes } from "parse5";
-import { renderStaticPage, type StaticMenuItem } from "../static-render.js";
+import { renderStaticPage } from "../static-render.js";
+import { type StaticMenuItem } from "../static-render-menus.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 function theme(html: string): DiscoveredTheme {

@@ -154,7 +154,9 @@ import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sw
 import { createSiteThemePreviewSubscriptions, openSiteThemePreviewStream } from "../site-theme-preview.ts";
 import { registerSiteThemePreviewIpc } from "../site-theme-preview-ipc.ts";
 import { createSitePreviewScheduler } from "../site-preview-scheduler.ts";
-import { registerSiteIpcHandlers, rescanSites, type ProjectSiteLifecycle } from "../project-ipc.ts";
+import { registerSiteIpcHandlers } from "../project-ipc.ts";
+import { rescanSites } from "../project-ipc.catalog.ts";
+import { type ProjectSiteLifecycle } from "../project-ipc.types.ts";
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
 import { addSitePointer } from "../add-site-pointer.ts";

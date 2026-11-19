@@ -79,25 +79,18 @@
       "value": 101
     },
     {
-      "file": "apps/admin/src/features/collections/Collections.tsx",
+      "file": "apps/admin/src/features/collections/NewContentTypeDialog.tsx",
       "function": "NewContentTypeDialog#1",
-      "line": 205,
+      "line": 21,
       "rule": "max-lines-per-function",
       "value": 81
     },
     {
       "file": "apps/admin/src/features/collections/Collections.tsx",
       "function": "Collections#1",
-      "line": 503,
+      "line": 118,
       "rule": "max-lines-per-function",
       "value": 154
-    },
-    {
-      "file": "apps/admin/src/features/collections/Collections.tsx",
-      "function": "<file>",
-      "line": 609,
-      "rule": "max-lines",
-      "value": 562
     },
     {
       "file": "apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts",
@@ -408,18 +401,11 @@
       "value": 92
     },
     {
-      "file": "apps/admin/src/features/roles/Roles.tsx",
+      "file": "apps/admin/src/features/roles/RolesSection.tsx",
       "function": "RolesSection#1",
-      "line": 123,
+      "line": 53,
       "rule": "max-lines-per-function",
       "value": 91
-    },
-    {
-      "file": "apps/admin/src/features/roles/Roles.tsx",
-      "function": "<file>",
-      "line": 665,
-      "rule": "max-lines",
-      "value": 673
     },
     {
       "file": "apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts",
@@ -667,13 +653,6 @@
       "value": 83
     },
     {
-      "file": "apps/desktop/src/project-ipc.ts",
-      "function": "<file>",
-      "line": 812,
-      "rule": "max-lines",
-      "value": 1092
-    },
-    {
       "file": "apps/desktop/src/renderer/App.tsx",
       "function": "App#1",
       "line": 92,
@@ -870,13 +849,6 @@
       "value": 91
     },
     {
-      "file": "apps/website/src/features/newsletter/repo.ts",
-      "function": "<file>",
-      "line": 590,
-      "rule": "max-lines",
-      "value": 551
-    },
-    {
       "file": "apps/website/src/features/newsletter/tool-registrations.ts",
       "function": "buildNewsletterRegistrations#1",
       "line": 293,
@@ -999,13 +971,6 @@
       "file": "apps/website/src/features/theme/publish-content.ts",
       "function": "<file>",
       "line": 814,
-      "rule": "max-lines",
-      "value": 512
-    },
-    {
-      "file": "apps/website/src/features/theme/static-render.ts",
-      "function": "<file>",
-      "line": 1382,
       "rule": "max-lines",
       "value": 512
     },

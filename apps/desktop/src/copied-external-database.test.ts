@@ -7,7 +7,8 @@ import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
 import { addSitePointer } from './add-site-pointer.ts';
-import { handleAddSite, handleStart } from './project-ipc.ts';
+import { handleAddSite } from './project-ipc.import.ts';
+import { handleStart } from './project-ipc.server.ts';
 import { createSitesWorkspace, shareSiteDirectories } from './shared-sites.ts';
 import { trackSite, readTrackedSites } from './tracked-sites.ts';
 import { createKeyedSerializer } from './keyed-serializer.ts';

@@ -8,14 +8,9 @@
  */
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import {
-  SqlNewsletterAudienceSnapshotRepo,
-  SqlNewsletterCampaignRepo,
-  SqlNewsletterConfirmationTokenRepo,
-  SqlNewsletterListRepo,
-  SqlNewsletterSendRepo,
-  SqlNewsletterSubscriptionRepo,
-} from "./repo.js";
+import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterSendRepo } from "./repo-sends.js";
+import { SqlNewsletterCampaignRepo } from "./repo.js";
+import { SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "./repo-subscribers.js";
 
 export class SqliteNewsletterCampaignRepo extends SqlNewsletterCampaignRepo {
   /** The connection's kernel, or the content db handle it is derived from. */

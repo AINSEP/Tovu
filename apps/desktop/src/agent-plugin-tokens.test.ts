@@ -22,7 +22,7 @@ import {
   withCreatedTokens,
 } from "./agent-plugin-tokens.ts";
 import { initSiteDir } from "./site-dir-store.ts";
-import { handleCreate, handleTokenSignInPlugins } from "./project-ipc.ts";
+import { handleCreate, handleTokenSignInPlugins } from "./project-ipc.create.ts";
 import { createSitesWorkspace } from "./shared-sites.ts";
 import { sitesFilePath } from "./tracked-sites.ts";
 
