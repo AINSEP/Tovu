@@ -108,9 +108,7 @@ export function toChangeSetView({ changeSet }: { changeSet: ChangeSetRecord }, _
   };
 }
 
-export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
-    change_sets_list: async (ctx) => {
+    async function listChangeSets(routeDeps: ChangeSetToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CHANGE_SET_READ_PERMISSION }, { entityType: "change_set" });
 
@@ -127,9 +125,10 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
       });
 
       return { changeSets: newestFirst.slice(0, limit).map((changeSet) => toChangeSetView({ changeSet })) };
-    },
+    }
 
-    change_sets_revert: async (ctx) => {
+
+    async function revertToolChangeSet(routeDeps: ChangeSetToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       const changeSetId = requireString({ input: input, key: "changeSetId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CHANGE_SET_REVERT_PERMISSION }, { entityType: "change_set", entityId: changeSetId });
@@ -172,7 +171,14 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
         }
         throw err;
       }
-    },
+    }
+
+
+
+export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    change_sets_list: (ctx) => listChangeSets(routeDeps, ctx),
+    change_sets_revert: (ctx) => revertToolChangeSet(routeDeps, ctx),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

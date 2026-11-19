@@ -334,15 +334,7 @@ const RESTORE_TRASHED_FILE_SCHEMA = {
     },
   },
 } as const;
-
-/**
- * The Themes domain's fixed agent-tool catalog — see this file's header for the withheld operations
- * and why.
- *
- * @complexity O(1) — a fixed, statically-defined list.
- * @overallScore 100
- */
-export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
+function themeDiscoveryCatalog(): AgentToolDefinition[] {
   return [
     {
       name: "theme_list_page_publications",
@@ -380,7 +372,12 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       sideEffects: "none",
       authorization: { permission: THEME_READ_PERMISSION },
       inputSchema: LIST_FILES_SCHEMA,
-    },
+    }
+  ];
+}
+
+function themeFileEditingCatalog(): AgentToolDefinition[] {
+  return [
     {
       name: "theme_read_file",
       description:
@@ -418,7 +415,12 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: RESET_FILE_SCHEMA,
-    },
+    }
+  ];
+}
+
+function themeFileManagementCatalog(): AgentToolDefinition[] {
+  return [
     {
       name: "theme_rename_file",
       description:
@@ -450,6 +452,22 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: RESTORE_TRASHED_FILE_SCHEMA,
-    },
+    }
+  ];
+}
+
+
+/**
+ * The Themes domain's fixed agent-tool catalog — see this file's header for the withheld operations
+ * and why.
+ *
+ * @complexity O(1) — a fixed, statically-defined list.
+ * @overallScore 100
+ */
+export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
+  return [
+    ...themeDiscoveryCatalog(),
+    ...themeFileEditingCatalog(),
+    ...themeFileManagementCatalog(),
   ];
 }

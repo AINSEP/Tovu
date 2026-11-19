@@ -77,6 +77,43 @@ function toStateColumns(row: SearchIndexStateRow): StateTable {
 function toTarget({ siteId, providerId, generation }: { siteId: string; providerId: string | null; generation: number | null }, _optional = {}): SearchTarget | null {
   return providerId === null || generation === null ? null : { siteId, providerId, generation: Number(generation) };
 }
+function createIndexWatermarks(kernel: KyselyKernel<SearchIndexDatabase>, scoped: (target: SearchTarget) => { site_id: string; provider_id: string; generation: number }): Pick<SearchIndexStatePort, 'getWatermark' | 'putWatermark' | 'deleteTarget'> {
+  return {
+    async getWatermark({ target, collection }) {
+      const row = await kernel.run(db => db.selectFrom("search_index_watermarks").select(["cursor", "done"])
+        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
+        .where("generation", "=", target.generation).where("collection", "=", collection)
+        .executeTakeFirst());
+      if (!row) return null;
+      return { ...(row.cursor === null ? {} : { cursor: row.cursor }), done: Number(row.done) === 1 };
+    },
+    async putWatermark({ target, collection, cursor, done }) {
+      const changes = { cursor: cursor ?? null, done: done ? 1 : 0 };
+      await kernel.run(db => db.insertInto("search_index_watermarks").values({ ...scoped(target), collection, ...changes })
+        .onConflict(oc => oc.columns(["site_id", "provider_id", "generation", "collection"]).doUpdateSet(changes))
+        .execute());
+    },
+    async deleteTarget({ target }) {
+      await kernel.transaction(async () => {
+        for (const table of ["search_index_state", "search_index_watermarks"] as const) {
+          await kernel.run(db => db.deleteFrom(table).where("site_id", "=", target.siteId)
+            .where("provider_id", "=", target.providerId).where("generation", "=", target.generation).execute());
+        }
+      });
+    }
+  };
+}
+async function readIndexCounts(kernel: KyselyKernel<SearchIndexDatabase>, { target }: Parameters<SearchIndexStatePort['counts']>[0]): Promise<SearchStatusCounts> {
+      const rows = await kernel.run(db => db.selectFrom("search_index_state")
+        .select(eb => ["status", eb.fn.countAll<Big>().as("n")])
+        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
+        .where("generation", "=", target.generation).groupBy("status").execute());
+      const counts = Object.fromEntries(STATUSES.map(status => [status, 0])) as Record<SearchIndexStatus, number>;
+      for (const row of rows) counts[row.status as SearchIndexStatus] = Number(row.n);
+      return counts as SearchStatusCounts;
+    }
+
+
 
 /** The bookkeeping half. @complexity each method is one indexed statement (deleteTarget: two). */
 function createIndexState(kernel: KyselyKernel<SearchIndexDatabase>): SearchIndexStatePort {
@@ -129,37 +166,8 @@ function createIndexState(kernel: KyselyKernel<SearchIndexDatabase>): SearchInde
         .limit(limit).execute());
       return rows.map(toStateRow);
     },
-    async counts({ target }) {
-      const rows = await kernel.run(db => db.selectFrom("search_index_state")
-        .select(eb => ["status", eb.fn.countAll<Big>().as("n")])
-        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
-        .where("generation", "=", target.generation).groupBy("status").execute());
-      const counts = Object.fromEntries(STATUSES.map(status => [status, 0])) as Record<SearchIndexStatus, number>;
-      for (const row of rows) counts[row.status as SearchIndexStatus] = Number(row.n);
-      return counts as SearchStatusCounts;
-    },
-    async getWatermark({ target, collection }) {
-      const row = await kernel.run(db => db.selectFrom("search_index_watermarks").select(["cursor", "done"])
-        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
-        .where("generation", "=", target.generation).where("collection", "=", collection)
-        .executeTakeFirst());
-      if (!row) return null;
-      return { ...(row.cursor === null ? {} : { cursor: row.cursor }), done: Number(row.done) === 1 };
-    },
-    async putWatermark({ target, collection, cursor, done }) {
-      const changes = { cursor: cursor ?? null, done: done ? 1 : 0 };
-      await kernel.run(db => db.insertInto("search_index_watermarks").values({ ...scoped(target), collection, ...changes })
-        .onConflict(oc => oc.columns(["site_id", "provider_id", "generation", "collection"]).doUpdateSet(changes))
-        .execute());
-    },
-    async deleteTarget({ target }) {
-      await kernel.transaction(async () => {
-        for (const table of ["search_index_state", "search_index_watermarks"] as const) {
-          await kernel.run(db => db.deleteFrom(table).where("site_id", "=", target.siteId)
-            .where("provider_id", "=", target.providerId).where("generation", "=", target.generation).execute());
-        }
-      });
-    },
+    counts: input => readIndexCounts(kernel, input),
+    ...createIndexWatermarks(kernel, scoped),
   };
 }
 

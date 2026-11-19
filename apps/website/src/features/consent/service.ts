@@ -75,12 +75,7 @@ function legacyEditorConsentConfig({ config }: { config: ConsentConfig }, _optio
   }
   return normalized;
 }
-
-/** Creates one workspace's adapters over the engine and durable policy store.
- * Authorization remains in each operation so direct/tool callers cannot bypass the HTTP guard.
- * @example createSiteConsentService({ ports })
- * @complexity Fixed repository operations; readiness scans receipt filenames and renders one bounded page, never executes JS. */
-export function createSiteConsentService({ ports }: { ports: ConsentServicePorts }, _options = {}) {
+function createConsentReader(ports: ConsentServicePorts) {
   /** Deny before touching readiness, configuration or rendered content. */
   const authorize = async ({ principalId, write = false }: { principalId: string; write?: boolean }, _optional = {}) => {
     await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: ports.authorize }), principalId, workspaceId: ports.workspaceId, permission: write ? 'settings.workspace.write' : 'settings.read' }, { entityType: 'site-consent' });
@@ -88,6 +83,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     if (!ports.store) throw new Error('The durable site consent policy store is unavailable.');
     return ports.store;
   };
+
   /** Resolve draft and published separately; malformed published data never falls back to OFF. */
   const read = async ({ principalId }: { principalId: string }, _optional = {}) => {
     const store = await authorize({ principalId });
@@ -103,12 +99,10 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
         categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })),
         rules: { gpc: 'always-enforced', preferenceMaxAgeMs: CONSENT_MAX_AGE_MS, staticReceipts: false } } };
   };
-  /** Engine validation plus this site's privacy-page linkage; no HTTP fetch to external policies. */
-  const problems = async ({ config }: { config: ConsentConfig }, _optional = {}): Promise<ConsentProblem[]> => {
-    const found = consentConfigProblems({ config, trustedRegion: ports.trustedRegion }, { cssBlocks: false });
-    if (config.enabled && config.privacyPolicyUrl && !found.some(problem => problem.field === 'privacyPolicyUrl') && !await ports.privacyPageExists({ url: config.privacyPolicyUrl })) found.push({ code: 'PRIVACY_PAGE_MISSING', field: 'privacyPolicyUrl', message: 'Publish the linked privacy page before enabling consent.' });
-    return found;
-  };
+  return { authorize, read };
+}
+
+function createConsentReadiness(ports: ConsentServicePorts, read: ReturnType<typeof createConsentReader>['read'], problems: (input: { config: ConsentConfig }) => Promise<ConsentProblem[]>) {
   /** Readiness needs writable proof storage as well as a safe local page sample.
    * Storage errors expose no private paths; render failure/truncation also blocks readiness. */
   const readiness = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
@@ -136,6 +130,54 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       return { ...metadata, ready: false, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), declarations: [], warnings: [], truncated: false, limitations: ['Rendered evidence unavailable.'] };
     }
   };
+  return { readiness };
+}
+
+function createConsentDeploymentCheck(ports: ConsentServicePorts, problems: (input: { config: ConsentConfig }) => Promise<ConsentProblem[]>) {
+  const staticDeploymentRefusal = async ({ config }: { config: ConsentConfig }, _options = {}) => {
+    const blockingProblems = await problems({ config });
+    // The cookie-consent banner works on a static host (choices kept in the browser, labelled so).
+    return blockingProblems.length ? deploymentRefusal({ problems: blockingProblems }) : null;
+  };
+
+  /** Static publication uses browser-local evidence, with the same policy and privacy checks.
+   * Unknown configuration remains blocking; explicit OFF remains a readable rollback. */
+  const deploymentCheck = async ({ principalId, permission }: { principalId: string; permission: 'system.publish' | 'deployments.publish' }, _optional = {}) => {
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: ports.authorize }), principalId, workspaceId: ports.workspaceId, permission }, { entityType: 'site-publish' });
+    try {
+      await ports.ready;
+      if (!ports.store) throw new Error('Consent store unavailable');
+      const state = await ports.store.read({});
+      // Default-only consent (no owner choice, nothing published) exports without the banner, as the
+      // construction slot is empty for that default; the default is off live too (2026-11-02).
+      if (!state.published && await ports.defaultOnly({})) return null;
+      const effective = state.published?.config ?? await ports.readLegacy({});
+      // Explicit OFF remains a rollback even when saved legacy copy exceeds today's editor limits.
+      if (effective.enabled === false) return null;
+      const config = parseConsentConfig({ value: effective });
+      return await staticDeploymentRefusal({ config });
+    } catch (error) {
+      console.warn('[consent] The consent policy could not be verified; deployment remains blocked.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
+      return deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'The published consent policy could not be verified. Deployment was not started.' }] });
+    }
+  };
+  return { deploymentCheck };
+}
+
+
+/** Creates one workspace's adapters over the engine and durable policy store.
+ * Authorization remains in each operation so direct/tool callers cannot bypass the HTTP guard.
+ * @example createSiteConsentService({ ports })
+ * @complexity Fixed repository operations; readiness scans receipt filenames and renders one bounded page, never executes JS. */
+export function createSiteConsentService({ ports }: { ports: ConsentServicePorts }, _options = {}) {
+  const { authorize, read } = createConsentReader(ports);
+  /** Engine validation plus this site's privacy-page linkage; no HTTP fetch to external policies. */
+  const problems = async ({ config }: { config: ConsentConfig }, _optional = {}): Promise<ConsentProblem[]> => {
+    const found = consentConfigProblems({ config, trustedRegion: ports.trustedRegion }, { cssBlocks: false });
+    if (config.enabled && config.privacyPolicyUrl && !found.some(problem => problem.field === 'privacyPolicyUrl') && !await ports.privacyPageExists({ url: config.privacyPolicyUrl })) found.push({ code: 'PRIVACY_PAGE_MISSING', field: 'privacyPolicyUrl', message: 'Publish the linked privacy page before enabling consent.' });
+    return found;
+  };
+  const { readiness } = createConsentReadiness(ports, read, problems);
   /** A separate scriptless banner preview; no page content is parsed or represented as protected. */
   const preview = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
     const state = await read({ principalId });
@@ -168,32 +210,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     catch (error) { console.warn('[consent] Cookie preferences were published, but the public preview could not refresh. A later request will try again.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
     return { published: true, revisionId: draftId };
   };
-  const staticDeploymentRefusal = async ({ config }: { config: ConsentConfig }, _options = {}) => {
-    const blockingProblems = await problems({ config });
-    // The cookie-consent banner works on a static host (choices kept in the browser, labelled so).
-    return blockingProblems.length ? deploymentRefusal({ problems: blockingProblems }) : null;
-  };
-  /** Static publication uses browser-local evidence, with the same policy and privacy checks.
-   * Unknown configuration remains blocking; explicit OFF remains a readable rollback. */
-  const deploymentCheck = async ({ principalId, permission }: { principalId: string; permission: 'system.publish' | 'deployments.publish' }, _optional = {}) => {
-    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: ports.authorize }), principalId, workspaceId: ports.workspaceId, permission }, { entityType: 'site-publish' });
-    try {
-      await ports.ready;
-      if (!ports.store) throw new Error('Consent store unavailable');
-      const state = await ports.store.read({});
-      // Default-only consent (no owner choice, nothing published) exports without the banner, as the
-      // construction slot is empty for that default; the default is off live too (2026-11-02).
-      if (!state.published && await ports.defaultOnly({})) return null;
-      const effective = state.published?.config ?? await ports.readLegacy({});
-      // Explicit OFF remains a rollback even when saved legacy copy exceeds today's editor limits.
-      if (effective.enabled === false) return null;
-      const config = parseConsentConfig({ value: effective });
-      return await staticDeploymentRefusal({ config });
-    } catch (error) {
-      console.warn('[consent] The consent policy could not be verified; deployment remains blocked.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
-      return deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'The published consent policy could not be verified. Deployment was not started.' }] });
-    }
-  };
+  const { deploymentCheck } = createConsentDeploymentCheck(ports, problems);
   return { read, readiness, preview, saveDraft, publish, deploymentCheck };
 }
 export type SiteConsentService = ReturnType<typeof createSiteConsentService>;

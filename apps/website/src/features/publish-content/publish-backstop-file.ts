@@ -36,15 +36,7 @@ function componentsRefusal({ root, parts }: { root: string; parts: readonly stri
   }
   return null;
 }
-
-/** Single CMS site-file adapter. lstat every component, never follow a link; stage on the same
- * filesystem and rename only verified regular bytes. Previous files stay in a private folder for
- * one-click undo, rather than relying on the whole-db restore/restart path.
- * @param options.filesystem - The `node:fs` calls used; defaults to Node's.
- */
-export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesystem = fs }: { filesystem?: BackstopFilesystem } = {}): RawFilePort {
-  const { lstatSync, mkdirSync, openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSync, chmodSync } = filesystem;
-  const root = path.resolve(siteDir);
+function createRawFileReader(root: string, filesystem: BackstopFilesystem, { lstatSync, openSync, closeSync, readFileSync }: Pick<BackstopFilesystem, "lstatSync" | "openSync" | "closeSync" | "readFileSync">) {
   function check({ relPath }: { relPath: string }, _optional = {}): string | null {
     const denied = checkRawFilePath({ relPath });
     if (denied) return denied;
@@ -54,11 +46,13 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
       return componentsRefusal({ root, parts: relPath.split("/") }, { filesystem });
     } catch (error) { return missing({ error }) ? "The site folder is unavailable." : "This file cannot be inspected safely."; }
   }
+
   function target({ relPath }: { relPath: string }, _optional = {}): string {
     const reason = check({ relPath });
     if (reason) throw new BackstopRefusal({ message: reason });
     return path.join(root, ...relPath.split("/"));
   }
+
   function read({ relPath }: { relPath: string }, _optional = {}): RawFileSnapshot | null {
     const filename = target({ relPath });
     let fd: number;
@@ -72,6 +66,10 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
       return { absPath: filename, bytes: readFileSync(fd), mode: normalizeMode({ mode: stat.mode }) };
     } finally { closeSync(fd); }
   }
+  return { check, target, read };
+}
+
+function createRawFileDirectories(root: string, filesystem: BackstopFilesystem, { mkdirSync, chmodSync }: Pick<BackstopFilesystem, "mkdirSync" | "chmodSync">) {
   function privateDir({ name }: { name: ".publish-staging" | ".publish-previous" }, _optional = {}): string {
     const dir = path.join(root, name);
     // lstat never follows a link, so a linked folder fails isDirectory() too.
@@ -81,6 +79,7 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
     chmodSync(dir, 0o700);
     return dir;
   }
+
   function parents({ relPath }: { relPath: string }, _optional = {}): void {
     let current = root;
     for (const part of relPath.split("/").slice(0, -1)) {
@@ -90,6 +89,9 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
       if (stat && !stat.isDirectory()) throw new BackstopRefusal({ message: LINK_REFUSAL });
     }
   }
+  return { privateDir, parents };
+}
+function createRawFileUndoReader({ openSync, closeSync, readFileSync, unlinkSync }: Pick<BackstopFilesystem, 'openSync' | 'closeSync' | 'readFileSync' | 'unlinkSync'>, { read, target }: Pick<ReturnType<typeof createRawFileReader>, 'read' | 'target'>) {
   /** A backup's bytes, or `null` when it is gone. Never follows a link. */
   function readBackup({ backup }: { backup: string }, _optional = {}): Buffer | null {
     let fd: number;
@@ -99,13 +101,31 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
     }
     try { return readFileSync(fd); } finally { closeSync(fd); }
   }
+
   function alreadyRestored(inverse: { relPath: string; sha256: string | null }): boolean {
     const current = read({ relPath: inverse.relPath });
     return current !== null && sha(current.bytes) === inverse.sha256;
   }
+
   function removeCreatedFile({ relPath }: { relPath: string }, _optional = {}): void {
     try { unlinkSync(target({ relPath })); } catch (error) { if (!missing({ error })) throw error; }
   }
+  return { readBackup, alreadyRestored, removeCreatedFile };
+}
+
+
+
+/** Single CMS site-file adapter. lstat every component, never follow a link; stage on the same
+ * filesystem and rename only verified regular bytes. Previous files stay in a private folder for
+ * one-click undo, rather than relying on the whole-db restore/restart path.
+ * @param options.filesystem - The `node:fs` calls used; defaults to Node's.
+ */
+export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesystem = fs }: { filesystem?: BackstopFilesystem } = {}): RawFilePort {
+  const { lstatSync, mkdirSync, openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSync, chmodSync } = filesystem;
+  const root = path.resolve(siteDir);
+  const { check, target, read } = createRawFileReader(root, filesystem, { lstatSync, openSync, closeSync, readFileSync });
+  const { privateDir, parents } = createRawFileDirectories(root, filesystem, { mkdirSync, chmodSync });
+  const { readBackup, alreadyRestored, removeCreatedFile } = createRawFileUndoReader({ openSync, closeSync, readFileSync, unlinkSync }, { read, target });
   function replace({ relPath, bytes, mode }: { relPath: string; bytes: Uint8Array; mode: number }, _optional = {}): void {
     target({ relPath });
     if (bytes.byteLength > BACKSTOP_LIMITS.bytes) throw new BackstopRefusal({ message: "Choose files totaling at most 50 MB per send." });

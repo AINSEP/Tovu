@@ -153,6 +153,66 @@ export interface IdentityRouteDepsSlice {
    */
   ownerPrincipalId: Promise<UUID>;
 }
+function createIdentityReady(seedResult: Promise<{ ownerPrincipalId: UUID }>, repos: IdentityRepos, required: Parameters<typeof buildIdentityRouteDeps>[0]['required']): Promise<void> {
+  return seedResult
+    .then(() => {
+      // Both steps below are additive-only and idempotent (see their own headers) — "safe to run
+      // on every boot" ASSUMES a writable connection. It is not: `migrateDeprecatedPermissionGrants`
+      // and `applyBuiltinRoleGrants` only skip their `.save()` when they find nothing outstanding to
+      // add, and calling `.save()` against a genuinely read-only SQLite handle (`better-sqlite3`'s
+      // `readonly: true`, as `openContentDbReadOnly` uses) throws `SqliteError: attempt to write a
+      // readonly database` rather than no-op'ing. A caller building identity deps over such a
+      // connection — `admin-password backfill`'s dry-run path is the
+      // one that exists today — must pass `reconcileGrantsOnBoot: false` so this whole step is
+      // skipped outright, instead of depending on the workspace happening to have nothing left to
+      // reconcile (true today only by chance, not by any guarantee).
+      if (required.reconcileGrantsOnBoot === false) return undefined;
+
+      return (
+        migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
+          // ADR-PIPE-012 T013/T014: every registered {from, to} permission-migration pair (currently
+          // navigation.manage -> admin.menus.* and integration.manage -> admin.integrations.manage)
+          // fans out to any pre-existing policy still holding the deprecated string.
+          migrations: required.permissionGrants.migrations.list({}),
+          policyPermissions: repos.policyPermissions,
+          policies: repos.policies,
+          idGen: required.idGen,
+          workspaceId: required.workspaceId,
+        })
+          // SPEC-047 REQ-9: the second boot-time grant path, and the one that covers what the fan-out
+          // above structurally cannot. That fan-out is `from`-anchored, so it reaches a workspace only
+          // when the anchor permission is already present there; a permission whose intended holder
+          // holds no suitable anchor in THIS workspace reaches nobody, silently, and the gate refuses
+          // its own intended role. `applyBuiltinRoleGrants` states the grant against the built-in role
+          // instead and reconciles it here. Ordered AFTER the fan-out so a grant the fan-out would have
+          // made is already in place and this step no-ops on it rather than racing it.
+          .then(() =>
+            applyBuiltinRoleGrants({
+              grants: required.permissionGrants.roleGrants.list({}),
+              roles: repos.roles,
+              rolePolicies: repos.rolePolicies,
+              policies: repos.policies,
+              policyPermissions: repos.policyPermissions,
+              idGen: required.idGen,
+              workspaceId: required.workspaceId,
+            })
+          )
+      );
+    })
+    .then(() => undefined);
+}
+function createIdentityAuthorize(repos: IdentityRepos): AuthorizeFn {
+  return (params) =>
+    authorizeCore({ deps: {
+        principals: repos.principals,
+        principalRoles: repos.principalRoles,
+        rolePolicies: repos.rolePolicies,
+        principalPolicies: repos.principalPolicies,
+        policyPermissions: repos.policyPermissions,
+      }, principalId: params.principalId, permission: params.permission, context: { workspaceId: params.workspaceId } }, { entityType: params.entityType, entityId: params.entityId });
+}
+
+
 
 /**
  * Shared build: kick off first-boot seeding over whichever `repos` the caller assembled, bind an
@@ -204,61 +264,9 @@ function buildIdentityRouteDeps(
   // await just the owner id without waiting on the permission-migration fan-out below.
   const ownerPrincipalId = seedResult.then((result) => result.ownerPrincipalId);
 
-  const identityReady = seedResult
-    .then(() => {
-      // Both steps below are additive-only and idempotent (see their own headers) — "safe to run
-      // on every boot" ASSUMES a writable connection. It is not: `migrateDeprecatedPermissionGrants`
-      // and `applyBuiltinRoleGrants` only skip their `.save()` when they find nothing outstanding to
-      // add, and calling `.save()` against a genuinely read-only SQLite handle (`better-sqlite3`'s
-      // `readonly: true`, as `openContentDbReadOnly` uses) throws `SqliteError: attempt to write a
-      // readonly database` rather than no-op'ing. A caller building identity deps over such a
-      // connection — `admin-password backfill`'s dry-run path is the
-      // one that exists today — must pass `reconcileGrantsOnBoot: false` so this whole step is
-      // skipped outright, instead of depending on the workspace happening to have nothing left to
-      // reconcile (true today only by chance, not by any guarantee).
-      if (required.reconcileGrantsOnBoot === false) return undefined;
+  const identityReady = createIdentityReady(seedResult, repos, required);
 
-      return (
-        migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
-          // ADR-PIPE-012 T013/T014: every registered {from, to} permission-migration pair (currently
-          // navigation.manage -> admin.menus.* and integration.manage -> admin.integrations.manage)
-          // fans out to any pre-existing policy still holding the deprecated string.
-          migrations: required.permissionGrants.migrations.list({}),
-          policyPermissions: repos.policyPermissions,
-          policies: repos.policies,
-          idGen: required.idGen,
-          workspaceId: required.workspaceId,
-        })
-          // SPEC-047 REQ-9: the second boot-time grant path, and the one that covers what the fan-out
-          // above structurally cannot. That fan-out is `from`-anchored, so it reaches a workspace only
-          // when the anchor permission is already present there; a permission whose intended holder
-          // holds no suitable anchor in THIS workspace reaches nobody, silently, and the gate refuses
-          // its own intended role. `applyBuiltinRoleGrants` states the grant against the built-in role
-          // instead and reconciles it here. Ordered AFTER the fan-out so a grant the fan-out would have
-          // made is already in place and this step no-ops on it rather than racing it.
-          .then(() =>
-            applyBuiltinRoleGrants({
-              grants: required.permissionGrants.roleGrants.list({}),
-              roles: repos.roles,
-              rolePolicies: repos.rolePolicies,
-              policies: repos.policies,
-              policyPermissions: repos.policyPermissions,
-              idGen: required.idGen,
-              workspaceId: required.workspaceId,
-            })
-          )
-      );
-    })
-    .then(() => undefined);
-
-  const authorize: AuthorizeFn = (params) =>
-    authorizeCore({ deps: {
-        principals: repos.principals,
-        principalRoles: repos.principalRoles,
-        rolePolicies: repos.rolePolicies,
-        principalPolicies: repos.principalPolicies,
-        policyPermissions: repos.policyPermissions,
-      }, principalId: params.principalId, permission: params.permission, context: { workspaceId: params.workspaceId } }, { entityType: params.entityType, entityId: params.entityId });
+  const authorize: AuthorizeFn = createIdentityAuthorize(repos);
 
   return {
     transactions: repos.transactions,

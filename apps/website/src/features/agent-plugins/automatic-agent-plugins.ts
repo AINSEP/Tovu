@@ -40,85 +40,42 @@ export interface AutomaticPluginRun {
   maxPromptArgBytes?: number | undefined;
   publish(input: { conversationId: string; state: ChatAgentPluginState; plugins: readonly { id: string; name: string }[] }): Promise<void>;
 }
+type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; preflight?: Promise<string> | undefined; attempts: Set<string>; maturities: Map<string, PluginMaturity | undefined> };
 
-/** Logical-turn controllers share preflight and the actual authorized tool gate. Cleanup is explicit.
- * @returns start/forget, the read-only guidance loader and the tool preparation hook.
- * @complexity O(1) identity lookup; one controller per live turn, one late answer per chat.
- */
-export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice }: { deps: AutomaticPluginDeps; surfaces: ChatDeleteSurfaceDeps; askAgentPluginChoice: AskAgentPluginChoice }, _options = {}) {
-  type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; preflight?: Promise<string> | undefined; attempts: Set<string>; maturities: Map<string, PluginMaturity | undefined> };
-  const turns = new Map<string, Entry>();
-  const runs = new Map<string, Entry>();
-  // A terminal attempt cannot publish its late answer. Hand it to the next turn in this chat.
-  const lateAnswers = new Map<string, ChatAgentPluginState>();
   const chatKey = (context: AutomaticPluginRun) => JSON.stringify([context.principal.id, context.conversationId]);
+
   /** Release a detached, settled controller without deleting a replacement with the same id. O(1). */
-  function releaseDetached(entry: Entry): void {
+  function releaseDetached(entry: Entry, turns: Map<string, Entry>): void {
     if (!entry.pending && !entry.attempts.size && turns.get(entry.turnId) === entry) turns.delete(entry.turnId);
   }
-  /** Bind an attempt to its logical turn; return its shared preflight note. Identity mismatches
-   * throw before using consent. Settings/catalog effects stay in their existing ports.
-   * @complexity O(1) ownership lookup plus the automatic-use owner's catalog work.
-   */
-  async function start({ runId, messageId, context }: { runId: string; messageId?: string; context: AutomaticPluginRun }, _options = {}): Promise<string> {
-    // core.interface definitions are in this existing boot chain, after the UI-tab definitions.
-    await deps.siteTitleReady;
-    const mode = await deps.preferences.mode({ workspaceId: deps.workspaceId, principalId: context.principal.id });
-    if (context.signal.aborted) return '';
-    // A restarted attempt still owns the same pending/answered question. Reuse the controller's
-    // serialized preparation instead of rebuilding consent from the frozen request state.
-    // Check after setup awaits so simultaneous starts cannot replace one another's controller.
-    const turnId = messageId ?? runId;
-    const existing = runs.get(runId) ?? turns.get(turnId);
-    if (existing) return rejoin({ existing, runId, messageId, context });
-    const current = withLateAnswer({ context });
-    const entry = createEntry({ mode, context: current, turnId, runId });
-    turns.set(turnId, entry);
-    runs.set(runId, entry);
-    // An Off event clears an earlier usage strip without reading the catalog or loading guidance.
-    if (mode === 'off') await current.publish({ conversationId: current.conversationId, state: current.state, plugins: [] });
-    try { return await preflight({ entry }); }
-    finally { releaseDetached(entry); }
-  }
-  /** Attach a restarted attempt to its live turn's controller; refuses another principal, chat or turn.
-   * @throws Error('Agent Plugin run is unavailable') on any identity mismatch. @complexity O(1). */
-  function rejoin({ existing, runId, messageId, context }: { existing: Entry; runId: string; messageId?: string; context: AutomaticPluginRun }): Promise<string> {
-    if (existing.context.principal.id !== context.principal.id || existing.context.conversationId !== context.conversationId || (messageId !== undefined && existing.turnId !== messageId)) throw new Error('Agent Plugin run is unavailable');
-    existing.context = context;
-    existing.attempts.add(runId);
-    runs.set(runId, existing);
-    return preflight({ entry: existing }).finally(() => releaseDetached(existing));
-  }
+
   /** Keep the successful turn snapshot across attempts; failed preparation remains retryable. */
   function preflight({ entry }: { entry: Entry }, _options = {}): Promise<string> {
     entry.preflight ??= entry.controller.prepare({ query: entry.context.query, loaded: entry.context.pinned, maxPromptArgBytes: entry.context.maxPromptArgBytes })
       .catch(error => { entry.preflight = undefined; throw error; });
     return entry.preflight;
   }
+
   /** Fold a terminal attempt's late answer for this chat into the new turn, consuming it once. @complexity O(excluded). */
-  function withLateAnswer({ context }: { context: AutomaticPluginRun }): AutomaticPluginRun {
+  function withLateAnswer({ context }: { context: AutomaticPluginRun }, lateAnswers: Map<string, ChatAgentPluginState>): AutomaticPluginRun {
     const lateAnswer = lateAnswers.get(chatKey(context));
     if (!lateAnswer) return context;
     lateAnswers.delete(chatKey(context));
     return { ...context, state: { ...lateAnswer, excluded: [...new Set([...context.state.excluded, ...lateAnswer.excluded])] } };
   }
-  /** One logical turn's controller wired to the existing catalog, resolver, consent card and settings ports. */
-  function createEntry({ mode, context, turnId, runId }: { mode: ChatAgentPlugins; context: AutomaticPluginRun; turnId: string; runId: string }): Entry {
-    const abort = new AbortController();
-    const maturities = new Map<string, PluginMaturity | undefined>();
-    let approvedPreferenceRevisionSeq: number | undefined;
-    let entry: Entry;
-    const controller = createAutomaticAgentPluginUse({ mode, state: readChatAgentPluginState({ value: context.state }), ports: {
-      formatPluginToolPointer,
-      list: async () => {
-        const candidates = await loadAgentPluginSearchCandidates(deps);
-        maturities.clear();
-        for (const candidate of candidates) if (candidate.enabled) maturities.set(candidate.pluginId, candidate.maturity);
-        return candidates;
-      },
-      rank: (input) => rankInstalledAgentPlugins({ query: input.query.slice(0, 16000), candidates: input.candidates, limit: input.limit }, { automatic: true }),
-      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }) }, { deliveryMode: 'inject', allowInactiveGuidance: true, ...request }),
-      ask: async ({ matches }) => {
+
+  /** Attach a restarted attempt to its live turn's controller; refuses another principal, chat or turn.
+   * @throws Error('Agent Plugin run is unavailable') on any identity mismatch. @complexity O(1). */
+  function rejoin({ existing, runId, messageId, context }: { existing: Entry; runId: string; messageId?: string; context: AutomaticPluginRun }, { runs, turns }: { runs: Map<string, Entry>; turns: Map<string, Entry> }): Promise<string> {
+    if (existing.context.principal.id !== context.principal.id || existing.context.conversationId !== context.conversationId || (messageId !== undefined && existing.turnId !== messageId)) throw new Error('Agent Plugin run is unavailable');
+    existing.context = context;
+    existing.attempts.add(runId);
+    runs.set(runId, existing);
+    return preflight({ entry: existing }).finally(() => releaseDetached(existing, turns));
+  }
+function createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, abort }: Parameters<typeof createAutomaticPluginRuns>[0] & { context: AutomaticPluginRun; abort: AbortController }, { getEntry, approve }: { getEntry: () => Entry; approve: (revisionSeq: number) => void }): AutomaticAgentPluginPorts['ask'] {
+  return async ({ matches }) => {
+        const entry = getEntry();
         entry.pending = true;
         try {
           const preference = await deps.preferences.snapshot({ workspaceId: deps.workspaceId, principalId: context.principal.id });
@@ -137,7 +94,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
           if (answer.action !== 'skip') {
             const current = await deps.preferences.snapshot({ workspaceId: deps.workspaceId, principalId: context.principal.id });
             if (current.mode !== preference.mode || current.revisionSeq !== preference.revisionSeq) throw new ToolInputError({ message: 'Your Agent Plugins preference changed while this card was open. Nothing was changed by this answer. Start a new request using your current preference.' });
-            approvedPreferenceRevisionSeq = preference.revisionSeq;
+            approve(preference.revisionSeq);
           }
           return answer;
         } catch (error) {
@@ -146,7 +103,27 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
           if (error instanceof ToolInputError) await entry.context.emitSurface({ channel: 'text_delta', payload: { delta: `\n\n${error.message}\n\n` } });
           throw error;
         } finally { entry.pending = false; }
+      };
+}
+
+
+  /** One logical turn's controller wired to the existing catalog, resolver, consent card and settings ports. */
+  function createEntry({ mode, context, turnId, runId }: { mode: ChatAgentPlugins; context: AutomaticPluginRun; turnId: string; runId: string }, { deps, surfaces, askAgentPluginChoice, lateAnswers }: Parameters<typeof createAutomaticPluginRuns>[0] & { lateAnswers: Map<string, ChatAgentPluginState> }): Entry {
+    const abort = new AbortController();
+    const maturities = new Map<string, PluginMaturity | undefined>();
+    let approvedPreferenceRevisionSeq: number | undefined;
+    let entry: Entry;
+    const controller = createAutomaticAgentPluginUse({ mode, state: readChatAgentPluginState({ value: context.state }), ports: {
+      formatPluginToolPointer,
+      list: async () => {
+        const candidates = await loadAgentPluginSearchCandidates(deps);
+        maturities.clear();
+        for (const candidate of candidates) if (candidate.enabled) maturities.set(candidate.pluginId, candidate.maturity);
+        return candidates;
       },
+      rank: (input) => rankInstalledAgentPlugins({ query: input.query.slice(0, 16000), candidates: input.candidates, limit: input.limit }, { automatic: true }),
+      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }) }, { deliveryMode: 'inject', allowInactiveGuidance: true, ...request }),
+      ask: createPluginChoiceAsk({ deps, surfaces, askAgentPluginChoice, context, abort }, { getEntry: () => entry, approve: revisionSeq => { approvedPreferenceRevisionSeq = revisionSeq; } }),
       saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id, expectedRevisionSeq: approvedPreferenceRevisionSeq }),
       publish: async value => {
         if (abort.signal.aborted) return;
@@ -157,16 +134,12 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
     entry = { turnId, controller, context, abort, pending: false, attempts: new Set([runId]), maturities };
     return entry;
   }
-  const prepareGuidance: PrepareToolGuidance = async ({ run, tool, signal }) => {
-    const entry = runs.get(run.id);
-    if (!entry) return '';
-    try { return await entry.controller.prepare({ ...(tool.metadata?.guidanceCapabilities ? { capabilities: tool.metadata.guidanceCapabilities } : {}), signal }); }
-    catch (error) { console.warn('[agent-plugins] automatic tool guidance unavailable', describeErrorForLog({ err: error })); return ''; }
-    finally { releaseDetached(entry); }
-  };
   // Existing per-plugin tools read their boot-time source, not the run's consent/exclusion owner.
   // This small id loader uses the SAME trusted pinned-ref resolver as the capability backstop.
-  const loadRegistration = buildDomainRegistrations({
+  
+
+function buildPluginGuidanceRegistration(runs: Map<string, Entry>, turns: Map<string, Entry>) {
+  return buildDomainRegistrations({
     domain: 'agent-plugin-guidance', catalogModule: 'assistant/automatic-agent-plugins.ts',
     catalog: indexCatalogById({ catalog: agentPluginGuidanceCatalog }),
     metadata: toolMetadata,
@@ -179,7 +152,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
       const file = optionalString({ input, key: 'file' });
       const entry = runs.get(run.id);
       if (!entry || entry.context.principal.id !== principal.id) throw new Error('Agent Plugin run is unavailable');
-      const result = await entry.controller.load({ pluginId, signal, ...(skill === undefined ? {} : { skill }), ...(file === undefined ? {} : { file }) }).finally(() => releaseDetached(entry));
+      const result = await entry.controller.load({ pluginId, signal, ...(skill === undefined ? {} : { skill }), ...(file === undefined ? {} : { file }) }).finally(() => releaseDetached(entry, turns));
       const id = JSON.stringify(pluginId);
       const notes = {
         loaded: '',
@@ -195,6 +168,51 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
       return { pluginId, ...result, ...(maturity ? { maturity } : {}), ...(result.status !== 'loaded' ? { note: notes[result.status] } : {}) };
     } },
   })[0];
+}
+
+
+
+/** Logical-turn controllers share preflight and the actual authorized tool gate. Cleanup is explicit.
+ * @returns start/forget, the read-only guidance loader and the tool preparation hook.
+ * @complexity O(1) identity lookup; one controller per live turn, one late answer per chat.
+ */
+export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice }: { deps: AutomaticPluginDeps; surfaces: ChatDeleteSurfaceDeps; askAgentPluginChoice: AskAgentPluginChoice }, _options = {}) {
+  const turns = new Map<string, Entry>();
+  const runs = new Map<string, Entry>();
+  // A terminal attempt cannot publish its late answer. Hand it to the next turn in this chat.
+  const lateAnswers = new Map<string, ChatAgentPluginState>();
+  /** Bind an attempt to its logical turn; return its shared preflight note. Identity mismatches
+   * throw before using consent. Settings/catalog effects stay in their existing ports.
+   * @complexity O(1) ownership lookup plus the automatic-use owner's catalog work.
+   */
+  async function start({ runId, messageId, context }: { runId: string; messageId?: string; context: AutomaticPluginRun }, _options = {}): Promise<string> {
+    // core.interface definitions are in this existing boot chain, after the UI-tab definitions.
+    await deps.siteTitleReady;
+    const mode = await deps.preferences.mode({ workspaceId: deps.workspaceId, principalId: context.principal.id });
+    if (context.signal.aborted) return '';
+    // A restarted attempt still owns the same pending/answered question. Reuse the controller's
+    // serialized preparation instead of rebuilding consent from the frozen request state.
+    // Check after setup awaits so simultaneous starts cannot replace one another's controller.
+    const turnId = messageId ?? runId;
+    const existing = runs.get(runId) ?? turns.get(turnId);
+    if (existing) return rejoin({ existing, runId, messageId, context }, { runs, turns });
+    const current = withLateAnswer({ context }, lateAnswers);
+    const entry = createEntry({ mode, context: current, turnId, runId }, { deps, surfaces, askAgentPluginChoice, lateAnswers });
+    turns.set(turnId, entry);
+    runs.set(runId, entry);
+    // An Off event clears an earlier usage strip without reading the catalog or loading guidance.
+    if (mode === 'off') await current.publish({ conversationId: current.conversationId, state: current.state, plugins: [] });
+    try { return await preflight({ entry }); }
+    finally { releaseDetached(entry, turns); }
+  }
+  const prepareGuidance: PrepareToolGuidance = async ({ run, tool, signal }) => {
+    const entry = runs.get(run.id);
+    if (!entry) return '';
+    try { return await entry.controller.prepare({ ...(tool.metadata?.guidanceCapabilities ? { capabilities: tool.metadata.guidanceCapabilities } : {}), signal }); }
+    catch (error) { console.warn('[agent-plugins] automatic tool guidance unavailable', describeErrorForLog({ err: error })); return ''; }
+    finally { releaseDetached(entry, turns); }
+  };
+  const loadRegistration = buildPluginGuidanceRegistration(runs, turns);
   if (loadRegistration === undefined) throw new Error('Agent Plugin guidance has no load tool registration');
   /** Dispose an attempt alias. Durable attempt replacement retains a pending exchange until its
    * answer/normal exchange expiry; explicit disposal aborts it. O(1), no persistent writes.

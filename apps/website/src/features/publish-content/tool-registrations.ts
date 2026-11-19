@@ -260,37 +260,8 @@ async function connectWithTrust(
   }
 }
 
-/**
- * Wires publish/readiness/connection tools using explicit ports; pulls retain human-bound surfaces.
- * Pull planning stores an expiring bundle; execution reaches the import gateway only after a click.
- * @returns Catalog registrations with independently derived write risk.
- * @example buildPublishContentRegistrations(deps, { surfaceExchanges });
- * @complexity O(t) for t catalog entries; handler I/O runs only when invoked.
- */
-export function buildPublishContentRegistrations(
-  { routeDeps, surfaces }: { routeDeps: PublishContentToolDeps; surfaces: AssistantSurfaceDeps },
-  _optional = {}
-): ToolRegistration[] {
-  const findCandidate = routeDeps.findPublishCandidate ?? (async () => null);
-  const provisioning = routeDeps.publishTrustProvisioning ?? defaultProvisioning();
-
-  const handlers: Record<string, ToolHandler> = {
-    [PUBLISH_CONTENT_PUBLISH_TOOL_ID]: ctx => pullToolBoundary({ run: async () => {
-      const input = requireInputRecord({ input: ctx.input ?? {} });
-      refuseUnexpectedKeys(input, ["peerId", "types", "items", "excludeItems", "overwrite"]);
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
-      ctx.signal.throwIfAborted();
-      return publishContentFromTool({ deps: routeDeps, principalId: ctx.principal.id }, input);
-    } }),
-    [PUBLISH_BACKSTOP_GAPS_TOOL_ID]: async (ctx) => {
-      refuseUnexpectedKeys(requireInputRecord({ input: ctx.input ?? {} }), []);
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "publish_content.read" });
-      const audit = routeDeps.makePublishContentDeps?.().backstop?.audit;
-      return { gaps: audit && await audit.ready() ? await audit.gaps({ workspaceId: routeDeps.workspaceId }) : [] };
-    },
-    [PUBLISH_CONTENT_PLAN_PULL_TOOL_ID]: async ctx => pullToolBoundary({ run: async () => {
+    async function planPublishContentPull(routeDeps: PublishContentToolDeps, ctx: Parameters<ToolHandler>[0]) {
+  return pullToolBoundary({ run: async () => {
       const input = requireInputRecord({ input: ctx.input });
       refuseUnexpectedKeys(input, ["peerId"]);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
@@ -310,8 +281,11 @@ export function buildPublishContentRegistrations(
         counts: pullCounts(report), conflicts: report.rows.filter(row => row.canOverwrite).slice(0, 50).map(row => ({
           entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), reason: row.reason,
         })), blobsUnavailable: staged.blobsUnavailable, blobsDeferred: staged.blobsDeferred };
-    } }),
-    [PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
+    } });
+}
+
+    function createExecutePullHandler(routeDeps: PublishContentToolDeps, surfaces: AssistantSurfaceDeps): ToolHandler {
+  return humanConfirmedToolHandler(surfaces, {
       flag: "executed",
       prepare: ({ ctx }) => pullToolBoundary({ run: async () => {
         const input = requireInputRecord({ input: ctx.input });
@@ -357,7 +331,43 @@ export function buildPublishContentRegistrations(
         // Use the persisted APPLY report, including any optimistic-concurrency downgrades.
         return { executed: true, counts: pullCounts(status.report), entities: status.report.rows.map(row => ({ entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), outcome: row.outcome, reason: row.reason })) };
       } }),
-    }),
+    });
+}
+
+
+
+/**
+ * Wires publish/readiness/connection tools using explicit ports; pulls retain human-bound surfaces.
+ * Pull planning stores an expiring bundle; execution reaches the import gateway only after a click.
+ * @returns Catalog registrations with independently derived write risk.
+ * @example buildPublishContentRegistrations(deps, { surfaceExchanges });
+ * @complexity O(t) for t catalog entries; handler I/O runs only when invoked.
+ */
+export function buildPublishContentRegistrations(
+  { routeDeps, surfaces }: { routeDeps: PublishContentToolDeps; surfaces: AssistantSurfaceDeps },
+  _optional = {}
+): ToolRegistration[] {
+  const findCandidate = routeDeps.findPublishCandidate ?? (async () => null);
+  const provisioning = routeDeps.publishTrustProvisioning ?? defaultProvisioning();
+
+  const handlers: Record<string, ToolHandler> = {
+    [PUBLISH_CONTENT_PUBLISH_TOOL_ID]: ctx => pullToolBoundary({ run: async () => {
+      const input = requireInputRecord({ input: ctx.input ?? {} });
+      refuseUnexpectedKeys(input, ["peerId", "types", "items", "excludeItems", "overwrite"]);
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
+      ctx.signal.throwIfAborted();
+      return publishContentFromTool({ deps: routeDeps, principalId: ctx.principal.id }, input);
+    } }),
+    [PUBLISH_BACKSTOP_GAPS_TOOL_ID]: async (ctx) => {
+      refuseUnexpectedKeys(requireInputRecord({ input: ctx.input ?? {} }), []);
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "publish_content.read" });
+      const audit = routeDeps.makePublishContentDeps?.().backstop?.audit;
+      return { gaps: audit && await audit.ready() ? await audit.gaps({ workspaceId: routeDeps.workspaceId }) : [] };
+    },
+    [PUBLISH_CONTENT_PLAN_PULL_TOOL_ID]: (ctx) => planPublishContentPull(routeDeps, ctx),
+    [PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID]: createExecutePullHandler(routeDeps, surfaces),
     [PUBLISH_CONTENT_STATUS_TOOL_ID]: async (ctx) => {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_READ_PERMISSION });
       const { readiness } = await readReadiness({ deps: routeDeps, findCandidate });

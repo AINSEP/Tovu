@@ -589,6 +589,157 @@ function registerSurfaceTools(
     registry.register(registration);
   }
 }
+function createSurfaceFederationLifecycle({ federation, connectionSource, rebuildCatalog }: { federation: FederationRuntime | undefined; connectionSource: StoredExternalMcpConnectionSource; rebuildCatalog: () => void }) {
+
+  let federationReady: Promise<void> | undefined;
+
+
+  /** One admission/catalog completion shared by bounded BYOK waits and server demand adapters.
+   * A timed-out caller leaves startup running; its eventual tools still become discoverable.
+   * @complexity One startup and O(t) catalog rebuild for t registered tools; O(1) on later calls. */
+  function startFederation(): Promise<void> {
+    if (!federation) return Promise.resolve();
+    federationReady ??= federation.start().then(() => {
+      rebuildCatalog();
+    });
+    return federationReady;
+  }
+
+
+  /** Read the live source and connection failures after admission, never a copied boot snapshot.
+   * Connection-source failures have no admission report; omitting them would hide saved rows that
+   * never reached a handshake. Both failure owners replace their own accounting on reload.
+   * @returns This surface's current reports and combined configuration/connection failures.
+   * @complexity O(f) time/space for f failure entries, beyond the single-flight startup. */
+  async function readFederationAdmissions(_required: Record<string, never>, _optional: Record<string, never> = {}) {
+    await startFederation();
+    return { connections: federation?.reports() ?? [], configFailures: [...connectionSource.failures(), ...(federation?.connectFailures() ?? [])] };
+  }
+
+
+  /**
+   * Starts (or awaits) `federation.start()`, racing it against `timeoutMs` — see
+   * `ByokToolSurface.awaitFederation`'s own doc for the full contract. `startFederation` rebuilds
+   * `catalog` on completion, mirroring `ready`'s own `.then(rebuildCatalog)`: unlike the daemon
+   * (which starts federation and builds its FIRST catalog snapshot in the same sequential boot,
+   * sequence), BYOK's `catalog` above is already
+   * built and possibly already searched by the time federation's lazy boot pass resolves, so
+   * nothing else would ever pick up what it admitted.
+   */
+  async function awaitFederation({ timeoutMs }: { timeoutMs: number }, _optional = {}): Promise<{ readonly settled: boolean }> {
+    if (!federation) return { settled: true };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const outcome = await Promise.race([
+      startFederation().then((): "started" => "started"),
+      new Promise<"timed-out">((resolve) => {
+        timer = setTimeout(() => resolve("timed-out"), timeoutMs);
+      }),
+    ]);
+    if (timer) clearTimeout(timer);
+    return { settled: outcome === "started" };
+  }
+  return { readFederationAdmissions, awaitFederation };
+}
+
+function createSurfaceMetaDispatcher({ registry, visibleRegistry, deleteScope, executor, ready, readCatalog, rebuildCatalog }: { registry: ToolRegistry; visibleRegistry: ReturnType<typeof createDiscoveryRegistry>; deleteScope: ReturnType<typeof createChatDeleteScope>; executor: ToolExecutor; ready: Promise<void>; readCatalog: () => ToolCatalogQuery; rebuildCatalog: () => void }, options: ByokToolSurfaceOptions) {
+
+  /** The installed-extension pass, then any skill installed since the last call. */
+  async function syncInstalled(): Promise<void> {
+    await ready;
+    const skillsRegistry = registry as ToolRegistry & { refreshInstalledSkills?: () => Promise<boolean> };
+    if (await skillsRegistry.refreshInstalledSkills?.()) rebuildCatalog();
+  }
+
+
+  async function executeMetaTool(
+    { principal, run, call }: { principal: Principal; run: RunRef; call: { readonly name: string; readonly input: unknown } },
+    { signal, emitSurface, exposure }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter; exposure?: ToolExposure } = {},
+  ): Promise<ByokMetaToolResult> {
+    await syncInstalled();
+    const args = isRecord(call.input) ? call.input : {};
+
+    if (!META_TOOL_IDS.has(call.name) && !exposure) {
+      // Reachable in practice: a model that has seen a real tool id (from a search hit, or from its
+      // own prior turn) can try to call it directly as a tool name, since the meta-set is the only
+      // thing it was actually offered. Say so, rather than returning a bare "unknown tool".
+      return err(
+        { content: `"${call.name}" is not a callable tool here. This site exposes only ${[...META_TOOL_IDS].join(", ")}. ` +
+          `To run "${call.name}", call execute_delegated_tool with toolId: "${call.name}".` },
+      );
+    }
+
+    // Real per-call identity, unlike the Local CLI's fixed placeholder — see `MetaToolCatalogAudit`'s
+    // own doc.
+    const catalogAudit: MetaToolCatalogAudit | undefined = options.toolAttemptAudit && {
+      sink: options.toolAttemptAudit.sink,
+      workspaceId: options.toolAttemptAudit.workspaceId,
+      principalId: principal.id,
+      runId: run.id,
+    };
+
+    return deleteScope.fresh({ principalId: principal.id, run: () => {
+      const visibleCatalog = filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog: readCatalog() }) });
+      if (call.name === "search_tools") return runSearchTools({ catalog: visibleCatalog, registry: visibleRegistry, args: args, audit: catalogAudit });
+      if (call.name === "describe_tool") return runDescribeTool({ catalog: visibleCatalog, args, audit: catalogAudit }, { exposure });
+      if (call.name === "execute_delegated_tool") return runExecuteDelegatedTool({ executor: executor, principal: principal, run: run, args: args, signal: signal, emitSurface: emitSurface });
+      return runTypedTool({ exposure: exposure!, catalog: visibleCatalog, registry: visibleRegistry, executor, principal, run, call }, { signal, emitSurface });
+    } });
+  }
+  return { syncInstalled, executeMetaTool };
+}
+
+function createSurfaceRunFactory(visibleRegistry: ToolRegistry, executeMetaTool: ReturnType<typeof createSurfaceMetaDispatcher>['executeMetaTool']) {
+
+  /** Bind one run without retaining it in a process-wide map. Core owns naming, pinning and caps.
+   * Successful descriptions alone promote; searches stay cheap and do not change exposure.
+   * @param required - Trusted principal and run, held only for this turn's lifetime.
+   * @param limits - Optional publication budgets; exhausted budgets leave wrappers callable.
+   * @returns A live getter and dispatcher sharing exactly one bounded exposure.
+   * @throws ToolExposureError if a publication budget is invalid.
+   * @complexity O(1) creation; snapshots O(e) time/space in bounded exposed definitions.
+   */
+  function createRun(
+    { principal, run }: { principal: Principal; run: RunRef },
+    limits: { maxTools?: number; maxSchemaBytes?: number } = {},
+  ): ByokToolRun {
+    const exposure = createToolExposure({ registry: visibleRegistry }, { ...limits, reservedNames: [...META_TOOL_IDS] });
+    return {
+      getToolSnapshot: () => [...META_TOOL_DESCRIPTORS, ...exposure.getSnapshot({}).tools.map(({ descriptor, wireName }) => ({ ...descriptor, wireName }))],
+      executeTool: (call, { signal, emitSurface } = {}) => executeMetaTool({ principal: principal, run: run, call: call }, { signal: signal, emitSurface: emitSurface, exposure: exposure }),
+    };
+  }
+  return { createRun };
+}
+
+function createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled }: { executor: ToolExecutor; visibleRegistry: ToolRegistry; deleteScope: ReturnType<typeof createChatDeleteScope>; syncInstalled: () => Promise<void> }): ByokToolSurface['daemonCalls'] {
+  return {
+      executor: {
+        ...executor,
+        execute: async (call, optional) => {
+          await syncInstalled();
+          return deleteScope.fresh({ principalId: call.principal.id, run: () => executor.execute(call, optional) });
+        },
+      },
+      listToolsFor: async ({ principalId }) => {
+        await syncInstalled();
+        return deleteScope.fresh({ principalId, run: () => visibleRegistry.list({}) });
+      },
+    };
+}
+
+  // `listCatalogTools` is `site_describe_capabilities`' reader over this surface's OWN registry, the
+  // one `search_tools`/`describe_tool` below are seeded from. Spread last, so a reader smuggled in
+  // through `routeDeps` cannot replace it. A daemon call adds the tools the daemon runs itself.
+  
+function createSurfaceRegistryDeps(routeDeps: ByokToolSurfaceDeps, magicLinkPerEmailLimiter: ReturnType<typeof createRateLimiter>, visibleRegistry: ToolRegistry): AssistantToolRegistryDeps {
+  return {
+    ...routeDeps,
+    magicLinkPerEmailLimiter,
+    listCatalogTools: () => withDaemonLocalTools({ entries: listToolCatalogEntries(visibleRegistry) }),
+  };
+}
+
+
 
 /**
  * Builds one fresh registry+executor pair over the full admin tool catalog.
@@ -625,14 +776,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
   const registry = createToolRegistry({});
   const deleteScope = createChatDeleteScope({ readPolicy: ({ principalId }) => readChatPermanentDeletesPolicy({ ...routeDeps, principalId, settingsReady: routeDeps.settingsUiTabsReady }) });
   const visibleRegistry = createDiscoveryRegistry({ registry, deleteScope });
-  // `listCatalogTools` is `site_describe_capabilities`' reader over this surface's OWN registry, the
-  // one `search_tools`/`describe_tool` below are seeded from. Spread last, so a reader smuggled in
-  // through `routeDeps` cannot replace it. A daemon call adds the tools the daemon runs itself.
-  const deps: AssistantToolRegistryDeps = {
-    ...routeDeps,
-    magicLinkPerEmailLimiter,
-    listCatalogTools: () => withDaemonLocalTools({ entries: listToolCatalogEntries(visibleRegistry) }),
-  };
+  const deps: AssistantToolRegistryDeps = createSurfaceRegistryDeps(routeDeps, magicLinkPerEmailLimiter, visibleRegistry);
   const surfaceExchanges = options.surfaceExchangeStore ?? createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
   registerSurfaceTools({ registry, deps, surfaceExchanges }, options);
@@ -673,112 +817,9 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
         catalog = buildToolCatalogQuery(registry);
       })
     : Promise.resolve();
-
-  let federationReady: Promise<void> | undefined;
-
-  /** One admission/catalog completion shared by bounded BYOK waits and server demand adapters.
-   * A timed-out caller leaves startup running; its eventual tools still become discoverable.
-   * @complexity One startup and O(t) catalog rebuild for t registered tools; O(1) on later calls. */
-  function startFederation(): Promise<void> {
-    if (!federation) return Promise.resolve();
-    federationReady ??= federation.start().then(() => {
-      catalog = buildToolCatalogQuery(registry);
-    });
-    return federationReady;
-  }
-
-  /** Read the live source and connection failures after admission, never a copied boot snapshot.
-   * Connection-source failures have no admission report; omitting them would hide saved rows that
-   * never reached a handshake. Both failure owners replace their own accounting on reload.
-   * @returns This surface's current reports and combined configuration/connection failures.
-   * @complexity O(f) time/space for f failure entries, beyond the single-flight startup. */
-  async function readFederationAdmissions(_required: Record<string, never>, _optional: Record<string, never> = {}) {
-    await startFederation();
-    return { connections: federation?.reports() ?? [], configFailures: [...connectionSource.failures(), ...(federation?.connectFailures() ?? [])] };
-  }
-
-  /**
-   * Starts (or awaits) `federation.start()`, racing it against `timeoutMs` — see
-   * `ByokToolSurface.awaitFederation`'s own doc for the full contract. `startFederation` rebuilds
-   * `catalog` on completion, mirroring `ready`'s own `.then(rebuildCatalog)`: unlike the daemon
-   * (which starts federation and builds its FIRST catalog snapshot in the same sequential boot,
-   * sequence), BYOK's `catalog` above is already
-   * built and possibly already searched by the time federation's lazy boot pass resolves, so
-   * nothing else would ever pick up what it admitted.
-   */
-  async function awaitFederation({ timeoutMs }: { timeoutMs: number }, _optional = {}): Promise<{ readonly settled: boolean }> {
-    if (!federation) return { settled: true };
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const outcome = await Promise.race([
-      startFederation().then((): "started" => "started"),
-      new Promise<"timed-out">((resolve) => {
-        timer = setTimeout(() => resolve("timed-out"), timeoutMs);
-      }),
-    ]);
-    if (timer) clearTimeout(timer);
-    return { settled: outcome === "started" };
-  }
-
-  /** The installed-extension pass, then any skill installed since the last call. */
-  async function syncInstalled(): Promise<void> {
-    await ready;
-    const skillsRegistry = registry as ToolRegistry & { refreshInstalledSkills?: () => Promise<boolean> };
-    if (await skillsRegistry.refreshInstalledSkills?.()) catalog = buildToolCatalogQuery(registry);
-  }
-
-  async function executeMetaTool(
-    { principal, run, call }: { principal: Principal; run: RunRef; call: { readonly name: string; readonly input: unknown } },
-    { signal, emitSurface, exposure }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter; exposure?: ToolExposure } = {},
-  ): Promise<ByokMetaToolResult> {
-    await syncInstalled();
-    const args = isRecord(call.input) ? call.input : {};
-
-    if (!META_TOOL_IDS.has(call.name) && !exposure) {
-      // Reachable in practice: a model that has seen a real tool id (from a search hit, or from its
-      // own prior turn) can try to call it directly as a tool name, since the meta-set is the only
-      // thing it was actually offered. Say so, rather than returning a bare "unknown tool".
-      return err(
-        { content: `"${call.name}" is not a callable tool here. This site exposes only ${[...META_TOOL_IDS].join(", ")}. ` +
-          `To run "${call.name}", call execute_delegated_tool with toolId: "${call.name}".` },
-      );
-    }
-
-    // Real per-call identity, unlike the Local CLI's fixed placeholder — see `MetaToolCatalogAudit`'s
-    // own doc.
-    const catalogAudit: MetaToolCatalogAudit | undefined = options.toolAttemptAudit && {
-      sink: options.toolAttemptAudit.sink,
-      workspaceId: options.toolAttemptAudit.workspaceId,
-      principalId: principal.id,
-      runId: run.id,
-    };
-
-    return deleteScope.fresh({ principalId: principal.id, run: () => {
-      const visibleCatalog = filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog }) });
-      if (call.name === "search_tools") return runSearchTools({ catalog: visibleCatalog, registry: visibleRegistry, args: args, audit: catalogAudit });
-      if (call.name === "describe_tool") return runDescribeTool({ catalog: visibleCatalog, args, audit: catalogAudit }, { exposure });
-      if (call.name === "execute_delegated_tool") return runExecuteDelegatedTool({ executor: executor, principal: principal, run: run, args: args, signal: signal, emitSurface: emitSurface });
-      return runTypedTool({ exposure: exposure!, catalog: visibleCatalog, registry: visibleRegistry, executor, principal, run, call }, { signal, emitSurface });
-    } });
-  }
-
-  /** Bind one run without retaining it in a process-wide map. Core owns naming, pinning and caps.
-   * Successful descriptions alone promote; searches stay cheap and do not change exposure.
-   * @param required - Trusted principal and run, held only for this turn's lifetime.
-   * @param limits - Optional publication budgets; exhausted budgets leave wrappers callable.
-   * @returns A live getter and dispatcher sharing exactly one bounded exposure.
-   * @throws ToolExposureError if a publication budget is invalid.
-   * @complexity O(1) creation; snapshots O(e) time/space in bounded exposed definitions.
-   */
-  function createRun(
-    { principal, run }: { principal: Principal; run: RunRef },
-    limits: { maxTools?: number; maxSchemaBytes?: number } = {},
-  ): ByokToolRun {
-    const exposure = createToolExposure({ registry: visibleRegistry }, { ...limits, reservedNames: [...META_TOOL_IDS] });
-    return {
-      getToolSnapshot: () => [...META_TOOL_DESCRIPTORS, ...exposure.getSnapshot({}).tools.map(({ descriptor, wireName }) => ({ ...descriptor, wireName }))],
-      executeTool: (call, { signal, emitSurface } = {}) => executeMetaTool({ principal: principal, run: run, call: call }, { signal: signal, emitSurface: emitSurface, exposure: exposure }),
-    };
-  }
+  const { readFederationAdmissions, awaitFederation } = createSurfaceFederationLifecycle({ federation, connectionSource, rebuildCatalog: () => { catalog = buildToolCatalogQuery(registry); } });
+  const { syncInstalled, executeMetaTool } = createSurfaceMetaDispatcher({ registry, visibleRegistry, deleteScope, executor, ready, readCatalog: () => catalog, rebuildCatalog: () => { catalog = buildToolCatalogQuery(registry); } }, options);
+  const { createRun } = createSurfaceRunFactory(visibleRegistry, executeMetaTool);
 
   return {
     createRun,
@@ -793,19 +834,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     readExternalMcpToolNames: ({ serverId, admissionRevision }) => readFrozenFederationToolNames({ registry,
       connectionId: serverId, origin: { kind: "roster", admissionRevision } }),
     awaitFederation,
-    daemonCalls: {
-      executor: {
-        ...executor,
-        execute: async (call, optional) => {
-          await syncInstalled();
-          return deleteScope.fresh({ principalId: call.principal.id, run: () => executor.execute(call, optional) });
-        },
-      },
-      listToolsFor: async ({ principalId }) => {
-        await syncInstalled();
-        return deleteScope.fresh({ principalId, run: () => visibleRegistry.list({}) });
-      },
-    },
+    daemonCalls: createSurfaceDaemonCalls({ executor, visibleRegistry, deleteScope, syncInstalled }),
   };
 }
 

@@ -8,6 +8,18 @@ import {
 import type { KeyAttachments } from './attachments.js';
 
 export type SiteGrantedVault = VaultRepoPort & { findByLabel?: (input: { workspaceId: string; label: string }, options?: Record<string, never>) => Promise<VaultRecord | null> };
+function createGrantedVaultFind(vault: VaultRepoPort, siteId: string, attachments: KeyAttachments): VaultRepoPort['find'] {
+  return async (input, options) => {
+    try {
+      if (!await attachments.isAttached({ siteId, keyId: input.id })) return null;
+      return await vault.find(input, options);
+    } catch (error) {
+      console.warn('[shared-keys] A granted key could not be read. Local keys remain available; retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
+      return null;
+    }
+  };
+}
+
 
 /** Site consumption adapter over CMS site grants. Never reads ungranted envelopes or forwards writes.
  * Each lookup rechecks the grant; inventory reads at most 100 selected rows, never the owner vault.
@@ -17,15 +29,7 @@ export type SiteGrantedVault = VaultRepoPort & { findByLabel?: (input: { workspa
 export function attachedOnlyVault({ vault, siteId, attachments }: {
   vault: VaultRepoPort; siteId: string; attachments: KeyAttachments;
 }, _optional = {}): SiteGrantedVault {
-  const find: VaultRepoPort['find'] = async (input, options) => {
-    try {
-      if (!await attachments.isAttached({ siteId, keyId: input.id })) return null;
-      return await vault.find(input, options);
-    } catch (error) {
-      console.warn('[shared-keys] A granted key could not be read. Local keys remain available; retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
-      return null;
-    }
-  };
+  const find: VaultRepoPort['find'] = createGrantedVaultFind(vault, siteId, attachments);
   async function granted({ workspaceId }: { workspaceId: string }): Promise<VaultRecord[]> {
     const rows: VaultRecord[] = [];
     for (const id of await attachments.keysFor({ siteId }).catch(() => {

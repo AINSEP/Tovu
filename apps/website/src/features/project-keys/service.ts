@@ -48,36 +48,7 @@ export function projectKeyPermission({ row }: { row: VaultRecord }, _optional = 
   if (row.kind === "source-control") return "source-control.credentials.write";
   throw new ToolInputError({ message: "Choose an API key, provider-settings key or saved OAuth connection in Shared Keys. Details: P25_KEY_KIND_NOT_SUPPORTED." });
 }
-
-/** Bounded project inventory; OAuth labels may project the selected sealed account identity.
- * Token payloads never enter the picker. A failed attachment propagates instead of reporting success.
- */
-export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage, inventory, references, bindOAuth, describeOAuth, siteKeys }: {
-  vault: VaultRepoPort; attachments: KeyAttachments; siteId: string; siteName: string;
-  /** Multi-site installs only: keys still saved only in a site vault, offered next to Shared Keys. */
-  siteKeys?: SiteKeySource;
-  providerUsage: (input: { pluginId: string }) => Promise<ProviderKeyUsage>;
-  reapply: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
-  transaction: ProjectKeyTransaction;
-  inventory?: () => Promise<VaultRecord[]>;
-  references?: SiteKeyReferences;
-  /** Validates the consumer against the issuing identity, then saves its inert site binding. */
-  bindOAuth?: (input: { keyId: string; use: boolean }) => Promise<void>;
-  /** Selected-row account/connection label only; never returns an issuing client or tokens. */
-  describeOAuth?: (input: { keyId: string }) => Promise<string>;
-}, _optional = {}): ProjectKeysPort {
-  const find = async ({ keyId }: { keyId: string }) => {
-    const row = await vault.find({ workspaceId: "project", id: keyId });
-    if (!row) throw new ToolInputError({ message: "This project key no longer exists. List the project keys again." });
-    projectKeyPermission({ row });
-    return row;
-  };
-  async function usage({ keyId }: { keyId: string }) {
-    const users = await attachments.usersOf({ keyId });
-    const pluginId = providerPluginOf({ keyId });
-    const effective = pluginId ? await providerUsage({ pluginId }) : undefined;
-    return { keyId, usedByThisSite: effective ? effective.store === "project" && effective.usedByThisSite : users.some(user => user.siteId === siteId), usedBy: users.map(user => user.siteName) };
-  }
+function createProjectKeyUse({ siteId, siteName, siteKeys, transaction, bindOAuth, references, attachments, reapply }: Parameters<typeof createProjectKeys>[0], { find, usage, isSiteKey }: { find: (input: { keyId: string }) => Promise<VaultRecord>; usage: (input: { keyId: string }) => Promise<Pick<ProjectKeyRow, 'keyId' | 'usedByThisSite' | 'usedBy'>>; isSiteKey: (input: { keyId: string }) => boolean }) {
   /** Shared attachment lifecycle for a submitted card or an explicit project-key choice.
    * Commit the reference before reapplying a provider; restart/failure status retains the reference.
    */
@@ -108,8 +79,10 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
       ...(input.use ? {} : { message: "Access is revoked within 30 seconds." }),
       ...(typeof result === "string" ? {} : { message: `${result.reason} ${result.action}` }) };
   };
-  const isSiteKey = ({ keyId }: { keyId: string }) => Boolean(siteKeys) && keyId.startsWith(SITE_KEY_ID_PREFIX);
-  const granted = attachedOnlyVault({ vault, attachments, siteId });
+  return use;
+}
+
+function createProjectKeyListing({ vault, inventory, describeOAuth }: Pick<Parameters<typeof createProjectKeys>[0], 'vault' | 'inventory' | 'describeOAuth'>, { granted, usage }: { granted: ReturnType<typeof attachedOnlyVault>; usage: (input: { keyId: string }) => Promise<Pick<ProjectKeyRow, 'keyId' | 'usedByThisSite' | 'usedBy'>> }) {
   async function listRows({ cards = [], owner = false }: { cards?: readonly PluginCredentialCard[]; owner?: boolean }) {
       const kinds = ["api-connection", "vendor", "custom", "source-control"] as const;
       const source = owner ? vault : granted;
@@ -121,6 +94,57 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
         return { ...(await usage({ keyId: row.id })), name: oauthLabel ?? card?.label ?? row.label, kind: row.kind };
       }));
   }
+  return listRows;
+}
+function createProjectKeySavedResult(vault: VaultRepoPort, usage: (input: { keyId: string }) => Promise<Pick<ProjectKeyRow, 'keyId' | 'usedByThisSite' | 'usedBy'>>, use: ProjectKeysPort['use']): ProjectKeysPort['savedResult'] {
+  return async ({ result }, _optional = {}) => {
+      const identity = savedKeyIdentity({ result });
+      if (!identity) return result;
+      const { keyId, value } = identity;
+      const row = await vault.find({ workspaceId: "project", id: keyId });
+      if (!row) return result;
+      // Provider ids also exist in site vaults; a site-only save must never attach its project sibling.
+      if (value.store === "site" || value.scope === "site" || (value.credential as { scope?: string } | undefined)?.scope === "site") return result;
+      const current = await usage({ keyId });
+      return { ...value, ...(current.usedByThisSite ? current : await use({ keyId, use: true })) };
+    };
+}
+
+
+
+/** Bounded project inventory; OAuth labels may project the selected sealed account identity.
+ * Token payloads never enter the picker. A failed attachment propagates instead of reporting success.
+ */
+export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage, inventory, references, bindOAuth, describeOAuth, siteKeys }: {
+  vault: VaultRepoPort; attachments: KeyAttachments; siteId: string; siteName: string;
+  /** Multi-site installs only: keys still saved only in a site vault, offered next to Shared Keys. */
+  siteKeys?: SiteKeySource;
+  providerUsage: (input: { pluginId: string }) => Promise<ProviderKeyUsage>;
+  reapply: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
+  transaction: ProjectKeyTransaction;
+  inventory?: () => Promise<VaultRecord[]>;
+  references?: SiteKeyReferences;
+  /** Validates the consumer against the issuing identity, then saves its inert site binding. */
+  bindOAuth?: (input: { keyId: string; use: boolean }) => Promise<void>;
+  /** Selected-row account/connection label only; never returns an issuing client or tokens. */
+  describeOAuth?: (input: { keyId: string }) => Promise<string>;
+}, _optional = {}): ProjectKeysPort {
+  const find = async ({ keyId }: { keyId: string }) => {
+    const row = await vault.find({ workspaceId: "project", id: keyId });
+    if (!row) throw new ToolInputError({ message: "This project key no longer exists. List the project keys again." });
+    projectKeyPermission({ row });
+    return row;
+  };
+  async function usage({ keyId }: { keyId: string }) {
+    const users = await attachments.usersOf({ keyId });
+    const pluginId = providerPluginOf({ keyId });
+    const effective = pluginId ? await providerUsage({ pluginId }) : undefined;
+    return { keyId, usedByThisSite: effective ? effective.store === "project" && effective.usedByThisSite : users.some(user => user.siteId === siteId), usedBy: users.map(user => user.siteName) };
+  }
+  const use = createProjectKeyUse({ siteId, siteName, siteKeys, transaction, bindOAuth, references, attachments, reapply, vault, providerUsage }, { find, usage, isSiteKey: input => isSiteKey(input) });
+  const isSiteKey = ({ keyId }: { keyId: string }) => Boolean(siteKeys) && keyId.startsWith(SITE_KEY_ID_PREFIX);
+  const granted = attachedOnlyVault({ vault, attachments, siteId });
+  const listRows = createProjectKeyListing({ vault, inventory, describeOAuth }, { granted, usage });
   return {
     site: { id: siteId, name: siteName },
     list: input => listRows({ ...input, owner: true }),
@@ -134,17 +158,7 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
       return projectKeyPermission({ row });
     },
     use,
-    async savedResult({ result }, _optional = {}) {
-      const identity = savedKeyIdentity({ result });
-      if (!identity) return result;
-      const { keyId, value } = identity;
-      const row = await vault.find({ workspaceId: "project", id: keyId });
-      if (!row) return result;
-      // Provider ids also exist in site vaults; a site-only save must never attach its project sibling.
-      if (value.store === "site" || value.scope === "site" || (value.credential as { scope?: string } | undefined)?.scope === "site") return result;
-      const current = await usage({ keyId });
-      return { ...value, ...(current.usedByThisSite ? current : await use({ keyId, use: true })) };
-    },
+    savedResult: createProjectKeySavedResult(vault, usage, use),
   };
 }
 

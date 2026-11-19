@@ -180,11 +180,7 @@ function requireDeepLinkEnvelope({ raw }: { raw: unknown }, _optional = {}): Dat
     issuedAt: requireEnvelopeString({ value: value.issuedAt, fieldPath: "envelope.issuedAt" }),
   };
 }
-
-export function buildRecoveryRegistrations(
-  routeDeps: RecoveryToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
-): ToolRegistration[] {
+function createRecoveryPlanner(routeDeps: RecoveryToolDeps) {
   const restoreHooks = ({ actorId, restorePointId }: { actorId: string; restorePointId: string }, _optional = {}) =>
     buildRestoreHooks({
       workspaceId: routeDeps.workspaceId,
@@ -198,6 +194,7 @@ export function buildRecoveryRegistrations(
       migrationRunsRepo: routeDeps.migrationRunsRepo,
       siteStatus: routeDeps.siteStatusRepo,
     });
+
 
   // Plans a restore as the agent and folds in the discarded-write-window disclosure — shared by
   // `backup_plan_restore` and the confirm dialog of `backup_execute_restore`.
@@ -233,6 +230,150 @@ export function buildRecoveryRegistrations(
     });
     return { plan: result.value, disclosure };
   };
+  return { restoreHooks, planRestoreWithDisclosure };
+}
+
+
+
+    
+async function readRecoveryStatus(routeDeps: RecoveryToolDeps, ctx: Parameters<ToolHandler>[0]) {
+      requireNoInput({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
+
+      const capabilities = await routeDeps.dbOps.getCapabilities();
+      const siteStatus = await routeDeps.siteStatusRepo.get(routeDeps.workspaceId);
+      const banner = resolveDegradedBanner({
+        capabilities: {
+          costClass: capabilities.restorePoint.costClass,
+          operationInFlight: isOperationInFlight({ siteId: routeDeps.workspaceId }, {}),
+          pendingMigration: siteStatus === "PENDING_MIGRATION",
+          migrationInterrupted: siteStatus === "BLOCKED_PENDING_RECOVERY",
+          // Matches `apps/website/src/server/inbound/admin-http/routes/recovery/status.ts`'s own honest stub — no per-category
+          // write-count tracker exists anywhere in this codebase yet (see `disclosure.ts`'s doc).
+          watermarkBaselineAvailable: false,
+        },
+      });
+
+      return { costClass: capabilities.restorePoint.costClass, banner };
+    }
+
+
+
+    
+async function resolveRecoveryDeepLink(routeDeps: RecoveryToolDeps, ctx: Parameters<ToolHandler>[0]) {
+      const candidate = { value: ctx.input };
+      if (!isRecord(candidate)) throw new ToolInputError({ message: "'envelope' (object) is required" });
+      const envelope = requireDeepLinkEnvelope({ raw: candidate.value.envelope });
+
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
+
+      return resolveDeepLinkContext({
+        deps: { lookup: routeDeps.deepLinkRestorePointLookup },
+        input: { principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, envelope },
+      });
+    }
+type RestorePreparation = { restorePointId: string; plan: { planId: string; planHash: string }; createdAt: string | undefined };
+function createRecoveryConfirmationGateway(routeDeps: RecoveryToolDeps, hooks: ReturnType<ReturnType<typeof createRecoveryPlanner>['restoreHooks']>, confirmer: { id: string; kind: Parameters<typeof gatewayConfirm>[0]['principalKind'] }): Parameters<typeof confirmRestore>[0]['deps']['gateway'] {
+  return {
+              confirm: (params) =>
+                toRecoveryResult({ run: async () => {
+                  const record = await gatewayConfirm({
+                    deps: routeDeps.gatedMutations.gatewayDeps,
+                    principalId: confirmer.id,
+                    principalKind: confirmer.kind,
+                    hooks,
+                    planId: params.planId,
+                    planHash: params.planHash,
+                  });
+                  return { confirmationToken: record.confirmationToken };
+                } }, {}),
+            };
+}
+
+function createRecoveryRestoreRun(routeDeps: RecoveryToolDeps, restoreHooks: ReturnType<typeof createRecoveryPlanner>['restoreHooks']): Parameters<typeof humanConfirmedToolHandler<RestorePreparation>>[1]['run'] {
+  return async ({ ctx, prepared: { restorePointId, plan }, confirmer }) => {
+        const hooks = restoreHooks({ actorId: ctx.principal.id, restorePointId });
+        const confirmed = await confirmRestore({
+          deps: {
+            gateway: createRecoveryConfirmationGateway(routeDeps, hooks, confirmer),
+          },
+          input: { principalId: confirmer.id, principalKind: confirmer.kind, planId: plan.planId, planHash: plan.planHash, disclosureAcknowledged: true },
+        });
+        if (!confirmed.ok) throw new Error(confirmed.error.message ?? confirmed.error.code);
+        const { confirmationToken } = confirmed.value as { confirmationToken: string };
+
+        const executed = await executeRestore({
+          deps: {
+            gateway: {
+              execute: (params) =>
+                toRecoveryResult({ run: () =>
+                  gatewayExecute({
+                    deps: routeDeps.gatedMutations.gatewayDeps,
+                    principalId: ctx.principal.id,
+                    principalKind: AGENT_TOOL_PRINCIPAL_KIND,
+                    hooks,
+                    confirmationToken: params.confirmationToken,
+                  }) }, {},
+                ),
+            },
+            operationLock: { acquireOperationLock, releaseOperationLock },
+            clock: routeDeps.clock,
+          },
+          input: {
+            principalId: ctx.principal.id,
+            principalKind: AGENT_TOOL_PRINCIPAL_KIND,
+            confirmationToken,
+            siteId: routeDeps.workspaceId,
+            delegatedByPrincipalId: confirmer.id,
+          },
+        });
+        if (!executed.ok) throw new Error(executed.error.message ?? executed.error.code);
+        return { restored: true, ...executed.value };
+      };
+}
+
+
+
+
+    // Plans as the agent, asks the human, then confirms as the human and executes as the agent
+    // inside the same operation lock the admin execute route uses. No restore point is taken
+    // first, so the dialog says the current data is replaced and it can't be undone. The human's
+    // confirm click is the disclosure acknowledgment (CIC U-002).
+    
+function createRecoveryRestoreHandler(routeDeps: RecoveryToolDeps, surfaces: AssistantSurfaceDeps, { restoreHooks, planRestoreWithDisclosure }: ReturnType<typeof createRecoveryPlanner>): ToolHandler {
+  return humanConfirmedToolHandler(surfaces, {
+      flag: "restored",
+      prepare: async ({ ctx }) => {
+        const input = requireInputRecord({ input: ctx.input });
+        refuseUnexpectedKeys(input, ["restorePointId"]);
+        const restorePointId = requireString({ input: input, key: "restorePointId" });
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.restore" }, { entityType: RESTORE_POINT_ENTITY });
+        const { plan } = await planRestoreWithDisclosure({ actorId: ctx.principal.id, restorePointId });
+        const { items } = await listRestorePoints({ repo: routeDeps.restorePointsRepo });
+        const createdAt = items.find((item) => item.id === restorePointId)?.createdAt;
+        return { restorePointId, plan: plan as { planId: string; planHash: string }, createdAt };
+      },
+      dialog: ({ restorePointId, createdAt }) => ({
+        toolId: RESTORE_TOOL_ID,
+        errorCode: "RECOVERY",
+        title: "Restore the site's data?",
+        details: [{ label: "Restore point", value: createdAt ? `${restorePointId} (${createdAt})` : restorePointId }],
+        warning:
+          "Your current data will be replaced with this restore point. Anything changed since then is lost. " +
+          "No restore point is taken first, so this can't be undone.",
+        danger: true,
+        confirmLabel: "Replace current data",
+      }),
+      run: createRecoveryRestoreRun(routeDeps, restoreHooks),
+    });
+}
+
+
+export function buildRecoveryRegistrations(
+  routeDeps: RecoveryToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+): ToolRegistration[] {
+  const { restoreHooks, planRestoreWithDisclosure } = createRecoveryPlanner(routeDeps);
 
   const handlers: Record<string, ToolHandler> = {
     backup_list_restore_points: async (ctx) => {
@@ -279,121 +420,9 @@ export function buildRecoveryRegistrations(
       // this from a separate `/recovery/disclosure` request; a tool call composes both in one turn.
       return planRestoreWithDisclosure({ actorId: ctx.principal.id, restorePointId });
     },
-
-    recovery_get_status: async (ctx) => {
-      requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
-
-      const capabilities = await routeDeps.dbOps.getCapabilities();
-      const siteStatus = await routeDeps.siteStatusRepo.get(routeDeps.workspaceId);
-      const banner = resolveDegradedBanner({
-        capabilities: {
-          costClass: capabilities.restorePoint.costClass,
-          operationInFlight: isOperationInFlight({ siteId: routeDeps.workspaceId }, {}),
-          pendingMigration: siteStatus === "PENDING_MIGRATION",
-          migrationInterrupted: siteStatus === "BLOCKED_PENDING_RECOVERY",
-          // Matches `apps/website/src/server/inbound/admin-http/routes/recovery/status.ts`'s own honest stub — no per-category
-          // write-count tracker exists anywhere in this codebase yet (see `disclosure.ts`'s doc).
-          watermarkBaselineAvailable: false,
-        },
-      });
-
-      return { costClass: capabilities.restorePoint.costClass, banner };
-    },
-
-    recovery_resolve_deep_link: async (ctx) => {
-      const candidate = { value: ctx.input };
-      if (!isRecord(candidate)) throw new ToolInputError({ message: "'envelope' (object) is required" });
-      const envelope = requireDeepLinkEnvelope({ raw: candidate.value.envelope });
-
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
-
-      return resolveDeepLinkContext({
-        deps: { lookup: routeDeps.deepLinkRestorePointLookup },
-        input: { principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, envelope },
-      });
-    },
-
-    // Plans as the agent, asks the human, then confirms as the human and executes as the agent
-    // inside the same operation lock the admin execute route uses. No restore point is taken
-    // first, so the dialog says the current data is replaced and it can't be undone. The human's
-    // confirm click is the disclosure acknowledgment (CIC U-002).
-    [RESTORE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
-      flag: "restored",
-      prepare: async ({ ctx }) => {
-        const input = requireInputRecord({ input: ctx.input });
-        refuseUnexpectedKeys(input, ["restorePointId"]);
-        const restorePointId = requireString({ input: input, key: "restorePointId" });
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.restore" }, { entityType: RESTORE_POINT_ENTITY });
-        const { plan } = await planRestoreWithDisclosure({ actorId: ctx.principal.id, restorePointId });
-        const { items } = await listRestorePoints({ repo: routeDeps.restorePointsRepo });
-        const createdAt = items.find((item) => item.id === restorePointId)?.createdAt;
-        return { restorePointId, plan: plan as { planId: string; planHash: string }, createdAt };
-      },
-      dialog: ({ restorePointId, createdAt }) => ({
-        toolId: RESTORE_TOOL_ID,
-        errorCode: "RECOVERY",
-        title: "Restore the site's data?",
-        details: [{ label: "Restore point", value: createdAt ? `${restorePointId} (${createdAt})` : restorePointId }],
-        warning:
-          "Your current data will be replaced with this restore point. Anything changed since then is lost. " +
-          "No restore point is taken first, so this can't be undone.",
-        danger: true,
-        confirmLabel: "Replace current data",
-      }),
-      run: async ({ ctx, prepared: { restorePointId, plan }, confirmer }) => {
-        const hooks = restoreHooks({ actorId: ctx.principal.id, restorePointId });
-        const confirmed = await confirmRestore({
-          deps: {
-            gateway: {
-              confirm: (params) =>
-                toRecoveryResult({ run: async () => {
-                  const record = await gatewayConfirm({
-                    deps: routeDeps.gatedMutations.gatewayDeps,
-                    principalId: confirmer.id,
-                    principalKind: confirmer.kind,
-                    hooks,
-                    planId: params.planId,
-                    planHash: params.planHash,
-                  });
-                  return { confirmationToken: record.confirmationToken };
-                } }, {}),
-            },
-          },
-          input: { principalId: confirmer.id, principalKind: confirmer.kind, planId: plan.planId, planHash: plan.planHash, disclosureAcknowledged: true },
-        });
-        if (!confirmed.ok) throw new Error(confirmed.error.message ?? confirmed.error.code);
-        const { confirmationToken } = confirmed.value as { confirmationToken: string };
-
-        const executed = await executeRestore({
-          deps: {
-            gateway: {
-              execute: (params) =>
-                toRecoveryResult({ run: () =>
-                  gatewayExecute({
-                    deps: routeDeps.gatedMutations.gatewayDeps,
-                    principalId: ctx.principal.id,
-                    principalKind: AGENT_TOOL_PRINCIPAL_KIND,
-                    hooks,
-                    confirmationToken: params.confirmationToken,
-                  }) }, {},
-                ),
-            },
-            operationLock: { acquireOperationLock, releaseOperationLock },
-            clock: routeDeps.clock,
-          },
-          input: {
-            principalId: ctx.principal.id,
-            principalKind: AGENT_TOOL_PRINCIPAL_KIND,
-            confirmationToken,
-            siteId: routeDeps.workspaceId,
-            delegatedByPrincipalId: confirmer.id,
-          },
-        });
-        if (!executed.ok) throw new Error(executed.error.message ?? executed.error.code);
-        return { restored: true, ...executed.value };
-      },
-    }),
+    recovery_get_status: ctx => readRecoveryStatus(routeDeps, ctx),
+    recovery_resolve_deep_link: ctx => resolveRecoveryDeepLink(routeDeps, ctx),
+    [RESTORE_TOOL_ID]: createRecoveryRestoreHandler(routeDeps, surfaces, { restoreHooks, planRestoreWithDisclosure }),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "recovery", catalogModule: "features/recovery/agent-tools.ts", catalog: CATALOG_BY_ID, handlers, derivedRisk: recoveryDerivedRisk }, { unwiredToolIds: UNWIRED_RECOVERY_TOOL_IDS });

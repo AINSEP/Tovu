@@ -83,6 +83,15 @@ export function createApiConnectionVault(required: ApiConnectionVaultDeps, _opti
 }
 
 const isConflict = ({ error }: { error: unknown }, _optional = {}): boolean => error instanceof VaultError && error.code === "conflict";
+async function sweepExpiredAttempts(required: Parameters<typeof createApiConnectionVaultRecordStore>[0], vault: SecretsVaultService, scope: ReturnType<typeof apiConnectionVaultScope>): Promise<void> {
+    const nowMs = required.clock.nowMs();
+    for (const row of await vault.list({ ...scope })) {
+      if (row.meta.credentialFormat !== ATTEMPT_FORMAT || (row.meta.expiresAtMs as number) > nowMs) continue;
+      await vault.delete({ ...scope, id: row.id, expectedRevision: row.revision }).catch((error: unknown) => { if (!isConflict({ error })) throw error; });
+    }
+  
+}
+
 
 /**
  * Connection records and attempts as sealed vault rows. `compareAndSet` maps the record revision to
@@ -101,13 +110,6 @@ export function createApiConnectionVaultRecordStore(
     const found = await readPayload({ id: attemptId({ state }) });
     return found && isObject(found.payload?.attempt) ? { found, attempt: found.payload.attempt as unknown as ApiConnectionAttempt } : null;
   };
-  async function sweepExpiredAttempts(): Promise<void> {
-    const nowMs = required.clock.nowMs();
-    for (const row of await vault.list({ ...scope })) {
-      if (row.meta.credentialFormat !== ATTEMPT_FORMAT || (row.meta.expiresAtMs as number) > nowMs) continue;
-      await vault.delete({ ...scope, id: row.id, expectedRevision: row.revision }).catch((error: unknown) => { if (!isConflict({ error })) throw error; });
-    }
-  }
   return {
     async read({ key }) {
       const found = await readPayload({ id: recordId({ key }) });
@@ -129,7 +131,7 @@ export function createApiConnectionVaultRecordStore(
       }
     },
     async putAttempt({ attempt }) {
-      await sweepExpiredAttempts();
+      await sweepExpiredAttempts(required, vault, scope);
       await vault.put({ ...scope, id: attemptId({ state: attempt.state }), expectedRevision: null, provider: null, label: attemptLabel(attempt),
         meta: { credentialFormat: ATTEMPT_FORMAT, expiresAtMs: Date.parse(attempt.expiresAt) }, payload: { attempt: { ...attempt } as unknown as VaultMeta } });
     },

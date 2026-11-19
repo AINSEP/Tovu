@@ -382,21 +382,8 @@ export function createCustomCredentialsRegistrations({ routeDeps, surfaces, host
 export function createCustomCredentialsToolRegistrations({ routeDeps, surfaces, host, ports }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; host: CustomCredentialToolHost; ports: CustomCredentialToolPorts }, _optional = {}): ToolRegistration[] {
   return createCredentialToolRegistrations({ routeDeps, host, ports, operations: bindTovuCredentialToolOperations({ routeDeps, surfaces }) });
 }
-
-/**
- * Tovu's compatibility binding for the consumer-only operations. No implementation moves in C2.
- * @agent-note Bind over the existing scoped repo/vault/keyring/sealer and SAME answer-route store.
- * These values preserve Tovu's permissions, issued diagnostics, catalogs, policy, copy and errors;
- * a second host instead fulfils CredentialToolOperations with its own implementations and words.
- * @complexity O(1) binding; operations retain their original bounded costs and ordering.
- */
-export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): CredentialToolOperations {
-  const writeDeps = ({ repo = routeDeps.customCredentialSetRepo }: { repo?: CustomCredentialSetRepoPort }, _options = {}) => ({
-    repo, sealer: routeDeps.siteAssistantSecretSealer, keyring: routeDeps.siteAssistantSecretKeyring,
-    clock: routeDeps.clock, idGen: routeDeps.idGen,
-  });
+function bindCredentialSets(routeDeps: CustomCredentialsToolDeps, writeDeps: (input: { repo?: CustomCredentialSetRepoPort }) => { repo: CustomCredentialSetRepoPort; sealer: CustomCredentialsToolDeps["siteAssistantSecretSealer"]; keyring: CustomCredentialsToolDeps["siteAssistantSecretKeyring"]; clock: CustomCredentialsToolDeps["clock"]; idGen: CustomCredentialsToolDeps["idGen"] }): CredentialToolOperations['sets'] {
   return {
-    sets: {
       list: () => listCustomCredentials({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId }),
       describe: ({ id }) => describeCredential({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, id }),
       byLabel: ({ label }) => describeCredentialByLabel({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, label }),
@@ -408,36 +395,11 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
       }, { workspaceId: routeDeps.workspaceId, id, connection }),
       create: ({ signal, guardRepo, ...input }) => createCustomCredential(writeDeps({ repo: guardRepo({ store: routeDeps.customCredentialSetRepo, signal }) }),
         { workspaceId: routeDeps.workspaceId, ...input }),
-    },
-    approval: {
-      handler: steps => createApprovalHandler(steps),
-      askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
-      describeDelete: describeDeleteRequestApproval,
-    },
-    pluginCards: {
-      load: required => loadPluginCredentialCardsSafely({ ...required, loadCards: routeDeps.loadPluginCredentialCards }),
-      find: required => findPluginCredentialCard({ ...required, loadCards: routeDeps.loadPluginCredentialCards }),
-      readValues: readPluginCredentialValues,
-    },
-    credentialCardForms: {
-      buildPlugin: buildPluginCredentialForm, applyPlugin: applyPluginCredentialCard,
-      create: buildCreateForm, createOutcome: buildCreateOutcome, rotate: setTokenForm, rotateOutcome: setTokenOutcome,
-    },
-    recovery: { withSetup: withCustomCredentialSetup },
-    publish: {
-      loadProviders: () => loadCreateCredentialProviders({ routeDeps }),
-      prepareInvalidation: () => routeDeps.publishCompatibility.prepareInvalidation({ workspaceId: routeDeps.workspaceId }),
-    },
-    locale: {
-      resolve: ({ principalId }) => resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId }),
-      text: credentialText, hint: formatCredentialHint, translate: translateCredentialMessage,
-    },
-    policy: {
-      guardRepo: abortGuardedCredentialRepo, cleanToken: cleanCardToken, assertFreeField: assertCredentialFreeField,
-      normalizeWorksFor: normalizeCredentialWorksFor, defaultCategory: 'general', validateWriteFiles: validateWriteFilesInput,
-      isProjectConflict: ({ error }) => error.message.startsWith("Your project already has a key named '"),
-    },
-    messages: {
+    };
+}
+
+function credentialOperationMessages(): CredentialToolOperations['messages'] {
+  return {
       formSaveFailure: FORM_SAVE_FAILURE_MESSAGE,
       noCreateChannel: "custom_credential_create: this execution context has no interactive confirmation channel " +
         "(no emitSurface), so a credential cannot be created here. Nothing was changed.",
@@ -467,7 +429,53 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
         return status === 'refused' ? `This key was refused for this purpose.${hint} Nothing was saved.${kept}`
           : `The service couldn't be reached. Nothing was saved.${kept}`;
       },
+    };
+}
+
+
+/**
+ * Tovu's compatibility binding for the consumer-only operations. No implementation moves in C2.
+ * @agent-note Bind over the existing scoped repo/vault/keyring/sealer and SAME answer-route store.
+ * These values preserve Tovu's permissions, issued diagnostics, catalogs, policy, copy and errors;
+ * a second host instead fulfils CredentialToolOperations with its own implementations and words.
+ * @complexity O(1) binding; operations retain their original bounded costs and ordering.
+ */
+export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): CredentialToolOperations {
+  const writeDeps = ({ repo = routeDeps.customCredentialSetRepo }: { repo?: CustomCredentialSetRepoPort }, _options = {}) => ({
+    repo, sealer: routeDeps.siteAssistantSecretSealer, keyring: routeDeps.siteAssistantSecretKeyring,
+    clock: routeDeps.clock, idGen: routeDeps.idGen,
+  });
+  return {
+    sets: bindCredentialSets(routeDeps, writeDeps),
+    approval: {
+      handler: steps => createApprovalHandler(steps),
+      askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
+      describeDelete: describeDeleteRequestApproval,
     },
+    pluginCards: {
+      load: required => loadPluginCredentialCardsSafely({ ...required, loadCards: routeDeps.loadPluginCredentialCards }),
+      find: required => findPluginCredentialCard({ ...required, loadCards: routeDeps.loadPluginCredentialCards }),
+      readValues: readPluginCredentialValues,
+    },
+    credentialCardForms: {
+      buildPlugin: buildPluginCredentialForm, applyPlugin: applyPluginCredentialCard,
+      create: buildCreateForm, createOutcome: buildCreateOutcome, rotate: setTokenForm, rotateOutcome: setTokenOutcome,
+    },
+    recovery: { withSetup: withCustomCredentialSetup },
+    publish: {
+      loadProviders: () => loadCreateCredentialProviders({ routeDeps }),
+      prepareInvalidation: () => routeDeps.publishCompatibility.prepareInvalidation({ workspaceId: routeDeps.workspaceId }),
+    },
+    locale: {
+      resolve: ({ principalId }) => resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId }),
+      text: credentialText, hint: formatCredentialHint, translate: translateCredentialMessage,
+    },
+    policy: {
+      guardRepo: abortGuardedCredentialRepo, cleanToken: cleanCardToken, assertFreeField: assertCredentialFreeField,
+      normalizeWorksFor: normalizeCredentialWorksFor, defaultCategory: 'general', validateWriteFiles: validateWriteFilesInput,
+      isProjectConflict: ({ error }) => error.message.startsWith("Your project already has a key named '"),
+    },
+    messages: credentialOperationMessages(),
     diagnostics: {
       describeError: ({ error }) => describeErrorForLog({ err: error }),
       createFailure: ({ metadata }) => failureLog(routeDeps)(JSON.stringify(metadata)),

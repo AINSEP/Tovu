@@ -184,6 +184,50 @@ function importedOrThrow(
   return outcome;
 }
 
+const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>>[0]['write'] = async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, sourceReplacement }) => {
+      await assertPublishableMedia({ ports, workspaceId, state, existing });
+      const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
+      const record = state as unknown as MediaRecord; // this handler's own pack() produced it
+      // Same shape check as `validate`, again here: apply must not trust that precheck ran.
+      const sha256 = record.source?.sha256;
+      if (sha256 && !isValidSha256Hex({ value: sha256 })) throw new MediaApplyBlockedError({ code: "blocked:precondition", message: `media '${id}' cannot be applied — malformed source sha256 '${sha256}'` });
+      const bytes = await stagedBytes({ blobStore, workspaceId, record });
+      const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
+        deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen },
+        input: {
+          workspaceId,
+          record,
+          bytes,
+          // Only a brand-new blob row takes the importing operator; an existing one is never re-stamped.
+          blobCreatedByPrincipal: principalId,
+          baseVersion: expectedVersion ?? null,
+          ...(sourceReplacement ? { sourceReplacement } : {}),
+        },
+      }) });
+      // Every other write path (upload, import, duplicate) records the sniffed type; without it the
+      // destination's embed resolver cannot tell a video from an image. Sniffed from the bytes just
+      // imported, never carried from the source (the store's own invariant). `bytes` is non-null
+      // here: `importMediaEntity` blocks a missing one.
+      if (bytes && !sourceReplacement) await contentTypeStore.set({ workspaceId, sha256: record.source.sha256, contentType: sniffContentType({ bytes }) });
+      const saved = await mediaRepo.findById({ workspaceId, id });
+      // `blobWritten`: true when this import created the `asset_blobs` row, false when the bytes were
+      // already there (a normal dedup, not a conflict). Passed through on `apply()`'s result.
+      return { blobWritten: outcome.blobWritten, version: saved?.version };
+    };
+const validatePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>>[0]['validate'] = async ({ ports, workspaceId, entity, existing }) => {
+      if (isLibraryDocument({ kind: entity.state.kind, existing })) return LIBRARY_DOCUMENT_REFUSAL;
+      const source = entity.state.source as { sha256?: string } | undefined;
+      const malformed = malformedHashRefusal({ sourceSha256: source?.sha256, requiredBlobs: entity.requiredBlobs });
+      if (malformed) return malformed;
+      if (source?.sha256 && await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: source.sha256 } })) return LIBRARY_DOCUMENT_REFUSAL;
+      for (const sha256 of entity.requiredBlobs) {
+        if (!(await ports.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) }))) {
+          return `required blob '${sha256}' is not available on this destination`;
+        }
+      }
+      return sourceReplacementRefusal({ ports, existing, sha256: source?.sha256 });
+    };
+
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
 export const contributeMediaPublish = (): PublishContentContributor =>
   createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>({
@@ -216,49 +260,8 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     address: { field: "slug", holder: ({ ports: p, workspaceId, value: slug }, _optional = {}) => p.repo.findBySlug({ workspaceId, slug }) },
     // Also checked by the planner's `hasBlob` pass, but that depends on the caller wiring the probe;
     // media is the one type whose entity IS its blob.
-    validate: async ({ ports, workspaceId, entity, existing }) => {
-      if (isLibraryDocument({ kind: entity.state.kind, existing })) return LIBRARY_DOCUMENT_REFUSAL;
-      const source = entity.state.source as { sha256?: string } | undefined;
-      const malformed = malformedHashRefusal({ sourceSha256: source?.sha256, requiredBlobs: entity.requiredBlobs });
-      if (malformed) return malformed;
-      if (source?.sha256 && await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: source.sha256 } })) return LIBRARY_DOCUMENT_REFUSAL;
-      for (const sha256 of entity.requiredBlobs) {
-        if (!(await ports.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) }))) {
-          return `required blob '${sha256}' is not available on this destination`;
-        }
-      }
-      return sourceReplacementRefusal({ ports, existing, sha256: source?.sha256 });
-    },
-    write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, sourceReplacement }) => {
-      await assertPublishableMedia({ ports, workspaceId, state, existing });
-      const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
-      const record = state as unknown as MediaRecord; // this handler's own pack() produced it
-      // Same shape check as `validate`, again here: apply must not trust that precheck ran.
-      const sha256 = record.source?.sha256;
-      if (sha256 && !isValidSha256Hex({ value: sha256 })) throw new MediaApplyBlockedError({ code: "blocked:precondition", message: `media '${id}' cannot be applied — malformed source sha256 '${sha256}'` });
-      const bytes = await stagedBytes({ blobStore, workspaceId, record });
-      const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
-        deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen },
-        input: {
-          workspaceId,
-          record,
-          bytes,
-          // Only a brand-new blob row takes the importing operator; an existing one is never re-stamped.
-          blobCreatedByPrincipal: principalId,
-          baseVersion: expectedVersion ?? null,
-          ...(sourceReplacement ? { sourceReplacement } : {}),
-        },
-      }) });
-      // Every other write path (upload, import, duplicate) records the sniffed type; without it the
-      // destination's embed resolver cannot tell a video from an image. Sniffed from the bytes just
-      // imported, never carried from the source (the store's own invariant). `bytes` is non-null
-      // here: `importMediaEntity` blocks a missing one.
-      if (bytes && !sourceReplacement) await contentTypeStore.set({ workspaceId, sha256: record.source.sha256, contentType: sniffContentType({ bytes }) });
-      const saved = await mediaRepo.findById({ workspaceId, id });
-      // `blobWritten`: true when this import created the `asset_blobs` row, false when the bytes were
-      // already there (a normal dedup, not a conflict). Passed through on `apply()`'s result.
-      return { blobWritten: outcome.blobWritten, version: saved?.version };
-    },
+    validate: validatePublishedMedia,
+    write: writePublishedMedia,
     undo: {
       // An update restores the prior record verbatim; a create removes its row. The blob row and bytes
       // stay: they are append-only and content-addressed, and an orphan is reclaimable by GC.
