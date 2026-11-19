@@ -110,6 +110,6 @@ test("entryWhere keeps the entry's fixed scope: a widget entry cannot address an
   const widget = registry.get("widget")!;
   await kernel.run((db) => db.insertInto("entries").values([widgetRow("w1"), widgetRow("recipe-1", { type: "recipe" })]).execute());
   assert.equal(await readLiveSnapshot({ entry: widget, workspaceId: WS, entityId: "recipe-1" }, { kernel, registry }), null);
-  const hits = await kernel.run((db) => loose(db).selectFrom("entries").select("entries.id").where((eb) => entryWhere(eb, { entry: widget, workspaceId: WS, entityId: "recipe-1" })).execute());
+  const hits = await kernel.run((db) => loose(db).selectFrom("entries").select("entries.id").where((eb) => entryWhere({ eb, entry: widget, workspaceId: WS, entityId: "recipe-1" })).execute());
   assert.deepEqual(hits, []);
 });

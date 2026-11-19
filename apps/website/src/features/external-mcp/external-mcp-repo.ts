@@ -55,7 +55,7 @@ function toVaultRecord({ vault }: { vault: SecretsVaultTable }): VaultRecord {
   if (typeof sealed_key_id !== "string" || typeof sealed_ciphertext !== "string" || typeof sealed_nonce !== "string" || typeof sealed_alg !== "string") throw new VaultError({ code: "invalid-record" });
   return { workspaceId: vault.workspace_id, id: vault.id, kind: vault.kind, ownerKey: vault.owner_key,
     principalId: vault.principal_id, binding: vault.binding, provider: vault.provider, label: vault.label,
-    isDefault: toBool(vault.is_default) ?? false, revision: Number(vault.revision),
+    isDefault: toBool({ value: vault.is_default }) ?? false, revision: Number(vault.revision),
     sealed: { keyId: sealed_key_id, ciphertext: sealed_ciphertext, nonce: sealed_nonce, alg: sealed_alg },
     last4: vault.last4, tokenLength: vault.token_length, meta: typeof vault.meta === "string" ? JSON.parse(vault.meta) : vault.meta,
     createdAt: vault.created_at, updatedAt: vault.updated_at };
@@ -71,7 +71,7 @@ function toRecord(row: JoinedRow): ExternalMcpServerRecord {
     provisionedByPluginId: row.provisioned_by_plugin_id,
     transport: row.transport,
     authMode: row.auth_mode,
-    enabled: toBool(row.enabled) ?? false,
+    enabled: toBool({ value: row.enabled }) ?? false,
     command: row.command,
     url: row.url,
     args: row.args,

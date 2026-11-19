@@ -187,7 +187,7 @@ export function toListRecord(row: Selectable<ListTableRow>): NewsletterListRow {
     workspaceId: row.workspace_id,
     name: row.name,
     slug: row.slug,
-    isDefault: toBool(row.is_default) === true,
+    isDefault: toBool({ value: row.is_default }) === true,
     status: row.status as NewsletterListRow["status"],
     createdAt: row.created_at,
     updatedAt: row.updated_at,

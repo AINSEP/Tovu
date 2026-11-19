@@ -1788,7 +1788,7 @@ export function resolveRunContext(
  *   a value parsed back out of this document's own URL.
  */
 export function buildAssistantMcpUiSandboxProxyUrl({ hostOrigin }: { hostOrigin: string }, _options: Record<string, never> = {}): URL {
-  return new URL(buildSandboxProxyDataUrl(hostOrigin));
+  return new URL(buildSandboxProxyDataUrl({ hostOrigin }));
 }
 
 /**

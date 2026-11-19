@@ -285,7 +285,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     event.preventDefault();
     event.stopPropagation();
     const port = portRef.current;
-    const paths = port ? folderPathsFromDataTransfer(event.dataTransfer, port) : [];
+    const paths = port ? folderPathsFromDataTransfer({ dataTransfer: event.dataTransfer, port }) : [];
     if (paths.length === 0) { showPathHint(); return; }
     input.composerHandle.current?.addFolders({ folders: paths });
     // See this module's own doc ("Multiple folders in one drop event") for why the LAST path wins.

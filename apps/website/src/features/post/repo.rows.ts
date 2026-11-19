@@ -43,7 +43,7 @@ function readPostAttribution({ row }: { row: PostRow }, _options: Record<string,
     createdByPrincipalId: row.created_by_principal_id ?? null,
     createdAt: row.created_at ?? null,
     author: row.author ?? null,
-    showAuthor: toBool(row.show_author) ?? false,
+    showAuthor: toBool({ value: row.show_author }) ?? false,
   };
 }
 
@@ -53,7 +53,7 @@ function readPostMetadata({ row }: { row: PostRow }, _options: Record<string, ne
     seoExtJson: row.seo_ext_json ?? null,
     deletedAt: row.deleted_at ?? null,
     templateChoice: row.template_choice ?? null,
-    overridesThemePage: toBool(row.overrides_theme_page),
+    overridesThemePage: toBool({ value: row.overrides_theme_page }),
     memberAccessJson: row.member_access_json ?? null,
     ...readPostAttribution({ row }),
   };

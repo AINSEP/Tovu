@@ -255,7 +255,7 @@ test('missing/corrupt config, invalid shape and load/init failure yield both noo
       const product = await bootProductTelemetry(f.required, { warn: message => warnings.push(message),
         loadProviders: async () => { throw new Error('fake init failed with PRIVATE_CONFIG_VALUE'); } });
       assert.equal(isNoopObservabilityPort(product.observability), true);
-      assert.equal(isNoopProductAnalytics(product.productAnalytics), true);
+      assert.equal(isNoopProductAnalytics({ port: product.productAnalytics }), true);
       assert.deepEqual(warnings, ['[product-telemetry] unavailable; product reporting is disabled']);
       assert.equal(product.crashUpload, undefined);
       await product.dispose(); messages.push(...warnings);
@@ -269,7 +269,7 @@ test('post-load failure disposes resources and a throwing warning sink cannot fa
   try {
     f.raw.observability.crashUpload = () => { throw new Error('fake capability failure'); };
     const product = await bootProductTelemetry(f.required, { ...f.options, warn() { throw new Error('fake warning failure'); } });
-    assert.equal(isNoopProductAnalytics(product.productAnalytics), true);
+    assert.equal(isNoopProductAnalytics({ port: product.productAnalytics }), true);
     assert.equal(f.disposed(), 1);
   } finally { await f.close(); }
 });
@@ -446,7 +446,7 @@ test('standalone lookup, discovery, integrity and init failures release earlier 
       const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders, warn: message => warnings.push(message) });
       assert.equal(product.active, undefined, failure);
       assert.equal(isNoopObservabilityPort(product.observability), true, failure);
-      assert.equal(isNoopProductAnalytics(product.productAnalytics), true, failure);
+      assert.equal(isNoopProductAnalytics({ port: product.productAnalytics }), true, failure);
       assert.deepEqual(warnings, ['[product-telemetry] unavailable; product reporting is disabled'], failure);
       const signals = await f.signals();
       assert.deepEqual(signals.filter(signal => signal.type === 'dispose').map(signal => signal.id), ['fake-errors'], failure);
@@ -468,7 +468,7 @@ test('missing or malformed catalog and unknown selections fail closed before imp
       const warnings: string[] = [];
       const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders, warn: message => warnings.push(message) });
       assert.equal(isNoopObservabilityPort(product.observability), true, failure);
-      assert.equal(isNoopProductAnalytics(product.productAnalytics), true, failure);
+      assert.equal(isNoopProductAnalytics({ port: product.productAnalytics }), true, failure);
       assert.deepEqual(warnings, ['[product-telemetry] unavailable; product reporting is disabled'], failure);
       assert.deepEqual(f.resolved, failure === 'missing-distribution'
         ? ['@jini-ai/plugin-catalog/catalog', '@jini-ai/provider-plugins/package.json']

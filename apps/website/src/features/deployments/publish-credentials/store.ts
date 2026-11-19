@@ -411,7 +411,7 @@ async function saveConnection({ target, input, providerId }: { target: ScopedCre
  */
 async function isPublishLabelConflict({ error, target, input }: { error: unknown; target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
   input: Parameters<ReturnType<typeof vault>["put"]>[0] & { id: string } }, _options = {}): Promise<boolean> {
-  if (isUniqueViolation(error)) return true;
+  if (isUniqueViolation({ err: error })) return true;
   if (!(error instanceof VaultError) || error.code !== "conflict") return false;
   if (input.expectedRevision === null) return true;
   if (!target.deps.repo.vault) throw new VaultError({ code: "invalid-record" });

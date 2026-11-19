@@ -164,7 +164,7 @@ test("gapb member: generic tool schemas include member without a per-resource de
   const schema = tool!.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };
   assert.ok(schema.properties.entityType.enum.includes("member"));
   assert.equal(h.registry.get("member")!.permission, "member.manage");
-  assert.equal(buildTrashAgentToolCatalog(trashToolEntityTypes(h.registry)).some(t => t.name === "members_delete"), false);
+  assert.equal(buildTrashAgentToolCatalog({ kinds: trashToolEntityTypes(h.registry) }).some(t => t.name === "members_delete"), false);
 });
 
 test("gapb member: memory reader retains email reservation but prevents list/get/update resurrection", async () => {

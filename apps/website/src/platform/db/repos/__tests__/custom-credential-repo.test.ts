@@ -278,7 +278,7 @@ describeEachDialect(
         (err: unknown) => {
           assert.ok(err instanceof Error);
           assert.match((err as Error).message, /UNIQUE constraint failed|violates unique constraint/);
-          assert.ok(isUniqueViolation(err), "the store must recognise the violation to translate it");
+          assert.ok(isUniqueViolation({ err }), "the store must recognise the violation to translate it");
           return true;
         }
       );

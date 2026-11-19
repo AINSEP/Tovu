@@ -28,7 +28,7 @@ for (const adapter of eachDialect({ tables: ["posts"], make: kernel => kernel })
       const rows = await kernel.query<{ title: string; body_json: string; status: string; version: number; author: string | null; show_author: boolean | number }>(
         sql`SELECT title, body_json, status, version, author, show_author FROM posts WHERE id = 'author-legacy'`);
       assert.equal(rows.length, 1);
-      assert.deepEqual({ ...rows[0], show_author: toBool(rows[0]!.show_author) }, {
+      assert.deepEqual({ ...rows[0], show_author: toBool({ value: rows[0]!.show_author }) }, {
         title: "Legacy title", body_json: '{"type":"doc"}', status: "published", version: 7, author: null, show_author: false,
       });
       const columns = await listColumns(kernel, "posts");
@@ -42,7 +42,7 @@ for (const adapter of eachDialect({ tables: ["posts"], make: kernel => kernel })
       const defaults = await kernel.query<{ author: string | null; show_author: boolean | number }>(
         sql`SELECT author, show_author FROM posts WHERE id = 'author-new'`);
       assert.equal(defaults[0]?.author, null);
-      assert.equal(toBool(defaults[0]!.show_author), false);
+      assert.equal(toBool({ value: defaults[0]!.show_author }), false);
       await assert.rejects(kernel.execute(sql`UPDATE posts SET show_author = NULL WHERE id = 'author-new'`),
         /NOT NULL|not-null/);
       await kernel.execute(sql`UPDATE posts SET author = 'Ada & Co.', show_author = true WHERE id = 'author-legacy'`);
@@ -50,7 +50,7 @@ for (const adapter of eachDialect({ tables: ["posts"], make: kernel => kernel })
       const saved = await kernel.query<{ author: string; show_author: boolean | number }>(
         sql`SELECT author, show_author FROM posts WHERE id = 'author-legacy'`);
       assert.equal(saved[0]?.author, "Ada & Co.");
-      assert.equal(toBool(saved[0]!.show_author), true);
+      assert.equal(toBool({ value: saved[0]!.show_author }), true);
       assert.deepEqual(await kernel.query<{ id: string }>(sql`SELECT id FROM author_contract_migrations`), [{ id: ID }]);
     } finally {
       await kernel.execute(sql`DELETE FROM posts WHERE id IN ('author-legacy', 'author-new')`);

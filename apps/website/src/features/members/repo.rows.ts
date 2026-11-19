@@ -102,7 +102,7 @@ export function toMemberTierRecord(row: MemberTierRow): MemberTierRecord {
     status: row.status as MemberTierStatus,
     description: row.description ?? undefined,
     welcomePagePath: row.welcome_page_path ?? undefined,
-    visibleInPortal: toBool(row.visible_in_portal) === true,
+    visibleInPortal: toBool({ value: row.visible_in_portal }) === true,
     monthlyPriceCents: row.monthly_price_cents == null ? undefined : Number(row.monthly_price_cents),
     yearlyPriceCents: row.yearly_price_cents == null ? undefined : Number(row.yearly_price_cents),
     currency: row.currency ?? undefined,

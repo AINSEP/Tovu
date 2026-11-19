@@ -281,7 +281,7 @@ function portableDefinitionSchema(required: { definition: Row }, _options: Recor
   if (!(Number(definition.scopes) & 2) || !Object.hasOwn(PUBLISHABLE_SETTINGS, `${definition.namespace}:${definition.key}`)) return null;
   const schema = JSON.parse(String(definition.schema_json)) as SettingValueSchema;
   const defaultValue = JSON.parse(String(definition.default_json)) as JsonValue;
-  return validateValueAgainstSchema(schema, defaultValue) ? schema : null;
+  return validateValueAgainstSchema({ schema, value: defaultValue }) ? schema : null;
 }
 
 /** Copies the definition's current-version workspace values that may travel, stamped `share`.
@@ -302,7 +302,7 @@ async function copyWorkspaceValues(required: { source: Kernel; target: Kernel; d
 function portableValue(required: { row: Row; schema: SettingValueSchema }, _options: Record<string, never> = {}): { value: JsonValue } | null {
   const { row } = required;
   const value = row.state === "cleared" ? null : JSON.parse(String(row.value_json)) as JsonValue;
-  if (row.state !== "cleared" && !validateValueAgainstSchema(required.schema, value)) return null;
+  if (row.state !== "cleared" && !validateValueAgainstSchema({ schema: required.schema, value })) return null;
   return { value };
 }
 

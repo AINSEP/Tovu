@@ -30,7 +30,7 @@ function toRecord(row: Selectable<PublishHistoryTable>): PublishHistoryEntry {
     ...(row.kind && row.kind !== "static" ? { kind: row.kind as NonNullable<PublishHistoryEntry["kind"]> } : {}),
     url: row.url,
     // `toBool` is null only for a NULL column, which `reachable NOT NULL` never yields; read it as false.
-    reachable: toBool(row.reachable) === true,
+    reachable: toBool({ value: row.reachable }) === true,
     status: row.status,
     projectName: row.project_name,
     ...(row.credential_id !== null ? { credentialId: row.credential_id } : {}),

@@ -654,7 +654,7 @@ export function useVisitorCredentialForm({
    * the second one.
    */
   const selectPreset = (next: ProviderPreset) => {
-    editConfig(nextConfigForPresetSelect(config, next));
+    editConfig(nextConfigForPresetSelect({ config, preset: next }));
     // Both are properties OF THE OUTGOING PROVIDER and neither survives the switch. Left in place,
     // the previous provider's "42 models available" and green connection result would sit under a
     // different provider's empty key field, describing a credential that is no longer in the form.

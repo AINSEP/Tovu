@@ -154,7 +154,7 @@ async function retryLink({ deps, input, proof }: { deps: MemberLoginLinkDeps; in
   try {
     return await deps.transaction(async () => linkInTransaction({ deps, input, proof }));
   } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
+    if (!isUniqueViolation({ err: error })) throw error;
     return deps.transaction(async () => linkInTransaction({ deps, input, proof }));
   }
 }
