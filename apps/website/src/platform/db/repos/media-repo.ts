@@ -112,7 +112,7 @@ function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by" | "kind"
  * @complexity O(1).
  */
 function translateSlugConflict({ err, slug }: { err: unknown; slug: string }, _optional: Record<string, never> = {}): never {
-  if (isUniqueViolation(err)) {
+  if (isUniqueViolation({ err })) {
     throw new MediaConflictError({ message: `slug '${slug}' is already used by another media asset in this workspace` });
   }
   throw err;
@@ -708,7 +708,7 @@ export class SqlTransformDefinitionRepo implements TransformDefinitionRepoPort {
           .execute()
       );
     } catch (err) {
-      if (isUniqueViolation(err)) {
+      if (isUniqueViolation({ err })) {
         throw new Error(
           `transform_registry row (workspace=${record.workspaceId}, name=${record.name}, v${record.version}) already exists — append-only violation`
         );

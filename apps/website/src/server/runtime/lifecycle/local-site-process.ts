@@ -268,6 +268,6 @@ function isDaemonOwnedBy(
   { live, apiPid }: { live: Awaited<ReturnType<typeof listProcessSnapshots>>[number] | undefined; apiPid: number | undefined },
   _optional = {},
 ): boolean {
-  const owner = live ? readFlagValue(live.command.trim().split(/\s+/), "--local-site-api-pid") : null;
+  const owner = live ? readFlagValue({ args: live.command.trim().split(/\s+/), flagName: "--local-site-api-pid" }) : null;
   return Boolean(live?.command.includes("agent-daemon-server")) && owner === String(apiPid);
 }

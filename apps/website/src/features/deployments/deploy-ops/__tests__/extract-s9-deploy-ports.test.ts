@@ -126,9 +126,9 @@ test('waitForDeployOps and aborted preserve cancellation and bounded foreign clo
   const f=wire();assert.equal(requireDeployPlatform({registry:f.registry,id:'library'},{}),f.platform);
   assert.throws(()=>requireDeployPlatform({registry:f.registry,id:'missing'},{}),/Choose: library/);
   const controller=new AbortController();controller.abort();
-  await assert.rejects(waitForDeployOps({status:async()=>observation},{until:'healthy',signal:controller.signal}),{message:aborted().message});
+  await assert.rejects(waitForDeployOps({deps:{status:async()=>observation},until:'healthy'},{signal:controller.signal}),{message:aborted().message});
   let now=0;let polls=0;
-  const result=await waitForDeployOps({status:async()=>{polls++;return {...observation,state:'deploying'};},clock:{now:()=>now,sleep:async ms=>{now+=ms;}}},{until:'healthy',timeoutSeconds:20});
+  const result=await waitForDeployOps({deps:{status:async()=>{polls++;return {...observation,state:'deploying'};},clock:{now:()=>now,sleep:async ms=>{now+=ms;}}},until:'healthy'},{timeoutSeconds:20});
   assert.deepEqual({polls:result.polls,waitedSeconds:result.waitedSeconds,reached:result.reached},{polls:2,waitedSeconds:20,reached:false});assert.equal(polls,2);
 });
 

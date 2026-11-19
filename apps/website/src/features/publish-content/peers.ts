@@ -620,7 +620,7 @@ async function rethrowPeerWriteError(
   { repo }: PublishContentPeerReadDeps,
   { err, workspaceId, label, excludeId }: { err: unknown; workspaceId: string; label: string; excludeId?: string },
 ): Promise<never> {
-  if (isUniqueViolation(err)) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${label}' already exists in this workspace` });
+  if (isUniqueViolation({ err })) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${label}' already exists in this workspace` });
   if (err instanceof VaultError && err.code === "conflict") {
     const rows = await repo.listByWorkspace({ workspaceId });
     if (rows.some(row => row.id !== excludeId && row.label === label)) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${label}' already exists in this workspace` });
@@ -632,7 +632,7 @@ async function rethrowPeerWriteError(
 async function updatePeerMetadata({ repo }: PublishContentPeerReadDeps, { record }: { record: PublishContentPeerRecord }): Promise<void> {
   try { await repo.update({ record }); }
   catch (err) {
-    if (isUniqueViolation(err)) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${record.label}' already exists in this workspace` });
+    if (isUniqueViolation({ err })) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${record.label}' already exists in this workspace` });
     throw err;
   }
 }

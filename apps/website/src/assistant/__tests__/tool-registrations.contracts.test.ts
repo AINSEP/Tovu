@@ -346,7 +346,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // Permanent deletes have their own confirmed-call contributor; trash owns list/restore.
   // The catalog enum must match the fixture's reachable kinds: fakeRouteDeps has no registry,
   // so trashToolEntityTypes(undefined) supplies the bespoke kinds instead of registry kinds.
-  trash: buildTrashAgentToolCatalog(trashToolEntityTypes(undefined)) as unknown as AgentToolDefinition[],
+  trash: buildTrashAgentToolCatalog({ kinds: trashToolEntityTypes(undefined) }) as unknown as AgentToolDefinition[],
   // This derived tool reuses built handlers, so contributor/DOMAIN_SLICES enumeration cannot
   // discover it. Keep this fallback separate from trash's list/restore catalog.
   "trash-item": getTrashItemAgentToolCatalog() as unknown as AgentToolDefinition[],

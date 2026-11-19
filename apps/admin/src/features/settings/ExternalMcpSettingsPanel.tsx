@@ -199,7 +199,7 @@ function ExternalMcpConnectionCard(props: {
   if (isBuiltInExternalMcpSource({ source })) {
     // Same head-row shape as `SourceConfigItemCard` (toggle, name, then a small badge and ⓘ), minus
     // Remove and the expandable fields: a built-in connection is the host's, not the operator's.
-    const label = sourceDisplayLabel(source, fieldSpecs);
+    const label = sourceDisplayLabel({ source, fieldSpecs });
     const enableLabel = tBuiltIn("Enable {name}").replace("{name}", () => label);
     return (
       <div className="source-config-item-card external-mcp-builtin-card" role="region" aria-label={label} {...agentHandle({ handle: cardHandle }, { role: "region", label })}>
@@ -314,7 +314,7 @@ function ExternalMcpSourceRow(props: {
   const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, { t: tDrift });
   // The SAVED count, not the picker's own draft — see this file's header on why.
   const enabledToolCount = parseSavedToolNames({ value: source.fields["allowedToolNames"] }).length;
-  const rowLabel = sourceDisplayLabel(source, fieldSpecs);
+  const rowLabel = sourceDisplayLabel({ source, fieldSpecs });
   // Idle (no listeners, no timers) for every row until its Connect is pressed.
   const signIn = useConnect(
     { serverId: source.id, grant: source.fields["oauthGrant"] ?? "", onConnected: () => void list.reload() },
@@ -458,7 +458,7 @@ function ExternalMcpRemoveConfirmSection(props: {
 
   return (
     <ExternalMcpRemoveConfirmDialog
-      name={sourceDisplayLabel(source, buildExternalMcpFieldSpecs(source.fields, { t: tDrift }))}
+      name={sourceDisplayLabel({ source, fieldSpecs: buildExternalMcpFieldSpecs(source.fields, { t: tDrift }) })}
       isOAuth={resolveExternalMcpEffectiveAuthMode(source.fields) === "oauth"}
       cardHandle={cardHandles[index]}
       onConfirm={() => onConfirm(source.id)}

@@ -349,7 +349,7 @@ function validateDeclaredField({ value, field, providerId }: {
  *  duplicate, on any database (`isUniqueViolation`, storage kernel: SQLite's code/message, Postgres
  *  SQLSTATE 23505). */
 export function isUniqueLabelViolation({ err }: { err: unknown }, _optional = {}): boolean {
-  return isUniqueViolation(err);
+  return isUniqueViolation({ err });
 }
 
 export interface CreateSourceControlCredentialInput {

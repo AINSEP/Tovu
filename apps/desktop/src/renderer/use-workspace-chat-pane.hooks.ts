@@ -85,7 +85,7 @@ export function captureFolderDrop(
 ): void {
   if (getPathForFile === undefined) return;
   // Electron's webUtils.getPathForFile returns '' for synthesized Files, so read the raw drop first.
-  const folders = folderPathsFromDataTransfer(event.dataTransfer, { getPathForFile });
+  const folders = folderPathsFromDataTransfer({ dataTransfer: event.dataTransfer, port: { getPathForFile } });
   if (folders.length === 0) return;
   event.preventDefault();
   event.stopPropagation();

@@ -99,7 +99,7 @@ export function isPresetSuppliedEndpoint({ baseUrl }: { baseUrl: string }, _opti
  * @overallScore 100
  */
 export function configuredPresetIds(config: ByokConfig): Set<string> {
-  return new Set(DEFAULT_PROVIDER_PRESETS.filter((p) => isProviderConfigured(config, p)).map((p) => p.id));
+  return new Set(DEFAULT_PROVIDER_PRESETS.filter((p) => isProviderConfigured({ config, preset: p })).map((p) => p.id));
 }
 
 /**
@@ -236,7 +236,7 @@ export interface VisitorProviderGroup {
  * @complexity Time: O(p) in the number of provider presets; space: O(p).
  */
 export function visitorProviderGroups({ configuredIds }: { configuredIds: ReadonlySet<string> }, _optional: Record<string, never> = {}): VisitorProviderGroup[] {
-  const { protocols, gateways } = groupPresets(DEFAULT_PROVIDER_PRESETS);
+  const { protocols, gateways } = groupPresets({ presets: DEFAULT_PROVIDER_PRESETS });
   const toOptions = (presets: readonly ProviderPreset[]) => presets.map((preset) => ({ preset, configured: configuredIds.has(preset.id) }));
   return [
     { label: "Protocols", options: toOptions(protocols) },
