@@ -1,3 +1,8 @@
+import { updatePost } from "./post-update.js";
+import { restorePostForward, deletePost } from "./post-trash.js";
+import { getAdminPostById, listAdminPosts } from "./post-read.js";
+import { normalizeShowPostAuthor, normalizePostAuthor } from "./post-write-fields.js";
+import { createPost } from "./post-create.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
@@ -11,7 +16,7 @@ import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { createPost, deletePost, getAdminPostById, listAdminPosts, normalizePostAuthor, normalizeShowPostAuthor, updatePost, PostNotFoundError, restorePostForward, type PostRecord } from "./post.js";
+import { PostNotFoundError, type PostRecord } from "./post.js";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion } from "./expected-version.js";

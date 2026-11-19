@@ -26,7 +26,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
-import { isTrashed } from "#src/features/post/post";
+import { isTrashed } from "#src/contracts/core/soft-delete";
 import type { PostRecord } from "#src/features/post/post";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
@@ -42,26 +42,12 @@ import { type RouteTarget } from '@jini-ai/cms/routing';
 
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
-import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
-import type { PublishContentBaselineRepoPort } from "../baseline-repo.js";
+import { InMemoryPublishContentBaselineRepo, type PublishContentBaselineRepoPort } from "../baseline-repo.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
 import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "../run-repo.js";
 import { planImport } from "../planner.js";
-import { entityKey } from "../plan-rows.js";
-import type { PublishContentBundle, PublishContentReport } from "../plan-rows.js";
-import {
-  registerPublishContentContributor,
-  resetPublishContentContributorsForTests,
-} from "../type-registry.js";
-import type {
-  EntityReplacement,
-  PackedEntity,
-  PublishContentDeps,
-  PublishContentContributor,
-  PublishContentHandler,
-  RepointResult,
-  RetireTarget,
-} from "../type-registry.js";
+import { entityKey, type PublishContentBundle, type PublishContentReport } from "../plan-rows.js";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests, type EntityReplacement, type PackedEntity, type PublishContentDeps, type PublishContentContributor, type PublishContentHandler, type RepointResult, type RetireTarget } from "../type-registry.js";
 import { createPublishContentApplyPort } from "../apply-port.js";
 import { publishContentItemIdempotencyKey } from "../idempotency.js";
 

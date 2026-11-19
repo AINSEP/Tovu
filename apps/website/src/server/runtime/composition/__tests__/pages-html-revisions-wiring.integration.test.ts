@@ -1,7 +1,6 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "@jini-ai/core";
-import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import { createContributionRegistry, type ToolContributor as OwnedToolContributor, type DerivedToolContributor as OwnedDerivedToolContributor, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -9,12 +8,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 
-import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
-import { createPost } from "#src/features/post/post";
+import { createPost } from "#src/features/post/index";
 import { createRouteDeps } from "../app.js";
 import { createSiteRouteDeps } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";

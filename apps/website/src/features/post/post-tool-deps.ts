@@ -1,6 +1,10 @@
+import type { ForgetRemovedPostFn, RemovePostFn } from "./post-trash.js";
+import type { SlugChangeCaptureLookup } from "./post-slugs.js";
+import type { PostAuthorAccountPort } from "./post-create.js";
+import type { BeforeSaveHookPort } from "./post-before-save.js";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
-import type { PostRepoPort, PostAuthorAccountPort, BeforeSaveHookPort, SlugChangeCaptureLookup, RemovePostFn, ForgetRemovedPostFn } from "./post.js";
+import type { PostRepoPort } from "./post.js";
 import type { PostTemplateDeps } from "./template-options.js";
 import type { PostSearchPort } from "./search.js";
 import type { FeaturedImageDeps } from "./featured-image.js";

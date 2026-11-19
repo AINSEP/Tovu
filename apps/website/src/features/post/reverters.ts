@@ -1,17 +1,11 @@
-import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { Clock as ClockPort, JsonObject } from "@jini-ai/core/primitives";
+import { nowIso as clockNowIso, type Clock as ClockPort, type JsonObject } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../contracts/core/commands/index.js";
-import {
-  emitPublicTransitionEvent,
-  isTrashed,
-  PostVersionConflictError,
-  presentScheduleFields,
-  SYSTEM_ACTOR_ID,
-  type ForgetRemovedPostFn,
-  type PostRecord,
-  type PostRepoPort,
-} from "./post.js";
+import { emitPublicTransitionEvent } from "./post-write-effects.js";
+import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { PostVersionConflictError, SYSTEM_ACTOR_ID, type PostRecord, type PostRepoPort } from "./post.js";
+import { presentScheduleFields } from "./post-write-fields.js";
+import type { ForgetRemovedPostFn } from "./post-trash.js";
 import type { PostStatus } from "@jini-ai/cms/core";
 
 /**

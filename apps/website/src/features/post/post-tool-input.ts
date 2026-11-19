@@ -1,3 +1,4 @@
+import { normalizePublishAt } from "./post-write-fields.js";
 // Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch
 // notes this file's narrowing was reported under), not a field this file could re-source from a
 // domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
@@ -6,7 +7,7 @@
 import { ToolInputError, requireObject, requireString } from "@jini-ai/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PublicPostKind, PostStatus } from "@jini-ai/cms/core";
-import { normalizePublishAt } from "./post.js";
+
 import { resolveFeaturedImageRef } from "./featured-image.js";
 import type { PostToolDeps } from "./post-tool-deps.js";
 

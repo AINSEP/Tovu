@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createPost, updatePost, type CreatePostInput, type UpdatePostInput } from "../post.js";
+import { createPost, type CreatePostInput } from "../post-create.js";
+import { updatePost, type UpdatePostInput } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**

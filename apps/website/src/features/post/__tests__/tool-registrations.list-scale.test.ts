@@ -7,7 +7,7 @@ import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT } from "../post.js";
+import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT } from "../post-read.js";
 import { buildPostRegistrations } from "../tool-registrations.js";
 import { type PostToolDeps } from "../post-tool-deps.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

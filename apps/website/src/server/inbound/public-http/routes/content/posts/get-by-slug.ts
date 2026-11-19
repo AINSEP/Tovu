@@ -2,7 +2,8 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
 
-import { getPublishedPostBySlug, PostNotFoundError } from "#src/features/post/post";
+import { getPublishedPostBySlug } from "#src/features/post/post-read";
+import { PostNotFoundError } from "#src/features/post/post";
 import { getPresentationSettings, PresentationSettingsNotFoundError } from "@jini-ai/cms/presentation";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
 import type { MemberAccessResolver } from "#src/features/members/index";

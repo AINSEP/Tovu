@@ -1,8 +1,9 @@
+import { normalizePostAuthor, normalizeShowPostAuthor } from "./post-write-fields.js";
 import { isDeepStrictEqual } from "node:util";
 import { ToolInputError } from "@jini-ai/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PostStatus, PublicPostKind } from "@jini-ai/cms/core";
-import { normalizePostAuthor, normalizeShowPostAuthor, isPublicPost, PostNotFoundError, type PostRecord, type PublicPostRecord } from "./post.js";
+import { isPublicPost, PostNotFoundError, type PostRecord, type PublicPostRecord } from "./post.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import { optionalNonEmptyString, optionalBodyJson, optionalPostStatus, optionalPublishAt } from "./post-tool-input.js";
 import { readPostTemplateOptions } from "./template-options.js";

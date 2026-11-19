@@ -2,7 +2,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createPost, updatePost, PostValidationError } from "../post.js";
+import { createPost } from "../post-create.js";
+import { updatePost } from "../post-update.js";
+import { PostValidationError } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 const workspaceId = "reserved-slugs";

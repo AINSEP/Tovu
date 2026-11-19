@@ -1,12 +1,10 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { ToolInputError } from "@jini-ai/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { ToolInputError, buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type ToolContributor } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
-import { requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { ToolContributor } from "@jini-ai/core";
-import { getAdminPostById, PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "./post.js";
+import { getAdminPostById } from "./post-read.js";
+import { PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "./post.js";
 import { readPageBodyOptions, shapePageBody, type ShapedPageBody } from "#src/features/site-inspection/page-body";
 import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 

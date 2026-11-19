@@ -1,10 +1,12 @@
+import { getAdminPostById } from "./post-read.js";
+import { createPost } from "./post-create.js";
 import { AGENT_TOOL_PRINCIPAL_KIND } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type PostStatus } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
 import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { createPost, getAdminPostById, PostNotFoundError, PostValidationError, type PostRecord } from "./post.js";
+import { PostNotFoundError, PostValidationError, type PostRecord } from "./post.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";

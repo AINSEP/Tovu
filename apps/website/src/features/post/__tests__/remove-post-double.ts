@@ -10,7 +10,8 @@
  * real SQLite. Keeping the two apart is deliberate: this double must not grow a second, drifting
  * implementation of the Trash.
  */
-import type { PostRepoPort, RemovePostFn } from "../post.js";
+import type { PostRepoPort } from "../post.js";
+import type { RemovePostFn } from "../post-trash.js";
 
 /**
  * Binds `remove` to `repo.softDelete`.

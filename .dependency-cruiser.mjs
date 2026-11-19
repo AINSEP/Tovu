@@ -687,7 +687,7 @@ const PUBLIC_ENTRIES = {
   "features/media": ["contracts", "public-urls", "attachment-tools", "bootstrap", "guard-rendition-repo"],
   "features/members": ["access-resolver"],
   "features/navigation": ["render-entry"],
-  "features/post": ["contracts", "rendering", "read-model", "post"],
+  "features/post": ["contracts", "rendering", "read-model", "post", "post-read"],
   "features/presentation": ["active-theme-id"],
   "features/settings": ["site-title"],
   "features/taxonomy": ["contracts", "render-entry", "content-targets", "term-sync"],

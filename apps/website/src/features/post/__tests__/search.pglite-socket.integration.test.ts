@@ -9,7 +9,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { startPgliteOwner, type PgliteOwner } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-socket";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
-import { createPost } from "../post.js";
+import { createPost } from "../post-create.js";
 import { postRepoFor } from "../repo.js";
 import { searchAdminPosts } from "../search.js";
 import { PostSearchIndex } from "../search-index.js";

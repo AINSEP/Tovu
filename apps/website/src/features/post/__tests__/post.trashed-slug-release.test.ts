@@ -9,16 +9,11 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "#src/features/trash/adapters/post";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { removeEntityWithoutBlocker } from "#src/features/trash/remove-without-blocker";
-import {
-  createPost,
-  deletePost,
-  retirePostForReplacement,
-  updatePost,
-  PostConflictError,
-  ROOT_SLUG,
-  type PostRecord,
-  type PostRepoPort,
-} from "../post.js";
+import { createPost } from "../post-create.js";
+import { deletePost } from "../post-trash.js";
+import { retirePostForReplacement } from "../post-retire.js";
+import { updatePost } from "../post-update.js";
+import { PostConflictError, ROOT_SLUG, type PostRecord, type PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { removeVia } from "./remove-post-double.js";

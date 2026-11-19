@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createPost, updatePost, PostValidationError, type CreatePostInput } from "../post.js";
+import { createPost, type CreatePostInput } from "../post-create.js";
+import { updatePost } from "../post-update.js";
+import { PostValidationError } from "../post.js";
 import { createPostReverters } from "../reverters.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
