@@ -11,3 +11,12 @@ export class ThemeFileChangedError extends ToolInputError {
     this.name = 'ThemeFileChangedError';
   }
 }
+
+/** {@link hasThemeOriginalLayoutMismatch}'s refusal: a stable `code` for a client to translate, and a fixed
+ *  English `message` with nothing interpolated into it. */
+export type ThemeOriginalResetRefusal = { readonly code: "ORIGINAL_LAYOUT_MISMATCH"; readonly message: string };
+
+export const ORIGINAL_LAYOUT_MISMATCH_REFUSAL: ThemeOriginalResetRefusal = Object.freeze({
+  code: "ORIGINAL_LAYOUT_MISMATCH",
+  message: "this theme's saved original does not match its current layout, so its files cannot be reset",
+});

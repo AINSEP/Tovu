@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resolveThemeOriginalSource } from "#src/features/theme/theme-original-source";
+import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { builtInThemesDir, createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { createSiteRouteDepsForWorkspace } from "../../runtime/composition/deps.js";
 

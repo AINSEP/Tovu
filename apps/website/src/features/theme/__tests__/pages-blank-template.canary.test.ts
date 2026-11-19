@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { applicableThemeTemplates } from "../template-applicability.js";
+import { applicableThemeTemplates } from "@jini-ai/cms/themes/template-applicability";
 import { injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
 import type { DiscoveredTheme } from "../index.js";
 

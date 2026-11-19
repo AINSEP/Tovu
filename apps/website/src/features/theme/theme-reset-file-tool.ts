@@ -4,8 +4,10 @@ import { requireInputRecord, requireString, withSchemaOnRejection, type ToolHand
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 import { MAX_THEME_FILE_BYTES, readThemeFile } from "./theme-files.js";
-import { resetThemeFileToOriginal } from "./theme-file-originals.js";
-import { resolveThemeOriginalSource, themeOriginalResetRefusal, type ThemeOriginalSource } from "./theme-original-source.js";
+import { resetThemeFileToOriginal } from "@jini-ai/cms/themes/files/originals";
+import { themeOriginalFilePorts } from "./theme-file-write-ports.js";
+import { resolveThemeOriginalSource, hasThemeOriginalLayoutMismatch, type ThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
+import { ORIGINAL_LAYOUT_MISMATCH_REFUSAL } from "./theme-file-errors.js";
 import { type DiscoveredTheme } from "./theme.js";
 import { CATALOG_BY_ID } from "./theme-tool-catalog.js";
 import { toThemeToolView } from "./theme-tool-view.js";
@@ -38,7 +40,7 @@ function originalSourceForTool(routeDeps: ThemeToolDeps, theme: DiscoveredTheme)
  * @throws {ThemeFileNoOriginalError} If this theme has no catalog directory at all (site or
  * package), or the catalog has no regular file at this path (including a path that escapes the
  * catalog folder).
- * @throws {ThemeOriginalLayoutMismatchError} If {@link themeOriginalResetRefusal} refuses the theme's
+ * @throws {ThemeOriginalLayoutMismatchError} If {@link hasThemeOriginalLayoutMismatch} refuses the theme's
  * original, checked before any file is looked at: the same guard, and the same message, as the HTTP
  * route's `ORIGINAL_LAYOUT_MISMATCH`.
  */
@@ -50,9 +52,9 @@ function resetFromOriginalForTool(
   if (!originalSource) {
     throw new ThemeFileNoOriginalError({ message: `theme '${theme.manifest.id}' has no stored original, so nothing can be reset` });
   }
-  const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir });
+  const refusal = hasThemeOriginalLayoutMismatch({ themeDir: theme.dir, originalDir: originalSource.originalDir, maxManifestBytes: MAX_THEME_FILE_BYTES }) ? ORIGINAL_LAYOUT_MISMATCH_REFUSAL : null;
   if (refusal) throw new ThemeOriginalLayoutMismatchError({ message: refusal.message });
-  const reset = resetThemeFileToOriginal({
+  const reset = resetThemeFileToOriginal({ ports: themeOriginalFilePorts,
     themeDir: theme.dir,
     themesRoot: routeDeps.themesDir,
     originalDir: originalSource.originalDir,

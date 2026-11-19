@@ -3,9 +3,6 @@ export { loadTheme, type ThemeTokens, type DiscoveredTheme } from "./theme.js";
 export { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId, type ThemeManifest, type ThemeBuildInfo, type ThemeTier, type TemplateNode } from "./render-contract.js";
 export { isStandaloneThemePage, isPublishableThemePageCandidate } from "./theme-page-eligibility.js";
 
-export { applicableThemeTemplates, type ThemeTemplateFor, type ThemeTemplateKind } from "./template-applicability.js";
-export { isPackageShippedTheme } from "./theme-original-source.js";
-
 // 2026-10-08 — the one "make a new theme" service: the admin Themes screen's Duplicate route and the
 // `theme_duplicate` agent tool both call `duplicateDiscoveredTheme`, so neither can drift.
 export {
@@ -128,8 +125,8 @@ export { copyThemeFile, nextAvailableFileName, renameThemeFile } from "./theme-f
 export { isGeneratedThemePath, resolveThemeFileWriteScope, type ThemeFileWriteScope } from "./theme-file-policy.js";
 export { listThemeFiles } from "./theme-file-listing.js";
 export { MAX_THEME_FILE_BYTES, readThemeFile, ThemePathError } from "./theme-files.js";
-export { resetThemeFileToOriginal, themeFileDiffersFromOriginal } from "./theme-file-originals.js";
-export { resolveThemeOriginalSource, themeOriginalResetRefusal, type ThemeOriginalResetRefusal, type ThemeOriginalSource } from "./theme-original-source.js";
+export { themeOriginalFilePorts } from "./theme-file-write-ports.js";
+export { ORIGINAL_LAYOUT_MISMATCH_REFUSAL, type ThemeOriginalResetRefusal } from "./theme-file-errors.js";
 export { restoreBuiltThemeGeneratedTree } from "./theme-generated-restore.js";
 export { writeThemeFile } from "./theme-file-writing.js";
 
@@ -180,7 +177,9 @@ export { setThemePagePublished, ThemePagePublicationError } from "./page-publica
 export { catalog as themePagePublishedAgentToolCatalog, buildRegistrations as buildThemePagePublishedRegistrations, contributeThemeSetPagePublishedTools } from "./page-publish-tool.js";
 
 // 2026-10-08 — a theme another process created, edited or trashed reaches this process's roster.
-export { syncThemeRoster, themeRosterFingerprint } from "./theme-roster-sync.js";
+export { themeRosterPorts } from "./theme-roster-ports.js";
 
 // Both deletion surfaces share the assistant's restorable file lifecycle.
 export { trashThemeFile, ThemeFileReadOnlyError } from "./asset-operations.js";
+
+export { refreshWatchedThemes, reportThemeWatchError } from "./theme-watch-bindings.js";

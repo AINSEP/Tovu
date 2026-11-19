@@ -95,7 +95,7 @@ export class ThemeFileNoOriginalError extends Error {
   }
 }
 
-/** Raised when `theme_reset_file`'s theme HAS a stored original but {@link themeOriginalResetRefusal}
+/** Raised when `theme_reset_file`'s theme HAS a stored original but {@link hasThemeOriginalLayoutMismatch}
  * refuses it: saved under a different layout version than the live theme, or with an unreadable
  * `theme.json`. Its own class rather than {@link ThemeFileNoOriginalError}, so which check fired stays
  * clear. Retrying with the same input cannot succeed, so it is a shape rejection like that class; the

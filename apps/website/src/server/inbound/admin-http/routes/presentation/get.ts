@@ -1,10 +1,12 @@
+import { applicableThemeTemplates, type ThemeTemplateKind } from "@jini-ai/cms/themes/template-applicability";
+import { isPackageShippedTheme } from "@jini-ai/cms/themes/files/original-source";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
   getPresentationSettings,
   PresentationSettingsNotFoundError,
   type PresentationSettingsRecord,
 } from "#src/features/presentation/index";
-import { applicableThemeTemplates, findStoredTheme, validThemeIds, isPackageShippedTheme, type ThemeTemplateKind } from "#src/features/theme/index";
+import { findStoredTheme, validThemeIds } from "#src/features/theme/index";
 import { themeCardPreviewUrl } from "#src/features/theme/theme-preview-image";
 import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";
 import { registerAdminThemePreviewRoute } from "../themes/preview.js";

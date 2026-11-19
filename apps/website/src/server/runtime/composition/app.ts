@@ -46,7 +46,7 @@ import { createInMemoryChatHistory } from "../../../assistant/index.js";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { InMemorySettingsRepo, set } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
-import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
+import { bindThemeTrashAdapter } from "#src/features/theme/theme-trash-binding";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import { builtInThemesDir } from "./site-paths.js";
@@ -335,7 +335,7 @@ function createMemoryPublishing(context: ReturnType<typeof createMemoryRuntime> 
   // `theme` joins the Trash here rather than in `trashAdapters`' literal above: its adapter rescans
   // `siteThemes` after every move, and the Trash resolves adapters at call time, so this `set` is seen
   // by every later trash/restore/purge (`theme_trash`, `trash_restore_item`, the admin Trash screen).
-  const themeTrashAdapter = createThemeTrashAdapter({ themes: siteThemes, themesDir: builtInThemesDir() });
+  const themeTrashAdapter = bindThemeTrashAdapter({ themes: siteThemes, themesDir: builtInThemesDir() });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
   const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });

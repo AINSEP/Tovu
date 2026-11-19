@@ -11,9 +11,10 @@ import express from "express";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
-import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
+import { bindThemeTrashAdapter, ThemeTrashLocationError, themeTrashLocationError } from "#src/features/theme/theme-trash-binding";
+import { locateThemeFolder } from "@jini-ai/cms/themes/files/trash";
 import { buildTrashThemeRegistrations, createThemeTrashMover, trashThemeDerivedRisk, type TrashThemeToolDeps } from "#src/features/theme/trash-theme-tool";
-import { buildTrashRegistry, THEME_ENTITY_TYPE, unhideIfRemoveThrows } from "#src/features/trash/index";
+import { buildTrashRegistry, createDirectoryTrashAdapter, THEME_ENTITY_TYPE, unhideIfRemoveThrows } from "#src/features/trash/index";
 import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 import type { TrashRouteDeps } from "#src/server/inbound/admin-http/routes/trash/deps";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -62,7 +63,7 @@ function harness(t: test.TestContext, options: { deny?: readonly string[]; renam
   writeTheme(path.join(themesDir, "static", "nordic"), "nordic");
 
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
-  const adapter: TrashAdapter = createThemeTrashAdapter({ themes, themesDir }, options.rename ? { rename: options.rename } : {});
+  const adapter: TrashAdapter = bindThemeTrashAdapter({ themes, themesDir }, options.rename ? { rename: options.rename } : {});
   const adapters = new Map<string, TrashAdapter>([[THEME_ENTITY_TYPE, adapter]]);
   const repo = new InMemoryTrashRepo({});
   let sequence = 0;
@@ -354,7 +355,7 @@ test("theme_trash: a theme with no stored original trashes and restores without 
 
 test("theme adapter: hiding a theme that is not on disk reports not-found and moves no original", async (t) => {
   const { themesDir, deps } = harness(t);
-  const adapter = createThemeTrashAdapter({ themes: deps.themes, themesDir });
+  const adapter = bindThemeTrashAdapter({ themes: deps.themes, themesDir });
   const originalDir = writeOriginal(themesDir, "ghost");
   assert.deepEqual(await adapter.hide({ workspaceId: WORKSPACE_ID, entityId: "ghost", at: AT, expectedVersion: null }), { ok: false, reason: "not-found" });
   assert.equal(fs.existsSync(path.join(originalDir, "theme.json")), true);
@@ -362,7 +363,7 @@ test("theme adapter: hiding a theme that is not on disk reports not-found and mo
 
 test("theme adapter: an original already parked blocks the move, and the theme's own move is undone", async (t) => {
   const { themesDir, deps } = harness(t);
-  const adapter = createThemeTrashAdapter({ themes: deps.themes, themesDir });
+  const adapter = bindThemeTrashAdapter({ themes: deps.themes, themesDir });
   writeOriginal(themesDir, "aurora");
   writeTheme(path.join(`${themesDir}-trash`, "__original-themes__", "declarative", "aurora"), "aurora");
   const result = await adapter.hide({ workspaceId: WORKSPACE_ID, entityId: "aurora", at: AT, expectedVersion: null });
@@ -382,7 +383,7 @@ test("theme adapter: a restore whose theme move throws re-parks the original it 
     return fs.promises.rename(from, to);
   };
   const { themesDir, deps } = harness(t);
-  const adapter = createThemeTrashAdapter({ themes: deps.themes, themesDir }, { rename });
+  const adapter = bindThemeTrashAdapter({ themes: deps.themes, themesDir }, { rename });
   writeOriginal(themesDir, "aurora");
   assert.equal((await adapter.hide({ workspaceId: WORKSPACE_ID, entityId: "aurora", at: AT, expectedVersion: null })).ok, true);
   failThemeRestore = true;
@@ -392,10 +393,9 @@ test("theme adapter: a restore whose theme move throws re-parks the original it 
 });
 
 test("theme folder location: refuses non-segment ids and a live theme whose folder is not its id under the themes root", async (t) => {
-  const { locateThemeFolder, ThemeTrashLocationError } = await import("#src/features/theme/theme-trash");
   const { themesDir, deps } = harness(t);
   for (const themeId of ["", ".", "..", "a/b", "a\\b"]) {
-    assert.throws(() => locateThemeFolder({ themes: deps.themes, themesDir, themeId }), (error: unknown) =>
+    assert.throws(() => locateThemeFolder({ ports: { findTheme: ({ themeId }) => { const theme = deps.themes.find((theme) => theme.manifest.id === themeId); return theme ? { dir: theme.dir, tier: theme.manifest.tier } : undefined; }, locationError: themeTrashLocationError, createDirectoryAdapter: ({ locate }) => createDirectoryTrashAdapter({ entityType: THEME_ENTITY_TYPE, locate }), refresh: () => {} }, themesDir, themeId }), (error: unknown) =>
       error instanceof ThemeTrashLocationError && error.name === "ThemeTrashLocationError" && error.message === `'${themeId}' is not a theme folder name`);
   }
   writeTheme(path.join(themesDir, "renamed-folder"), "drifted");
@@ -405,7 +405,7 @@ test("theme folder location: refuses non-segment ids and a live theme whose fold
   const themes = [...strays, loadTheme({ themeDir: path.join(themesDir, "deep", "nested", "lost"), id: "lost", source: "built-in" })];
   assert.ok(themes.some((theme) => theme.manifest.id === "drifted"), "fixture: discovery lists the drifted theme");
   for (const themeId of ["drifted", "lost"]) {
-    assert.throws(() => locateThemeFolder({ themes, themesDir, themeId }), {
+    assert.throws(() => locateThemeFolder({ ports: { findTheme: ({ themeId }) => { const theme = themes.find((theme) => theme.manifest.id === themeId); return theme ? { dir: theme.dir, tier: theme.manifest.tier } : undefined; }, locationError: themeTrashLocationError, createDirectoryAdapter: ({ locate }) => createDirectoryTrashAdapter({ entityType: THEME_ENTITY_TYPE, locate }), refresh: () => {} }, themesDir, themeId }), {
       name: "ThemeTrashLocationError",
       message: `theme '${themeId}' is not a folder of this site's themes directory, so it cannot be moved to the Trash`,
     });
@@ -413,14 +413,13 @@ test("theme folder location: refuses non-segment ids and a live theme whose fold
 });
 
 test("theme folder location: a parked folder with a live theme of the same id reports that live name", async (t) => {
-  const { locateThemeFolder } = await import("#src/features/theme/theme-trash");
   const { themesDir, deps } = harness(t);
   const parkedDir = path.join(`${themesDir}-trash`, "aurora");
   fs.mkdirSync(parkedDir, { recursive: true });
-  assert.deepEqual(locateThemeFolder({ themes: deps.themes, themesDir, themeId: "aurora" }), {
+  assert.deepEqual(locateThemeFolder({ ports: { findTheme: ({ themeId }) => { const theme = deps.themes.find((theme) => theme.manifest.id === themeId); return theme ? { dir: theme.dir, tier: theme.manifest.tier } : undefined; }, locationError: themeTrashLocationError, createDirectoryAdapter: ({ locate }) => createDirectoryTrashAdapter({ entityType: THEME_ENTITY_TYPE, locate }), refresh: () => {} }, themesDir, themeId: "aurora" }), {
     liveParent: path.resolve(themesDir), liveNames: ["aurora"], parkedDir,
   });
-  assert.deepEqual(locateThemeFolder({ themes: deps.themes, themesDir, themeId: "absent" }), {
+  assert.deepEqual(locateThemeFolder({ ports: { findTheme: ({ themeId }) => { const theme = deps.themes.find((theme) => theme.manifest.id === themeId); return theme ? { dir: theme.dir, tier: theme.manifest.tier } : undefined; }, locationError: themeTrashLocationError, createDirectoryAdapter: ({ locate }) => createDirectoryTrashAdapter({ entityType: THEME_ENTITY_TYPE, locate }), refresh: () => {} }, themesDir, themeId: "absent" }), {
     liveParent: path.resolve(themesDir), liveNames: [], parkedDir: path.join(`${themesDir}-trash`, "absent"),
   });
 });

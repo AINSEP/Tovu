@@ -12,7 +12,7 @@ import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { type DiscoveredTheme } from "../theme.js";
 import { MAX_LISTED_FILES } from "../theme-file-listing.js";
 import { MAX_WALK_DEPTH } from "../theme-files.js";
-import { resolveThemeOriginalSource } from "../theme-original-source.js";
+import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { writableThemeIds, ThemeStylingRequiredError } from "../active-theme.js";
 
 /**

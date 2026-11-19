@@ -17,7 +17,8 @@ import { computeBlobStorageKey, SharpImageTransformer } from "#src/features/medi
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { loadTheme } from "#src/features/theme/theme";
-import { resetThemeFileToOriginal } from "#src/features/theme/theme-file-originals";
+import { resetThemeFileToOriginal } from "@jini-ai/cms/themes/files/originals";
+import { themeOriginalFilePorts } from "#src/features/theme/theme-file-write-ports";
 import { prepareShareContent } from "../../share-preparation.js";
 import { bufferArchiveMedia } from "../../archive-media.js";
 import { buildShareZip } from "../../share-zip.js";
@@ -178,7 +179,7 @@ test("v2 tree, one public media copy per item, no secrets and full content round
   assert.equal(fs.readFileSync(path.join(dir, "themes/__original-themes__/static/site/index.html"), "utf8"), "<main>original theme</main>");
   const themesRoot = path.join(dir, "themes");
   assert.equal(loadTheme({ themeDir: path.join(themesRoot, "static/site"), id: "site", source: "site" }).status, "valid");
-  assert.equal(resetThemeFileToOriginal({ themeDir: path.join(themesRoot, "static/site"), themesRoot, originalDir: path.join(themesRoot, "__original-themes__/static/site"), originalsRoot: path.join(themesRoot, "__original-themes__"), relativePath: "index.html" })?.wasModified, true);
+  assert.equal(resetThemeFileToOriginal({ ports: themeOriginalFilePorts, themeDir: path.join(themesRoot, "static/site"), themesRoot, originalDir: path.join(themesRoot, "__original-themes__/static/site"), originalsRoot: path.join(themesRoot, "__original-themes__"), relativePath: "index.html" })?.wasModified, true);
   assert.equal(fs.readFileSync(path.join(themesRoot, "static/site/index.html"), "utf8"), "<main>original theme</main>");
   assert.ok(fs.existsSync(path.join(dir, ".import-quarantine/agent-plugins/demo/package/server.mjs")));
   const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });

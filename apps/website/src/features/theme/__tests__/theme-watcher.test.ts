@@ -7,7 +7,8 @@ import test from "node:test";
 
 import { discoverAllBuiltInThemes } from "../theme-discovery.js";
 import { createThemePreviewFeed, readThemePreviewRefresh, type ThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
-import { startThemeWatcher, type ThemeWatchPort } from "../theme-watcher.js";
+import { createThemeWatcher, type ThemeWatchPort } from "@jini-ai/cms/themes/preview/watcher";
+import { refreshWatchedThemes, reportThemeWatchError } from "../theme-watch-bindings.js";
 
 /** Real discovery/marker/feed, fake watcher and clock: no OS watch, server or waiting. */
 function fixture(t: test.TestContext) {
@@ -38,10 +39,11 @@ function fixture(t: test.TestContext) {
     return { close() { closes += 1; } };
   } };
   const errors: unknown[] = [];
-  const start = () => startThemeWatcher({ themes, themesDir }, { watchPort, onError: ({ error }) => errors.push(error) });
+  const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError });
+  const start = () => startThemeWatcher({ themesDir, refresh: () => refreshWatchedThemes({ themes, themesDir }) }, { watchPort, onError: ({ error }) => errors.push(error) });
   const watcher = start();
   t.after(async () => { await watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
-  return { root, themesDir, themes, writeTheme, frames, feed, errors, watcher, start,
+  return { root, themesDir, themes, writeTheme, frames, feed, errors, watcher, start, startThemeWatcher,
     change: (filename: string | null) => callbacks.onChange({ filename }),
     currentChange: () => callbacks.onChange,
     fail: (error: unknown) => callbacks.onError({ error }),
@@ -135,7 +137,7 @@ test("restarts and site switches replace the sole watcher; an old stop cannot cl
   await f.watcher.stop();
   assert.equal(f.closes(), 1);
   let nextClosed = 0;
-  const switched = startThemeWatcher({ themes: [], themesDir: "/other-site/themes" }, {
+  const switched = f.startThemeWatcher({ themesDir: "/other-site/themes", refresh: ({ themesDir }) => refreshWatchedThemes({ themes: [], themesDir }) }, {
     watchPort: { open: () => ({ close: () => { nextClosed += 1; } }) },
   });
   t.after(() => switched.stop());
@@ -163,7 +165,7 @@ test("watch errors cancel pending work and close the failed handle", (t) => {
 test("opening failure is reported and a subsequent start can recover", async (t) => {
   const f = fixture(t);
   const error = new Error("watch unavailable");
-  const failed = startThemeWatcher({ themes: f.themes, themesDir: f.themesDir }, {
+  const failed = f.startThemeWatcher({ themesDir: f.themesDir, refresh: () => refreshWatchedThemes({ themes: f.themes, themesDir: f.themesDir }) }, {
     watchPort: { open() { throw error; } }, onError: ({ error }) => f.errors.push(error),
   });
   assert.deepEqual(f.errors, [error]);
@@ -199,7 +201,8 @@ test("the default OS watcher refreshes discovery and the preview marker after a 
   fs.mkdirSync(themesDir);
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
   const errors: unknown[] = [];
-  const watcher = startThemeWatcher({ themes, themesDir }, { settleMs: 10, onError: ({ error }) => errors.push(error) });
+  const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError });
+  const watcher = startThemeWatcher({ themesDir, refresh: () => refreshWatchedThemes({ themes, themesDir }) }, { settleMs: 10, onError: ({ error }) => errors.push(error) });
   t.after(async () => { await watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
   assert.equal(readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }), null);
   const deadline = Date.now() + 10_000;
@@ -217,7 +220,8 @@ test("without an onError option, an opening failure is logged rather than thrown
   const logged: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   const missing = path.join(os.tmpdir(), `tovu-theme-watch-missing-${process.pid}-${Date.now()}`);
-  const watcher = startThemeWatcher({ themes: [], themesDir: missing });
+  const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError });
+  const watcher = startThemeWatcher({ themesDir: missing, refresh: ({ themesDir }) => refreshWatchedThemes({ themes: [], themesDir }) });
   await watcher.stop();
   assert.equal(logged.length, 1);
   assert.equal(logged[0][0], "[theme-watcher] theme refresh failed");

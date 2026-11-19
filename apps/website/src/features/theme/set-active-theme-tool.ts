@@ -19,7 +19,8 @@ import {
 import { writableThemeIds, ThemeStylingRequiredError } from "./active-theme.js";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import type { DiscoveredTheme } from "./theme.js";
-import { syncThemeRoster } from "./theme-roster-sync.js";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
+import { themeRosterPorts } from "./theme-roster-ports.js";
 import { verifyActiveThemeResolves } from "./verify-active-theme.js";
 
 /**
@@ -125,7 +126,7 @@ export async function applyActiveTheme(
   _optional: Record<string, never> = {}
 ): Promise<{ previousThemeId: string; activeThemeId: string }> {
   const { routeDeps, themeId } = required;
-  if (routeDeps.themesDir) syncThemeRoster({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+  if (routeDeps.themesDir) syncThemeRoster({ ...themeRosterPorts, themes: routeDeps.themes, themesDir: routeDeps.themesDir });
   const previousThemeId = await resolveActiveThemeId(routeDeps);
 
   let activeThemeId: string;

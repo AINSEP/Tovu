@@ -4,8 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resetThemeFileToOriginal } from "../theme-file-originals.js";
-import { resolveThemeOriginalSource, themeOriginalResetRefusal } from "../theme-original-source.js";
+import { resetThemeFileToOriginal } from "@jini-ai/cms/themes/files/originals";
+import { themeOriginalFilePorts } from "../theme-file-write-ports.js";
+import { resolveThemeOriginalSource, hasThemeOriginalLayoutMismatch } from "@jini-ai/cms/themes/files/original-source";
+import { MAX_THEME_FILE_BYTES } from "../theme-files.js";
 import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
@@ -13,7 +15,7 @@ import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
  * lifecycle-designs.md` §9, Slice 1) — written and run BEFORE any Design C source edit exists. Proves
  * the hard part: can `resetThemeFileToOriginal` resolve its original from a PACKAGE catalog instead
  * of a site's own, per theme, byte-exactly, without touching the live tree — and does
- * `themeOriginalResetRefusal` still refuse correctly across that seam? Both functions already take
+ * `hasThemeOriginalLayoutMismatch` still refuse correctly across that seam? Both functions already take
  * `originalDir`/`originalsRoot` as plain parameters (`theme-files.ts:699`, `:772`), so this file
  * builds a package-shaped fixture (a themes root with its own `<tier>/<id>` original folder,
  * structurally identical to a site's own catalog, just a separate directory tree entirely) and calls
@@ -57,7 +59,7 @@ test("(a) a package-sourced reset succeeds byte-exact and the live file matches 
   const canonicalBytes = Buffer.from("body{color:blue;font-family:sans-serif}");
   write(originalDir, "css/site.css", canonicalBytes);
 
-  const result = resetThemeFileToOriginal({
+  const result = resetThemeFileToOriginal({ ports: themeOriginalFilePorts,
     themeDir,
     themesRoot: siteThemesRoot,
     originalDir,
@@ -84,7 +86,7 @@ test("(b) a theme with no site-level original (no stored original) becomes reset
   const siteOriginalsRoot = path.join(siteThemesRoot, "__original-themes__");
   const siteOriginalDir = path.join(siteOriginalsRoot, "static", "tovu-starter");
   assert.equal(
-    resetThemeFileToOriginal({
+    resetThemeFileToOriginal({ ports: themeOriginalFilePorts,
       themeDir,
       themesRoot: siteThemesRoot,
       originalDir: siteOriginalDir,
@@ -109,7 +111,7 @@ test("(b) a theme with no site-level original (no stored original) becomes reset
   });
   assert.deepEqual(source, { source: "package", originalDir: packageOriginalDir, originalsRoot: packageOriginalsRoot });
 
-  const result = resetThemeFileToOriginal({
+  const result = resetThemeFileToOriginal({ ports: themeOriginalFilePorts,
     themeDir,
     themesRoot: siteThemesRoot,
     originalDir: source!.originalDir,
@@ -121,7 +123,7 @@ test("(b) a theme with no site-level original (no stored original) becomes reset
   assert.ok(fs.readFileSync(path.join(themeDir, "theme.json")).equals(canonicalManifest));
 });
 
-// (c) — the go/no-go. `themeOriginalResetRefusal` takes a bare `{ themeDir, originalDir }` with no
+// (c) — the go/no-go. `hasThemeOriginalLayoutMismatch` takes `{ themeDir, originalDir, maxManifestBytes }` with no
 // containment check at all (`theme-files.ts:772`) — it only reads each side's own `theme.json` off
 // whatever absolute directory it is given, so a package-rooted `originalDir` is not a special case
 // for it at all. Table form to lock in both mismatch directions and the matching-layout
@@ -175,8 +177,8 @@ for (const { name, packageOriginal, live, refused } of LAYOUT_CASES) {
     const themeDir = path.join(siteThemesRoot, "static", "t");
     writeManifest(themeDir, live);
 
-    const refusal = themeOriginalResetRefusal({ themeDir, originalDir });
-    assert.equal(refusal !== null, refused);
+    const refusal = hasThemeOriginalLayoutMismatch({ themeDir, originalDir, maxManifestBytes: MAX_THEME_FILE_BYTES });
+    assert.equal(refusal, refused);
 
     if (refused) {
       // The load-bearing behavior, not just the refusal object: mirroring `explore.ts`'s own
@@ -192,7 +194,7 @@ for (const { name, packageOriginal, live, refused } of LAYOUT_CASES) {
     } else {
       // Allowed case: prove the reset actually proceeds end to end through the package source too,
       // not just that the gate says yes.
-      const result = resetThemeFileToOriginal({
+      const result = resetThemeFileToOriginal({ ports: themeOriginalFilePorts,
         themeDir,
         themesRoot: siteThemesRoot,
         originalDir,

@@ -5,7 +5,8 @@ import { join } from "node:path";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 // Layout constants live in @jini-ai/cms/themes/layout so discovery and file I/O do not import each other.
 import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "./theme-file-policy.js";
-import { parseTemplateFor } from "./template-applicability.js";
+import { parseTemplateFor } from "@jini-ai/cms/themes/template-applicability";
+import { rejectTemplateFor } from "./template-applicability-errors.js";
 import { isObject, parseOptionalStringArray, parseTier, parseOptionalString, parseThemeBuildInfo, resolveThemeScripts, readJson } from "./theme-manifest-fields.js";
 
 
@@ -85,7 +86,7 @@ function parseRawManifestFields({ raw, id }: { raw: Readonly<JsonObject>; id: st
     // retired spelling simply loads with no templates, same as one that never declared any —
     // `check:embed-marker-drift` is what catches a manifest that needed converting, not this parse.
     templates,
-    templateFor: parseTemplateFor({ value: raw.templateFor, templates }),
+    templateFor: parseTemplateFor({ onInvalid: rejectTemplateFor, value: raw.templateFor, templates }),
     publishedPages: parseOptionalStringArray({ value: raw.publishedPages }),
     modes: parseOptionalStringArray({ value: raw.modes }),
     defaultMode: parseOptionalString({ value: raw.defaultMode }),

@@ -694,7 +694,7 @@ const PUBLIC_ENTRIES = {
   "features/theme": [
     "catalog", "rendering", "asset-operations", "static-render", "render-contract", "font-links",
     "token-aliases", "entry-list-render", "active-theme", "static-asset-contract", "theme", "theme-id-aliases",
-    "preview-refresh", "theme-roster-sync",
+    "preview-refresh",
   ],
   "platform/site-dir": ["moves"],
 };

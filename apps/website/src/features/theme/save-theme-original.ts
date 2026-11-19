@@ -1,7 +1,7 @@
 import { isAbsolute, join, relative, resolve } from "node:path";
 
 import { writeGeneratedThemeOriginal } from "./sync-originals.js";
-import { resolveThemeOriginalSource } from "./theme-original-source.js";
+import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { type DiscoveredTheme } from "./theme.js";
 

@@ -10,7 +10,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
 
 
-import { discoverAllBuiltInThemes, NO_THEME_ID, syncThemeRoster } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, NO_THEME_ID, themeRosterPorts } from "#src/features/theme/index";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import {
   buildSetActiveThemeRegistrations,
@@ -252,5 +253,5 @@ function writeThemeFolder(dir: string, id: string): void {
 
 /** What `deps.ts` does right after boot discovery. */
 function syncRoster(routeDeps: { themes: SetActiveThemeToolDeps["themes"]; themesDir: string }): void {
-  syncThemeRoster({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+  syncThemeRoster({ ...themeRosterPorts, themes: routeDeps.themes, themesDir: routeDeps.themesDir });
 }

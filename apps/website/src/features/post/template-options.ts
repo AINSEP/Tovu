@@ -1,6 +1,7 @@
 import type { PresentationSettingsRepoPort } from "../presentation/index.js";
 import { resolveActiveThemeId } from "../presentation/index.js";
-import { applicableThemeTemplates, NO_THEME_ID, resolveActiveTheme, type DiscoveredTheme } from "../theme/index.js";
+import { NO_THEME_ID, resolveActiveTheme, type DiscoveredTheme } from "../theme/index.js";
+import { applicableThemeTemplates } from "@jini-ai/cms/themes/template-applicability";
 import type { PublicPostKind } from "@jini-ai/cms/core";
 
 /** Host theme dependencies; production supplies both, older tool fixtures may omit them. */

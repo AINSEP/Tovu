@@ -404,7 +404,7 @@
     "apps/website/src/features/theme/theme-file-import.ts -> apps/website/src/features/fs-files/fs-files.ts",
     "apps/website/src/features/theme/theme-file-import.ts -> apps/website/src/features/media-import/fetch-image.ts",
     "apps/website/src/features/theme/theme-file-import.ts -> apps/website/src/features/media/index.ts",
-    "apps/website/src/features/theme/theme-trash.ts -> apps/website/src/features/trash/index.ts",
+    "apps/website/src/features/theme/theme-trash-binding.ts -> apps/website/src/features/trash/index.ts",
     "apps/website/src/features/theme/trash-theme-tool.ts -> apps/website/src/features/presentation/index.ts",
     "apps/website/src/features/theme/trash-theme-tool.ts -> apps/website/src/features/trash/index.ts",
     "apps/website/src/features/theme/verify-active-theme.ts -> apps/website/src/features/presentation/index.ts",

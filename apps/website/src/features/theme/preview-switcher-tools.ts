@@ -10,7 +10,8 @@ import { resolveActiveThemeId } from "#src/features/presentation/index";
 import { toolMetadata } from "../../contracts/core/tool-metadata/theme.js";
 import { readPreviewSwitcherWithRevision, parsePreviewSwitcher, PREVIEW_SWITCHER_NAMESPACE, PREVIEW_SWITCHER_KEY } from "./preview-switcher.js";
 import type { SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
-import { syncThemeRoster } from "./theme-roster-sync.js";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
+import { themeRosterPorts } from "./theme-roster-ports.js";
 
 export type PreviewSwitcherToolDeps = SetActiveThemeToolDeps & Pick<SettingsToolDeps, "settingsRepo" | "idGen" | "principalRepo"> & {
   set: typeof set; siteTitleReady?: Promise<void>;
@@ -36,7 +37,7 @@ const risk: DerivedRiskByToolId = new Map([
 export function buildPreviewSwitcherRegistrations({ deps }: { deps: PreviewSwitcherToolDeps }, _options = {}): ToolRegistration[] {
   const ready = async () => {
     await deps.siteTitleReady;
-    if (deps.themesDir) syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
+    if (deps.themesDir) syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
     return resolveActiveThemeId(deps);
   };
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "theme-preview-switcher", catalogModule: "features/theme/preview-switcher-tools.ts",

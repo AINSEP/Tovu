@@ -8,7 +8,8 @@ import { NO_THEME_ID } from "./active-theme.js";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { findStoredTheme } from "./theme-discovery.js";
 import { type DiscoveredTheme } from "./theme.js";
-import { syncThemeRoster } from "./theme-roster-sync.js";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
+import { themeRosterPorts } from "./theme-roster-ports.js";
 
 /**
  * @file The "did the switch actually take" check behind `theme_set_active` (and `theme_duplicate`'s
@@ -49,7 +50,7 @@ export async function verifyActiveThemeResolves(
 ): Promise<void> {
   const { deps, activeThemeId, previousThemeId } = required;
   if (activeThemeId === NO_THEME_ID) return;
-  syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
+  syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
   const theme = findStoredTheme({ themes: deps.themes, id: activeThemeId });
   if (theme?.status === "valid") return;
 

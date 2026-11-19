@@ -5,10 +5,11 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import { copyThemeFile } from "../theme-file-moves.js";
-import { isPackageShippedTheme } from "../theme-original-source.js";
+import { isPackageShippedTheme } from "@jini-ai/cms/themes/files/original-source";
 import { listThemeFiles, MAX_LISTED_FILES } from "../theme-file-listing.js";
 import { MAX_WALK_DEPTH, resolveThemeFilePath, ThemePathError } from "../theme-files.js";
-import { themeFileDiffersFromOriginal } from "../theme-file-originals.js";
+import { themeFileDiffersFromOriginal } from "@jini-ai/cms/themes/files/originals";
+import { themeOriginalFilePorts } from "../theme-file-write-ports.js";
 import { writeThemeFile } from "../theme-file-writing.js";
 import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
@@ -76,11 +77,11 @@ test("themeFileDiffersFromOriginal compares files larger than one chunk across e
   fs.writeFileSync(path.join(themeDir, "big.css"), bytes);
   fs.writeFileSync(path.join(originalDir, "big.css"), bytes);
   const required = { themeDir, themesRoot: root, originalDir, originalsRoot, relativePath: "big.css" };
-  assert.equal(themeFileDiffersFromOriginal(required), false);
+  assert.equal(themeFileDiffersFromOriginal({ ...required, ports: themeOriginalFilePorts }), false);
   const changedLate = Buffer.from(bytes);
   changedLate[changedLate.length - 1] = 98;
   fs.writeFileSync(path.join(themeDir, "big.css"), changedLate);
-  assert.equal(themeFileDiffersFromOriginal(required), true);
+  assert.equal(themeFileDiffersFromOriginal({ ...required, ports: themeOriginalFilePorts }), true);
 });
 
 test("writeThemeFile refuses to replace a directory", (t) => {

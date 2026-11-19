@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { loadTheme } from "../theme.js";
 import { resolveTemplate } from "../static-render.js";
-import { applicableThemeTemplates } from "../template-applicability.js";
+import { applicableThemeTemplates } from "@jini-ai/cms/themes/template-applicability";
 
 /** Class B guard: new package templates and site copies need not share a version. */
 const content = `<html><body><main data-embed-config='{"type":"content"}'></main></body></html>`;

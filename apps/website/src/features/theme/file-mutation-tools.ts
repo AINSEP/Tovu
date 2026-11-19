@@ -8,7 +8,8 @@ import { validateThemeFileWrite } from "./theme-file-writing.js";
 import { ThemeFileChangedError } from './theme-file-errors.js';
 import { runReviewedThemeFileWrite } from '@jini-ai/cms/themes/files/reviewed-write';
 import { THEME_WRITE_PERMISSION } from './agent-tools.js';
-import { syncThemeRoster } from './theme-roster-sync.js';
+import { syncThemeRoster } from '@jini-ai/cms/themes/preview/roster';
+import { themeRosterPorts } from "./theme-roster-ports.js";
 import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../../contracts/core/tool-metadata/theme.js';
 
 const CONTENT_TOOLS: ReadonlySet<string> = new Set(THEME_CONTENT_REPLACEMENT_TOOL_IDS);
@@ -47,7 +48,7 @@ export function protectThemeFileTools(
           await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId,
             principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: 'theme', entityId: themeId });
           return withSchemaOnRejection({ toolId, catalog, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
-            syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
+            syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
             const theme = findThemeOrThrow({ routeDeps: deps, themeId });
             assertThemeFileWritable({ theme, relativePath });
             const file = { themeDir: theme.dir, themesRoot: deps.themesDir, relativePath };

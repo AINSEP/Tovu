@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
-import { access, chmod, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
 import * as fsPromises from "node:fs/promises";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -71,6 +73,36 @@ test("a second hide reports that the directory is already in Trash", async (t) =
     code: "ALREADY_IN_TRASH",
     count: 1,
   });
+});
+
+test("concurrent hides reserve one park and preserve its single intact tree", async (t) => {
+  const { adapter, liveDir, parkedDir } = await harness(t);
+  await makeLive(liveDir);
+  let entering = 0;
+  let release!: () => void;
+  const bothEntered = new Promise<void>((resolve) => { release = resolve; });
+  const mkdirDirectory = fs.promises.mkdir;
+  const reservation = t.mock.method(fs.promises, "mkdir", async (...args: Parameters<typeof fs.promises.mkdir>) => {
+    if (String(args[0]) === parkedDir) {
+      entering += 1;
+      if (entering === 2) release();
+      await bothEntered;
+    }
+    return mkdirDirectory(...args);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { reservation.mock.restore(); syncBuiltinESMExports(); });
+
+  const results = await Promise.all([adapter.hide(markerArgs()), adapter.hide(markerArgs())]);
+  assert.equal(entering, 2);
+  assert.equal(results.filter((result) => result.ok).length, 1);
+  assert.deepEqual(results.find((result) => !result.ok), {
+    ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: 1,
+  });
+  assert.equal(await pathExists(liveDir), false);
+  assert.deepEqual(await readdir(parkedDir), [ID]);
+  assert.deepEqual(await readdir(join(parkedDir, ID)), ["plugin.json"]);
+  assert.equal(await readFile(join(parkedDir, ID, "plugin.json"), "utf8"), "plugin-a");
 });
 
 test("hide rolls back the first directory when moving the second directory fails", async (t) => {

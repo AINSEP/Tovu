@@ -1,3 +1,5 @@
+import { resetThemeFileToOriginal, themeFileDiffersFromOriginal } from "@jini-ai/cms/themes/files/originals";
+import { resolveThemeOriginalSource, hasThemeOriginalLayoutMismatch, type ThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
@@ -19,17 +21,14 @@ import {
   MAX_THEME_FILE_BYTES,
   readThemeFile,
   renameThemeFile,
-  resetThemeFileToOriginal,
   resolveThemeFileWriteScope,
-  resolveThemeOriginalSource,
   restoreBuiltThemeGeneratedTree,
   saveThemeAsOriginal,
-  themeFileDiffersFromOriginal,
-  themeOriginalResetRefusal,
+  themeOriginalFilePorts,
+  ORIGINAL_LAYOUT_MISMATCH_REFUSAL,
   writeThemeFile,
   ThemePathError,
   type ThemeFileWriteScope,
-  type ThemeOriginalSource,
   // The shared "can this file's identity/content change" gate pieces — extracted (2026-08-30) into
   // `file-identity-lock.ts` so `features/theme/tool-registrations.ts`'s `theme_rename_file`/
   // `theme_delete_file` can call the exact same decision this file's own rename/delete routes call.
@@ -345,7 +344,7 @@ function originalSourceFor(deps: ContentRouteDeps, theme: DiscoveredTheme): Them
 /**
  * Whether files in `theme` can be compared against, and reset from, its catalog original at all:
  * {@link originalSourceFor} found ONE (site or, since Design C, package) and
- * {@link themeOriginalResetRefusal} accepts it. Computed once per response, never per file, and fed
+ * {@link hasThemeOriginalLayoutMismatch} accepts it. Computed once per response, never per file, and fed
  * to {@link describeThemeFile} so `resettable`/`modified` agree with what the reset route will
  * actually do.
  *
@@ -354,7 +353,7 @@ function originalSourceFor(deps: ContentRouteDeps, theme: DiscoveredTheme): Them
 function originalComparableForReset({ theme, originalSource }: { theme: DiscoveredTheme; originalSource: ThemeOriginalSource | null }, _optional = {}): boolean {
   return (
     originalSource !== null &&
-    themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir }) === null
+    !hasThemeOriginalLayoutMismatch({ themeDir: theme.dir, originalDir: originalSource.originalDir, maxManifestBytes: MAX_THEME_FILE_BYTES })
   );
 }
 
@@ -376,7 +375,7 @@ function originalComparableForReset({ theme, originalSource }: { theme: Discover
 function fileModifiedFromOriginal({ relativePath, options }: { relativePath: string; options: { originalSource: ThemeOriginalSource | null; comparableOriginal: boolean; themesDir: string; theme: DiscoveredTheme } }, _optional = {}): boolean | null {
   if (!options.comparableOriginal || !options.originalSource) return null;
   try {
-    return themeFileDiffersFromOriginal({
+    return themeFileDiffersFromOriginal({ ports: themeOriginalFilePorts,
       themeDir: options.theme.dir,
       themesRoot: options.themesDir,
       originalDir: options.originalSource.originalDir,
@@ -728,17 +727,17 @@ function handleGeneratedTreeReset({ deps, theme, res }: { deps: ContentRouteDeps
  * the CATALOG root before it touches the live side: `path` is operator input, and this is the one
  * place in the file that resolves it against a directory outside the theme's own folder. Writes the
  * route's 409 itself for both of its refusals, so the caller only has to check `ok`:
- * `ORIGINAL_LAYOUT_MISMATCH` when {@link themeOriginalResetRefusal} refuses the whole original (checked
+ * `ORIGINAL_LAYOUT_MISMATCH` when {@link hasThemeOriginalLayoutMismatch} refuses the whole original (checked
  * first, before any file is looked at), and `NOT_IN_ORIGINAL` when the catalog has no regular file at
  * `path`.
  */
 function resetFileFromOriginal({ deps, theme, originalSource, path, res }: { deps: ContentRouteDeps; theme: DiscoveredTheme; originalSource: ThemeOriginalSource; path: string; res: Response }, _optional = {}): { ok: true; wasModified: boolean; bytes: number } | { ok: false } {
-  const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir });
+  const refusal = hasThemeOriginalLayoutMismatch({ themeDir: theme.dir, originalDir: originalSource.originalDir, maxManifestBytes: MAX_THEME_FILE_BYTES }) ? ORIGINAL_LAYOUT_MISMATCH_REFUSAL : null;
   if (refusal) {
     res.status(409).json({ error: refusal.message, code: refusal.code });
     return { ok: false };
   }
-  const reset = resetThemeFileToOriginal({
+  const reset = resetThemeFileToOriginal({ ports: themeOriginalFilePorts,
     themeDir: theme.dir,
     themesRoot: deps.themesDir,
     originalDir: originalSource.originalDir,
@@ -805,7 +804,7 @@ function buildFileResetResponse({ deps, theme, path, reset }: { deps: ContentRou
  * added; restoring it would mean deleting their file, which is a different and more destructive
  * operation than "reset", and is not what a button labelled Reset should silently do). A third
  * refusal, `ORIGINAL_LAYOUT_MISMATCH`, covers every file of a theme whose original was saved under a
- * different layout version or has an unreadable `theme.json` (see {@link themeOriginalResetRefusal}).
+ * different layout version or has an unreadable `theme.json` (see {@link hasThemeOriginalLayoutMismatch}).
  *
  * DESTRUCTIVE and deliberately not undoable here: it overwrites the working copy with no backup.
  * The confirmation belongs in the UI, where the operator can be told what they are about to lose in

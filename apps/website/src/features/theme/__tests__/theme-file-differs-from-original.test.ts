@@ -6,7 +6,8 @@ import test from "node:test";
 
 import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { ThemePathError } from "../theme-files.js";
-import { themeFileDiffersFromOriginal } from "../theme-file-originals.js";
+import { themeFileDiffersFromOriginal } from "@jini-ai/cms/themes/files/originals";
+import { themeOriginalFilePorts } from "../theme-file-write-ports.js";
 
 /**
  * @file `themeFileDiffersFromOriginal` — the byte comparison behind Explore's per-file `modified`
@@ -35,7 +36,7 @@ function writeBoth(root: ReturnType<typeof makeRoot>, relativePath: string, live
 }
 
 function differs(root: ReturnType<typeof makeRoot>, relativePath: string): boolean | null {
-  return themeFileDiffersFromOriginal({
+  return themeFileDiffersFromOriginal({ ports: themeOriginalFilePorts,
     themeDir: root.themeDir,
     themesRoot: root.themesRoot,
     originalDir: root.originalDir,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "#src/features/trash/scheduler.node";
-import { startThemeWatcher } from "#src/features/theme/theme-watcher";
+import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
+import { refreshWatchedThemes, reportThemeWatchError } from "#src/features/theme/index";
 import { startPostGoLiveSweep } from "#src/features/post/go-live-sweep";
 import type { Express } from "express";
 
@@ -12,6 +13,10 @@ import { createServingFormPullTrigger } from "./form-pull-triggers.js";
 import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from "./webhook-delivery-worker.js";
 import { startDomainBindingSweeper, type DomainBindingSweeper } from "./domain-binding-sweeper.js";
 import { startSiteSearchMaintenance, type SiteSearchMaintenance } from "./modules/site-search.js";
+
+// Only the website serving runtime starts this service. Recomposition/site switches replace its
+// active site's watcher; exporter apps and the separate agent daemon never own another one.
+const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError });
 
 /**
  * @file `createApp` plus the site-serving process's background loops — the outbox drainer
@@ -97,7 +102,7 @@ export function createServingApp(
   const postGoLiveSweep = candidates
     ? startPostGoLiveSweep({ deps: { repo: candidates, outbox: routeDeps.outbox, clock: routeDeps.clock }, workspaceId: routeDeps.workspaceId })
     : { stop: async () => {} };
-  const themeWatcher = startThemeWatcher({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+  const themeWatcher = startThemeWatcher({ themesDir: routeDeps.themesDir, refresh: ({ themesDir }) => refreshWatchedThemes({ themes: routeDeps.themes, themesDir }) });
   const webhookDeliveryWorker = startServingWebhookDeliveryWorker(
     { deps: routeDeps },
     optional.webhookDeliveryIntervalMs === undefined ? {} : { intervalMs: optional.webhookDeliveryIntervalMs }

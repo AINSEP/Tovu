@@ -5,9 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { discoverAllBuiltInThemes, type DiscoveredTheme } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, themeRosterPorts, type DiscoveredTheme } from "#src/features/theme/index";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
-import { syncThemeRoster, themeRosterFingerprint } from "#src/features/theme/theme-roster-sync";
+import { syncThemeRoster, themeRosterFingerprint } from "@jini-ai/cms/themes/preview/roster";
 
 /**
  * @file `syncThemeRoster` — one process's roster following theme changes made by ANOTHER process
@@ -30,7 +30,7 @@ function siteThemes(t: test.TestContext): { themesDir: string; themes: Discovere
   t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
   writeTheme(path.join(themesDir, "static", "tovu-starter"), "tovu-starter");
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
-  assert.equal(syncThemeRoster({ themes, themesDir }), false, "the first sync adopts the boot discovery");
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), false, "the first sync adopts the boot discovery");
   return { themesDir, themes };
 }
 
@@ -39,23 +39,23 @@ const ids = (themes: DiscoveredTheme[]) => themes.map((theme) => theme.manifest.
 test("a theme folder another process created is discovered on the next sync", (t) => {
   const { themesDir, themes } = siteThemes(t);
   writeTheme(path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
-  assert.equal(syncThemeRoster({ themes, themesDir }), true);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), true);
   assert.deepEqual(ids(themes), ["editorial-rose", "tovu-starter"]);
 });
 
 test("a new top-level folder is discovered even without a marker bump", (t) => {
   const { themesDir, themes } = siteThemes(t);
   writeTheme(path.join(themesDir, "aurora"), "aurora");
-  assert.equal(syncThemeRoster({ themes, themesDir }), true);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), true);
   assert.deepEqual(ids(themes), ["aurora", "tovu-starter"]);
 });
 
 test("a theme folder another process removed drops out", (t) => {
   const { themesDir, themes } = siteThemes(t);
   writeTheme(path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
-  syncThemeRoster({ themes, themesDir });
+  syncThemeRoster({ ...themeRosterPorts, themes, themesDir });
   fs.rmSync(path.join(themesDir, "static", "editorial-rose"), { recursive: true });
-  assert.equal(syncThemeRoster({ themes, themesDir }), true);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), true);
   assert.deepEqual(ids(themes), ["tovu-starter"]);
 });
 
@@ -63,42 +63,42 @@ test("an edit inside a theme is picked up when the writer bumps the marker", (t)
   const { themesDir, themes } = siteThemes(t);
   fs.writeFileSync(path.join(themesDir, "static", "tovu-starter", "tokens.json"), JSON.stringify({ "--ink": "#f0f" }));
   requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
-  assert.equal(syncThemeRoster({ themes, themesDir }), true);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), true);
   assert.equal(themes[0]?.tokens["--ink"], "#f0f");
 });
 
 test("nothing changed: no rescan, the roster's theme objects are untouched", (t) => {
   const { themesDir, themes } = siteThemes(t);
   const before = themes[0];
-  assert.equal(syncThemeRoster({ themes, themesDir }), false);
-  assert.equal(syncThemeRoster({ themes, themesDir }), false);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), false);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), false);
   assert.equal(themes[0], before);
 });
 
 test("a forced watcher sync reloads a nested external edit even when the fingerprint is unchanged", (t) => {
   const { themesDir, themes } = siteThemes(t);
-  const fingerprint = themeRosterFingerprint({ themesDir });
+  const fingerprint = themeRosterFingerprint({ isReservedPath: themeRosterPorts.isReservedPath, themesDir });
   fs.writeFileSync(path.join(themesDir, "static", "tovu-starter", "tokens.json"), JSON.stringify({ "--ink": "#abc" }));
-  assert.equal(themeRosterFingerprint({ themesDir }), fingerprint);
-  assert.equal(syncThemeRoster({ themes, themesDir }, { force: true }), true);
+  assert.equal(themeRosterFingerprint({ isReservedPath: themeRosterPorts.isReservedPath, themesDir }), fingerprint);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }, { force: true }), true);
   assert.equal(themes[0]?.tokens["--ink"], "#abc");
-  assert.equal(syncThemeRoster({ themes, themesDir }), false);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), false);
 });
 
 test("a forced first sync discovers rather than adopting an empty roster", (t) => {
   const { themesDir } = siteThemes(t);
   const themes: DiscoveredTheme[] = [];
-  assert.equal(syncThemeRoster({ themes, themesDir }, { force: true }), true);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }, { force: true }), true);
   assert.deepEqual(ids(themes), ["tovu-starter"]);
 });
 
 test("one change rescans once, however many syncs follow it", (t) => {
   const { themesDir, themes } = siteThemes(t);
   requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
-  assert.equal(syncThemeRoster({ themes, themesDir }), true);
-  assert.equal(syncThemeRoster({ themes, themesDir }), false);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), true);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), false);
   requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
-  assert.equal(syncThemeRoster({ themes, themesDir }), true);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), true);
 });
 
 test("a hand-built roster (themes on no disk) survives its first sync", (t) => {
@@ -106,21 +106,21 @@ test("a hand-built roster (themes on no disk) survives its first sync", (t) => {
   t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
   const fabricated = { manifest: { id: "fixture-only" } } as DiscoveredTheme;
   const themes = [fabricated];
-  assert.equal(syncThemeRoster({ themes, themesDir }), false);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes, themesDir }), false);
   assert.deepEqual(themes, [fabricated]);
 });
 
 test("rosters are tracked independently: one process's sync does not mark another's as current", (t) => {
   const { themesDir, themes: serverRoster } = siteThemes(t);
   const daemonRoster = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
-  syncThemeRoster({ themes: daemonRoster, themesDir });
+  syncThemeRoster({ ...themeRosterPorts, themes: daemonRoster, themesDir });
   writeTheme(path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
-  assert.equal(syncThemeRoster({ themes: daemonRoster, themesDir }), true);
-  assert.equal(syncThemeRoster({ themes: serverRoster, themesDir }), true);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes: daemonRoster, themesDir }), true);
+  assert.equal(syncThemeRoster({ ...themeRosterPorts, themes: serverRoster, themesDir }), true);
   assert.deepEqual(ids(serverRoster), ["editorial-rose", "tovu-starter"]);
 });
 
 test("the fingerprint tolerates a themes folder that does not exist yet", () => {
   const missing = path.join(os.tmpdir(), "tovu-roster-sync-missing-never-created");
-  assert.equal(themeRosterFingerprint({ themesDir: missing }), JSON.stringify([null, null, null, null, null, null]));
+  assert.equal(themeRosterFingerprint({ isReservedPath: themeRosterPorts.isReservedPath, themesDir: missing }), JSON.stringify([null, null, null, null, null, null]));
 });

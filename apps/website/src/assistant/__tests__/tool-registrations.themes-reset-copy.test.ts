@@ -9,7 +9,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { discoverAllBuiltInThemes, themeFileDiffersFromOriginal } from "../../features/theme/index.js";
+import { discoverAllBuiltInThemes, themeOriginalFilePorts } from "../../features/theme/index.js";
+import { themeFileDiffersFromOriginal } from "@jini-ai/cms/themes/files/originals";
 import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
@@ -204,7 +205,7 @@ function seedPlainFile(themesDir: string, relativePath: string, original: Buffer
 }
 
 function plainFileDiffersFromOriginal(themesDir: string, relativePath: string): boolean | null {
-  return themeFileDiffersFromOriginal({
+  return themeFileDiffersFromOriginal({ ports: themeOriginalFilePorts,
     themeDir: path.join(themesDir, "static", "plain"),
     themesRoot: themesDir,
     originalDir: path.join(themesDir, THEME_CATALOG_DIR, "static", "plain"),
