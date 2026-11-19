@@ -181,6 +181,7 @@ export function resolveSitesTabs(
     {
       id: "all",
       label: t("All sites"),
+      // All sites uses a folder because each card represents a directory under `sites/`.
       icon: <Icon name="folder-outline" size={16} strokeWidth={1.5} />,
       count: listedCount,
       handle: "sites-tab-all",
@@ -189,6 +190,7 @@ export function resolveSitesTabs(
     {
       id: "new",
       label: t("New site"),
+      // New site — the same folder with a plus in it: a directory that does not exist yet.
       icon: <Icon name="folder-plus" size={16} strokeWidth={1.5} />,
       handle: "sites-tab-new",
       handleLabel: "Switch to the New site tab — the form that creates a site folder",

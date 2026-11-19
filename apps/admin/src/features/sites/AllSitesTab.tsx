@@ -119,7 +119,7 @@ function SiteCardServingNote({ noteKey, t }: { noteKey?: string; t: Translate })
 /** The status pill's tone class → the shared card's status tone. */
 const STATUS_TONES: Record<string, SiteCardTone> = { "status-ok": "running", "status-warning": "warning", "status-error": "danger", "status-neutral": "neutral" };
 
-/** The default star, or nothing. */
+/** The filled star beside the default site's name. Decorative: the wrapper carries the label. */
 function SiteCardDefaultStar({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
   if (!resolveSiteIsDefault({ site, snapshot })) return null;
   return <span className="site-card-default" role="img" aria-label={t("Opens by default")} title={t("Opens by default")}><Icon name="star-filled" size={14} strokeWidth={1.5} /></span>;

@@ -34,10 +34,6 @@
       "reason": "Header of the deleted ports.ts re-export file; platform/mail/index.ts line 1 states the same boundary."
     },
     {
-      "id": "c16792653055",
-      "reason": "Pointer to Jini's ports.ts/types.ts; platform/mail/index.ts line 2 already carries the same pointer."
-    },
-    {
       "id": "b4867ea042ff",
       "reason": "File header of the deleted ports.ts; the 'written only by the entries write chokepoint, same transaction' rule now sits above the EntryRefsRepoPort import in platform/db/repos/entry-refs-repo.ts; the port itself is Jini's (cms/widgets/ports.ts)."
     },
@@ -234,10 +230,6 @@
       "reason": "S2a deletes the 17-line re-export shim features/content-types/repo.memory.ts, the subject of this comment (why the shim still existed and what retiring it depended on); its one importer now imports @jini-ai/cms/content-types directly, so the explanation has nothing left to attach to."
     },
     {
-      "id": "0007b1ffc1c3",
-      "reason": "the code it explained left this spot in 'refactor(admin): move the fetch seam to lib/admin-http (size 06 step 1)'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
       "id": "008d40e2211d",
       "reason": "wording largely survives at apps/desktop/src/main/updates/desktop-updater.ts (27% shared word triples); code changed in 'fix(desktop): import electron-updater statically again; the wiring test pins the static form'"
     },
@@ -288,10 +280,6 @@
     {
       "id": "110b89ac9ef6",
       "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts (28% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
-    },
-    {
-      "id": "15aeb672bb08",
-      "reason": "wording largely survives at apps/desktop/bin/tovu-desktop.ts (33% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
     },
     {
       "id": "179822cdf7d6",
@@ -514,10 +502,6 @@
       "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (100% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
     },
     {
-      "id": "503934ec1ed5",
-      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
       "id": "52197a091995",
       "reason": "wording largely survives at packages/agent-plugins/src/admin-surfaces/node.ts (66% shared word triples); code changed in 'refactor(agent-plugins): issued sign-in collector from @jini-ai/agent-plugins/admin-surfaces/node'"
     },
@@ -536,10 +520,6 @@
     {
       "id": "54bea7eca3b3",
       "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
-      "id": "55c171dc43da",
-      "reason": "wording largely survives at ADS-memory/reports/architecture/2026-08-18-ag-ui-sample/backend-agui-adapter.sample.ts (29% shared word triples); code changed in 'refactor(assistant): delete the AG-UI forwarders and type re-export (C2)'"
     },
     {
       "id": "5615605b5f43",
@@ -584,10 +564,6 @@
     {
       "id": "5e7ffa8c6b40",
       "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (56% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
-    },
-    {
-      "id": "5f2e92752a15",
-      "reason": "wording largely survives at apps/admin/src/features/source-control/source-control-visuals.tsx (36% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
     },
     {
       "id": "5feab172cea7",
@@ -738,10 +714,6 @@
       "reason": "the code it explained left this spot in 'refactor(publish-content): split the import ceremony into plan, restore-point and execute steps (publish-engin'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
-      "id": "9357f2b7f3c1",
-      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
       "id": "9390f43bc0c6",
       "reason": "wording largely survives at apps/website/src/platform/db/postgres/db-ops-adapter.ts (74% shared word triples); code changed in 'refactor(db): fold the Postgres restore-capability evaluation into its adapter'"
     },
@@ -814,18 +786,6 @@
       "reason": "wording largely survives at apps/website/src/server/__tests__/identity-routes.test.ts (38% shared word triples); code changed in 'refactor(commands): import InMemoryChangeSetRepo and revert from @jini-ai/cms directly'"
     },
     {
-      "id": "aca17a7dd251",
-      "reason": "wording largely survives at apps/admin/src/features/database/Database.tsx (31% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
-    },
-    {
-      "id": "ad0ee74b4ed4",
-      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
-      "id": "ae73600584bf",
-      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
       "id": "ae845e2678bc",
       "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
@@ -838,16 +798,8 @@
       "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
-      "id": "b0ca4814b95e",
-      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
       "id": "b22305a903a1",
       "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
-      "id": "b2d0a7901be9",
-      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "b375a96ae78a",
@@ -900,14 +852,6 @@
     {
       "id": "c455527377f1",
       "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
-      "id": "c52e12c90569",
-      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
-      "id": "c76e2588fad7",
-      "reason": "wording largely survives at apps/admin/src/features/source-control/source-control-visuals.tsx (50% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
     },
     {
       "id": "c7d9cbe0a5b8",
@@ -994,10 +938,6 @@
       "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
-      "id": "e658f8fa9770",
-      "reason": "wording largely survives at apps/website/src/features/custom-credentials/credentialed-request.ts (33% shared word triples); code changed in 'refactor(admin-members): use the shared MembersPort and fake from @jini-ai/user-management'"
-    },
-    {
       "id": "e67b50919b24",
       "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
     },
@@ -1032,10 +972,6 @@
     {
       "id": "f1f5764def56",
       "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
-    },
-    {
-      "id": "f211325327dd",
-      "reason": "wording largely survives at apps/website/src/features/publish-content/type-registry.ts (74% shared word triples); code changed in 'refactor(publish-content): split the host port bag out of the type registry (publish-engine P0.3)'"
     },
     {
       "id": "f4453867d3b2",
@@ -1334,10 +1270,6 @@
       "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts and Jini packages/devops/src/source-control/commit.ts (export phase doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
     },
     {
-      "id": "2c6fd1ab9481",
-      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (\"pinned BEFORE rendering\" doc of packageStaticSite). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
-    },
-    {
       "id": "c8a4685d65ea",
       "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (toCommitFile / separator note). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
     },
@@ -1540,10 +1472,6 @@
     {
       "id": "97aaf9de54f5",
       "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
-    },
-    {
-      "id": "25e252a82af3",
-      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/tool-audit/repo.sqlite.ts (text re-worded, present (bigram containment 0.79)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
     },
     {
       "id": "e7407e739cca",

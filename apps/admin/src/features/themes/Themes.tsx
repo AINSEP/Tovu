@@ -454,6 +454,7 @@ function ThemeGrid({
                     title={t("Explore")}
                     {...agentHandle({ handle: `${handleBase}-explore` }, { role: "button", label: `Explore the "${themeId}" theme's files` })}
                   >
+                    {/* The Explore compass opens the theme’s files for inspection without changing them. */}
                     <Icon name="compass" size={18} strokeWidth={1.5} />
                   </button>
                   <ThemeCardMenu

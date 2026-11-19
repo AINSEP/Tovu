@@ -24,9 +24,11 @@ import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController
  *  because that constant lives in a `.hooks.ts` file (no JSX) and is the URL contract
  *  `use-media-tabs.hooks.ts` resolves `?tab=` against; the icons are presentation. */
 const MEDIA_TAB_ICONS = {
+  // All uses a four-tile grid to represent the whole library at once.
   all: <Icon name="tiles-four" size={16} strokeWidth={1.5} />,
   images: <Icon name="picture-frame" size={16} strokeWidth={1.5} />,
   videos: <Icon name="video-frame" size={16} strokeWidth={1.5} />,
+  // The cloud represents hosting across several providers and follows the admin’s convention of using generic glyphs for provider groups.
   "external-providers": <Icon name="cloud-outline" size={16} strokeWidth={1.5} />,
   trash: <Icon name="bin-lidded" size={16} strokeWidth={1.5} />,
 } as const;

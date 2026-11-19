@@ -79,6 +79,7 @@ const PROJECTS = [
   { key: "root", directory: REPO_ROOT, label: "root (apps/website, tsconfig.json)", shadowAnchor: path.join(REPO_ROOT, "apps", "website") },
   { key: "admin", directory: path.join(REPO_ROOT, "apps", "admin"), label: "apps/admin", shadowAnchor: path.join(REPO_ROOT, "apps", "admin", "src") },
 ];
+// Use a real npm install so the scratch tree resolves the entire transitive dependency graph, including Jini packages referenced by nested declaration files.
 const NPM_INSTALL_ARGS = ["install", "--no-audit", "--no-fund", "--no-package-lock", "--workspaces=false"];
 
 function compileProject({ key, directory, shadowAnchor }) {

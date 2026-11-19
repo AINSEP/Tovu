@@ -1,5 +1,5 @@
 /** Tovu mail boundary: shared contracts come from Jini; host adapters keep existing consumers. */
-// Shared contracts: Jini/packages/platform/src/mail/ports.ts (ADR-037).
+// Shared contracts: Jini/packages/platform/src/mail/ports.ts and Jini/packages/platform/src/mail/types.ts (ADR-037).
 // Hosted-provider implementations belong to Agent Plugins; this boundary exposes their generic
 // contract. Do not re-export the members feature's concrete ConsoleMailerAdapter here: that would
 // pull a higher-tier feature into the platform barrel (ADR-024). The local SMTP adapter is same-tier.
