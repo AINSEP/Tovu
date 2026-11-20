@@ -673,7 +673,7 @@ function WorksForField({ value = [], options = [], onChange, t }: {
   options: { value: string; label: string }[];
   onChange: (value: string[]) => void;
   t: Translate;
-}, _options = {}) {
+}) {
   const choices = new Map(options.map(option => [option.value, option]));
   for (const id of value) if (!choices.has(id)) choices.set(id, { value: id, label: id });
   return <div className="field" role="group" aria-label={t("Works for")}>

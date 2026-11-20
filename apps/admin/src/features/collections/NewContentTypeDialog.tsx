@@ -76,7 +76,7 @@ export function NewContentTypeDialog({
   onCancel,
   useNewContentTypeDialogHook = useWiredNewContentTypeDialog,
   t,
-}: NewContentTypeDialogProps, _optional: Record<string, never> = {}) {
+}: NewContentTypeDialogProps) {
   const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel } =
     useNewContentTypeDialogHook({ onCreated, onCancel });
   const fieldHandles = buildAgentListHandles({ prefix: "new-content-type-field", ids: fields.map((f) => String(f._rowId)) }

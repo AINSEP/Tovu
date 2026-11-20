@@ -1,4 +1,5 @@
 import type { ChatMessage } from "@jini-ai/chat/core";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { readSiteChatComparisonVariant } from "./site-chat-comparison";
 
 /**
@@ -80,15 +81,10 @@ function byteLength({ value }: { value: string }, _options = {}): number {
  * @overallScore 100
  */
 export function loadPersistedState(storage: SessionStore): PersistedSiteAssistantState {
-  let raw: string | null;
-  try {
-    raw = storage.getItem(TRANSCRIPT_STORAGE_KEY);
-  } catch {
-    return EMPTY_STATE;
-  }
+  const raw = orFallbackSync({ work: () => storage.getItem(TRANSCRIPT_STORAGE_KEY), fallback: null, step: "Read visitor transcript" });
   if (raw === null) return EMPTY_STATE;
 
-  try {
+  return orFallbackSync({ work: () => {
     const parsed: unknown = JSON.parse(raw);
     if (!isPlainRecord(parsed)) throw new Error("persisted state is not an object");
     if (typeof parsed.open !== "boolean") throw new Error("persisted state.open is not a boolean");
@@ -96,10 +92,7 @@ export function loadPersistedState(storage: SessionStore): PersistedSiteAssistan
       throw new Error("persisted state.messages is not a valid ChatMessage[]");
     }
     return { open: parsed.open, messages: parsed.messages };
-  } catch {
-    clearPersistedState(storage);
-    return EMPTY_STATE;
-  }
+  }, fallback: EMPTY_STATE, step: "Decode visitor transcript" }, { observe: () => clearPersistedState(storage) });
 }
 
 /**
@@ -123,22 +116,16 @@ export function savePersistedState({ storage, state }: { storage: SessionStore; 
     serialized = JSON.stringify({ open: state.open, messages });
   }
 
-  try {
-    storage.setItem(TRANSCRIPT_STORAGE_KEY, serialized);
-  } catch {
-    // Quota exceeded (even after trimming) or storage disabled — the conversation continues in
-    // memory for this tab; nothing here may throw into a message-send path.
-  }
+  // Quota exceeded (even after trimming) or storage disabled — the conversation continues in
+  // memory for this tab; nothing here may throw into a message-send path.
+  orFallbackSync({ work: () => storage.setItem(TRANSCRIPT_STORAGE_KEY, serialized), fallback: undefined, step: "Save visitor transcript" });
 }
 
 /** "New thread" must clear the persisted copy, not just in-memory state (REQ-1) — otherwise a reload
  *  right after resetting would rehydrate the discarded conversation straight back. */
 export function clearPersistedState(storage: SessionStore): void {
-  try {
-    storage.removeItem(TRANSCRIPT_STORAGE_KEY);
-  } catch {
-    // Storage inaccessible — there is nothing to clear, and nothing here may throw.
-  }
+  // Storage inaccessible — there is nothing to clear, and nothing here may throw.
+  orFallbackSync({ work: () => storage.removeItem(TRANSCRIPT_STORAGE_KEY), fallback: undefined, step: "Clear visitor transcript" });
 }
 
 /**

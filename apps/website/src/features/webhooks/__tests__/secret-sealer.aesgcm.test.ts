@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import test from "node:test";
 
 import { FixedSiteKeyKeyring } from "../keyring.env.js";
-import { AesGcmSecretSealer, SECRET_OPEN_FAILED } from "../secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer, SECRET_OPEN_FAILED, SecretOpenError } from "../secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../keyring.memory.js";
 
 /**
@@ -118,7 +118,7 @@ test("a value sealed with aad A throws when opened with NO aad", async () => {
   const sealer = new AesGcmSecretSealer(keyring);
   const sealed = await sealer.seal({ plaintext: "scoped-token", key: await keyring.activeKey(), aad: "ws-1:github-pages:cred-42" });
 
-  await assert.rejects(() => sealer.open({ sealed }));
+  await assert.rejects(() => sealer.open({ sealed }), SecretOpenError);
 });
 
 test("a value sealed with NO aad throws when opened WITH an aad (asymmetry fails both directions)", async () => {
