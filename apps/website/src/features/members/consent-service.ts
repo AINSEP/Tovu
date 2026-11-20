@@ -50,6 +50,35 @@ async function assertMemberExists({ deps, workspaceId, memberId }: { deps: Conse
   }
 }
 
+function buildPendingConsent({ deps, input, existing, nowIso }: {
+  deps: ConsentServiceDeps; input: Parameters<typeof requestConsent>[0]["input"];
+  existing: Awaited<ReturnType<ConsentServiceDeps["consents"]["findByMemberAndPurpose"]>>; nowIso: string;
+}): MemberConsentRecord {
+  const consent: MemberConsentRecord = existing
+    ? {
+        ...existing,
+        status: "pending",
+        evidence: input.evidence,
+        grantedAt: undefined,
+        revokedAt: undefined,
+        updatedAt: nowIso,
+        version: existing.version + 1,
+      }
+    : {
+        id: deps.ids.newId(),
+        workspaceId: input.workspaceId,
+        memberId: input.memberId,
+        purpose: input.purpose,
+        status: "pending",
+        evidence: input.evidence,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        version: 1,
+      };
+
+  return consent;
+}
+
 /**
  * Begin a consent request: creates (or resets) a `status: 'pending'` row for
  * `(memberId, purpose)` and appends a `consent_request` revision, in the same
@@ -78,27 +107,7 @@ export async function requestConsent(required: {
     purpose: input.purpose,
   });
 
-  const consent: MemberConsentRecord = existing
-    ? {
-        ...existing,
-        status: "pending",
-        evidence: input.evidence,
-        grantedAt: undefined,
-        revokedAt: undefined,
-        updatedAt: nowIso,
-        version: existing.version + 1,
-      }
-    : {
-        id: deps.ids.newId(),
-        workspaceId: input.workspaceId,
-        memberId: input.memberId,
-        purpose: input.purpose,
-        status: "pending",
-        evidence: input.evidence,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-        version: 1,
-      };
+  const consent = buildPendingConsent({ deps, input, existing, nowIso });
 
   await deps.consents.transaction({ fn: async () => {
     await deps.consents.save(consent);

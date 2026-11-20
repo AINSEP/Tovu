@@ -142,6 +142,43 @@ async function applyCopiedMetadata(
   return media;
 }
 
+async function uploadDuplicateMedia({ routeDeps, source, bytes, contentType, input }: {
+  routeDeps: MediaToolDeps & MediaPublicUrlDeps; source: MediaRecord; bytes: Uint8Array; contentType: string; input: DuplicateMediaInput;
+}): Promise<MediaRecord> {
+  // Dedups by (workspaceId, sha256) inside the sha256 lock: the copy REFERENCES the source's bytes
+  // rather than duplicating them, and a tombstoned blob is resurrected rather than left to be
+  // collected out from under the new row. See this file's header.
+  const { media: created } = await uploadMedia({
+    deps: {
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+      mediaRepo: routeDeps.mediaRepo,
+      blobRepo: routeDeps.assetBlobRepo,
+      renditionRepo: routeDeps.assetRenditionRepo,
+      blobStore: routeDeps.blobStore,
+    },
+    input: {
+      workspaceId: routeDeps.workspaceId,
+      bytes,
+      // A slug-shaped SEED only — never the real title (applyCopiedMetadata sets that below) and
+      // deliberately built from `source.slug`, not `title`: `source.slug` is guaranteed dot-free
+      // (media slugs are lowercase letters/digits/dashes only), so appending to it can never trip
+      // uploadMedia's own `deriveTitleFromFilename`, which strips anything that LOOKS like a
+      // trailing file extension (`\.[^./\\]+$` — a bare period anywhere near the end, not just a
+      // real `.ext`). The numbered `title` this function resolves CAN legitimately contain a period
+      // (e.g. a source titled "Logo v1.2"), so it is never itself passed through here.
+      filename: `${source.slug}-copy`,
+      contentType,
+      alt: source.alt,
+      caption: source.caption,
+      credit: source.credit,
+      createdByPrincipal: input.principalId,
+    },
+  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+
+  return created;
+}
+
 /**
  * Duplicates one media asset — see this file's header for the bytes decision and what the operator
  * gets.
@@ -204,36 +241,7 @@ export async function duplicateMediaAsset(
   // twice is a drift risk this avoids.
   const title = await resolveDuplicateTitle({ routeDeps, source, overrideTitle: input.overrides.title });
 
-  // Dedups by (workspaceId, sha256) inside the sha256 lock: the copy REFERENCES the source's bytes
-  // rather than duplicating them, and a tombstoned blob is resurrected rather than left to be
-  // collected out from under the new row. See this file's header.
-  const { media: created } = await uploadMedia({
-    deps: {
-      clock: routeDeps.clock,
-      idGen: routeDeps.idGen,
-      mediaRepo: routeDeps.mediaRepo,
-      blobRepo: routeDeps.assetBlobRepo,
-      renditionRepo: routeDeps.assetRenditionRepo,
-      blobStore: routeDeps.blobStore,
-    },
-    input: {
-      workspaceId: routeDeps.workspaceId,
-      bytes,
-      // A slug-shaped SEED only — never the real title (applyCopiedMetadata sets that below) and
-      // deliberately built from `source.slug`, not `title`: `source.slug` is guaranteed dot-free
-      // (media slugs are lowercase letters/digits/dashes only), so appending to it can never trip
-      // uploadMedia's own `deriveTitleFromFilename`, which strips anything that LOOKS like a
-      // trailing file extension (`\.[^./\\]+$` — a bare period anywhere near the end, not just a
-      // real `.ext`). The numbered `title` this function resolves CAN legitimately contain a period
-      // (e.g. a source titled "Logo v1.2"), so it is never itself passed through here.
-      filename: `${source.slug}-copy`,
-      contentType,
-      alt: source.alt,
-      caption: source.caption,
-      credit: source.credit,
-      createdByPrincipal: input.principalId,
-    },
-  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+  const created = await uploadDuplicateMedia({ routeDeps, source, bytes, contentType, input });
 
   // Keyed by sha256, not by asset id, so for a source whose type was already recorded this is a
   // no-op rewrite of the same value. It is called anyway, and deliberately: an asset predating the

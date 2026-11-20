@@ -50,6 +50,19 @@ function composeOriginUrl(origin: VerifiedOrigin): string {
   return `${origin.scheme}://${authority}${origin.basePath ?? ""}`;
 }
 
+async function supersedeConfirmationTokens({ deps, input, now }: {
+  deps: ConfirmationDeps; input: Parameters<typeof issueConfirmationToken>[0]["input"]; now: string;
+}): Promise<void> {
+  // "Newest wins": mark every prior unconsumed token superseded (consumed) before minting the new one.
+  const prior = await deps.tokenRepo.findUnconsumedBySubscription({
+    workspaceId: input.workspaceId,
+    subscriptionId: input.subscriptionId,
+  });
+  for (const token of prior) {
+    await deps.tokenRepo.save({ ...token, consumedAt: now });
+  }
+}
+
 /**
  * Mint a new confirmation token, invalidating every prior unconsumed token for this subscription
  * first ("newest wins" — behavior.spec.md §2.1), then send the confirm email. Does NOT change
@@ -69,14 +82,7 @@ export async function issueConfirmationToken(required: {
   const from = await mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity })
     .resolve({ workspaceId: input.workspaceId, fallback: NEWSLETTER_FALLBACK_SENDER });
 
-  // "Newest wins": mark every prior unconsumed token superseded (consumed) before minting the new one.
-  const prior = await deps.tokenRepo.findUnconsumedBySubscription({
-    workspaceId: input.workspaceId,
-    subscriptionId: input.subscriptionId,
-  });
-  for (const token of prior) {
-    await deps.tokenRepo.save({ ...token, consumedAt: now });
-  }
+  await supersedeConfirmationTokens({ deps, input, now });
 
   const rawToken = randomBytes(32).toString("hex");
   const tokenHash = hashToken({ raw: rawToken });
