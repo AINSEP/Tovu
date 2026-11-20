@@ -454,14 +454,7 @@ export interface UpdateSourceControlCredentialInput {
   isDefault?: unknown;
 }
 
-/** Omitted/blank tokens keep the envelope; explicit rotations reset and re-probe the label.
- * @param required Explicit store ports and update input. @returns A summary with no secret fields.
- * @throws {SourceControlCredentialValidationError} Invalid or unavailable destination/fields.
- * Metadata updates for an unchanged opaque id need neither a provider nor decryption. */
-export async function updateSourceControlCredential(
-  { deps, input }: { deps: SourceControlCredentialWriteDeps; input: UpdateSourceControlCredentialInput },
-  _options = {},
-): Promise<SourceControlCredentialSummary> {
+async function loadSourceControlCredentialUpdate({ deps, input }: { deps: SourceControlCredentialWriteDeps; input: UpdateSourceControlCredentialInput }) {
   // Changed where it lives: this site's own row, else the project's attached row.
   const located = await locateById(deps, input);
   if (!located) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
@@ -472,6 +465,18 @@ export async function updateSourceControlCredential(
   const row = await scoped.deps.repo.vault.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
   const where = credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" });
+  return { scoped, existing, label, requestedDefault, row, where };
+}
+
+/** Omitted/blank tokens keep the envelope; explicit rotations reset and re-probe the label.
+ * @param required Explicit store ports and update input. @returns A summary with no secret fields.
+ * @throws {SourceControlCredentialValidationError} Invalid or unavailable destination/fields.
+ * Metadata updates for an unchanged opaque id need neither a provider nor decryption. */
+export async function updateSourceControlCredential(
+  { deps, input }: { deps: SourceControlCredentialWriteDeps; input: UpdateSourceControlCredentialInput },
+  _options = {},
+): Promise<SourceControlCredentialSummary> {
+  const { scoped, existing, label, requestedDefault, row, where } = await loadSourceControlCredentialUpdate({ deps, input });
   const patch = await normalizeConnectionPatch({ raw: input.connection, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   if (patch !== undefined && !isEmptyTokenPatch({ value: patch })) {
     const connection = validateConnection({ raw: patch, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });

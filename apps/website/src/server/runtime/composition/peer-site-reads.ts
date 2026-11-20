@@ -194,41 +194,32 @@ function assertPeerThemes({ siteDir, themesDir }: { siteDir: string; themesDir: 
   }
 }
 
-/** Build only plain repositories over borrowed, read-only handles. No boot/seed/migration services.
- * @param required - Target paths, checked schema, owner and open kernels.
- * @returns A fail-closed dependency bag for the existing domain builders.
- * @throws CrossSiteUnavailable on use of an omitted dependency; filesystem/SQL errors propagate to the resolver.
- * @complexity O(r + t) wiring for r repositories and t discovered theme files; no per-record SQL fan-out.
- */
-async function composePeer({ source, contentDbPath, kernel, chat, journal, introspection, ownerId, workspaceId }: {
-  contentDbPath: string;
-  source: RegisteredSiteSource; kernel: ReturnType<typeof openSqliteFileKernel<ContentDatabase>>;
-  chat: ReturnType<typeof openNativeSqlite>; journal: ReturnType<typeof openSqliteFileKernel<JournalDatabase>>;
-  introspection: SqliteDatabaseIntrospectionAdapter; ownerId: string; workspaceId: string;
-}, _options = {}): Promise<AssistantToolRegistryDeps> {
-  const systemClock = createSystemClock(), idGen = createRandomUuidGenerator();
-  const clock = { ...systemClock, nowIso: () => nowIso({ clock: systemClock }) };
-  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen,
-    ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
-    reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: ownerId }, { apiKeyRepo: unavailable({ field: 'apiKeyRepo' }) });
-  await identity.identityReady;
-  const postRepo = new SqlitePostRepo({ store: kernel }), settingsRepo = new SqliteSettingsRepo({ store: kernel });
-  const presentationRepo = new SqlitePresentationSettingsRepo({ store: kernel });
-  const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel });
-  const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });
-  const transformDefinitionRepo = new SqliteTransformDefinitionRepo({ store: kernel });
-  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: kernel }) });
-  const themesDir = path.join(source.dir, 'themes'), uploadsDir = path.join(source.dir, 'uploads');
-  for (const file of [themesDir, uploadsDir]) if (fs.existsSync(file)) confinedPath({ root: source.dir, file });
-  assertPeerThemes({ siteDir: source.dir, themesDir });
-  const themes = discoverAllBuiltInThemes({ dir: themesDir, source: 'built-in' });
-  const blobs = new LocalFsBlobStore({ rootDir: uploadsDir });
-  // Reuse the SQLite adapter's capability answer without granting its backup/restore effects.
-  const dbOps = new SqliteDbOpsAdapter({ connection: { backup: unavailable({ field: 'dbOps.captureRestorePoint' }) },
-    filePath: contentDbPath, readWatermark: unavailable({ field: 'dbOps.readWatermark' }) });
-  const trashRepo = new SqliteTrashRepo({ store: kernel });
-  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
-  const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
+async function readPeerBlob({ source, uploadsDir, blobs, storageKey }: { source: RegisteredSiteSource; uploadsDir: string; blobs: LocalFsBlobStore; storageKey: string }) {
+  confinedPath({ root: source.dir, file: uploadsDir });
+  confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
+  return blobs.get({ storageKey });
+}
+
+async function peerBlobExists({ source, uploadsDir, blobs, storageKey }: { source: RegisteredSiteSource; uploadsDir: string; blobs: LocalFsBlobStore; storageKey: string }) {
+  if (fs.existsSync(uploadsDir)) confinedPath({ root: source.dir, file: uploadsDir });
+  if (!fs.existsSync(path.join(uploadsDir, storageKey))) return false;
+  confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
+  return blobs.exists({ storageKey });
+}
+
+async function peerBlobSize({ source, uploadsDir, blobs, storageKey }: { source: RegisteredSiteSource; uploadsDir: string; blobs: LocalFsBlobStore; storageKey: string }) {
+  if (fs.existsSync(uploadsDir)) confinedPath({ root: source.dir, file: uploadsDir });
+  if (!fs.existsSync(path.join(uploadsDir, storageKey))) return null;
+  confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
+  return blobs.sizeOf({ storageKey });
+}
+
+function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, workspaceId, clock, idGen, identity, postRepo, settingsRepo, presentationRepo, entryRefsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, themesDir, uploadsDir, themes, blobs, dbOps, trashRepo, formDeliveryRepo, seoDeps }: Pick<Parameters<typeof composePeer>[0], "source" | "kernel" | "chat" | "journal" | "introspection" | "workspaceId"> & {
+  clock: ReturnType<typeof createSystemClock> & { nowIso: () => ReturnType<typeof nowIso> }; idGen: ReturnType<typeof createRandomUuidGenerator>; identity: ReturnType<typeof createSqliteIdentityRouteDeps>; postRepo: SqlitePostRepo; settingsRepo: SqliteSettingsRepo; presentationRepo: SqlitePresentationSettingsRepo;
+  entryRefsRepo: SqliteEntryRefsRepo; mediaRepo: SqliteMediaRepo; mediaContentTypeStore: SqliteMediaContentTypeStore; transformDefinitionRepo: SqliteTransformDefinitionRepo; originRegistry: OriginRegistry;
+  themesDir: string; uploadsDir: string; themes: ReturnType<typeof discoverAllBuiltInThemes>; blobs: LocalFsBlobStore; dbOps: SqliteDbOpsAdapter; trashRepo: SqliteTrashRepo;
+  formDeliveryRepo: SqlFormDeliveryRepo; seoDeps: ReturnType<typeof createSeoDeps>;
+}) {
   const bag = {
     ...identity, contentKernel: kernel, workspaceId, clock, idGen, settingsRepo, getEffective,
     // Optional build-time settings are explicit so builders don't iterate a poison value.
@@ -241,23 +232,9 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     imageCodec: new SharpImageTransformer(),
     // Only read capabilities are exposed; neither a stray blob write nor an escaping stored key can reach disk.
     blobStore: {
-      get: async ({ storageKey }: { storageKey: string }) => {
-        confinedPath({ root: source.dir, file: uploadsDir });
-        confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
-        return blobs.get({ storageKey });
-      },
-      exists: async ({ storageKey }: { storageKey: string }) => {
-        if (fs.existsSync(uploadsDir)) confinedPath({ root: source.dir, file: uploadsDir });
-        if (!fs.existsSync(path.join(uploadsDir, storageKey))) return false;
-        confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
-        return blobs.exists({ storageKey });
-      },
-      sizeOf: async ({ storageKey }: { storageKey: string }) => {
-        if (fs.existsSync(uploadsDir)) confinedPath({ root: source.dir, file: uploadsDir });
-        if (!fs.existsSync(path.join(uploadsDir, storageKey))) return null;
-        confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
-        return blobs.sizeOf({ storageKey });
-      },
+      get: async ({ storageKey }: { storageKey: string }) => readPeerBlob({ source, uploadsDir, blobs, storageKey }),
+      exists: async ({ storageKey }: { storageKey: string }) => peerBlobExists({ source, uploadsDir, blobs, storageKey }),
+      sizeOf: async ({ storageKey }: { storageKey: string }) => peerBlobSize({ source, uploadsDir, blobs, storageKey }),
       put: unavailable({ field: 'blobStore.put' }), putIfAbsent: unavailable({ field: 'blobStore.putIfAbsent' }), delete: unavailable({ field: 'blobStore.delete' }),
     },
     // The existing factories borrow their connection; construction/get/history reads never write.
@@ -293,6 +270,45 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     migrationRunsRepo: new SqliteMigrationRunsRepo({ db: journal, siteId: workspaceId }),
     restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId }),
   };
+  return bag;
+}
+
+/** Build only plain repositories over borrowed, read-only handles. No boot/seed/migration services.
+ * @param required - Target paths, checked schema, owner and open kernels.
+ * @returns A fail-closed dependency bag for the existing domain builders.
+ * @throws CrossSiteUnavailable on use of an omitted dependency; filesystem/SQL errors propagate to the resolver.
+ * @complexity O(r + t) wiring for r repositories and t discovered theme files; no per-record SQL fan-out.
+ */
+async function composePeer({ source, contentDbPath, kernel, chat, journal, introspection, ownerId, workspaceId }: {
+  contentDbPath: string;
+  source: RegisteredSiteSource; kernel: ReturnType<typeof openSqliteFileKernel<ContentDatabase>>;
+  chat: ReturnType<typeof openNativeSqlite>; journal: ReturnType<typeof openSqliteFileKernel<JournalDatabase>>;
+  introspection: SqliteDatabaseIntrospectionAdapter; ownerId: string; workspaceId: string;
+}, _options = {}): Promise<AssistantToolRegistryDeps> {
+  const systemClock = createSystemClock(), idGen = createRandomUuidGenerator();
+  const clock = { ...systemClock, nowIso: () => nowIso({ clock: systemClock }) };
+  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen,
+    ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
+    reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: ownerId }, { apiKeyRepo: unavailable({ field: 'apiKeyRepo' }) });
+  await identity.identityReady;
+  const postRepo = new SqlitePostRepo({ store: kernel }), settingsRepo = new SqliteSettingsRepo({ store: kernel });
+  const presentationRepo = new SqlitePresentationSettingsRepo({ store: kernel });
+  const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel });
+  const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });
+  const transformDefinitionRepo = new SqliteTransformDefinitionRepo({ store: kernel });
+  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: kernel }) });
+  const themesDir = path.join(source.dir, 'themes'), uploadsDir = path.join(source.dir, 'uploads');
+  for (const file of [themesDir, uploadsDir]) if (fs.existsSync(file)) confinedPath({ root: source.dir, file });
+  assertPeerThemes({ siteDir: source.dir, themesDir });
+  const themes = discoverAllBuiltInThemes({ dir: themesDir, source: 'built-in' });
+  const blobs = new LocalFsBlobStore({ rootDir: uploadsDir });
+  // Reuse the SQLite adapter's capability answer without granting its backup/restore effects.
+  const dbOps = new SqliteDbOpsAdapter({ connection: { backup: unavailable({ field: 'dbOps.captureRestorePoint' }) },
+    filePath: contentDbPath, readWatermark: unavailable({ field: 'dbOps.readWatermark' }) });
+  const trashRepo = new SqliteTrashRepo({ store: kernel });
+  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
+  const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
+  const bag = buildPeerDependencyBag({ source, kernel, chat, journal, introspection, workspaceId, clock, idGen, identity, postRepo, settingsRepo, presentationRepo, entryRefsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, themesDir, uploadsDir, themes, blobs, dbOps, trashRepo, formDeliveryRepo, seoDeps });
   // Spreading active deps would let a read silently return the ACTIVE site's data under another site's label.
   return new Proxy(bag, { get: (target, field, receiver) => {
     if (Reflect.has(target, field)) return Reflect.get(target, field, receiver);

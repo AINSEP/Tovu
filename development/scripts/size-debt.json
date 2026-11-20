@@ -429,25 +429,11 @@
       "value": 90
     },
     {
-      "file": "apps/website/src/features/post/tool-registrations.ts",
-      "function": "buildPostRegistrations#1",
-      "line": 42,
-      "rule": "max-lines-per-function",
-      "value": 278
-    },
-    {
       "file": "apps/website/src/features/site-backup/backup-service.ts",
       "function": "<file>",
       "line": 744,
       "rule": "max-lines",
       "value": 535
-    },
-    {
-      "file": "apps/website/src/features/source-control/tool-registrations.ts",
-      "function": "buildSourceControlRegistrations#1",
-      "line": 382,
-      "rule": "max-lines-per-function",
-      "value": 97
     },
     {
       "file": "apps/website/src/features/theme/publish-content.ts",
@@ -469,13 +455,6 @@
       "line": 584,
       "rule": "max-lines-per-function",
       "value": 183
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts",
-      "function": "registerAdminTaxonomyMergeTermRoutes#1",
-      "line": 38,
-      "rule": "max-lines-per-function",
-      "value": 117
     },
     {
       "file": "apps/website/src/server/inbound/admin-http/routes/themes/explore.ts",
