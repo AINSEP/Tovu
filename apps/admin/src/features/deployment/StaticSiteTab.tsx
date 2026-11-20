@@ -28,7 +28,7 @@ import {
   credentialVerifyStatusClass,
 } from "./rules";
 import { CapabilityList, DisclosureChevron, StaticSiteIcon, StepDoneIcon } from "./deployment-visuals";
-import { PublishRunResult } from "./PublishRunResult";
+import { PublishRunResult } from "@jini-ai/devops/deploy/react";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
 import type { StaticExportController } from "./hooks/use-static-export.hooks";
 import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
@@ -1283,7 +1283,7 @@ function PublishTriggerAction({
           {controller.pollError}
         </p>
       ) : null}
-      {controller.run ? <PublishRunResult run={controller.run} t={translate} /> : null}
+      {controller.run ? <PublishRunResult run={controller.run} publishedLabel={translate("Published:")} linkLabel="Open the just-published site" linkHandle="deployment-static-site-publish-result-url" /> : null}
     </div>
   );
 }

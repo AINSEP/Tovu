@@ -3,7 +3,7 @@
   "allow": [
     {
       "id": "010687fc2a46",
-      "reason": "Moved to Jini @jini-ai/admin/consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."
+      "reason": "Moved to Jini @jini-ai/cookie-consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."
     },
     {
       "id": "df71d71beff3",

@@ -612,6 +612,9 @@ describe("StaticSiteTab — preview and publish gating", () => {
     const link = screen.getByRole("link", { name: "https://demo.vercel.app" });
     expect(link).toHaveAttribute("href", "https://demo.vercel.app");
     expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+    expect(link).toHaveAttribute("translate", "no");
+    expect(link).toHaveAttribute("data-agent-element", "deployment-static-site-publish-result-url");
   });
 
   it("shows a completed but failed publish's message as an alert, not a live link", () => {
@@ -649,11 +652,13 @@ describe("StaticSiteTab — preview and publish gating", () => {
           startedAtIso: "t0",
           finishedAtIso: "t1",
           target: "vercel",
+          error: "fallback route failure",
           result: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: "VERCEL_TOKEN is not set" },
         },
       },
     });
     expect(screen.getByRole("alert")).toHaveTextContent("VERCEL_TOKEN is not set");
+    expect(screen.queryByText("fallback route failure")).not.toBeInTheDocument();
   });
 
   it("an errored run with no result at all (a true route-level exception) falls back to run.error", () => {
@@ -763,7 +768,7 @@ describe("StaticSiteTab — preview and publish gating", () => {
     renderTab({
       publishController: {
         target: "vercel",
-        run: { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" },
+        run: { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel", result: { ok: true, targetId: "vercel", url: "https://demo.vercel.app", status: "READY" } },
       },
     });
     // The "Publishing…" status pill/button belong to PublishTriggerAction itself, not
@@ -773,6 +778,7 @@ describe("StaticSiteTab — preview and publish gating", () => {
     // renders its own unrelated "Create a token" link.
     expect(screen.queryByRole("link", { name: /^https:\/\// })).not.toBeInTheDocument();
     expect(screen.queryByText(/^Published:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("a terminal run with neither a result nor an error renders nothing from PublishRunResult", () => {
@@ -784,6 +790,7 @@ describe("StaticSiteTab — preview and publish gating", () => {
     });
     expect(screen.queryByRole("link", { name: /^https:\/\// })).not.toBeInTheDocument();
     expect(screen.queryByText(/^Published:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("names the destination section distinctly from the credential section above it, with an explanation of the difference", () => {
