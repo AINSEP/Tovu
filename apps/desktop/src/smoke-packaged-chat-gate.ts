@@ -18,7 +18,7 @@ import type { ChildProcess, ChildProcessWithoutNullStreams, SpawnOptions, SpawnO
 import type * as platformProcess from "@jini-ai/platform/process";
 import type { collectProcessTreePids } from "@jini-ai/core/contracts/runtime";
 
-import { PackagedGateIsolationError } from "./packaged-gate-isolation.ts";
+import { PackagedTreeIsolationError } from "@jini-ai/devops/packaging/electron";
 import type { withIsolatedSmokeTargets } from "./packaged-gate-isolation.ts";
 import type { initSiteDir } from "./site-dir-store.ts";
 import type { resolveSmokeTargets } from "./smoke-native.ts";
@@ -381,7 +381,7 @@ async function runGate({ deps, targets, directory }: { deps: ChatGateDeps; targe
 
 /** Only our fixed diagnostics are safe to print. Upstream errors may contain raw child output. */
 function safeDiagnostic({ item }: { item: unknown }, _optional = {}): string {
-  return item instanceof PackagedChatSmokeError || item instanceof PackagedGateIsolationError
+  return item instanceof PackagedChatSmokeError || item instanceof PackagedTreeIsolationError
     ? item.message
     : "Gate or teardown failed; no draft may be created.";
 }

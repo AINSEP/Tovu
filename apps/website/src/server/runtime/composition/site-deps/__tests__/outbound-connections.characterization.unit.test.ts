@@ -5,7 +5,7 @@ import ts from "typescript";
 
 // Pins what this slice must not change: its call sits where the moved statements sat, the moved
 // statements keep their order, and inputs that are built later are only read lazily.
-const DEPS = new URL("../../deps.ts", import.meta.url);
+const DEPS = new URL("../boot-phases.ts", import.meta.url);
 const SLICE = new URL("../outbound-connections.ts", import.meta.url);
 const parse = (url: URL): ts.SourceFile => ts.createSourceFile(url.pathname, fs.readFileSync(url, "utf8"), ts.ScriptTarget.Latest, true);
 const firstLine = (node: ts.Node): string => node.getText().split("\n")[0].trim();
@@ -15,17 +15,17 @@ function bodyOf(file: ts.SourceFile, name: string): readonly ts.Statement[] {
   return found.body.statements;
 }
 
-test("B23: the call keeps the moved statements' place in composeSiteRouteDeps", () => {
-  const body = bodyOf(parse(DEPS), "composeSiteRouteDeps");
+test("B23: the call keeps the moved statements' place in composePublishingPhase", () => {
+  const body = bodyOf(parse(DEPS), "composePublishingPhase");
   const at = body.findIndex((s) => ts.isVariableStatement(s) && s.declarationList.declarations.some((d) => d.initializer && ts.isCallExpression(d.initializer) && d.initializer.expression.getText() === "composeOutboundConnections"));
   assert.ok(at > 0, "slice call missing");
   assert.ok(firstLine(body[at - 1]).startsWith("const { publishContentApplyPort } = composePublishContentApplyPort("));
-  assert.equal(firstLine(body[at + 1]), "bindSharedApiOAuth = agentPluginConnections.apiConnections.host.sharedOAuth?.bind;");
+  assert.ok(ts.isReturnStatement(body[at + 1]));
 });
 
 test("B23: the moved statements keep their order", () => {
   const declared = bodyOf(parse(SLICE), "composeOutboundConnections").flatMap((s) => ts.isVariableStatement(s) ? s.declarationList.declarations.filter((d) => d.initializer?.getText() !== "required").map((d) => d.name.getText().replace(/\s+/g, " ")) : []);
-  assert.deepEqual(declared, ["guardedOutboundHttpClient","externalMcpOAuthHttpPorts","derivedPublicOrigin","agentPluginConnections"]);
+  assert.deepEqual(declared, ["{ externalMcpOAuthHttpPorts, guardedOutboundHttpClient }","derivedPublicOrigin","agentPluginConnections"]);
 });
 
 test("B23: later-built inputs are only read lazily", () => {

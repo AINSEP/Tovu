@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act } from 'react';
 import { renderHookWithView as renderHook, settle } from './app-hooks.test-support.js';
-import { importPageError, useCopyDetails, useImportWebsite } from './use-import-website.hooks.js';
+import { importPageError, useImportWebsite } from './use-import-website.hooks.js';
 import { copyableDetails } from './import-error-details.js';
 import { site } from './app-render-harness.js';
 import type { SiteAdminPage } from './import-site-entry.js';
@@ -164,18 +164,6 @@ test('importPageError: the address error wins, else the folder error with its de
   assert.deepEqual(importPageError({ failure: null, addError: 'b', addDetails: 'e' }), { message: 'b', details: 'e' });
   assert.deepEqual(importPageError({ failure: null, addError: 'b', addDetails: null }), { message: 'b', details: '' });
   assert.equal(importPageError({ failure: null, addError: null, addDetails: null }), null);
-});
-
-test('useCopyDetails: shows Copied only when the clipboard took the text', async (t) => {
-  const written: string[] = [];
-  const ok = renderHook(t, () => useCopyDetails({}, { getClipboard: () => ({ writeText: async (text: string) => { written.push(text); } }) }));
-  await act(async () => { await ok.current().copy('the details'); });
-  assert.deepEqual(written, ['the details']);
-  assert.equal(ok.current().copied, true);
-  const refused = renderHook(t, () => useCopyDetails({}, { getClipboard: () => ({ writeText: async () => { throw new Error('denied'); } }) }));
-  await act(async () => { await refused.current().copy('x'); });
-  await settle();
-  assert.equal(refused.current().copied, false);
 });
 
 test('useImportWebsite: a changed .tovu.zip says it looks damaged and offers a fresh export, with the importer\'s own words in the details', async (t) => {

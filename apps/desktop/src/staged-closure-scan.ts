@@ -1,6 +1,6 @@
 /** Scan roots for the payload half of the staged-closure audit (`scripts/verify-staged-closure.ts`). */
 import path from 'node:path';
-import type { PackagingFilesystemPort } from '@jini-ai/devops/packaging/electron';
+import { walkPayloadFiles, type PackagingFilesystemPort } from '@jini-ai/devops/packaging/electron';
 
 /** The composed agent-plugin root inside the payload's `dist/` (`build-server.mjs`). */
 const AGENT_PLUGINS = path.join('content', 'agent-plugins');
@@ -18,11 +18,5 @@ function isSkillFolder({ relative }: { relative: string }): boolean {
  * @complexity O(entries) under `dist`; one stat per entry.
  */
 export function payloadClosureScan({ dist }: { dist: string }, { fs }: { fs: Pick<PackagingFilesystemPort, 'entries' | 'stat'> }): string[] {
-  const walk = ({ relative }: { relative: string }, _options = {}): string[] => {
-    const absolute = path.join(dist, relative);
-    if (fs.stat({ path: absolute }).kind !== 'directory') return [absolute];
-    if (isSkillFolder({ relative })) return [];
-    return fs.entries({ path: absolute }).flatMap(name => walk({ relative: path.join(relative, name) }));
-  };
-  return walk({ relative: '' });
+  return walkPayloadFiles({ root: dist, fs }, { skipDirectory: isSkillFolder });
 }

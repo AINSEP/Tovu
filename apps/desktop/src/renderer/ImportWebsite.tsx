@@ -7,12 +7,12 @@
  * order (files, then the web address) as the web admin's Import tab.
  */
 import { useEffect } from 'react';
-import { FileDropzone } from '@jini-ai/ui';
+import { FileDropzone, useWiredCopyToClipboard } from '@jini-ai/ui';
 
 import type { ImportArchiveInput } from '../contracts/project.js';
 import { InfoTip } from './CreateWebsiteOnboarding.js';
 import { useImportDrop } from './use-import-drop.hooks.js';
-import { importPageError, useCopyDetails, type ArchiveRun, type ImportFailure } from './use-import-website.hooks.js';
+import { importPageError, type ArchiveRun, type ImportFailure } from './use-import-website.hooks.js';
 
 export interface ImportWebsiteProps {
   /** The page is on screen. Decided here, not by `App`, which is at its complexity ceiling. */
@@ -43,9 +43,9 @@ export interface ImportWebsiteProps {
 }
 
 function ImportError({ error,
-  useCopyDetailsHook = useCopyDetails }: { error: ImportFailure;
-  useCopyDetailsHook?: typeof useCopyDetails; }) {
-  const { copied, copy } = useCopyDetailsHook();
+  useCopyDetailsHook = useWiredCopyToClipboard }: { error: ImportFailure;
+  useCopyDetailsHook?: typeof useWiredCopyToClipboard; }) {
+  const { copied, copy } = useCopyDetailsHook(2000);
   return (
     <footer>
       <p className="onboarding__error" role="alert">{error.message}</p>

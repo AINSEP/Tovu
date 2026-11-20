@@ -18,7 +18,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { PackagedGateIsolationError } from "./packaged-gate-isolation.ts";
+import { PackagedTreeIsolationError } from "@jini-ai/devops/packaging/electron";
 import { smokePackagedChatCli, withInterruptSignal } from "./smoke-packaged-chat-gate.ts";
 import type { ChatGateDeps, GateFs } from "./smoke-packaged-chat-gate.ts";
 import { PACKAGED_CHAT_PROMPT, PackagedChatSmokeError } from "./smoke-packaged-chat.ts";
@@ -493,7 +493,7 @@ test("every collected failure prints its own line; isolation errors print their 
   assert.deepEqual(s.err, ["smoke-packaged-chat: Packaged server emitted no boot token.\n", "smoke-packaged-chat: Could not make the temporary site writable.\n"]);
 
   const isolation = scenario(t);
-  isolation.deps.withIsolatedSmokeTargets = async () => { throw new PackagedGateIsolationError("node_modules above the gate copy"); };
+  isolation.deps.withIsolatedSmokeTargets = async () => { throw new PackagedTreeIsolationError("node_modules above the gate copy"); };
   assert.equal(await smokePackagedChatCli(isolation.deps), 1);
   assert.deepEqual(isolation.err, ["smoke-packaged-chat: node_modules above the gate copy\n"]);
 });

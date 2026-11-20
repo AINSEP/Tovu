@@ -1,6 +1,7 @@
 import { ForbiddenError, type SettingScope } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { resolveTargetWorkspaceId } from "@jini-ai/core/settings";
+import { createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -56,10 +57,10 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = ({ app, d
         });
       }
       const { namespace, scope, bodyWorkspaceId } = parsedBody;
-      // See `resolveTargetWorkspaceId` in `shared.ts`. This was the worst of the three: it took the
+      // See `resolveTargetWorkspaceId` (`@jini-ai/core/settings`). This was the worst of the three: it took the
       // target workspace from the body while authorizing against `deps.workspaceId` below, so one
       // request could wipe an entire namespace in another tenant.
-      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
+      const targetWorkspace = resolveTargetWorkspaceId({ workspaceId: deps.workspaceId, input: { bodyWorkspaceId, scope } });
       if (!targetWorkspace.ok) {
         rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }

@@ -5,22 +5,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlink
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { assertPackagedGateIsolation, PackagedGateIsolationError, withIsolatedSmokeTargets } from "./packaged-gate-isolation.ts";
-
-test("ancestor check allows a clean temp path and refuses node_modules above it, also via a symlink alias", t => {
-  const root = mkdtempSync(path.join(tmpdir(), "gate-ancestor-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const directory = path.join(root, "checkout", "nested", "gate");
-  mkdirSync(directory, { recursive: true });
-  const alias = path.join(root, "alias");
-  symlinkSync(directory, alias);
-  assert.doesNotThrow(() => assertPackagedGateIsolation({ directory }));
-  mkdirSync(path.join(root, "checkout", "node_modules"));
-  assert.throws(() => assertPackagedGateIsolation({ directory }), {
-    name: "Error", message: `Packaged gate isolation refused: ${path.join(realpathSync(root), "checkout", "node_modules")} exists above ${directory}`,
-  });
-  assert.throws(() => assertPackagedGateIsolation({ directory: alias }), PackagedGateIsolationError);
-});
+import { PackagedTreeIsolationError } from "@jini-ai/devops/packaging/electron";
+import { withIsolatedSmokeTargets } from "./packaged-gate-isolation.ts";
 
 for (const layout of ["mac", "windows"] as const) {
   test(`${layout} copy cannot resolve a missing peer from the source checkout and is removed after success`, async t => {
@@ -79,13 +65,6 @@ test("the win32 copier keeps relative symlinks verbatim, whatever host runs it",
   assert.deepEqual(readdirSync(root), ["win-unpacked"], "the copy is removed afterwards");
 });
 
-test("the ancestor walk reaches the filesystem root itself", t => {
-  // A temp directory whose every ancestor is clean passes; the walk must also stop at "/" rather than loop.
-  const root = mkdtempSync(path.join(tmpdir(), "gate-walk-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  assert.doesNotThrow(() => assertPackagedGateIsolation({ directory: path.parse(root).root }));
-});
-
 test("a contaminated temp root never runs the gate, and copy or gate failures still remove the copy", async t => {
   const root = mkdtempSync(path.join(tmpdir(), "gate-failed-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -99,6 +78,6 @@ test("a contaminated temp root never runs the gate, and copy or gate failures st
   assert.deepEqual(readdirSync(root), ["app"]);
   mkdirSync(path.join(root, "node_modules"));
   await assert.rejects(withIsolatedSmokeTargets({ targets, run() { assert.fail("a contaminated gate must never launch"); } },
-    { tempRoot: root }), PackagedGateIsolationError);
+    { tempRoot: root }), PackagedTreeIsolationError);
   assert.deepEqual(readdirSync(root).sort(), ["app", "node_modules"]);
 });
