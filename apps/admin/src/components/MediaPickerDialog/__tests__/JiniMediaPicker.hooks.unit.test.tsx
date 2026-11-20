@@ -15,8 +15,8 @@ it("retains the API incident with redacted picker evidence and a cancel action",
   const { result } = renderHook(() => useJiniMediaPicker(props));
   await waitFor(() => expect(result.current.error).toMatchObject({ errorId: "picker-incident" }));
   expect(JSON.stringify(result.current.error)).not.toContain("PICKER_CANARY");
-  render(<MediaPickerDialog {...props} useJiniMediaPickerHook={() => result.current} />);
-  expect(screen.getByText("Cancel")).toBeTruthy();
+  render(<MediaPickerDialog {...props} useJiniMediaPickerHook={() => result.current} useAdminLocaleHook={() => "es"} />);
+  expect(screen.getByRole("button", { name: "Cancelar" }), "the picker error's cancel action uses the admin locale").toBeTruthy();
   expect(screen.getByText(/picker-incident/)).toBeTruthy();
 });
 

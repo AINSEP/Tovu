@@ -1,5 +1,7 @@
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import { useJiniMediaPicker } from "./JiniMediaPicker.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t as sharedComponentsT } from "../shared-components-i18n";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
@@ -52,6 +54,7 @@ import { splitOnPlaceholders } from '@jini-ai/core/text';
 
 export interface MediaPickerDialogProps {
   useJiniMediaPickerHook?: typeof useJiniMediaPicker;
+  useAdminLocaleHook?: typeof useAdminLocale;
   onSelect: (item: AdminMedia) => void;
   onCancel: () => void;
   /** Injectable seam for the dialog's data-fetch and Escape-to-cancel hook. Defaults to the real
@@ -146,7 +149,8 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
 }
 
 /** Existing callers keep their CMS callbacks; the mounted admin supplies Jini's promise service. */
-export function MediaPickerDialog({ useJiniMediaPickerHook = useJiniMediaPicker, ...props }: MediaPickerDialogProps) {
+export function MediaPickerDialog({ useJiniMediaPickerHook = useJiniMediaPicker, useAdminLocaleHook = useAdminLocale, ...props }: MediaPickerDialogProps) {
   const vm = useJiniMediaPickerHook(props);
-  return vm.enabled ? <>{vm.error && <div role="alert"><ErrorNotice failure={vm.error} /><button type="button" onClick={vm.onCancel}>Cancel</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
+  const locale = useAdminLocaleHook();
+  return vm.enabled ? <>{vm.error && <div role="alert"><ErrorNotice failure={vm.error} /><button type="button" onClick={vm.onCancel}>{sharedComponentsT({ locale, key: "Cancel" })}</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
 }

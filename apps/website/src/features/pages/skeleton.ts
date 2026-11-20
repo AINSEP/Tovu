@@ -2,7 +2,7 @@
  * @file SPEC-047 — the starter document a Page is born with, and the region vocabulary the editor
  * and (later) the generation tools address it through.
  *
- * **Inner content only.** No `<html>`, `<head>`, nav, or footer: `apps/website/src/server/inbound/public-http/http/site/render.ts`'s
+ * **Inner content only.** No `<html>`, `<head>`, nav, or footer: `apps/website/src/server/inbound/public-http/http/site/render-site.ts`'s
  * "the theme is data" contract means the active theme's template owns the page chrome for every
  * entry, bespoke or not. A generated Page authors what sits inside the theme's content slot and
  * nothing else, which is what stops a bespoke page inventing its own navigation (SPEC-047 §8's

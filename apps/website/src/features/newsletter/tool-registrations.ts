@@ -61,6 +61,7 @@ import type {
   SubscriberDirectoryPort,
 } from "./ports.js";
 import { pauseCampaign, type SendPipelineDeps } from "./send-pipeline.js";
+import { DEFAULT_LIST_LIMIT } from "./repo-subscribers.js";
 import {
   saveSubscription,
   unsubscribeSubscription,
@@ -355,8 +356,8 @@ function createNewsletterListSendLogHandler(deps: NewsletterToolDeps): ToolHandl
   await deps.newsletterReady;
   const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
   if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
-  const rows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: deps.workspaceId, campaignId });
-  return { sends: rows.map(toSendLogToolView) };
+  const rows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: deps.workspaceId, campaignId, limit: DEFAULT_LIST_LIMIT + 1 });
+  return { sends: rows.slice(0, DEFAULT_LIST_LIMIT).map(toSendLogToolView), truncated: rows.length > DEFAULT_LIST_LIMIT };
 };
 }
 

@@ -79,6 +79,11 @@ jobs:
       - name: Install desktop dependencies
         run: npm ci --prefix apps/desktop
 
+      - name: Dependency audit (desktop)
+        working-directory: apps/desktop
+        run: npm audit --package-lock-only
+        continue-on-error: true
+
       # The renderer layout tests (src/renderer/websites-width.test.ts) launch real headless
       # Chromium through the root `playwright`; a fresh runner has no browser. Same step as
       # desktop-release.yml's gates job.

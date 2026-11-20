@@ -119,7 +119,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     name: "newsletter_list_send_log",
-    description: "Lists the per-recipient delivery log for one campaign (id, recipient email, delivery status, attempts). Read-only; PII-adjacent (recipient email addresses).",
+    description: "Lists the per-recipient delivery log for one campaign (id, recipient email, delivery status, attempts). Read-only; PII-adjacent (recipient email addresses). Returns at most 100 rows; truncated: true means more rows exist.",
     sideEffects: "none",
     authorization: { permission: "admin.newsletter.subscriber.read" },
     inputSchema: {

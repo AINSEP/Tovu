@@ -111,7 +111,7 @@ describe("site assistant tools", () => {
 
     it("never surfaces a draft from search", async () => {
       const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort().port as never }));
-      const slugs = (await tools.search_published_entries({})).map((e) => e.slug);
+      const slugs = (await tools.search_published_entries({})).entries.map((e) => e.slug);
       assert.deepEqual(slugs.sort(), ["public-page", "public-post"]);
     });
 
@@ -119,7 +119,7 @@ describe("site assistant tools", () => {
       // `PostRepoPort.softDelete` only stamps `deletedAt` — it deliberately does not touch `status`
       // (see `post.ts`). A tool that checked `status` alone would leak this row.
       const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort().port as never }));
-      const slugs = (await tools.search_published_entries({})).map((e) => e.slug);
+      const slugs = (await tools.search_published_entries({})).entries.map((e) => e.slug);
       assert.ok(!slugs.includes("taken-down"), "a trashed row must never resolve");
     });
 
@@ -145,7 +145,7 @@ describe("site assistant tools", () => {
   describe("output shape", () => {
     it("never leaks internal identifiers into anything the model sees", async () => {
       const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort().port as never }));
-      const [first] = await tools.search_published_entries({ query: "public post" });
+      const [first] = (await tools.search_published_entries({ query: "public post" })).entries;
       assert.deepEqual(Object.keys(first).sort(), ["slug", "title", "type", "updatedAt"]);
       const detail = await tools.get_published_entry({ slug: "public-post" });
       assert.deepEqual(Object.keys(detail).sort(), ["slug", "text", "title", "type", "updatedAt"]);
@@ -157,10 +157,10 @@ describe("site assistant tools", () => {
         row({ slug: "opaque-slug", title: "Unique Heading", status: "published" }),
         row({ slug: "unique-address", title: "Different Title", status: "published" }),
       ]).port as never }));
-      assert.deepEqual((await tools.search_published_entries({ query: "PAGE" })).map((e) => e.slug), ["public-page"]);
-      assert.deepEqual((await tools.search_published_entries({ query: "UNIQUE HEADING" })).map((e) => e.slug), ["opaque-slug"]);
-      assert.deepEqual((await tools.search_published_entries({ query: "UNIQUE-ADDRESS" })).map((e) => e.slug), ["unique-address"]);
-      assert.deepEqual(await tools.search_published_entries({ query: "no matching content" }), []);
+      assert.deepEqual((await tools.search_published_entries({ query: "PAGE" })).entries.map((e) => e.slug), ["public-page"], "title matching is case insensitive");
+      assert.deepEqual((await tools.search_published_entries({ query: "UNIQUE HEADING" })).entries.map((e) => e.slug), ["opaque-slug"], "the title match is preserved in the envelope");
+      assert.deepEqual((await tools.search_published_entries({ query: "UNIQUE-ADDRESS" })).entries.map((e) => e.slug), ["unique-address"], "slug matching is case insensitive");
+      assert.deepEqual(await tools.search_published_entries({ query: "no matching content" }), { entries: [], truncated: false }, "no matches return a complete empty envelope");
     });
 
     it("returns plain text from a Tiptap body, not the document tree", async () => {
@@ -226,17 +226,20 @@ describe("site assistant tools", () => {
       const many = Array.from({ length: 5 }, (_, i) => row({ slug: `p${i}`, status: "published" }));
       const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort(many).port as never, maxResults: 2 }));
       const results = await tools.search_published_entries({});
-      assert.equal(results.length, 2);
-      assert.deepEqual(results.map((e) => e.slug), ["p0", "p1"]);
+      assert.equal(results.entries.length, 2, "search respects maxResults");
+      assert.deepEqual(results.entries.map((e) => e.slug), ["p0", "p1"], "search preserves the first matching entries");
+      assert.equal(results.truncated, true, "matches above the cap report truncation");
       const tailMatches = createSiteAssistantTools(makeDeps({ postRepo: fakePort([
         ...many,
         row({ slug: "title-one", title: "Tail Match", status: "published" }),
         row({ slug: "tail-match-two", title: "Unrelated", status: "published" }),
         row({ slug: "title-three", title: "Tail Match", status: "published" }),
       ]).port as never, maxResults: 2 }));
-      assert.deepEqual((await tailMatches.search_published_entries({ query: "tail match" })).map((e) => e.slug), ["title-one", "title-three"]);
-      assert.deepEqual((await tailMatches.search_published_entries({ query: "tail-match" })).map((e) => e.slug), ["tail-match-two"]);
-      assert.deepEqual(await tailMatches.search_published_entries({ query: "absent" }), []);
+      const atCap = await tailMatches.search_published_entries({ query: "tail match" });
+      assert.deepEqual(atCap.entries.map((e) => e.slug), ["title-one", "title-three"], "filtering happens before the result cap");
+      assert.equal(atCap.truncated, false, "exactly maxResults matches after filtering are complete");
+      assert.deepEqual((await tailMatches.search_published_entries({ query: "tail-match" })).entries.map((e) => e.slug), ["tail-match-two"], "slug matches survive filtering");
+      assert.deepEqual(await tailMatches.search_published_entries({ query: "absent" }), { entries: [], truncated: false }, "an absent query match returns a complete empty envelope");
     });
 
     it("does not cap list_categories or get_published_entry, only the search list", async () => {

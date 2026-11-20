@@ -4,7 +4,7 @@
  * Purpose:
  * A theme is a folder of validated *data* — no executable code. This module
  * defines the on-disk shape, discovers theme folders, and resolves a route to a
- * template id. The template-tree renderer (`apps/website/src/server/inbound/public-http/http/site/render.ts`) turns
+ * template id. The template-tree renderer (`apps/website/src/server/inbound/public-http/http/site/render-site.ts`) turns
  * the resolved block tree into HTML.
  *
  * Spike scope (VibeCoder): discovery + a shallow validity check (required files

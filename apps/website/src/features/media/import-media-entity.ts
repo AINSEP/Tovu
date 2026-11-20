@@ -19,7 +19,7 @@ interface MediaSourceReplacement {
  * `uploadMedia` (`@jini-ai/cms/media`'s `media-service.ts`, composed with `UploadMediaInput`) has NO
  * `id` field on its input — it always mints a fresh id via `deps.idGen.newId()`. A post's `bodyJson`
  * references an embedded image BY id (`{type:"image", attrs:{assetId, transformName}}` —
- * `server/inbound/public-http/http/site/render.ts`'s ref-image path). Importing media through the
+ * `server/inbound/public-http/http/site/render/doc/doc-nodes.ts`'s ref-image path). Importing media through the
  * ordinary `uploadMedia` path therefore uploads the bytes fine but breaks EVERY image embed in every
  * imported post: the post's `assetId` still points at the SOURCE system's id, which no longer
  * resolves to anything at the destination. The failure is silent — bytes intact, links dead.

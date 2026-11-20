@@ -199,7 +199,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
      * it does substring matching is fine as long as this comment exists. If it needs to be better,
      * that is a real feature, not a tweak here.
      */
-    async search_published_entries(input: { query?: unknown }): Promise<readonly PublicEntrySummary[]> {
+    async search_published_entries(input: { query?: unknown }): Promise<{ entries: readonly PublicEntrySummary[]; truncated: boolean }> {
       const query = typeof input?.query === "string" ? input.query.trim().toLowerCase() : "";
       const entries = await readPublished();
       const matched = query.length === 0
@@ -207,7 +207,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
         : entries.filter(
             (e) => e.title.toLowerCase().includes(query) || e.slug.toLowerCase().includes(query),
           );
-      return matched.slice(0, limit).map(toSummary);
+      return { entries: matched.slice(0, limit).map(toSummary), truncated: matched.length > limit };
     },
 
     /**
@@ -256,7 +256,7 @@ export const SITE_ASSISTANT_TOOL_SCHEMAS = [
   {
     name: "search_published_entries",
     description:
-      "Search this site's published posts and pages by title or slug. Returns summaries only. Omit query to list everything published.",
+      "Search this site's published posts and pages by title or slug. Returns summaries only, at most 20 by default; truncated: true means more matched. Omit query to list published entries.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "Text to match against title or slug." } },

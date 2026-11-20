@@ -166,7 +166,7 @@ const SETTINGS_PERMISSIONS: SettingsPermissions = {
 };
 
 /** Bind the CMS service to host ports and SPEC-050 REQ-08 title bounds.
- * Generic implementation and rationale: Jini packages/core/src/settings/express/cms-adapter.ts.
+ * Generic implementation and rationale: Jini packages/core/src/settings/cms-adapter.ts.
  * Route authentication/error envelopes remain host policy. The title wrapper shares these exact
  * deps so a rejected title never reaches the ledger, while other settings keep CMS behavior.
  * @complexity O(1) construction, plus each delegated CMS operation's repository work.

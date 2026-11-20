@@ -32,7 +32,7 @@ import { TextSelection } from "@tiptap/pm/state";
  * ("put the slug input right next to the title... like we did the pages") — typing there pushes into
  * this node via `setPostTitleText` below, so both surfaces always agree on one value.
  *
- * Server-side rendering: `renderDocNode`'s `"title"` case (`apps/website/src/server/inbound/public-http/http/site/render.ts`) always
+ * Server-side rendering: `renderDocNode`'s `"title"` case (`apps/website/src/server/inbound/public-http/http/site/render/doc/doc-nodes.ts`) always
  * renders empty in a generic doc walk; `renderWidgetPostContent` is the one render path that reads
  * this node directly (via its own `extractTitleNode`), because it is the only one that needs this
  * node's alignment. See that file's own comments for the rest of this feature's server-side half, and

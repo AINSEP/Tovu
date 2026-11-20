@@ -522,7 +522,7 @@ test("newsletter list tools return only rows from the requested list or campaign
   await newsletterSendRepo.save({ ...send, id: "foreign-send", campaignId: "campaign-2", idempotencyKey: "key-2" });
   await newsletterSendRepo.save({ ...send, id: "foreign-workspace-send", workspaceId: "other-ws", idempotencyKey: "key-3" });
   const result = await wired("newsletter_list_send_log", deps).handler(executionContext({ campaignId: "campaign-1" }));
-  assert.deepEqual(result, { sends: [{ id: send.id, subscriberId: send.subscriberId, recipientEmail: send.recipientEmail, status: send.status, attempts: 1, providerMessageId: send.providerMessageId, lastError: null, nextAttemptAt: null, updatedAt: NOW }] });
+  assert.deepEqual(result, { sends: [{ id: send.id, subscriberId: send.subscriberId, recipientEmail: send.recipientEmail, status: send.status, attempts: 1, providerMessageId: send.providerMessageId, lastError: null, nextAttemptAt: null, updatedAt: NOW }], truncated: false }, "the requested campaign's single send is complete");
 });
 
 // ---------------------------------------------------------------------------

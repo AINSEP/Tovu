@@ -2,7 +2,7 @@
 // ---------------------------------------------------------------------------
 // TipTap/ProseMirror `bodyJson` vocabulary — see this file's header for why this schema exists and
 // what it does (and does not) validate. Mirrors exactly the node/mark types
-// `apps/website/src/server/inbound/public-http/http/site/render.ts`'s `renderDocNode`/`renderMarks` switch on (including
+// the site renderer's `renderDocNode`/`renderMarks` switch on (including
 // `DOC_NODE_HANDLERS`'s full entry list); nothing here describes a node type the renderer would not
 // recognize.
 // ---------------------------------------------------------------------------

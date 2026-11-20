@@ -20,7 +20,7 @@ function parseResetRequestFields({ rawBody }: { rawBody: unknown }, _options: Re
 }
 
 /**
- * Partition selection and rationale: Jini packages/core/src/settings/express/cms-adapter.ts.
+ * Partition selection and rationale: Jini packages/core/src/settings/cms-adapter.ts.
  * The workspace partition a namespace's definitions live in for this scope — `null` (platform) for
  * `global`, else this workspace's own partition, falling back to the ambient workspace when the
  * resolved target workspace itself was `undefined` (the `scope: "global"` case `resolveTargetWorkspaceId`

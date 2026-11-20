@@ -11,7 +11,7 @@ import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
  * `{assetId, transformName}` attrs, PLUS a custom node view that resolves the in-editor preview
  * live from `assetId` rather than persisting a preview URL into `bodyJson`.
  *
- * Stays named `"image"` (`Image.extend`, not a new node type): `server/inbound/public-http/http/site/render.ts`'s
+ * Stays named `"image"` (`Image.extend`, not a new node type): `server/inbound/public-http/http/site/render/doc/doc-nodes.ts`'s
  * `renderDocNode` switches on `node.type === "image"` specifically — introducing a differently
  * named node here would silently fall through to that switch's `default` case (render children,
  * i.e. nothing, for a leaf node — the exact D7 bug this task's own render-path fix just closed)

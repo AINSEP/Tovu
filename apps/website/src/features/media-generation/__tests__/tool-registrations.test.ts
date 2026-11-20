@@ -439,6 +439,18 @@ test("no model specified, no OpenAI credential anywhere, but a different vendor'
   assert.equal(generateCalls[0]!.credentials.apiKey, "env-gemini-key");
 });
 
+test("an omitted model uses the image model saved with the provider credential", async () => {
+  const fixture = fakeRouteDeps({ env: { OPENAI_API_KEY: "env-key-must-be-ignored" } });
+  await saveMediaProviderCredentials(
+    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) },
+    { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", model: "dall-e-3" } } }
+  );
+
+  await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a logo" }));
+
+  assert.equal(fixture.generateCalls[0]!.request.model, "dall-e-3", "an omitted model selects the saved credential's advertised image model");
+});
+
 test("a saved credential wins over the env fallback even when both are present", async () => {
   const fixture = fakeRouteDeps({ env: { OPENAI_API_KEY: "env-key-must-be-ignored" } });
   const { deps, generateCalls } = fixture;

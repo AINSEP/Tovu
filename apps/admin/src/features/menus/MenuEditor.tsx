@@ -34,7 +34,7 @@ export { targetForKind } from "./page-link-rules";
  * `cssClass`/`icon`/`description` — this screen was simply the one gap in an otherwise-working
  * pipeline. `rel`/`openInNewTab` were not consumed by ANY render path before this change; both the
  * static-tier tree-variant renderer (`features/theme/static-render.ts`) and the widget-IR menu
- * renderer (`server/inbound/public-http/http/site/render.ts`) now honor all five fields.
+ * renderer (`renderWidgetMenu`) now honor all five fields.
  */
 
 /**

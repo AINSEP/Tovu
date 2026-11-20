@@ -8,7 +8,7 @@ import { useWiredMediaEmbedNodeView, type MediaPreviewKind } from "./media-embed
 /**
  * @file `Media` — the generic media doc node (2026-09-11, owner-directed: "don't add a `video` node
  * beside `image`, add ONE node and dispatch on the asset's real content type" — see
- * `server/inbound/public-http/http/site/render.ts`'s `renderDocMedia` for the server-side half of
+ * `server/inbound/public-http/http/site/render/doc/nodes-media.ts`'s `renderDocMedia` for the server-side half of
  * this decision and its full reasoning, and `features/post/agent-tools.ts`'s `TIPTAP_DOC_SCHEMA` for
  * the schema published to the assistant).
  *
