@@ -16,8 +16,12 @@
  * `ui-ux-design` (owner, 2026-10-14): theme/page/import work must load the design skill first, so it
  * is on from first boot; `recordBundledAgentPluginIfAbsent` also switches on an existing site's
  * untouched disabled seed. An operator's explicit off decision still survives later boots.
+ * `kuinetic` (owner, 2026-11-19): kUInetic is the owner's own animation library and is updated
+ * independently of ui-ux-design, whose core tells the agent to load it first for kUInetic work.
+ * Not seeded on: `shadcn-ui` (split from ui-ux-design 2026-11-19) is React/Tailwind app guidance built
+ * around shell and package installs, which Tovu chat refuses; no core product path runs through it.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design", "kuinetic"]);
 
 /** Agent plugins ship as subpaths of ONE Jini package (owner, 11-02: no per-plugin npm packages). */
 const JINI_AGENT_PLUGINS = "@jini-ai/agent-plugins";
@@ -38,7 +42,7 @@ const JINI_AGENT_PLUGINS = "@jini-ai/agent-plugins";
  * stripping, which cannot follow `./x.js` imports or compile enums.
  */
 export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new Map([
-  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "slide-design", "software-engineering",
+  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "kuinetic", "shadcn-ui", "slide-design", "software-engineering",
   "cloudflare", "netlify", "vercel", "github-pages", "s3-compatible", "fly", "render", "railway",
   "github", "resend", "meilisearch", "google-login", "composio", "supabase", "higgsfield-media", "commerce", "stripe",
   "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts", "google-forms", "calendly",
