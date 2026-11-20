@@ -66,10 +66,10 @@ test('the overlay ships its guidance and one host file, nothing else to stage', 
 test('the load table names the exact calls: design references, kUInetic first, QA before done, shadcn-ui', async () => {
   const guidance = await readGuidance();
   const table = guidance.slice(guidance.indexOf('## Load before building'), guidance.indexOf('## Design direction'));
-  assert.match(table, /`agent_plugin_ui_ux_design\(\{ "file": "references\/ui-loop\.md" \}\)`/);
-  assert.match(table, /kUInetic requested, or the theme already uses it[^\n]*\n\s+`agent_plugin_kuinetic\(\{\}\)` first\./);
-  assert.match(table, /Before reporting a theme or page done: `agent_plugin_ui_ux_design\(\{ "file": "host\/theme-screenshot-qa\.md" \}\)`/);
-  assert.match(table, /`agent_plugin_shadcn_ui\(\{\}\)`/);
+  assert.match(table, /`load_agent_plugin\(\{ "pluginId": "ui-ux-design", "file": "references\/ui-loop\.md" \}\)`/);
+  assert.match(table, /kUInetic requested, or the theme already uses it[^\n]*\n\s+`load_agent_plugin\(\{ "pluginId": "kuinetic" \}\)` first\./);
+  assert.match(table, /Before reporting a theme or page done: `load_agent_plugin\(\{ "pluginId": "ui-ux-design", "file": "host\/theme-screenshot-qa\.md" \}\)`/);
+  assert.match(table, /`load_agent_plugin\(\{ "pluginId": "shadcn-ui" \}\)`/);
 });
 
 test('a redesign keeps the theme design system; the Starter rule is for new themes', async () => {

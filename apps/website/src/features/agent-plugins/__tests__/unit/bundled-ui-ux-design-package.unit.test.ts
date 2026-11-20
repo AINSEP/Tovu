@@ -60,7 +60,7 @@ test("ui-ux-design guidance reaches the automatic path whole: overlay and core u
   assert.ok(Buffer.byteLength(guidance) < AUTOMATIC_GUIDANCE_LIMIT_BYTES, `${Buffer.byteLength(guidance)} bytes`);
   assert.ok(guidance.includes(await readFile(path.join(OVERLAY_ROOT, PLUGIN_ID, "GUIDANCE.md"), "utf8")));
   assert.ok(guidance.includes(await readFile(path.join(PACKAGE_ROOT, "skills", PLUGIN_ID, "SKILL.md"), "utf8")));
-  assert.match(guidance, /`agent_plugin_kuinetic\(\{\}\)` first/);
+  assert.match(guidance, /`load_agent_plugin\(\{ "pluginId": "kuinetic" \}\)` first/);
 });
 
 test("shadcn-ui is its own bundled plugin, selected but not seeded on", () => {

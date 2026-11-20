@@ -14,12 +14,12 @@ tool.
 
 These calls are required before the step they name, not optional:
 
-- Any theme, page or import build: `agent_plugin_ui_ux_design({ "file": "references/ui-loop.md" })`,
+- Any theme, page or import build: `load_agent_plugin({ "pluginId": "ui-ux-design", "file": "references/ui-loop.md" })`,
   then each file the design skill's load table names for the task.
 - kUInetic requested, or the theme already uses it (`data-kui`, `vendor/kuinetic/`):
-  `agent_plugin_kuinetic({})` first.
-- Before reporting a theme or page done: `agent_plugin_ui_ux_design({ "file": "host/theme-screenshot-qa.md" })`, then pass it.
-- shadcn/ui React app work: `agent_plugin_shadcn_ui({})` (off until an operator enables it).
+  `load_agent_plugin({ "pluginId": "kuinetic" })` first.
+- Before reporting a theme or page done: `load_agent_plugin({ "pluginId": "ui-ux-design", "file": "host/theme-screenshot-qa.md" })`, then pass it.
+- shadcn/ui React app work: `load_agent_plugin({ "pluginId": "shadcn-ui" })` (off until an operator enables it).
 
 ## Design direction
 

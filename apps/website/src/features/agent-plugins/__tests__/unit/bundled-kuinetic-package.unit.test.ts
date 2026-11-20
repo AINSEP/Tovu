@@ -16,7 +16,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
 /**
  * @file Tovu's side of the `kuinetic` Agent Plugin (`@jini-ai/agent-plugins/kuinetic`, owner 2026-11-19):
  * the owner's own animation library ships as its own plugin, seeded on beside ui-ux-design, whose
- * core tells the agent to call `agent_plugin_kuinetic({})` first. Its guidance must reach the
+ * Tovu overlay tells the agent to call `load_agent_plugin({ "pluginId": "kuinetic" })` first. Its guidance must reach the
  * automatic path whole rather than be deferred as oversized.
  */
 
