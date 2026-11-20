@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Express } from "express";

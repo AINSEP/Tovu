@@ -7,7 +7,7 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 import { PluginInstallError, type PluginInstallerPort, type PluginInstallPreview } from "@jini-ai/plugins/host/node";
 import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
-import { MAX_PLUGIN_ARCHIVE_BYTES } from "#src/features/plugin-runtime/install-archive";
+import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 import { registerPluginInstallRoutes, type PluginInstallRouteDeps } from "../../install.js";
 
 // Route-level tests for the input/option/error-mapping branches. The integration tests

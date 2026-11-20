@@ -26,18 +26,14 @@ import { createExternalMcpOAuthService } from "../../../../features/external-mcp
 import { createSiteConsentStore } from "#src/features/consent/revisions.repo";
 import { getEffective } from "#src/features/settings/index";
 import { isAdminAssistantEnabled } from "../admin-assistant-enabled.js";
-import { join } from "node:path";
-import { mkdtemp } from "node:fs/promises";
+import { captureSqliteBackupBytes } from "../database-transfer-adapters.js";
 import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-mcp-roster-change.js";
 import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
-import { readFile } from "node:fs/promises";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import { resolvePublicAssistantAvailability } from "../../../../assistant/index.js";
-import { rm } from "node:fs/promises";
 import { set } from "#src/features/settings/index";
-import { tmpdir } from "node:os";
 import { compositionSharedOAuth } from "./shared-oauth-commerce.js";
 
 interface RouteDepsAssistantSettingsRequired {
@@ -125,16 +121,7 @@ export function routeDepsAssistantSettings(required: RouteDepsAssistantSettingsR
     siteAssistantSecretKeyring,
     // Transfer uses this composition's exact chat store, including any TOVU_CHAT_DB override.
     // Online backup includes WAL writes; copying the database file alone would silently omit them.
-    databaseTransferChatSnapshot: async () => {
-      const dir = await mkdtemp(join(tmpdir(), "tovu-transfer-chat-"));
-      try {
-        const snapshotPath = join(dir, "chat.db");
-        await chat.backupTo(snapshotPath);
-        return await readFile(snapshotPath);
-      } finally {
-        await rm(dir, { recursive: true, force: true });
-      }
-    },
+    databaseTransferChatSnapshot: () => captureSqliteBackupBytes({ source: chat }),
     databaseTransferDestinationStore: new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(kernel), sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring }),
     // The ADMIN's own BYOK credential store — reuses the SAME sealer/keyring instances just above
     // (see `routes/types.ts`'s `adminExecutionCredentialRepo` doc for why one shared sealing

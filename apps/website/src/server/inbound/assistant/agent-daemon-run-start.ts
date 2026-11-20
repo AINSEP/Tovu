@@ -9,7 +9,7 @@ import { type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
 import { admittedToolSources, type ToolAccessRun } from '@jini-ai/daemon';
 import { createDaemonSiteTools } from "./agent-daemon-site-tools.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
-import { ensureJsonAgentInstall } from "./ensure-json-agent-install.js";
+import { installOwnedJsonAgent } from "@jini-ai/mcp";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
@@ -92,7 +92,7 @@ export type RunStartOptional = {
   resolveHostSignals?: typeof resolveHostSignals;
   readLoginShellEnvironment?: typeof readLoginShellEnvironment;
   requestAssistantToolConsent?: typeof requestAssistantToolConsent;
-  ensureJsonAgentInstall?: typeof ensureJsonAgentInstall;
+  ensureJsonAgentInstall?: typeof installOwnedJsonAgent;
   readAssistantRunToolPolicy?: typeof readAssistantRunToolPolicy;
   randomUUID?: typeof randomUUID;
   homedir?: typeof homedir;
@@ -112,7 +112,7 @@ export type RunPorts = RunStartPorts & NonNullable<ReturnType<typeof decodeRunSt
 
 export function createRunStartHandler(required: RunStartRequired, optional: RunStartOptional = {}): RunStartHandler {
   const ports: RunStartPorts = { ...required,
-    failRunBeforeStart, waitForStoppingRuns, extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume, agentCarriesOwnMemory, createToolGapCollector, resolveHostSignals, readLoginShellEnvironment, requestAssistantToolConsent, ensureJsonAgentInstall, readAssistantRunToolPolicy, randomUUID, homedir, existsSync, getCustomFsRoot, parseRunStartContextRef, buildPageContextPromptBlock, wouldForcedColdStartLoseConversationContext, resolveAssistantDisallowedTools, resolveAssistantRunSettings,
+    failRunBeforeStart, waitForStoppingRuns, extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume, agentCarriesOwnMemory, createToolGapCollector, resolveHostSignals, readLoginShellEnvironment, requestAssistantToolConsent, ensureJsonAgentInstall: installOwnedJsonAgent, readAssistantRunToolPolicy, randomUUID, homedir, existsSync, getCustomFsRoot, parseRunStartContextRef, buildPageContextPromptBlock, wouldForcedColdStartLoseConversationContext, resolveAssistantDisallowedTools, resolveAssistantRunSettings,
     resolveAttachmentRunFields: createAttachmentRunFieldsResolver({ getAttachmentStore: required.getAttachmentStore,
       routeDeps: required.routeDeps, stagedAttachmentCleanupByRunId: required.state.stagedAttachmentCleanupByRunId,
       defaultAgentId: 'claude', getAgentDef: required.getAgentDef }),

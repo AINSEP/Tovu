@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { toAdminPluginResponse } from "../../plugins.js";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 /**
  * @file C-017 `toAdminPluginResponse()` — SPEC-005 REQ-10/REQ-11, api.spec.md §5.
  *
- * TDD-certified against the stub in `../../plugins.ts`; currently RED — `toAdminPluginResponse`
+ * TDD-certified against the stub in `@jini-ai/plugins/host`; currently RED — `toAdminPluginResponse`
  * throws "not implemented". These assertions describe the contract the Programmer stage must
  * satisfy.
  */

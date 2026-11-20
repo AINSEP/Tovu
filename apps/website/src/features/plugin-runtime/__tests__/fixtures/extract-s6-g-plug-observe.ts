@@ -22,7 +22,7 @@ import { createDeclaredContentTypePorts } from "#src/server/runtime/composition/
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
-import { toAdminPluginResponse } from "../../admin-response.js";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 import { pluginAgentToolCatalog } from "../../agent-tools.js";
 import { CONTENT_ANALYZER_MANIFEST } from "../../built-ins/content-analyzer/index.js";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
