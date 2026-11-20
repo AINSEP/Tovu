@@ -1,7 +1,7 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { FORM_SUCCESS_CLASS, FORM_ERROR_CLASS, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE } from "../form-presentation-assets.js";
 import { stampFormFieldMaxLengths, renderFormSuccessSlot, renderFormErrorSlot } from "@jini-ai/cms/forms/form-controls";
-import { fieldMaxChars } from "#src/features/forms/render-entry";
+import { fieldMaxChars } from "@jini-ai/cms/forms";
 import { str, arr } from "./value-readers.js";
 import { renderWidgetPlaceholder } from "./widgets/placeholder.js";
 import { randomUUID } from "node:crypto";

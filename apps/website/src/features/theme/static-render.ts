@@ -3,7 +3,8 @@ import { DEFAULT_THEME_SLOTS } from "../../contracts/core/theme-slots.js";
 import { injectListingScript } from "@jini-ai/cms/listing";
 import { injectMenuDropdownScript } from "@jini-ai/cms/navigation/dropdown";
 import { escapeHtml } from "#src/platform/html/escape";
-import { withEntryListStyleOnce } from "./entry-list-render.js";
+import { withEntryListStyleOnce } from "@jini-ai/cms/listing";
+import { ENTRY_LIST_ATTRIBUTE, ENTRY_LIST_DEFAULT_STYLE } from "./entry-list-markup.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
 import type { DiscoveredTheme, ThemeTokens } from "./theme.js";
 import { themeTokenAliasDeclarations } from "./token-aliases.js";
@@ -183,7 +184,7 @@ export function renderStaticPage(
   html = injectCollectionEmbeds({ html, lists: collectionLists ?? new Map() });
   html = injectFeaturedImage({ html, image: featuredImage });
   html = injectPostAuthor({ html, post: postAuthor });
-  html = withEntryListStyleOnce({ html });
+  html = withEntryListStyleOnce({ html, attribute: ENTRY_LIST_ATTRIBUTE, style: ENTRY_LIST_DEFAULT_STYLE });
   html = rewritePageLinks({ html });
   return injectMenuDropdownScript({ html: injectListingScript({ html }) });
 }

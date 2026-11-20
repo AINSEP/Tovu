@@ -15,7 +15,8 @@ import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 // symmetrically, `SYSTEM_ACTOR_ID` is a generic actor fallback this file needs directly rather than
 // through the barrel (`index.ts`'s own header explains the one-way rule; nothing forbids importing
 // FROM `post.ts` here, only re-exporting Pages things there).
-import { SYSTEM_ACTOR_ID, announcePendingGoLive } from "../post/index.js";
+import { announcePendingGoLive } from "@jini-ai/cms/entries";
+import { SYSTEM_ACTOR_ID } from "../post/index.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import type { PostRepoPort } from "../post/contracts.js";
 import type { PostStatus } from "@jini-ai/cms/core";

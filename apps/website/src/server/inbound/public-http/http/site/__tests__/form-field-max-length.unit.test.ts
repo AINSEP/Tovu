@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { stampFormFieldMaxLengths } from "@jini-ai/cms/forms/form-controls";
-import { fieldMaxChars } from "#src/features/forms/render-entry";
+import { fieldMaxChars } from "@jini-ai/cms/forms";
 import { formValidationMessages } from "../form-feedback-policy.js";
 import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
 import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";

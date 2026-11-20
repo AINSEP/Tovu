@@ -3,7 +3,8 @@ import { arr, obj, str } from "../value-readers.js";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
-import { renderEntryList, renderEntryListStructuredData, type EntryListItem, type EntryListFieldValue, type EntryListRenderOptions } from "#src/features/theme/entry-list-render";
+import { renderEntryList, renderEntryListStructuredData, type EntryListItem, type EntryListFieldValue, type EntryListRenderOptions } from "@jini-ai/cms/listing";
+import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "#src/features/entries/render-entry";
 
@@ -96,7 +97,7 @@ export function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
     const typeKey = str({ value: ir.props.typeKey }, { fallback: "recent-entries" });
     // `renderEntryList` returns `undefined` exactly when `items` is empty — that IS this widget's
     // empty state, so no separate length check runs ahead of it on this branch.
-    return renderEntryList({ items, options: { columns, layout, typeKey, ...structuredData } }) ?? RECENT_ENTRIES_EMPTY_HTML;
+    return renderEntryList({ items, attribute: ENTRY_LIST_ATTRIBUTE, options: { columns, layout, typeKey, ...structuredData } }) ?? RECENT_ENTRIES_EMPTY_HTML;
   }
   if (items.length === 0) return RECENT_ENTRIES_EMPTY_HTML;
 

@@ -10,7 +10,7 @@ import {
   type PostRevisionRecord,
 } from "./post.js";
 import { comparePostsByDisplayDate, currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
-import { wentLiveSinceSave, type GoLiveCandidatesPort } from "./go-live.js";
+import { wentLiveSinceSave, type GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 
 /**
  * SPEC-005 (T021): `ext` needs no special handling here. Unlike `repo.sqlite.ts` — which has to

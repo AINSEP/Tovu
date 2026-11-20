@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryOutbox } from "#src/contracts/core/events/memory-bus";
-import { announceDueGoLives } from "../go-live.js";
+import { announceDueGoLives } from "@jini-ai/cms/entries";
 import { createPost } from "../post-create.js";
 import { deletePost, restorePostForward } from "../post-trash.js";
 import { importPostEntity } from "../post-import.js";

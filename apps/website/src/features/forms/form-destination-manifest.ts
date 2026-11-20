@@ -3,7 +3,7 @@ import { canonicalJson } from "@jini-ai/core/records";
 import { FIELD_TYPE_REGISTRY, submissionEvidenceSchema, type FormDefinitionRecord, type FormDeliveryForm, type HtmlFormDefinitionRecord } from "@jini-ai/cms/forms";
 import { type FormSubmissionEvidence } from "@jini-ai/core/contracts/forms";
 import { htmlSubmissionDefinition } from "@jini-ai/cms/forms/html";
-import { fieldMaxChars } from "./field-length-caps.js";
+import { fieldMaxChars } from "@jini-ai/cms/forms";
 
 /**
  * @file The compact form manifest a hosting target receives so it can accept the site's forms where
