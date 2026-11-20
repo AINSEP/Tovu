@@ -8,7 +8,7 @@ import type { AdminSurfacePublicConfig } from "@jini-ai/agent-plugins/admin-surf
  * Why the host narrows names beyond Jini's check: the declaration only refuses secret-looking
  * words, but this port reads the process environment, which also holds settings such as the site's
  * encryption key or storage keys whose names contain none of them (`TOVU_SITE_KEY`,
- * `TOVU_S3_ACCESS_KEY_ID`). So only names shaped like public plugin config are read:
+ * `JINI_S3_ACCESS_KEY_ID`). So only names shaped like public plugin config are read:
  * `TOVU_…_APP_ID`, `…_CLIENT_ID`, `…_BROWSER_KEY` or `…_PUBLIC_KEY`, and never one with a secret word.
  */
 

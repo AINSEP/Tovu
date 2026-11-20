@@ -31,7 +31,7 @@ import type { FieldDescriptor } from "@jini-ai/cms/forms";
 import { fieldMaxChars } from "#src/features/forms/render-entry";
 
 const FORM_CLASS = "tovu-form";
-const FORM_SUCCESS_CLASS = "tovu-form-success";
+const FORM_SUCCESS_CLASS = "jini-form-success";
 const FORM_ERROR_CLASS = "tovu-form-error";
 const FORM_SLUG_ATTR = "data-form-slug";
 
@@ -186,7 +186,7 @@ export const FORM_BASELINE_STYLE =
   ":where([data-tovu-form] button:not([type=button],[type=reset])){align-self:flex-start;padding:8px 16px;" +
   "border:1px solid transparent;border-radius:6px;background:var(--fg,#111827);" +
   "color:var(--bg,#fff);font-weight:600;cursor:pointer;}" +
-  `:where(.${FORM_SUCCESS_CLASS},[data-tovu-form-success]){padding:12px 14px;border-radius:6px;` +
+  `:where(.${FORM_SUCCESS_CLASS},[data-jini-form-success]){padding:12px 14px;border-radius:6px;` +
   "background:var(--surface,#fff);border:1px solid var(--border,#d1d5db);" +
   "border-left:4px solid var(--success,var(--tovu-form-success-fallback));color:var(--success,var(--tovu-form-success-fallback));}" +
   `:where(.${FORM_ERROR_CLASS},[data-tovu-form-error]){padding:10px 12px;border-radius:6px;` +
@@ -412,7 +412,7 @@ export function decodeFormSubmissionResultFromQuery(query: Record<string, unknow
  *  function return value is always inserted literally. */
 function showFormSuccessMessage({ html, slugPattern }: { html: string; slugPattern: string }, _optional = {}): string {
   const successRegex = new RegExp(`(<div class="[^"]*\\b${FORM_SUCCESS_CLASS}\\b[^"]*" ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden>`, "i");
-  const plainRegex = new RegExp(`(<div data-tovu-form-success ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden>`, "i");
+  const plainRegex = new RegExp(`(<div data-jini-form-success ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden>`, "i");
   return html.replace(successRegex, (_match, openTag: string) => `${openTag}>`)
     .replace(plainRegex, (_match, openTag: string) => `${openTag}>`);
 }

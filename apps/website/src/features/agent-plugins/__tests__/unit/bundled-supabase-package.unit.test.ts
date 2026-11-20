@@ -91,7 +91,7 @@ test("mcp.json offers the access-token fallback: Supabase's tokens page, probed 
     helpUrl: "https://supabase.com/dashboard/account/tokens",
     probeUrl: "https://api.supabase.com/v1/projects",
     // 2026-09-29: the retired env preset's token is copied onto this plugin's row at boot.
-    importFromEnv: "TOVU_SUPABASE_MCP_ACCESS_TOKEN",
+    importFromEnv: "JINI_SUPABASE_MCP_ACCESS_TOKEN",
     retiredEnv: [
       "TOVU_SUPABASE_MCP_ENABLED",
       "TOVU_SUPABASE_MCP_PROJECT_REF",

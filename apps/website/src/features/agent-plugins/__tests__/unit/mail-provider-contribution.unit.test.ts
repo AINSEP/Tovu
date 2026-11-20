@@ -59,7 +59,7 @@ test("parseMailAdaptersFile accepts schemaVersion 2 with credentialKeys/feedback
   });
   const labelled = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialLabel: "Postal key" }] }) });
   assert.equal(labelled.ok && labelled.descriptors[0]!.credentialLabel, "Postal key");
-  assert.equal(defaultCredentialLabel({ label: "Resend" }), "Tovu Mail — Resend API");
+  assert.equal(defaultCredentialLabel({ label: "Resend" }), "Jini Mail — Resend API");
 });
 
 test("parseMailAdaptersFile refuses malformed v2 entries", () => {

@@ -22,7 +22,7 @@ function newStore(): SurfaceExchangeStore {
 
 function handlerFor(store: SurfaceExchangeStore) {
   const registration = buildAskChoiceRegistrations(undefined, { surfaceExchanges: store }).find((r: ToolRegistration) => r.descriptor.id === ASK_CHOICE_TOOL_ID);
-  assert.ok(registration);
+  assert.ok(registration, "ask-choice registration is required to render the card");
   return registration.handler;
 }
 

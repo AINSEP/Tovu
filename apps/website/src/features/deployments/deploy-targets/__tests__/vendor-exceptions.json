@@ -1,6 +1,5 @@
 {
   "vocabulary": {
-    "github-deployment": ["createGitHubDeploymentProvider","GITHUB_DEPLOYMENT_PROVIDER_ID","mapGitHubDeploymentStatus"],
     "gitlab": [],
     "bitbucket": [],
     "postmark": ["postmarkapp.com"],

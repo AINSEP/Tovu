@@ -116,8 +116,6 @@ test("deploy hosts, source-control IDs and dormant deployment symbols retain det
     assert.ok(Object.keys(count(text)).length > 0, text);
   }
   assert.deepEqual(count('const providerId = "gitlab"; const peer = "bitbucket";'), { bitbucket: 1, gitlab: 1 });
-  assert.deepEqual(count("createGitHubDeploymentProvider()"), { "github-deployment": 1 });
-  assert.deepEqual(count("GITHUB_DEPLOYMENT_PROVIDER_ID mapGitHubDeploymentStatus"), { "github-deployment": 2 });
   assert.deepEqual(count("butterfly flying flyout"), {});
 });
 

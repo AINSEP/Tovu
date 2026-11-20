@@ -15,7 +15,7 @@ import { createEmbedPlaceholderDescriber, isProtectedEmbedElement } from "../lib
 const t = (key: string) => key;
 
 describe("plugin export cards", () => {
-  const config = { type: "plugin", plugin: "tovu/google-login", component: "sign-in-button", version: 1, props: { variant: "light" } };
+  const config = { type: "plugin", plugin: "jini/google-login", component: "sign-in-button", version: 1, props: { variant: "light" } };
 
   it.each([
     ["PLUGIN_DISABLED", "plugin off: visitors see your fallback"],

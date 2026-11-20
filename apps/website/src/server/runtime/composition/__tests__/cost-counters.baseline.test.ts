@@ -126,7 +126,7 @@ test("counter: token lookup (contribution reload, credential opens) per getAcces
 });
 
 const MAIL_WORKSPACE = "ws-1";
-const MAIL_LABEL = "Tovu Mail — Resend API";
+const MAIL_LABEL = "Jini Mail — Resend API";
 const MESSAGE = { workspaceId: MAIL_WORKSPACE, to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "hi", text: "hi" };
 
 /** The resolver over counting ports: the same synthetic hosted provider `resolve-mailer.unit.test.ts` uses. */

@@ -33,7 +33,7 @@ after(() => bundledSource.dispose());
 
 /**
  * @file `import-access-token.ts`: a token that did not come through the paste form (the retired
- * `TOVU_SUPABASE_MCP_ACCESS_TOKEN` env var, or create-site onboarding) is sealed onto the plugin's
+ * `JINI_SUPABASE_MCP_ACCESS_TOKEN` env var, or create-site onboarding) is sealed onto the plugin's
  * row and the plugin is switched on — and a row that already has a credential is never overwritten.
  * Real store and sealer; the plugin declaration and `onConnected` are injected.
  */
@@ -43,7 +43,7 @@ after(siteLayouts.cleanup);
 
 const WORKSPACE = "ws-token-import";
 const TOKEN = "sbp_import_test_token_never_logged";
-const ENV_VAR = "TOVU_SUPABASE_MCP_ACCESS_TOKEN";
+const ENV_VAR = "JINI_SUPABASE_MCP_ACCESS_TOKEN";
 const MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
 const RETIRED = ["TOVU_SUPABASE_MCP_ENABLED", "TOVU_SUPABASE_MCP_PROJECT_REF"];
 
@@ -175,7 +175,7 @@ test("env import copies the declared env token once, logs once, and is silent on
   assert.equal((await readRow())?.authMode, "static_env");
   assert.deepEqual(connected, ["supabase"]);
   assert.equal(logs.info.length, 1);
-  assert.match(logs.info[0] ?? "", /copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection/);
+  assert.match(logs.info[0] ?? "", /copied JINI_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection/);
   assert.ok(!logs.info.join("").includes(TOKEN), "a log line must never carry the token");
 
   await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN }, log });
@@ -214,7 +214,7 @@ test("env import uses the declared URL when its connection lookup returns no row
   ]);
   assert.deepEqual(connected, ["supabase"]);
   assert.deepEqual(logs.info, [
-    "[agent-plugins] copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection and switched it on. The env var is no longer needed.",
+    "[agent-plugins] copied JINI_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection and switched it on. The env var is no longer needed.",
   ]);
   assert.deepEqual(logs.warn, []);
 });
@@ -266,7 +266,7 @@ test("env import saves a token without retiredEnv and continues to the next plug
   assert.deepEqual(pluginsSwitchedOn, ["first", "supabase"]);
   assert.deepEqual(logs.info, [
     "[agent-plugins] copied FIRST_TOKEN onto the 'first' plugin's connection and switched it on. The env var is no longer needed.",
-    "[agent-plugins] copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection and switched it on. The env var is no longer needed.",
+    "[agent-plugins] copied JINI_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection and switched it on. The env var is no longer needed.",
   ]);
   assert.deepEqual(logs.warn, []);
 });
@@ -294,9 +294,9 @@ test("env import never throws: a failed save is a warning", async (t) => {
   await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN }, log });
   assert.equal(seal.mock.callCount(), 1, "the actual credential save must reach the sealer");
   assert.equal(logs.warn.length, 1);
-  assert.match(logs.warn[0] ?? "", /could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin/);
+  assert.match(logs.warn[0] ?? "", /could not copy JINI_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin/);
   assert.deepEqual(logs.warn, [
-    "[agent-plugins] could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again.",
+    "[agent-plugins] could not copy JINI_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again.",
   ]);
   assert.equal(JSON.stringify(logs).includes("secret store unavailable"), false, "raw sealer failures stay out of warnings");
   assert.equal(JSON.stringify(logs).includes(TOKEN), false, "warnings never contain the credential");
@@ -312,7 +312,7 @@ test("env import never logs importer text that echoes an opaque access token", a
   await importAgentPluginAccessTokensFromEnv({ deps: { ...deps,
     resolveInstalledPlugin: async () => { throw new Error(`importer failure ${token}`); },
   }, env: { [ENV_VAR]: token }, log });
-  assert.deepEqual(logs.warn, ["[agent-plugins] could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again."]);
+  assert.deepEqual(logs.warn, ["[agent-plugins] could not copy JINI_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again."]);
   assert.equal(JSON.stringify(logs).includes(token), false);
   assert.equal(JSON.stringify(logs).includes("importer failure"), false);
   assert.deepEqual(await readRow(), before);
@@ -401,7 +401,7 @@ test("env import never sends the token to a row pointed at a URL the bundled plu
   assert.equal(after?.sealedOAuth ?? null, row.sealedOAuth ?? null);
   assert.deepEqual(connected, []);
   assert.equal(logs.warn.length, 1);
-  assert.deepEqual(logs.warn, ["[agent-plugins] could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again."]);
+  assert.deepEqual(logs.warn, ["[agent-plugins] could not copy JINI_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again."]);
 });
 
 test("manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server", () => {
@@ -515,7 +515,7 @@ test("env import logs an operator-off save once and remains silent on its creden
   await importAgentPluginAccessTokensFromEnv({ deps: off, env: { [ENV_VAR]: token }, log });
   const saved = await readRow();
   await importAgentPluginAccessTokensFromEnv({ deps: off, env: { [ENV_VAR]: "replacement" }, log });
-  assert.deepEqual(logs.info, ["[agent-plugins] copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection; it stays off because an operator turned it off (Add-Ons → Agent Plugins). The env var is no longer needed."]);
+  assert.deepEqual(logs.info, ["[agent-plugins] copied JINI_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection; it stays off because an operator turned it off (Add-Ons → Agent Plugins). The env var is no longer needed."]);
   assert.deepEqual((await readRow())?.sealedOAuth, saved?.sealedOAuth);
   assert.deepEqual(logs.warn, []);
 });

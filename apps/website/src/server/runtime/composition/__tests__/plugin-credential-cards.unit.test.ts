@@ -125,7 +125,7 @@ test('bundled Fly and Meilisearch declarations survive real parsing and ownershi
   assert.deepEqual(result.refusals, []);
   assert.deepEqual(result.cards.map(card => [card.providerId, card.pluginId, card.label, card.ownedApiLabel]), [
     ['fly', 'fly', 'fly.io', 'fly.io'],
-    ['meilisearch', 'meilisearch', 'Tovu Search — Meilisearch', 'Tovu Search — Meilisearch'],
+    ['meilisearch', 'meilisearch', 'Jini Search — Meilisearch', 'Jini Search — Meilisearch'],
   ]);
   assert.deepEqual(result.cards[0]!.additionalHosts, ['https://api.machines.dev']);
   assert.deepEqual(result.cards[1]!.fields?.map(field => [field.name, field.required]), [['baseUrl', true]]);

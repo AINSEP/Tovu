@@ -68,7 +68,7 @@ function makeWriteDeps(overrides: Partial<CustomCredentialWriteDeps> = {}): Cust
 
 test("resolveCustomCredentialByLabel returns null when no row has that label (not configured is not an error)", async () => {
   const deps = makeWriteDeps();
-  const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "Tovu Mail — Resend API" });
+  const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "Jini Mail — Resend API" });
   assert.equal(resolved, null);
 });
 
@@ -155,7 +155,7 @@ test("resolveCustomCredentialByLabel finds the row by exact label and decrypts i
   const deps = makeWriteDeps();
   await createCustomCredential(deps, {
     workspaceId: WORKSPACE,
-    label: "Tovu Mail — Resend API",
+    label: "Jini Mail — Resend API",
     category: "ops",
     baseUrl: "https://api.resend.com",
     connection: { token: "re_live_abc123" },
@@ -169,7 +169,7 @@ test("resolveCustomCredentialByLabel finds the row by exact label and decrypts i
     connection: { token: "unrelated" },
   });
 
-  const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "Tovu Mail — Resend API" });
+  const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "Jini Mail — Resend API" });
   assert.ok(resolved);
   assert.equal(resolved?.category, "ops");
   assert.equal(resolved?.baseUrl, "https://api.resend.com");
@@ -180,13 +180,13 @@ test("resolveCustomCredentialByLabel is workspace-scoped: a same-labeled row in 
   const deps = makeWriteDeps();
   await createCustomCredential(deps, {
     workspaceId: "ws-other",
-    label: "Tovu Mail — Resend API",
+    label: "Jini Mail — Resend API",
     category: "ops",
     baseUrl: "https://api.resend.com",
     connection: { token: "belongs-to-ws-other" },
   });
 
-  const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "Tovu Mail — Resend API" });
+  const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "Jini Mail — Resend API" });
   assert.equal(resolved, null);
 });
 
