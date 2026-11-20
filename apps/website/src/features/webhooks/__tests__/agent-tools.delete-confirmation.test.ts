@@ -17,9 +17,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * shared MCP-UI held-open exchange (2026-09-08, ADS-memory/reports/
  * 2026-09-08-delete-confirmation-build.md). Modeled on
  * `features/post/__tests__/agent-tools.delete-confirmation.test.ts`, scoped to this domain's own
- * result shape. `deleteSubscription` performs its own fresh existence lookup at write time (no
- * `expectedVersion` field anywhere in its input), so there is no separate staleness re-check to
- * certify here.
+ * result shape. `deleteSubscription` compares the confirmed `expectedVersion` at write time;
+ * Jini rejects a write conflict as a target changed while confirmation was open refusal.
  */
 
 const WORKSPACE_ID = "ws-webhooks-delete-confirm";

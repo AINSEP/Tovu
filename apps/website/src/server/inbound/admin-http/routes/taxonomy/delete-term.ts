@@ -1,7 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import { trashTerm } from "#src/features/taxonomy/index";
+import { trashTerm } from "@jini-ai/cms/taxonomy";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";
@@ -9,7 +9,7 @@ import type { TaxonomyRouteDeps } from "./deps.js";
 /**
  * @file `DELETE /api/admin/v1/taxonomy/terms/:id` moves a term to the Trash (T6, trash parallel
  * plan §2, owner decision 5) — this REPLACES the prior hard-delete call into `@jini-ai/cms/taxonomy`'s
- * `deleteTerm` (see `features/taxonomy/trash-term.ts`'s file header for why: an assigned term is
+ * `deleteTerm` (see `Jini packages/cms/src/taxonomy/trash-term.ts`'s file header for why: an assigned term is
  * now trashable, only the child-term blocker survives, as the Trash's own generic
  * `TERM_HAS_CHILDREN`). Gated by `admin.taxonomy.manage`, same as every other taxonomy route, via
  * the shared `authorizeOrRespond` guard (`trashTerm` has no permission hook of its own — same
@@ -31,8 +31,8 @@ export function registerAdminTaxonomyDeleteTermRoute({ app, deps }: { app: Expre
       if (!authorized) return;
 
       const outcome = await trashTerm(
-        { workspaceId: deps.workspaceId, termId, actor: { principalId: principal.id, pluginId: null } },
-        { termRepo: deps.termRepo, remove: deps.removeTerm, clock: deps.clock }
+        { workspaceId: deps.workspaceId, termId, actor: { principalId: principal.id, pluginId: null },
+          termRepo: deps.termRepo, remove: deps.removeTerm, clock: deps.clock }
       );
 
       if (!outcome.ok && outcome.reason === "not-found") {

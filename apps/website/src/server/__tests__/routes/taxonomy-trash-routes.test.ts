@@ -18,7 +18,7 @@ import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file T6 (trash parallel plan §2, owner decision 5) — `delete-term`/`delete-taxonomy` now move
- * rows to the Trash (`trashTerm`/`trashTaxonomy`, `features/taxonomy/trash-term.ts`) instead of
+ * rows to the Trash (`trashTerm`/`trashTaxonomy`, `Jini packages/cms/src/taxonomy/trash-term.ts`) instead of
  * Jini's guarded hard delete. Against the REAL SQLite composition
  * (`createSiteRouteDeps({}, { dbPath: ":memory:" })`, same pattern as `newsletter-routes.test.ts`/
  * `settings-principal-check.test.ts`), not the hermetic one `taxonomy-routes.test.ts` uses: the

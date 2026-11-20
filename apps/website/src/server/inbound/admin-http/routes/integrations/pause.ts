@@ -1,3 +1,4 @@
+import { RecordVersionConflictError, versionConflictBody } from "@jini-ai/core/optimistic-concurrency";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Request } from "express";
@@ -67,6 +68,11 @@ export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (
 
         if (err instanceof WebhookSubscriptionValidationError) {
           res.status(400).json({ error: err.message });
+          return;
+        }
+
+        if (err instanceof RecordVersionConflictError) {
+          res.status(409).json(versionConflictBody({ error: err }));
           return;
         }
 

@@ -1,6 +1,7 @@
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { RecordVersionConflictError, versionConflictBody } from "@jini-ai/core/optimistic-concurrency";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
@@ -369,7 +370,7 @@ test("pause: pauses (default) then resumes (paused:false), real toggling round t
 
   const pausedRow = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
   assert.ok(pausedRow);
-  assert.deepEqual(pausedRow, { ...original, status: "paused", updatedAt: pausedRow.updatedAt });
+  assert.deepEqual(pausedRow, { ...original, status: "paused", updatedAt: pausedRow.updatedAt, version: original.version + 1 });
 
   const resumed = await fetch(`${baseUrl}${SUBS_PATH}/${subscription.id}/pause`, {
     method: "POST",
@@ -380,7 +381,7 @@ test("pause: pauses (default) then resumes (paused:false), real toggling round t
   assert.equal(((await resumed.json()) as { subscription: { status: string } }).subscription.status, "active");
   const resumedRow = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
   assert.ok(resumedRow);
-  assert.deepEqual(resumedRow, { ...original, status: "active", updatedAt: resumedRow.updatedAt });
+  assert.deepEqual(resumedRow, { ...original, status: "active", updatedAt: resumedRow.updatedAt, version: original.version + 2 });
 });
 
 test("pause: pausing a disabled (deleted) subscription 400s (validation error)", async (t) => {
@@ -468,3 +469,31 @@ test("pause: `req.params.subscriptionId ?? \"\"` fallback, forced via a direct h
   assert.equal(getStatus(), 404);
   assert.deepEqual(getBody(), { error: "webhook subscription '' was not found" });
 });
+
+for (const action of ["pause", "delete"] as const) {
+  test(`${action}: a concurrent edit returns 409 with the current basis and preserves the newer label`, async (t) => {
+    const deps = testDeps();
+    const app = createApp(deps);
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const created = await fetch(`${baseUrl}${SUBS_PATH}`, { method: "POST", headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ label: "x", targetUrl: "https://example.com/hook", topics: ["a"] }) });
+    const { subscription } = await created.json();
+    const repo = deps.webhookSubscriptionRepo;
+    const original = await repo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+    assert.ok(original);
+    const newer = { ...original, label: "Newer label", version: original.version + 1 };
+    let saves = 0;
+    deps.webhookSubscriptionRepo = {
+      insert: (row) => repo.insert(row), findById: (input) => repo.findById(input),
+      listByWorkspace: (input) => repo.listByWorkspace(input), findMatching: (input) => repo.findMatching(input),
+      save: async (row, optional) => { saves += 1; await repo.save(newer); await repo.save(row, optional); },
+    };
+    const res = await fetch(`${baseUrl}${SUBS_PATH}/${subscription.id}${action === "pause" ? "/pause" : ""}`,
+      { method: action === "pause" ? "POST" : "DELETE", headers: { cookie } });
+    assert.equal(res.status, 409);
+    assert.deepEqual(await res.json(), versionConflictBody({ error: new RecordVersionConflictError({ recordKind: "webhook subscription",
+      recordId: subscription.id, expectedVersion: original.version, currentVersion: newer.version }) }));
+    assert.equal(saves, 1);
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id }), newer);
+  });
+}

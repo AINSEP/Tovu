@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp } from "../taxonomy-trash-follow-ups.js";
-import type { PurgeTrashLookupPort, TaxonomyEventOutboxPort, TaxonomyRevisionWritePort } from "../taxonomy-trash-follow-ups.js";
+import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp } from "@jini-ai/cms/taxonomy";
+import type { PurgeTrashLookupPort, TaxonomyEventOutboxPort, TaxonomyRevisionWritePort } from "@jini-ai/cms/taxonomy";
 
 /**
  * @file Pure unit tests for the purge-only follow-ups (T6 item 5) — every dependency is a fake,

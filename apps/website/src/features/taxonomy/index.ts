@@ -57,4 +57,3 @@ export {
 export type { TermTreeLookup, AuthorizeFn, Taxonomy, Term, ContentRecordLookupPort, EntryRecordLookupPort, TaxonomyRevisionRow, WriteServiceDeps, CreateTaxonomyRequired, CreateTermRequired, RenameTermRequired, AssignTermsRequired, UnassignTermsRequired, DeleteTermRequired, DeleteTaxonomyRequired, DeletableTaxonomyRepoPort, DeletableTermRepoPort, AssignmentCountEntryTermRepoPort, EntryTermsCleanupPort, OnContentDeletedRequired, TaxonomyWithTerms, MergeTermPlanDetails, PlanMergeTermRequired, ConfirmMergeTermRequired, ExecuteMergeTermRequired } from "@jini-ai/cms/taxonomy";
 export type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 export type { AgentToolDefinition as TaxonomyAgentToolDefinition, AgentToolSideEffect as TaxonomyAgentToolSideEffect, AgentToolActorClassRule as TaxonomyAgentToolActorClassRule } from "@jini-ai/core";
-export { trashTerm, trashTaxonomy } from "./trash-term.js";

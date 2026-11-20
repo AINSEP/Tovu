@@ -33,7 +33,7 @@ export function composeTrashStores(required: ComposeTrashStoresRequired, _option
   const trashRepo = new SqliteTrashRepo({ store: kernel });
   // Purge-only audit trail for `term`/`taxonomy` (plan §6 Q2): one `taxonomy_revisions` row plus a
   // domain event, matching `deleteTerm`/`deleteTaxonomy`'s own writes — see
-  // `taxonomy-trash-follow-ups.ts`'s file header. A second, cheap `SqliteTermRepo`/
+  // `Jini packages/cms/src/taxonomy/taxonomy-trash-follow-ups.ts`'s file header. A second, cheap `SqliteTermRepo`/
   // `SqliteTaxonomyRevisionRepo` instance each (stateless wrappers over the same tables `termRepo`/
   // `taxonomyRevisionRepo` below use) rather than hoisting those out of the return object literal.
   const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: kernel, workspaceId });
