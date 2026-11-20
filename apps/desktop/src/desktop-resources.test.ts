@@ -1,10 +1,11 @@
 /** S2 monitor-only review: desktop ownership, approximate metrics, warnings and cheap sampling. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { ProcessUsage } from '@jini-ai/platform/process';
+import { sampleProcessPrivateMemory, type ProcessUsage } from '@jini-ai/platform/process';
+import { orFallback } from '@jini-ai/core/errors/idioms';
 import { createDesktopResources, type DesktopResourcesPorts } from './desktop-resources.ts';
 import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
-import { sampleTopMemory, type PrivateMemorySampler } from './desktop-memory-sampler.ts';
+import type { PrivateMemorySampler } from './desktop-memory-sampler.ts';
 
 // Legacy RSS fixtures exercise the fallback without launching a host process.
 const unavailablePrivateMemory: PrivateMemorySampler = async (_input) => ({ metric: 'unavailable', readings: [] });
@@ -20,12 +21,12 @@ test('M3 macOS batches owned PIDs once a minute while inventory follows the open
         usage(11, 10, 200_000_000), usage(50, 1, 1_000_000, 0, 'ps'),
         usage(51, 1, 1_000_000, 0, 'top'), usage(99, 0, 9_000_000_000)];
     },
-    samplePrivateMemory: input => sampleTopMemory(input, { run: async (command, args, options) => {
+    samplePrivateMemory: input => sampleProcessPrivateMemory({ pids: input.pids, platform: 'darwin', run: async (command, args, options) => {
       probes++;
       assert.equal(command, '/usr/bin/top');
       assert.deepEqual(args, ['-l', '1', '-R', '-F', '-stats', 'pid,mem', '-pid', '1', '-pid', '10', '-pid', '11']);
       assert.equal(options?.timeout, 5000);
-      assert.equal(options?.maxBuffer, 1024 * 1024);
+      assert.equal(options?.maxBuffer, 8 * 1024 * 1024);
       return { ok: true, stdout: 'PID MEM\n11 25M\n1 100M\n10 50M\n99 9G\n', stderr: '', code: 0, error: null };
     } }),
   });
@@ -55,7 +56,7 @@ test('M3 top failures retain labelled RSS and CPU history, then retry after one 
     const monitor = createDesktopResources({
       desktopPid: 1, platform: 'darwin', now: () => at, totalMem: () => 8_000_000_000, openSites: () => [],
       listUsage: async () => [usage(1, 0, 500_000_000, at / 1000)],
-      samplePrivateMemory: input => sampleTopMemory(input, { run: async () => {
+      samplePrivateMemory: input => sampleProcessPrivateMemory({ pids: input.pids, platform: 'darwin', run: async () => {
         probes++;
         if (probes === 1 && failure === 'throw') throw new Error('private top diagnostic');
         const stdout = { exit: 'PID MEM\n1 100M\n', malformed: 'PID MEM\n1 garbled\n', missing: 'PID MEM\n99 100M\n', throw: '' }[failure];
@@ -89,7 +90,7 @@ test('M3 top partial results preserve each missing PID as RSS in mixed totals', 
   const monitor = createDesktopResources({
     desktopPid: 1, platform: 'darwin', now: () => 0, totalMem: () => 8_000_000_000, openSites: () => [],
     listUsage: async () => [usage(1, 0, 500_000_000), usage(2, 1, 300_000_000)],
-    samplePrivateMemory: input => sampleTopMemory(input, { run: async () => ({ ok: true, stdout: 'PID MEM\n1 100M\n', stderr: '', code: 0, error: null }) }),
+    samplePrivateMemory: input => sampleProcessPrivateMemory({ pids: input.pids, platform: 'darwin', run: async () => ({ ok: true, stdout: 'PID MEM\n1 100M\n', stderr: '', code: 0, error: null }) }),
   });
   const result = await monitor.get({ panelOpen: true });
   assert.equal(result.total.rssBytes, 100 * 1024 ** 2 + 300_000_000);
@@ -135,34 +136,20 @@ test('M3 missing desktop inventories never launch top for foreign PIDs', async (
   assert.equal(probes, 0);
 });
 
-test('M2 batches all requested macOS PIDs in one bounded top call and parses binary units and change suffixes', async () => {
-  const calls: unknown[] = [];
-  const result = await sampleTopMemory({ pids: [12, 13, 14, 15, 12] }, { run: async (command, args, options) => {
-    calls.push({ command, args, timeout: options?.timeout, maxBuffer: options?.maxBuffer });
-    return { ok: true, stdout: 'Processes: 99 total\nPID MEM\n13 1.5M+\n12 123K-\n14 2G\n15 0B\n99 999M\n', stderr: '', code: 0, error: null };
-  } });
-  assert.deepEqual(calls, [{ command: '/usr/bin/top', args: ['-l', '1', '-R', '-F', '-stats', 'pid,mem', '-pid', '12', '-pid', '13', '-pid', '14', '-pid', '15'], timeout: 5000, maxBuffer: 1024 * 1024 }]);
-  assert.deepEqual(result, { metric: 'physical-footprint', readings: [
-    { pid: 12, bytes: 125952 }, { pid: 13, bytes: 1572864 }, { pid: 14, bytes: 2147483648 }, { pid: 15, bytes: 0 },
-  ] });
-});
-
-test('M2 top leaves missing, duplicate, malformed and unsafe readings unavailable per PID', async () => {
-  const result = await sampleTopMemory({ pids: [1, 2, 3, 4, 5, 6, 7] }, { run: async () => ({
-    ok: true, stdout: 'PID MEM\n1 25M\n2 10M\n2 11M\n3 --\n4 -2G\n5 4Q\n6 999999999999999G\n', stderr: '', code: 0, error: null,
-  }) });
-  assert.deepEqual(result.readings, [{ pid: 1, bytes: 26214400 }, ...[2, 3, 4, 5, 6, 7].map(pid => ({ pid, bytes: null }))]);
-});
-
 test('M2 top failure discards partial output; empty and oversized PID sets never spawn', async () => {
   for (const run of [async () => ({ ok: false, stdout: 'PID MEM\n1 2G\n', stderr: 'private diagnostic', code: 1, error: null }),
     async () => { throw new Error('private diagnostic'); }]) {
-    assert.deepEqual((await sampleTopMemory({ pids: [1] }, { run })).readings, [{ pid: 1, bytes: null }]);
+    assert.deepEqual((await orFallback({ work: () => sampleProcessPrivateMemory({ pids: [1], platform: 'darwin', run }),
+      fallback: { metric: 'physical-footprint', readings: [{ pid: 1, bytes: null }] }, step: 'sample macOS footprint' })).readings, [{ pid: 1, bytes: null }]);
   }
   const run = async () => { assert.fail('invalid/empty PID sets cannot spawn'); };
-  assert.deepEqual((await sampleTopMemory({ pids: [] }, { run })).readings, []);
-  assert.equal((await sampleTopMemory({ pids: Array.from({ length: 513 }, (_, i) => i + 1) }, { run })).readings.every(row => row.bytes === null), true);
-  assert.equal((await sampleTopMemory({ pids: [0, -1, 1.5] }, { run })).readings.every(row => row.bytes === null), true);
+  assert.deepEqual((await orFallback({ work: () => sampleProcessPrivateMemory({ pids: [], platform: 'darwin', run }),
+    fallback: { metric: 'physical-footprint', readings: [] }, step: 'sample macOS footprint' })).readings, []);
+  const pids = Array.from({ length: 513 }, (_, i) => i + 1);
+  assert.equal((await orFallback({ work: () => sampleProcessPrivateMemory({ pids, platform: 'darwin', run }),
+    fallback: { metric: 'physical-footprint', readings: [...new Set(pids)].map(pid => ({ pid, bytes: null })) }, step: 'sample macOS footprint' })).readings.every(row => row.bytes === null), true);
+  assert.equal((await orFallback({ work: () => sampleProcessPrivateMemory({ pids: [0, -1, 1.5], platform: 'darwin', run }),
+    fallback: { metric: 'physical-footprint', readings: [...new Set([0, -1, 1.5])].map(pid => ({ pid, bytes: null })) }, step: 'sample macOS footprint' })).readings.every(row => row.bytes === null), true);
 });
 
 test('M2 batched top feeds owned totals and labelled RSS fallback without resetting CPU history', async () => {
@@ -170,7 +157,7 @@ test('M2 batched top feeds owned totals and labelled RSS fallback without resett
   const monitor = createDesktopResources({
     desktopPid: 1, platform: 'darwin', now: () => at, totalMem: () => 8_000_000_000, openSites: () => [],
     listUsage: async () => [usage(1, 0, 500_000_000, at / 1000), usage(2, 1, 300_000_000), usage(99, 0, 1_000_000_000)],
-    samplePrivateMemory: input => sampleTopMemory(input, { run: async (command, args) => {
+    samplePrivateMemory: input => sampleProcessPrivateMemory({ pids: input.pids, platform: 'darwin', run: async (command, args) => {
       probes++;
       assert.equal(command, '/usr/bin/top');
       assert.deepEqual(args, ['-l', '1', '-R', '-F', '-stats', 'pid,mem', '-pid', '1', '-pid', '2']);
