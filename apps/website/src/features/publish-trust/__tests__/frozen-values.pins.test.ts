@@ -127,7 +127,8 @@ test("T-FROZEN: the vault scope bound into every sealed peer credential", () => 
 });
 
 test("T-FROZEN: the history row kind already saved for a publish to a peer site", () => {
-  const rows = linesMatching(/kind: "tovu-peer"/);
+  // Value lines only: the row's `readonly kind: "tovu-peer"` type declaration names the same literal.
+  const rows = linesMatching(/(?<!readonly )kind: "tovu-peer"/);
 
   assert.equal(rows.length, 1, rows.join("\n"));
   assert.match(rows[0] ?? "", /^publish-content\/peer-transport\.ts: kind: "tovu-peer", target: deps\.credential\.id,/);

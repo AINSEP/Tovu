@@ -83,7 +83,8 @@ test('runDeploy records accepted dispatch exactly once even if the foreign histo
   try {assert.deepEqual(await runDeploy({deps:f.deps,input},{}),{platform:'library',target:'catalog',started:true,summary:'Library accepted'});}finally{console.warn=original;}
   assert.equal(f.events.filter(e=>e.startsWith('http:')).length,1);
   assert.deepEqual(JSON.parse(f.events.find(e=>e.startsWith('{'))!),{workspaceId:'library-space',entry:{kind:'deploy',target:'library',projectName:'catalog',url:'',reachable:false,status:'started',publishedAt:'1970-01-01T00:00:00.000Z',triggeredBy:'agent_tool'}});
-  assert.deepEqual(warnings,[['[deploy-ops] destination history write failed after accepted deploy']]);
+  // Class label only (Jini log-safety): the port's error message never reaches the log.
+  assert.deepEqual(warnings,[['[deploy-ops] destination history write failed after accepted deploy', 'Error']]);
 });
 
 test('runListSecrets returns metadata only with foreign adapters',async()=>{

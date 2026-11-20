@@ -129,8 +129,9 @@ test("page writes use the shared root resolver and still validate page kind and 
   const stale = await executeRegisteredTool({ registration, input: { slug: "/", html, expectedVersion: barePost.version } });
   assert.notEqual(stale.status, "completed");
   assert.match(stale.error!, /VERSION_CONFLICT|version|changed/i);
-  // Pages returns a kind mismatch as a model-facing reason, not a thrown error.
-  const wrongKind = await executeRegisteredTool({ registration, input: { slug: "news", html } });
+  // Pages returns a kind mismatch as a model-facing reason, not a thrown error. expectedVersion is
+  // required since S7b, so the call carries it to reach the kind check.
+  const wrongKind = await executeRegisteredTool({ registration, input: { slug: "news", html, expectedVersion: barePost.version } });
   const refused = wrongKind.output as { written: boolean; reason: string };
   assert.equal(refused.written, false);
   assert.match(refused.reason, /^'ordinary-post' is a post, not a page/);

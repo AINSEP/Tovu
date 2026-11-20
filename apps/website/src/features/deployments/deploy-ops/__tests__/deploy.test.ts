@@ -119,7 +119,8 @@ test("a throwing history store preserves an accepted deploy and logs no error pa
   assert.deepEqual(await runDeploy({ deps: { ...f.deps, publishHistoryStore: store }, input: { platform: "example-host", target: "shop" } }),
     { platform: "example-host", target: "shop", started: true, summary: "accepted", runId: "42" });
   assert.equal(deploys, 1);
-  assert.deepEqual(warnings, [["[deploy-ops] destination history write failed after accepted deploy"]]);
+  // Jini's deploy-ops logger names the error class only (log-safety), never its message.
+  assert.deepEqual(warnings, [["[deploy-ops] destination history write failed after accepted deploy", "Error"]]);
 });
 
 test("accepted deploys append descriptor identity to the shared ledger and link only matching saved peers", async () => {

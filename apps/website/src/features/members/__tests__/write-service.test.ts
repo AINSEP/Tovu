@@ -1000,12 +1000,12 @@ for (const status of ["disabled", "trash"] as const) {
 /** Shard C challenge tests use a deterministic hasher to observe attempt reservations directly. */
 function challengeDeps() {
   const h = makeDeps();
-  let verified = 0;
+  const verifiedHashes: string[] = [];
   h.deps.passwordHasher = {
     hash: async ({ password }) => `test:${hashToken(password)}`,
-    verify: async ({ hash, password }) => { verified++; return hash === `test:${hashToken(password)}`; },
+    verify: async ({ hash, password }) => { verifiedHashes.push(hash); return hash === `test:${hashToken(password)}`; },
   };
-  return { ...h, verifications: () => verified };
+  return { ...h, verifications: () => verifiedHashes.length, verifiedHashes: () => [...verifiedHashes] };
 }
 
 function extractCode(text: string): string {
@@ -1049,7 +1049,11 @@ test("shard C: parallel wrong codes spend at most five attempts", async () => {
   assert.equal(record?.failedAttempts, 5);
   await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, challengeId, code } }), MemberAuthError);
   await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(h.sent[0].message.text!) } }), MemberAuthError);
-  assert.equal(h.verifications(), 5, "exhausted credentials never reach verification again");
+  // The refused code still costs one verify against the dummy hash (the same timing parity a
+  // disabled address gets, member-challenge.ts); the stored code hash is never checked again.
+  const afterExhaustion = h.verifiedHashes().slice(5);
+  assert.equal(afterExhaustion.length, 1, "only the refused code's dummy verify; the token path verifies nothing");
+  assert.ok(!afterExhaustion.includes(record!.codeHash!), "exhausted credentials never reach verification again");
   assert.equal(await h.deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "attempts@example.test" }), null);
 });
 

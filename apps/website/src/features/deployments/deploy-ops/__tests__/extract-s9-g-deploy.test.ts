@@ -7,7 +7,9 @@ import { recordDeployOps, S9_SITE_KEY, S9_PLAIN } from './extract-s9-g-deploy.su
 
 test('G-deploy real-tool results, card bytes, history, and I/O counts equal the immutable pre-seam recording', async () => {
   const text = readFileSync(new URL('./fixtures/extract-s9/recordings.json', import.meta.url), 'utf8');
-  assert.equal(createHash('sha256').update(text).digest('hex'), 'b616c77f065734bdaa64a007eb507117f7ce65666eb8a98cd61afc520bbceb58');
+  // Re-pinned once (combine-6): the only change is Jini's history-failure log line gaining the error
+  // class label (log-safety); results, card bytes, history and I/O counts are byte-identical.
+  assert.equal(createHash('sha256').update(text).digest('hex'), 'b1b973eadf6e3591bcfb699e2a035161d2dbc9901e5d78d9a74589e2da3042ae');
   const actual = await recordDeployOps();
   assert.equal(JSON.stringify(actual, null, 2) + '\n', text);
   const site = parseSiteKeyHex({ raw: S9_SITE_KEY }); assert.ok(site.ok);
