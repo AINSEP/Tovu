@@ -414,6 +414,13 @@ async function isPublishLabelConflict({ error, target, input }: { error: unknown
   if (isUniqueViolation({ err: error })) return true;
   if (!(error instanceof VaultError) || error.code !== "conflict") return false;
   if (input.expectedRevision === null) return true;
+  return currentPublishLabelConflict({ target, input });
+}
+
+async function currentPublishLabelConflict({ target, input }: {
+  target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
+  input: Parameters<ReturnType<typeof vault>["put"]>[0] & { id: string };
+}): Promise<boolean> {
   if (!target.deps.repo.vault) throw new VaultError({ code: "invalid-record" });
   const current = await target.deps.repo.vault.find({ workspaceId: input.workspaceId, id: input.id });
   if (!current || current.revision !== input.expectedRevision) return false;
@@ -638,6 +645,14 @@ async function resolveFromInventory({ deps, input, registry, rows }: {
   if (!candidate || !providerId) return null;
   const provider = providerContract({ registry, providerId });
   if (!provider || !selectPublishCredential({ registry, credentials: rows, provider, id: input.id })) return null;
+  return resolveSelectedPublishCredential({ deps, input, registry, rows, candidate, providerId, provider });
+}
+
+async function resolveSelectedPublishCredential({ deps, input, registry, rows, candidate, providerId, provider }: {
+  deps: PublishCredentialResolveDeps; input: { workspaceId: UUID; id: UUID; providerId?: PublishProviderId };
+  registry: DeployTargetRegistry; rows: VaultSummary[]; candidate: VaultSummary; providerId: PublishProviderId;
+  provider: NonNullable<ReturnType<typeof providerContract>>;
+}): ReturnType<typeof resolveForPublish> {
   const resolved = await openPublishVaultRecord({ deps, input, candidate });
   if (!resolved || !selectPublishCredential({ registry, credentials: [resolved.summary], provider, id: input.id })) return null;
   const spec = registry.get(providerId)?.descriptor.credential;

@@ -408,27 +408,6 @@
       "value": 763
     },
     {
-      "file": "apps/website/src/features/deployments/publish-agent-tools.ts",
-      "function": "buildStaticPublishRegistrations#1",
-      "line": 981,
-      "rule": "max-lines-per-function",
-      "value": 155
-    },
-    {
-      "file": "apps/website/src/features/navigation/publish-content.ts",
-      "function": "menuReferenceMethods#1",
-      "line": 168,
-      "rule": "max-lines-per-function",
-      "value": 98
-    },
-    {
-      "file": "apps/website/src/features/post/publish-content.ts",
-      "function": "postRetireMethods#1",
-      "line": 425,
-      "rule": "max-lines-per-function",
-      "value": 90
-    },
-    {
       "file": "apps/website/src/features/post/tool-registrations.ts",
       "function": "buildPostRegistrations#1",
       "line": 42,
@@ -455,13 +434,6 @@
       "line": 814,
       "rule": "max-lines",
       "value": 512
-    },
-    {
-      "file": "apps/website/src/features/theme/publish-content.ts",
-      "function": "buildHandler#1",
-      "line": 609,
-      "rule": "max-lines-per-function",
-      "value": 154
     },
     {
       "file": "apps/website/src/server/inbound/admin-http/dev-auth.ts",

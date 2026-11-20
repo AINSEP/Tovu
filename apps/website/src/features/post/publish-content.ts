@@ -338,6 +338,48 @@ function packedKindMismatch({ kind, id, state }: { kind: PostKind; id: string; s
   return state.kind === kind ? null : `${kind} entity '${id}' is packed as a '${String(state.kind)}' — a ${kind} publish writes only ${kind}s`;
 }
 
+async function writePublishedPost({ kind, ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }: Parameters<Parameters<typeof createRepoPublishHandler<PostRow, PostPorts>>[0]["write"]>[0] & { kind: PostKind }) {
+      const wrongKind = packedKindMismatch({ kind, id, state });
+      if (wrongKind) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: wrongKind });
+      const { repo, outbox } = applyPorts({ ports, deps, kind });
+      const terms = await prepareTermSync({ ports: ports.term, deps, entityType: kind, entityId: id, principalId, contentType: kind, wanted: state.termIds });
+      // Terms first on rollback: Jini resolves the post to (un)assign, and a create's undo deletes it.
+      onRollback({ undo: terms.revert });
+      const imported = await importPostEntity({
+        deps: { repo, clock: deps.clock, outbox, beforeSaveHook: deps.ports.hooks?.beforeSave },
+        // The revision ledger's actor is the IMPORTING operator; the source author is on the record.
+        input: { workspaceId, record: toImportableRecord({ state, workspaceId, id, existing }), expectedVersion, actorId: principalId },
+      });
+      try {
+        await terms.apply();
+      } catch (error) {
+        // `executeCommand` compensates only a failed change-set record, never a failed `execute`, and
+        // the import above is already committed: undo it here (terms first, as on rollback) and
+        // rethrow. A revert failure must not hide the original error or skip the post's undo.
+        await terms.revert().catch((rollbackError: unknown) => console.error("[publish-content] Could not revert imported terms", describeErrorForLog({ err: rollbackError })));
+        await undoPostImport({ ports, deps, kind, workspaceId, id, prior: existing, principalId });
+        throw error;
+      }
+      return { version: imported.post.version };
+}
+
+    // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
+    // checks run before the kind check on an unfiltered read, as before the migration.
+async function validatePublishedPost({ kind, ports, workspaceId, entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<PostRow, PostPorts>>[0]["validate"]>>[0] & { kind: PostKind }) {
+      const wrongKind = packedKindMismatch({ kind, id: entity.id, state: entity.state });
+      if (wrongKind) return wrongKind;
+      const slug = entity.state.slug;
+      if (typeof slug !== "string" || slug.length === 0) return `${kind} entity '${entity.id}' has no usable slug to check for a collision`;
+      const holder = await ports.repo.findBySlug({ workspaceId, slug });
+      if (holder && holder.id !== entity.id) return addressHeldByOther({ entityType: kind, field: "slug", value: slug, holderId: holder.id });
+      const existing = await ports.repo.findById({ workspaceId, id: entity.id });
+      if (existing && isTrashed(existing)) return trashedAtDestination({ entityType: kind, id: entity.id });
+      if (existing && existing.kind !== kind) {
+        return `'${entity.id}' is a '${existing.kind}' at this destination but a '${kind}' at the source — kind is fixed at creation and cannot be changed by publishing`;
+      }
+      return null;
+}
+
 function contributePostKind(kind: PostKind): PublishContentContributor {
   return createRepoPublishHandler<PostRow, PostPorts>({
     entityType: kind, // PostKind's two values are exactly this feature's two entityTypes
@@ -366,46 +408,9 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     // Hash the established transport projection while find() retains the full compensation row.
     legacyHashState: ({ row }) => withTermIds({ state: toPublishableState(row), termIds: row.termIds }),
     references: ({ entity }) => postReferences(entity.state),
-    // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
-    // checks run before the kind check on an unfiltered read, as before the migration.
-    validate: async ({ ports, workspaceId, entity }) => {
-      const wrongKind = packedKindMismatch({ kind, id: entity.id, state: entity.state });
-      if (wrongKind) return wrongKind;
-      const slug = entity.state.slug;
-      if (typeof slug !== "string" || slug.length === 0) return `${kind} entity '${entity.id}' has no usable slug to check for a collision`;
-      const holder = await ports.repo.findBySlug({ workspaceId, slug });
-      if (holder && holder.id !== entity.id) return addressHeldByOther({ entityType: kind, field: "slug", value: slug, holderId: holder.id });
-      const existing = await ports.repo.findById({ workspaceId, id: entity.id });
-      if (existing && isTrashed(existing)) return trashedAtDestination({ entityType: kind, id: entity.id });
-      if (existing && existing.kind !== kind) {
-        return `'${entity.id}' is a '${existing.kind}' at this destination but a '${kind}' at the source — kind is fixed at creation and cannot be changed by publishing`;
-      }
-      return null;
-    },
-    write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }) => {
-      const wrongKind = packedKindMismatch({ kind, id, state });
-      if (wrongKind) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: wrongKind });
-      const { repo, outbox } = applyPorts({ ports, deps, kind });
-      const terms = await prepareTermSync({ ports: ports.term, deps, entityType: kind, entityId: id, principalId, contentType: kind, wanted: state.termIds });
-      // Terms first on rollback: Jini resolves the post to (un)assign, and a create's undo deletes it.
-      onRollback({ undo: terms.revert });
-      const imported = await importPostEntity({
-        deps: { repo, clock: deps.clock, outbox, beforeSaveHook: deps.ports.hooks?.beforeSave },
-        // The revision ledger's actor is the IMPORTING operator; the source author is on the record.
-        input: { workspaceId, record: toImportableRecord({ state, workspaceId, id, existing }), expectedVersion, actorId: principalId },
-      });
-      try {
-        await terms.apply();
-      } catch (error) {
-        // `executeCommand` compensates only a failed change-set record, never a failed `execute`, and
-        // the import above is already committed: undo it here (terms first, as on rollback) and
-        // rethrow. A revert failure must not hide the original error or skip the post's undo.
-        await terms.revert().catch((rollbackError: unknown) => console.error("[publish-content] Could not revert imported terms", describeErrorForLog({ err: rollbackError })));
-        await undoPostImport({ ports, deps, kind, workspaceId, id, prior: existing, principalId });
-        throw error;
-      }
-      return { version: imported.post.version };
-    },
+    validate: async ({ ports, workspaceId, entity }) => validatePublishedPost({ kind, ports, workspaceId, entity }),
+    write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }) =>
+      writePublishedPost({ kind, ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }),
     undo: {
       // Forward, not verbatim: see `restorePostForward`'s doc. A create's undo removes the row.
       restore: async ({ ctx: { ports, deps, workspaceId, id, principalId }, prior }, _optional = {}) => {
@@ -425,12 +430,6 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
   });
 }
 
-/** S4 (`publish-overwrite-live-plan-2026-09-24.md`): retire the live row a slug-clash overwrite replaces. */
-function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
-  const entityType = kind;
-  const postRepo = deps.ports.post?.repo;
-  const stateOf = (row: PostRecord) => packedStateOf({ termPorts: deps.ports.term, row });
-
   /**
    * S4's read half (`publish-overwrite-live-plan-2026-09-24.md` §4/§5) — reports the live row a
    * slug-clash overwrite would retire, or `null` when there is none. Never writes.
@@ -445,7 +444,10 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
    *
    * @complexity O(1) — two indexed repo reads, same as precheck.
    */
-  async function planRetire({ entity }: { entity: PackedEntity }, _optional = {}): Promise<RetireTarget | null> {
+  async function planRetire({ deps, postRepo, stateOf, entity }: {
+    deps: PublishContentDeps; postRepo: PostPorts["repo"] | undefined;
+    stateOf: (row: PostRecord) => ReturnType<typeof packedStateOf>; entity: PackedEntity;
+  }): Promise<RetireTarget | null> {
     if (!postRepo) return null;
     const slug = entity.state.slug;
     if (typeof slug !== "string" || slug.length === 0 || slug === ROOT_SLUG) return null;
@@ -489,10 +491,10 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
    *
    * @complexity O(1) plus `executeCommand`'s own cost, same as `apply()`.
    */
-  async function retire(input: {
-    target: RetireTarget;
-    principalId: string;
-    idempotencyKey: string;
+  async function retire({ deps, entityType, postRepo, stateOf, input }: {
+    deps: PublishContentDeps; entityType: PostKind; postRepo: PostPorts["repo"] | undefined;
+    stateOf: (row: PostRecord) => ReturnType<typeof packedStateOf>;
+    input: { target: RetireTarget; principalId: string; idempotencyKey: string };
   }): Promise<{ changeSetId: string; undo(): Promise<void> }> {
     const { changeSets, authorize, outbox } = deps;
     const forgetRemovedPost = deps.ports.post?.forgetRemoved;
@@ -512,11 +514,7 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
     let holder: PostRecord | null = null;
 
     const undoRetire = async () => {
-      if (!holder) return;
-      await restorePostForward({
-        deps: { repo: postRepo, clock: deps.clock, outbox, forgetRemoved: forgetRemovedPost },
-        input: { prior: holder, actorId: input.principalId },
-      });
+      await undoRetiredPost({ holder, postRepo, deps, outbox, forgetRemovedPost, input });
     };
 
     const { changeSetId } = await executeCommand({
@@ -534,6 +532,31 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
         operation: "delete",
         captureInverse: async () => {
           holder = await postRepo.findById({ workspaceId: deps.workspaceId, id: target.entityId });
+          return captureRetiredPostInverse({ holder, target, stateOf });
+        },
+        execute: () => executePostRetire({ holder, deps, postRepo, outbox, removePost, target, input }),
+        captureEntityVersion: ({ result }) => result.post.version,
+        rollback: undoRetire,
+      },
+    });
+
+    return { changeSetId, undo: undoRetire };
+  }
+async function undoRetiredPost({ holder, postRepo, deps, outbox, forgetRemovedPost, input }: {
+  holder: PostRecord | null; postRepo: PostPorts["repo"]; deps: PublishContentDeps;
+  outbox: NonNullable<PublishContentDeps["outbox"]>; forgetRemovedPost: NonNullable<PostPorts["forgetRemoved"]>;
+  input: { principalId: string };
+}) {
+      if (!holder) return;
+      await restorePostForward({
+        deps: { repo: postRepo, clock: deps.clock, outbox, forgetRemoved: forgetRemovedPost },
+        input: { prior: holder, actorId: input.principalId },
+      });
+}
+
+async function captureRetiredPostInverse({ holder, target, stateOf }: {
+  holder: PostRecord | null; target: RetireTarget; stateOf: (row: PostRecord) => ReturnType<typeof packedStateOf>;
+}) {
           if (!holder) {
             throw new PostNotFoundError(`${target.entityType} '${target.entityId}' was not found`);
           }
@@ -544,8 +567,13 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
           }
           // The slug too: a retire renames it, so a revert from history must be able to move it back.
           return { deletedAt: holder.deletedAt ?? null, slug: holder.slug };
-        },
-        execute: () => {
+}
+
+function executePostRetire({ holder, deps, postRepo, outbox, removePost, target, input }: {
+  holder: PostRecord | null; deps: PublishContentDeps; postRepo: PostPorts["repo"];
+  outbox: NonNullable<PublishContentDeps["outbox"]>; removePost: NonNullable<PostPorts["remove"]>;
+  target: RetireTarget; input: { principalId: string };
+}) {
           if (!holder) throw new Error("Publish overwrite has no captured post");
           return retirePostForReplacement({
             deps: { repo: postRepo, clock: deps.clock, outbox, remove: removePost },
@@ -557,15 +585,18 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
               actorId: input.principalId,
             },
           });
-        },
-        captureEntityVersion: ({ result }) => result.post.version,
-        rollback: undoRetire,
-      },
-    });
+}
 
-    return { changeSetId, undo: undoRetire };
-  }
-  return { planRetire, retire };
+/** S4 (`publish-overwrite-live-plan-2026-09-24.md`): retire the live row a slug-clash overwrite replaces. */
+function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
+  const entityType = kind;
+  const postRepo = deps.ports.post?.repo;
+  const stateOf = (row: PostRecord) => packedStateOf({ termPorts: deps.ports.term, row });
+
+  return {
+    planRetire: ({ entity }: { entity: PackedEntity }, _optional = {}) => planRetire({ deps, postRepo, stateOf, entity }),
+    retire: (input: Parameters<typeof retire>[0]["input"]) => retire({ deps, entityType, postRepo, stateOf, input }),
+  };
 }
 
 /**
