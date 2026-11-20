@@ -9,7 +9,7 @@ import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { loadTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { decodeFormFlashCookieValue } from "../../../http/site/form-render.js";
+import { decodeFormFlashCookieValue } from "@jini-ai/cms/forms/result-flash";
 
 test("live GET and POST share issuance: fast retries preserve text, 1000 ms admits once, static exports issue nothing", async (t) => {
   const base = createRouteDeps();

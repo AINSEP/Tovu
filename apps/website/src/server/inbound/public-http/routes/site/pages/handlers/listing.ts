@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { parseListingBatchPath, parseListingPagePath } from "@jini-ai/cms/listing";
 import type { RouteRegistrar } from "#src/server/routes/types";
-import { recordListingBatchRequest, recordListingPageRequest, listingPageRequestOf } from "../listing/listing-state.js";
+import { listingState } from "../listing/listing-state.js";
 import { tryRedirectPhase } from "../redirect-phase.js";
 
 /** Points a listing URL's request at its page (keeping any query) so the `/` and `/:slug` handlers
@@ -18,7 +18,7 @@ function rewriteToListingPage({ req, pagePath }: { req: Request; pagePath: strin
 export async function listingBatchNotFound({ req, res, next, workspaceId }: {
   req: Request; res: Response; next: NextFunction; workspaceId: string;
 }, _optional: Record<string, never> = {}): Promise<void> {
-  const numberedPage = listingPageRequestOf({ req }) !== undefined;
+  const numberedPage = listingState.listingPageRequestOf({ req }) !== undefined;
   req.url = req.originalUrl;
   try {
     if (numberedPage && (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId, res }))) return undefined;
@@ -37,7 +37,7 @@ export const registerListingRewrites: RouteRegistrar = ({ app }, _options = {}) 
   app.get(/\/_more\/[^/]+\/[^/]+\/?$/, (req, _res, next) => {
     const listingBatch = parseListingBatchPath({ path: req.path });
     if (listingBatch === undefined) return next();
-    recordListingBatchRequest({ req, listingBatch });
+    listingState.recordListingBatchRequest({ req, listingBatch });
     rewriteToListingPage({ req, pagePath: listingBatch.pagePath });
     next();
     return undefined;
@@ -48,7 +48,7 @@ export const registerListingRewrites: RouteRegistrar = ({ app }, _options = {}) 
   app.get(/\/page\/[^/]+\/?$/, (req, _res, next) => {
     const listingPage = parseListingPagePath({ path: req.path });
     if (listingPage === undefined) return next();
-    recordListingPageRequest({ req, listingPage });
+    listingState.recordListingPageRequest({ req, listingPage, requestPath: req.path });
     rewriteToListingPage({ req, pagePath: listingPage.pagePath });
     next();
     return undefined;

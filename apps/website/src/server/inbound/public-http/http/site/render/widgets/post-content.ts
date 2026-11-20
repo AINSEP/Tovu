@@ -8,7 +8,7 @@ import { escapeHtml } from "#src/platform/html/escape";
 import { renderWidgetPlaceholder } from "./placeholder.js";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { formatDateLabel } from "@jini-ai/cms/widgets/date-label";
-import { styleForAlign } from "../doc/text-layout.js";
+import { styleForAlign } from "@jini-ai/cms/html/text-layout";
 
 /**
  * Renders a resolved `data-embed-type="post"` embed (post-template-picker feature, 2026-08-10) —

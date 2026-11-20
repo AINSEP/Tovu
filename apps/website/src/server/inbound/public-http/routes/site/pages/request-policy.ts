@@ -1,5 +1,5 @@
 import type { NextFunction, Request } from "express";
-import { listingPageRequestOf } from "./listing/listing-state.js";
+import { listingState } from "./listing/listing-state.js";
 
 /**
  * Set by `features/site-export/site-exporter.ts`'s `exportFetch` on every request its crawl makes
@@ -127,5 +127,5 @@ export function resolveRequestedSlug({ req, next }: { req: Request; next: NextFu
  *  rewrite points at (A-1, 2026-10-22). Matching the rewritten path made a rule on `/old/page/3` (a
  *  WordPress import's numbered archive) never fire, and a rule on `/old` catch every `/old/page/<n>`. */
 export function redirectLookupPath({ req }: { req: Request }, _optional: Record<string, never> = {}): string {
-  return listingPageRequestOf({ req })?.requestPath ?? req.path;
+  return listingState.listingPageRequestOf({ req })?.requestPath ?? req.path;
 }

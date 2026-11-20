@@ -4,15 +4,20 @@ import { readRequestCookie } from "#src/server/http/request-cookie";
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { injectListingScript } from "@jini-ai/cms/listing";
-import { decodeFormSubmissionResultFromQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, mergeFormFlashIntoResult, FORM_FLASH_COOKIE_NAME, type FormSubmissionRedirectResult } from "../../../http/site/form-render.js";
-import { injectExtraHeadIntoStaticPage } from "../../../http/site/render/static-page-injection.js";
-import { markOffSiteLinksOpenInNewTab } from "../../../http/site/external-links.js";
-import { injectFormAttemptTokens } from "../../../http/site/form-render.js";
+import { decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-query";
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../../../http/site/form-feedback-policy.js";
+import { decodeFormFlashCookieValue, mergeFormFlashIntoResult } from "@jini-ai/cms/forms/result-flash";
+import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS } from "../../../http/site/form-wire-policy.js";
+import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms";
+import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
+import { markOffSiteLinksOpenInNewTab } from "@jini-ai/cms/presentation/html";
+import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
 import { injectMemberAuthScript } from "../../../http/site/member-auth-script.js";
 import { isHttpsRequest } from "../../../../../../platform/express/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 import type { RouteDeps } from "#src/server/routes/types";
-import { listingBatchBody, assertListingPageServed } from "./listing/listing-state.js";
+import { listingState } from "./listing/listing-state.js";
 import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTROL_PUBLIC_PAGE, CACHE_CONTROL_PRIVATE_FORM_RESULT, CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE } from "./request-policy.js";
 
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
@@ -59,7 +64,7 @@ interface PerVisitorResponse {
  * @complexity O(1) plus the bounded cost already documented on the functions it calls.
  */
 export function resolvePerVisitorResponse({ req, res }: { req: Request; res: Response }, _optional: Record<string, never> = {}): PerVisitorResponse {
-  const queryResult = decodeFormSubmissionResultFromQuery(req.query);
+  const queryResult = decodeFormSubmissionResultFromQuery({ query: req.query, keys: FORM_RESULT_QUERY_KEYS });
   const flash = decodeFormFlashCookieValue({ raw: readRequestCookie({ request: req, name: FORM_FLASH_COOKIE_NAME }) });
   if (flash) clearFormFlashCookie(req, res);
   const result = mergeFormFlashIntoResult({ result: queryResult, flash });
@@ -115,14 +120,18 @@ function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: i
 }
 
 async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Request; html: string; formResult: FormSubmissionRedirectResult | undefined; deps: RouteDeps }, _optional = {}): Promise<string> {
-  const batchBody = listingBatchBody({ req, html });
-  if (batchBody !== undefined) return batchBody;
-  assertListingPageServed({ req, html });
+  const batchBody = listingState.listingBatchBody({ req, html });
+  if (batchBody !== undefined) {
+    // Every caller has already typed the response as html; the JSON form answers as JSON.
+    if (batchBody.format === "json") req.res?.type("json");
+    return batchBody.body;
+  }
+  listingState.assertListingPageServed({ req, html });
   html = injectExtraHeadIntoStaticPage({ html, extraHead: deps.pluginExportRender?.headHtml({}) });
   addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) });
   html = injectListingScript({ html });
   if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
-  const finished = injectFormSubmissionResultIntoHtml({ html: markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), result: formResult });
+  const finished = injectFormSubmissionResultIntoHtml({ html: markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), result: formResult, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   // Member sign-in needs this server's API, which an exported file never has: its header keeps the
   // theme's plain "Sign in" link.
   if (isStaticExportRequest(req)) return finished;

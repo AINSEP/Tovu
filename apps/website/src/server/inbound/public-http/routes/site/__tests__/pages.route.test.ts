@@ -19,7 +19,7 @@ import {
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveMarketingPageOrOverride } from "../pages/handlers/marketing.js";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
-import type { PageHeadHook } from "../../../http/site/page-head.js";
+import type { PageHeadHook } from "@jini-ai/cms/seo";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
 import { unwrapRouteHandle } from "#src/server/__tests__/helpers/unwrap-route-handle";
 

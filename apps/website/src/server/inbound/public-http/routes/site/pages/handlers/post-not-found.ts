@@ -4,7 +4,7 @@ import { PostNotFoundError } from "#src/features/post/post";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { SiteRequestDeps } from "../render-context/deps.js";
-import { ListingBatchNotFoundError } from "../listing/listing-state.js";
+import { ListingBatchNotFoundError } from "@jini-ai/cms/listing/request-state";
 import { redirectLookupPath } from "../request-policy.js";
 import type { StaticMenuMap } from "../render-context/static-menus.js";
 import { tryRedirectPhase } from "../redirect-phase.js";

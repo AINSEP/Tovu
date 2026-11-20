@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
-import { isFullHtmlDocument, renderBareEntryDocument } from "../bare-page.js";
+import { isFullHtmlDocument } from "@jini-ai/cms/presentation/html";
+import { renderBareEntryDocument } from "../bare-page.js";
 
 /**
  * @file S3 (`no-template-bare-plan-2026-09-23.md`) — certifies `bare-page.ts`, the renderer for a
@@ -223,4 +224,12 @@ test('managed bare fragments construct generic asset slots without changing thei
 test('authored full documents stay byte-identical even when a host supplies generic assets', () => {
   const body = '<!doctype html><html><head><title>Owner</title></head><body>Unchanged</body></html>';
   assert.equal(renderBareEntryDocument({ post: htmlPage({ bodyHtml: body }), siteTitle: 'Assets', documentAssets: { head: '<meta name="host">', body: '<a data-consent-open>Settings</a>' } }), body);
+});
+
+test('authored BOM and comment bypass host assets and the folded title', () => {
+  const body = '\uFEFF<!-- author -->\n<!doctype html><html><head><title>Own</title></head><body>x</body></html>';
+  assert.equal(renderBareEntryDocument({
+    post: htmlPage({ bodyHtml: body }), siteTitle: 'Host', extraHead: '<title>Fold</title>',
+    documentAssets: { head: '<!-- host head -->', body: '<!-- host body -->' },
+  }), body);
 });

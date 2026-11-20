@@ -11,7 +11,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { FormSchemaChangedError, FormAttachmentSpaceError, FormRateLimitExceededError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { formSubmissionAttemptsFor, submitForm } from "#src/features/forms/index";
-import { injectFormAttemptTokens } from "../../inbound/public-http/http/site/form-render.js";
+import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
 import type { VisitorAnalyticsDeps } from "../../inbound/public-http/visitor-analytics.js";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -19,7 +19,8 @@ import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
-import { decodeFormFlashCookieValue, FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/form-render.js";
+import { decodeFormFlashCookieValue } from "@jini-ai/cms/forms/result-flash";
+import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/form-wire-policy.js";
 
 /**
  * @file Route-level tests for the public `POST /forms/:slug/submit` endpoint (SPEC-010 REQ-05/07,

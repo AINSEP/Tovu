@@ -670,7 +670,7 @@ export interface SettingsDeps {
   /** Host policy/ports for the sole Jini SEO evaluator; shared by routes, tools and head. */
   seoDeps: SeoHostBindings;
   /** Extra head contributors belong to this app; the SEO contributor is constructed per render. */
-  pageHeadContributors?: readonly import("../inbound/public-http/http/site/page-head.js").PageHeadHook[];
+  pageHeadContributors?: readonly import("@jini-ai/cms/seo").PageHeadHook[];
   /** Per composed app, workspace-keyed cache/hooks/expiry; all invalidators use this instance. */
   sitemapService: ReturnType<typeof createSitemapService>;
   /**

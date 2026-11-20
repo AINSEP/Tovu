@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
 
-import { injectFormSubmissionResultIntoHtml } from "../form-render.js";
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
 import { renderHtmlPageBody } from "../render/page-body.js";
 import { renderWidgetRegion, renderWidgetIr } from "../render/content-html.js";
 import type { SiteRenderContext } from "../render-context.js";
@@ -42,7 +43,7 @@ test("a successful contact form is hidden by the emitted stylesheet in a browser
     await page.setContent(formHtml());
     const form = page.locator("form.tovu-form");
     assert.equal(await form.isVisible(), true);
-    await page.setContent(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: { kind: "success", slug: "contact" } }));
+    await page.setContent(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }));
     assert.equal(await form.getAttribute("hidden"), "");
     assert.equal(await form.evaluate((el) => getComputedStyle(el).display), "none");
     assert.equal(await form.isVisible(), false);
@@ -60,13 +61,13 @@ test("contact form fallback error and success colors apply in both modes without
       const document = (body: string) => `<html data-theme="${mode}"><body>${body}</body></html>`;
       await page.setContent(document(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: {
         kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "Required" }],
-      } })));
+      }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK })));
       for (const selector of [".tovu-form-error", ".widget-form-field-error"]) {
         const error = page.locator(selector);
         assert.equal(await error.isVisible(), true);
         assert.equal(await error.evaluate((el) => getComputedStyle(el).color), danger, `${mode}: ${selector}`);
       }
-      await page.setContent(document(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: { kind: "success", slug: "contact" } })));
+      await page.setContent(document(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK })));
       const message = page.locator(".tovu-form-success");
       assert.equal(await message.isVisible(), true);
       assert.equal(await message.evaluate((el) => getComputedStyle(el).color), success, mode);

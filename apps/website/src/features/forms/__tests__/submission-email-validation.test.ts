@@ -1,7 +1,7 @@
 /** Localized visitor copy stays with Tovu; email validation tests live in Jini. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formValidationMessages } from "#src/server/inbound/public-http/http/site/form-validation-message";
+import { formValidationMessages } from "#src/server/inbound/public-http/http/site/form-feedback-policy";
 
 test("15b invalid_email uses the existing localized, exact visitor copy", () => {
   const formHtml = '<form><input type="email" name="email" aria-label="Email"></form>';

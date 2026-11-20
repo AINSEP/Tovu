@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { markOffSiteLinksOpenInNewTab } from "../external-links.js";
+import { markOffSiteLinksOpenInNewTab } from "@jini-ai/cms/presentation/html";
 
 /**
  * @file Owner rule (2026-09-24): every off-site `<a href>` a public page renders should open in a

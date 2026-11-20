@@ -2,7 +2,7 @@ import { seoForRequest } from "../../../../http/site/seo-render-context.js";
 import type { Request } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { TemplateRenderDeps } from "../render-context/deps.js";
-import { listingBatchRequestOf, listingPageRequestOf } from "./listing-state.js";
+import { listingState } from "./listing-state.js";
 import { isStaticExportRequest } from "../request-policy.js";
 
 /** One port/stylesheet collector per request, including nested template renders. */
@@ -14,8 +14,8 @@ function pluginExportSession({ deps, req }: { deps: RouteDeps; req: Request }, _
 /** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
 export function withListingBatch<T extends RouteDeps>({ deps, req }: { deps: T; req: Request }, _optional: Record<string, never> = {}): T & Pick<TemplateRenderDeps, "listingBatch" | "listingPage"> {
   deps = { ...deps, seoDeps: seoForRequest({ req, deps: deps.seoDeps }) };
-  const listingBatch = listingBatchRequestOf({ req });
-  const listingPage = listingPageRequestOf({ req })?.page;
+  const listingBatch = listingState.listingBatchRequestOf({ req });
+  const listingPage = listingState.listingPageRequestOf({ req })?.page;
   const pluginExportRender = pluginExportSession({ deps, req });
   const declaredScripts: import('@jini-ai/cookie-consent').DeclaredScript[] = [];
   const renderAssets = req.res?.locals?.siteConsentAssets as RouteDeps['documentAssets'];

@@ -12,10 +12,8 @@ import { renderWidgetIr } from "../render/content-html.js";
 import {
   pageShell,
 } from "../render/document-shell.js";
-import {
-  injectExtraHeadIntoStaticPage,
-  injectSiteAssistantIntoStaticPage,
-} from "../render/static-page-injection.js";
+import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
+import { injectSiteAssistantIntoStaticPage } from "../render/site-assistant-mount.js";
 import { useSiteChatBuild } from "./site-chat.fixture.js";
 
 // ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@ import type { PublicPostRecord as PostRecord } from "#src/features/post/contract
 import { listPublishedPostPreviews } from "#src/features/post/post-read";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 // Keep request rendering separate from theme installation, imports, and agent tools.
-import { postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPreview, type StaticListingBatch, type StaticPostPreviewsPage } from "#src/features/theme/index";
+import { postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPreview, type StaticFeaturedImage, type StaticListingBatch, type StaticPostPreviewsPage } from "#src/features/theme/index";
 import { markersOfType, POST_PREVIEWS_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, listingBatchPath, listingKeyOfAttributes, readListingBatch, readListingPage, renderListingPageNav, type ListingSource } from "@jini-ai/cms/listing";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
@@ -12,9 +12,49 @@ import { featuredImageView } from "../../../../http/site/render/template-render-
 import type { RouteDeps } from "#src/server/routes/types";
 import type { TemplateRenderDeps } from "./deps.js";
 import { siteTimeZoneDep } from "./site-title.js";
-import { type KeyedPostPreviewBatch, storeListingJsonPage, ListingBatchNotFoundError } from "../listing/listing-state.js";
+import { listingState } from "../listing/listing-state.js";
+import { ListingBatchNotFoundError } from "@jini-ai/cms/listing/request-state";
+import { postAuthorForDisplay } from "#src/contracts/core/post-author";
+import { deriveExcerpt, extractPlainTextFromHtml } from "@jini-ai/cms/seo";
+import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
+import { resolveAssignedTermsForRender } from "./taxonomy.js";
 import { decidePostMemberAccess } from "./member-access.js";
 import { resolveMediaTransformVersionsForRender, resolveMediaAssetMetadataForRender } from "./media-metadata.js";
+
+/** One see-more listing's visible posts, the cursor of its next batch (`null` when none), and that
+ *  batch's URL. */
+export interface KeyedPostPreviewBatch { posts: readonly PostRecord[]; next: number | null; nextHref?: string }
+
+/** One post as a see-more JSON batch item: public fields only, the same ones its card shows plus the
+ *  excerpt, term names and a byline the post shows. */
+interface ListingJsonItem {
+  readonly title: string;
+  readonly href: string;
+  readonly date: string;
+  readonly dateLabel: string;
+  readonly excerpt?: string;
+  readonly cover: StaticFeaturedImage | null;
+  readonly terms: readonly string[];
+  readonly author?: string;
+}
+
+function toListingJsonItem(
+  { post, preview, terms }: { post: PostRecord; preview: StaticPostPreview; terms: readonly AssignedTermView[] },
+  _optional: Record<string, never> = {}
+): ListingJsonItem {
+  const excerpt = deriveExcerpt({ post, postRepo: { extractPlainText: ({ html }) => extractPlainTextFromHtml({ html }) } });
+  const author = postAuthorForDisplay({ post });
+  return {
+    title: preview.title,
+    href: preview.href,
+    date: preview.dateIso,
+    dateLabel: preview.dateLabel,
+    ...(excerpt !== undefined ? { excerpt } : {}),
+    cover: preview.featuredImage ?? null,
+    terms: terms.map((term) => term.termName),
+    ...(author !== null ? { author } : {}),
+  };
+}
 
 /** Pure display formatting for a post-previews card's date — the one place this file turns
  *  the post's display date ({@link postDisplayDateIso}: `publishAt` when set, else `updatedAt`) into
@@ -79,7 +119,9 @@ export async function resolvePostPreviewsForRender({ deps, memberAccessResolver,
   };
   const batches = new Map<number, StaticListingBatch<StaticPostPreview>>();
   for (const [key, batch] of keyed) batches.set(key, { items: batch.posts.map(toPreview), ...(batch.nextHref !== undefined ? { nextHref: batch.nextHref } : {}) });
-  await storeListingJsonPage({ deps, keyed, toPreview });
+  /** For a `.json` see-more request, records that listing's batch as JSON items for
+   *  `finalizePublicPageHtml` to send; a no-op for every other request. */
+  await listingState.storeListingJsonPage({ listingBatch: deps.listingBatch, keyed, toItem: async ({ post }) => toListingJsonItem({ post, preview: toPreview(post), terms: await resolveAssignedTermsForRender({ deps, post }) }) });
   const page = paged && { items: paged.posts.map(toPreview), nav: paged.nav };
   return { previews: plain.map(toPreview), batches, ...(page ? { page } : {}) };
 }

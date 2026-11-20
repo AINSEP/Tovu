@@ -14,7 +14,7 @@ import { renderSite } from "../../../../http/site/render-site.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 import type { SiteRequestDeps, PostPreviewsAccess } from "../render-context/deps.js";
 import { resolveSiteTitleForRender, resolveSiteTimeZoneForRender } from "../render-context/site-title.js";
-import { ListingBatchNotFoundError } from "../listing/listing-state.js";
+import { ListingBatchNotFoundError } from "@jini-ai/cms/listing/request-state";
 import { redirectLookupPath } from "../request-policy.js";
 import { withListingBatch } from "../listing/listing-batch.js";
 import { resolveMemberContextForRequest, decidePostMemberAccess, filterVisiblePosts } from "../render-context/member-access.js";

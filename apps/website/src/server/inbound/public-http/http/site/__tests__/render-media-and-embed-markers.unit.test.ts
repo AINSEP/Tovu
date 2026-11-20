@@ -57,6 +57,12 @@ test("managed document media, markers and nested post content emit the current c
   assert.match(nested, /src="\/m\/cover\/public\.v3\/image\.jpg\?v=0123456789ab"/);
 });
 
+test("media-image IR: marker loading wins over asset loading with the current SHA", () => {
+  assert.equal(MEDIA_IR({ assetId: "a1", sha256: "0123456789abcdef".repeat(4), transformName: "public", version: 3,
+    htmlAttributes: 'loading="lazy"', markerAttributes: [{ name: "loading", value: "eager" }] }),
+  '<img src="/m/a1/public.v3/image.jpg?v=0123456789ab" alt="" loading="eager">');
+});
+
 test("image src: a non-string src renders the image placeholder", () => {
   assert.equal(IMG({ src: 7, alt: "Seven" }), "<figure class=\"media-ph\" style=\"aspect-ratio:16 / 9\"><span class=\"media-ph__label\">Seven</span></figure>");
 });

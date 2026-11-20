@@ -1084,3 +1084,20 @@ test("drift guard: the actual editor schema's node and mark vocabulary has contr
   const missing = [...Object.keys(schema.nodes), ...Object.keys(schema.marks)].filter((type) => !covered.has(type));
   assert.deepEqual(missing, [], `actual editor type(s) without a renderer contract: ${missing.join(", ")}`);
 });
+
+test("mark order and canonical href policy survive the shared renderer", () => {
+  assert.equal(renderDocNode({ node: { type: "text", text: "<x>", marks: [
+    { type: "bold" }, { type: "link", attrs: { href: "javascript:alert(1)" } }, { type: "italic" },
+  ] } }), '<em><a href="#"><strong>&lt;x&gt;</strong></a></em>');
+});
+
+test("a rejected sibling style preserves an escaped quoted font and valid color", () => {
+  assert.equal(renderDocNode({ node: { type: "text", text: "x", marks: [
+    { type: "textStyle", attrs: { color: "red", backgroundColor: "red;display:none", fontFamily: '"Courier New", monospace' } },
+  ] } }), '<span style="color:red;font-family:&quot;Courier New&quot;, monospace">x</span>');
+});
+
+test("code language rejects whitespace inside the token", () => {
+  assert.equal(renderDocNode({ node: { type: "codeBlock", attrs: { language: "ts injected" },
+    content: [{ type: "text", text: "x" }] } }), '<pre><code>x</code></pre>');
+});

@@ -3,7 +3,8 @@ import { agentHandleSegment } from '@jini-ai/core/agent-handles';
 import { markersOfType, MENU_MARKER_TYPE, substituteMarkers, withElementKeptIfAttributed, withInnerContent, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { renderMenuToggle } from "@jini-ai/cms/navigation/dropdown";
-import { menuLinkRelAttr, renderHtmlMenu } from "#src/platform/html/menu-render";
+import { renderHtmlMenu } from "#src/platform/html/menu-render";
+import { menuLinkRelAttr } from "@jini-ai/cms/navigation/menu-render";
 import { escapeHtml } from "#src/platform/html/escape";
 import type { DiscoveredTheme } from "./theme.js";
 

@@ -115,13 +115,13 @@ test("pages_read_html gives a doc page's own text and widget back as editable HT
   const { repo, call } = readerHarness({}, { docBodyAsPageHtml: renderDocBodyAsPageHtml });
   const bodyJson: JsonObject = { type: "doc", content: [
     { type: "paragraph", content: [{ type: "text", text: "Have a question?" }] },
-    { type: "widgetEmbed", attrs: { placementId: "place-1", widgetEntryId: "form-1" } },
+    { type: "widgetEmbed", attrs: { placementId: "place-1", widgetEntryId: "form-1", content: { note: "it's" } } },
   ] };
   await createPost({ deps: { repo, clock }, input: { workspaceId, id: "contact", slug: "contact", title: "Contact", kind: "page", bodyJson } });
   const before = structuredClone(await repo.findById({ workspaceId, id: "contact" }));
   const result = await call({ slug: "contact" }) as PageRead & { note?: string };
   assert.match(result.html, /<p>Have a question\?<\/p>/);
-  assert.match(result.html, /<div data-embed-config='\{"type":"widget","id":"form-1"\}'><\/div>/);
+  assert.match(result.html, /<div data-embed-config='\{"type":"widget","id":"form-1","content":\{"note":"it\\u0027s"\}\}'><\/div>/);
   assert.equal(result.hasDocContent, true);
   assert.match(String(result.note), /Keep what is there/);
   assert.deepEqual(await repo.findById({ workspaceId, id: "contact" }), before);

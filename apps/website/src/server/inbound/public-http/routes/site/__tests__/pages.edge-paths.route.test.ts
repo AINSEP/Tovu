@@ -27,7 +27,8 @@ import { registerSiteRoutes } from "../pages.js";
 import { resolveMarketingPageOrOverride } from "../pages/handlers/marketing.js";
 import { finishStaticTierDocument } from "../pages/static-tier.js";
 import { resolveStaticMenusForRender } from "../pages/render-context/static-menus.js";
-import { resolveHtmlFormatContentMarkers } from "../pages/render-context/content-markers.js";
+import { resolveHtmlFormatContentMarkers } from "@jini-ai/cms/widgets/content-markers";
+import { contentMarkerPorts } from "../pages/render-context/content-marker-ports.js";
 import { placeAfterCurrentContent } from "../pages/render-context/taxonomy.js";
 
 type Deps = ReturnType<typeof createRouteDeps>;
@@ -146,8 +147,8 @@ function contentMarkerDeps(rows: PostRecord[]) {
 
 test("content marker: an html-format entity whose bodyHtml is null resolves exactly like an empty body", async () => {
   const marker = `<main data-embed-config='{"type":"content","id":"html-entity"}'>fallback</main>`;
-  const nullBody = await resolveHtmlFormatContentMarkers({ deps: contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: null })]), html: marker, depth: 0, budget: { remaining: 5 } });
-  const emptyBody = await resolveHtmlFormatContentMarkers({ deps: contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: "" })]), html: marker, depth: 0, budget: { remaining: 5 } });
+  const nullBody = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: null })]) }), html: marker, depth: 0, budget: { remaining: 5 } });
+  const emptyBody = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: "" })]) }), html: marker, depth: 0, budget: { remaining: 5 } });
 
   assert.notEqual(nullBody, marker, "the marker resolved rather than staying as written");
   assert.equal(nullBody, emptyBody);
@@ -158,7 +159,7 @@ test("content marker: a marker naming neither id nor slug stays as written while
   const html = `<main data-embed-config='{"type":"content","id":"html-entity"}'>fallback</main>${keyless}`;
   const deps = contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: "<p>Resolved body</p>" })]);
 
-  const result = await resolveHtmlFormatContentMarkers({ deps, html, depth: 0, budget: { remaining: 5 } });
+  const result = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps }), html, depth: 0, budget: { remaining: 5 } });
 
   assert.match(result, /<p>Resolved body<\/p>/);
   assert.ok(result.endsWith(keyless), `expected the keyless marker untouched, got ${result}`);

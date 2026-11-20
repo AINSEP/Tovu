@@ -3,7 +3,7 @@ import type { Express } from "express";
 
 import { sniffContentType, readChatAttachmentForOwner } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
+import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import {
   DISALLOWED_INLINE_CONTENT_TYPES,
   sendMediaOriginalResponse,

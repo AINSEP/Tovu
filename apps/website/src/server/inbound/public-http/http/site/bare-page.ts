@@ -1,8 +1,8 @@
+import { renderBareDocument } from "@jini-ai/cms/presentation/document-shell";
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { PostRecord } from "#src/features/post/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { escapeHtml } from "#src/platform/html/escape";
 import type { MediaAssetRenderMeta } from "./render-context.js";
 import { renderHtmlPageBody } from "./render/page-body.js";
 import { renderDocNode } from "./render/content-html.js";
@@ -31,59 +31,6 @@ const EMPTY_MEDIA_TRANSFORM_VERSIONS: ReadonlyMap<string, number> = new Map();
 /** {@link renderBareEntryDocument}'s own empty default for `mediaAssetMetadata` — see
  *  {@link EMPTY_INLINE_RESOLVED}'s doc for why this is a local copy, not an import. */
 const EMPTY_MEDIA_ASSET_METADATA: ReadonlyMap<string, MediaAssetRenderMeta> = new Map();
-
-/**
- * True when `html`, after stripping a leading BOM and any run of leading whitespace/HTML comments,
- * starts with `<!doctype html` or an `<html` tag (case-insensitive). An `"html"`-format Page body
- * that matches this is a COMPLETE document the author wrote their own `<head>` for — not a fragment
- * {@link renderBareEntryDocument} should wrap. Only the PREFIX is inspected (never a scan for a
- * `<html>` tag anywhere in the string), so an ordinary fragment that merely mentions "doctype" or
- * "<html>" later in its body — e.g. in a code sample — never false-positives into passthrough.
- *
- * Exported for direct unit coverage of the detection rule without constructing a full
- * {@link renderBareEntryDocument} call for every prefix variant (BOM, comment, case).
- *
- * @complexity O(n) over `html`'s length — one linear scan stripping alternating whitespace/comment
- * runs, each consumed exactly once, plus one bounded regex test against the remaining prefix.
- */
-export function isFullHtmlDocument({ html }: { html: string }, _optional = {}): boolean {
-  let rest = html.charCodeAt(0) === 0xfeff ? html.slice(1) : html;
-  for (;;) {
-    const withoutLeadingSpace = rest.replace(/^\s+/, "");
-    const comment = /^<!--[\s\S]*?-->/.exec(withoutLeadingSpace);
-    if (!comment) {
-      rest = withoutLeadingSpace;
-      break;
-    }
-    rest = withoutLeadingSpace.slice(comment[0].length);
-  }
-  return /^<!doctype html/i.test(rest) || /^<html[\s>]/i.test(rest);
-}
-
-/**
- * Wraps a fragment body in the minimal valid document a bare Page gets: doctype, charset, viewport,
- * an escaped `<title>`, and `extraHead` verbatim. The `<title>` is suppressed when `extraHead`
- * already carries one — the SEO fold's own priority-100 title element (`page-head-contributor.ts`) —
- * same suppression rule `pageShell` applies in `render.ts` (`extraHead?.includes("<title>")`), so a
- * bare page never ships two competing `<title>` tags.
- *
- * Deliberately absent, versus `pageShell`: `BASE_STYLE`, any theme font link/style, `data-theme`, the
- * `<div class="site">` wrapper, and the site-assistant widget's head/body markup. Bare means only the
- * page's own authored HTML plus the same SEO fold and explicit host asset slots — nothing else Tovu's theme
- * layer would otherwise contribute (owner ruling, plan §3).
- *
- * @complexity O(1) beyond the linear cost of concatenating its own inputs.
- */
-function wrapBareFragment(required: { title: string; extraHead: string | undefined; body: string; documentAssets?: DocumentAssets }): string {
-  const assets = required.documentAssets ?? { head: "", body: "" };
-  const foldHasTitle = required.extraHead?.includes("<title>") ?? false;
-  const titleTag = foldHasTitle ? "" : `<title>${escapeHtml({ text: required.title })}</title>`;
-  return (
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"/>` +
-    `<meta name="viewport" content="width=device-width, initial-scale=1"/>${titleTag}${required.extraHead ?? ""}${assets.head}` +
-    `</head><body>${required.body}${assets.body}</body></html>`
-  );
-}
 
 /** {@link renderBareEntryDocument}'s required input. Every optional field defaults exactly the way
  *  `render.ts`'s `buildSiteRenderContext` already defaults the same fields for `renderSite`, so a
@@ -138,8 +85,7 @@ export function renderBareEntryDocument(required: RenderBareEntryDocumentRequire
   if (post.bodyFormat === "html") {
     const rawBodyHtml = post.bodyHtml ?? "";
     const resolvedBody = renderHtmlPageBody({ html: rawBodyHtml, resolved: required.pageHtmlEmbeds });
-    if (isFullHtmlDocument({ html: rawBodyHtml })) return resolvedBody;
-    return wrapBareFragment({ title, extraHead: required.extraHead, body: resolvedBody, documentAssets: required.documentAssets });
+    return renderBareDocument({ title, body: resolvedBody }, { authoredHtml: rawBodyHtml, extraHead: required.extraHead, documentAssets: required.documentAssets });
   }
   const body = renderDocNode(
     { node: post.bodyJson },
@@ -149,5 +95,5 @@ export function renderBareEntryDocument(required: RenderBareEntryDocumentRequire
       mediaAssetMetadata: required.mediaAssetMetadata ?? EMPTY_MEDIA_ASSET_METADATA,
     },
   );
-  return wrapBareFragment({ title, extraHead: required.extraHead, body, documentAssets: required.documentAssets });
+  return renderBareDocument({ title, body }, { extraHead: required.extraHead, documentAssets: required.documentAssets });
 }

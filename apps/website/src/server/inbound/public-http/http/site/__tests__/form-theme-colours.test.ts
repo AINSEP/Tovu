@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { FORM_BASELINE_STYLE } from "../form-render.js";
+import { FORM_BASELINE_STYLE } from "../form-presentation-assets.js";
 
 /**
  * Regression (owner, 2026-10-05, /lets-talk-demo): "color scheme is awful". Every embedded form's

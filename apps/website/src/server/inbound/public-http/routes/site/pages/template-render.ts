@@ -16,11 +16,13 @@ import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { postPublicPath } from "#src/platform/routing/index";
 import { renderAssignedTermsBlock } from "../../../http/site/render/post-body.js";
 import { renderHtmlPageBody } from "../../../http/site/render/page-body.js";
-import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "../../../http/site/render/static-page-injection.js";
+import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
+import { injectSiteAssistantIntoStaticPage } from "../../../http/site/render/site-assistant-mount.js";
 import type { TemplateRenderDeps } from "./render-context/deps.js";
 import { resolveAssignedTermsForRender, placeAfterCurrentContent } from "./render-context/taxonomy.js";
 import { htmlEmbedHostDeps } from "./render-context/site-title.js";
-import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "./render-context/content-markers.js";
+import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "@jini-ai/cms/widgets/content-markers";
+import { contentMarkerPorts } from "./render-context/content-marker-ports.js";
 import type { StaticMenuMap } from "./render-context/static-menus.js";
 import { resolveFeaturedImageForRender } from "./render-context/media-metadata.js";
 import { finishStaticTierDocument, staticThemeScripts } from "./static-tier.js";
@@ -170,7 +172,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
     post,
     block: renderAssignedTermsBlock(await resolveAssignedTermsForRender({ deps, post })),
   });
-  const withNestedContent = await resolveHtmlFormatContentMarkers({ deps, html: withTerms, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined });
+  const withNestedContent = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps }), html: withTerms, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined });
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
       entryRepo: deps.entryRepo,

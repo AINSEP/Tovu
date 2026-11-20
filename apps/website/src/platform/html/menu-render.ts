@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { menuLinkRelAttr } from "@jini-ai/cms/navigation/menu-render";
 import { escapeHtml } from "#src/platform/html/escape";
 
 /** JINI CANDIDATE: framework-free rendering; the host supplies its URL policy as a port. */
@@ -44,19 +45,6 @@ function renderLabel({ label, attrs }: { label: string; attrs: MenuAttrs }): str
   const icon = attrs.icon ? `<span data-tovu-menu-icon="${escapeHtml({ text: attrs.icon })}"></span>` : "";
   const description = attrs.description ? `<span data-tovu-menu-description>${escapeHtml({ text: attrs.description })}</span>` : "";
   return `${icon}${escapeHtml({ text: label })}${description}`;
-}
-
-/**
- * The escaped ` rel="…"` attribute for a menu `<a>`, or `""`. A new-tab link always gets
- * `noopener noreferrer`, even when the item never went through Jini's resolver (which also drops
- * non-standard tokens — `@jini-ai/cms` `navigation/link-rel.ts`). Shared by every Tovu menu
- * renderer (this file, `static-render.ts`, the widget menu in `site/render.ts`) so none of them
- * can ship `target="_blank"` without it again (bug 11-02 o4). O(length of rel).
- */
-export function menuLinkRelAttr({ rel, openInNewTab }: { rel?: string | undefined; openInNewTab?: boolean | undefined }, _optional = {}): string {
-  const relTokens = new Set((rel ?? "").split(/\s+/).filter(Boolean));
-  if (openInNewTab) { relTokens.add("noopener"); relTokens.add("noreferrer"); }
-  return relTokens.size ? ` rel="${escapeHtml({ text: [...relTokens].join(" ") })}"` : "";
 }
 
 function renderAnchor({ item, attrs, href, toolName, label }: {

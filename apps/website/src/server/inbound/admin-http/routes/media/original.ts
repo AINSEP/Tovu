@@ -4,7 +4,7 @@ import type { Request, Response } from "express";
 
 import { findMediaByIdOrSlug, sanitizeSvg, sniffContentType, type MediaRecord } from "@jini-ai/cms/media";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { parseRangeHeader, type ParsedRange } from "#src/server/inbound/admin-http/range";
+import { parseRangeHeader, type ParsedRange } from "@jini-ai/http-kit/range";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
 import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -60,7 +60,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  *    distinction is only ever visible to an already-authorized principal.
  *
  * RANGE SUPPORT: `Range: bytes=...` is honored via `parseRangeHeader`
- * (`apps/website/src/server/inbound/admin-http/range.ts`) so a `<video>` tag can seek instead of buffering the whole
+ * (`@jini-ai/http-kit/range`) so a `<video>` tag can seek instead of buffering the whole
  * file — see that module's doc comment for the exact malformed/multi-range/
  * out-of-bounds handling this defers to.
  */
