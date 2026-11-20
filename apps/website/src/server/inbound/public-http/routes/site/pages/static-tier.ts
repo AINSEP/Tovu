@@ -8,7 +8,8 @@ import type { MemberContext, MemberAccessResolver } from "#src/features/members/
 import { renderStaticPage } from "#src/features/theme/static-render";
 import { type StaticFeaturedImage } from "#src/features/theme/static-render-content";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
-import { expandPartials } from "../../../../../../contracts/core/expand-partials.js";
+import { expandPartials } from "@jini-ai/cms/widgets/markers";
+import { DEFAULT_THEME_SLOTS } from "../../../../../../contracts/core/theme-slots.js";
 import { markersOfType, MENU_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
 import { assignListingKeys } from "@jini-ai/cms/listing";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
@@ -110,7 +111,7 @@ interface StaticTierDocumentInput {
 
 /** Steps 1–2 of {@link finishStaticTierDocument}: partials expanded, embeds resolved, listing keys assigned. */
 async function prepareStaticTierHtml({ deps, theme, html, postAuthor }: { deps: TemplateRenderDeps } & Pick<StaticTierDocumentInput, "theme" | "html" | "postAuthor">, _optional: Record<string, never> = {}): Promise<string> {
-  const expanded = expandPartials({ html: html, theme: theme });
+  const expanded = expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: theme });
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
       entryRepo: deps.entryRepo,
