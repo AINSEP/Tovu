@@ -3,13 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import {
   bundledAgentPluginsRoot,
   defaultNewSiteAgentPluginTokenCheck,
-  readAllStdin,
   runTokenSignInPluginsCommand,
 } from "../../commands/agent-plugin-tokens.js";
 import { listNewSiteAgentPluginTokenSignInPlugins } from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
@@ -21,14 +19,6 @@ import { listNewSiteAgentPluginTokenSignInPlugins } from "#src/features/agent-pl
 
 test("the CLI and server share the bundled plugin source root", () => {
   assert.equal(bundledAgentPluginsRoot(), bundledAgentPluginsDir());
-});
-
-test("readAllStdin returns every chunk of the stream as one UTF-8 string", async () => {
-  const input = new PassThrough();
-  const reading = readAllStdin({ input });
-  input.write('{"supa');
-  input.end(Buffer.from('base":"tok-é"}'));
-  assert.equal(await reading, '{"supabase":"tok-é"}');
 });
 
 test("the default token check refuses a plugin the bundled root does not provide, without probing", async () => {

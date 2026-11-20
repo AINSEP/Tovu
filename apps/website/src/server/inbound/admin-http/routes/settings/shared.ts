@@ -26,8 +26,6 @@ import {
 } from "@jini-ai/core/settings";
 import { respondToSettingsError as respondToCmsSettingsError, type SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 
-export type { TargetWorkspaceResolution, UserLayerReadTarget } from "@jini-ai/core/settings";
-export type { SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 import type { SettingsRouteDeps } from "./deps.js";
 
 /**

@@ -1,3 +1,4 @@
+import type { SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 import {
   DefinitionNotFoundError,
   DefinitionTombstonedError,
@@ -8,7 +9,7 @@ import {
   deriveRequiredPermission,
 } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, createTovuSettingsService, type SettingsErrorMapping, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { resolveTargetWorkspaceId, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 

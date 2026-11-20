@@ -1,3 +1,4 @@
+import { readStdinOrRefuse } from "./stdin-input.js";
 import { bundledAgentPluginsDir } from "../../server/runtime/composition/site-paths.js";
 import { composePluginCredentials } from "../../server/runtime/composition/agent-plugin-service-ports.js";
 import { ValidationError } from "../../platform/site-dir/index.js";
@@ -32,18 +33,11 @@ function writeStdout({ message }: { message: string }, _optional = {}): void {
   process.stdout.write(message);
 }
 
-/** All of stdin (or the injected stream) as text. */
-export async function readAllStdin({ input = process.stdin }: { input?: NodeJS.ReadableStream } = {}): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of input) chunks.push(Buffer.from(chunk as Buffer));
-  return Buffer.concat(chunks).toString("utf8");
-}
-
 /**
  * The `{ [pluginId]: token }` JSON object read from stdin, validated by the create route's rules.
  * @throws {ValidationError} Not JSON, or not that shape. The message never carries a token.
  */
-export async function readNewSiteAgentPluginTokensFromStdin(_required: Record<string, never>, { read = readAllStdin }: { read?: () => Promise<string> } = {}): Promise<Record<string, string>> {
+export async function readNewSiteAgentPluginTokensFromStdin(_required: Record<string, never>, { read = () => readStdinOrRefuse({}, { flag: "--agent-plugin-tokens-stdin" }) }: { read?: () => Promise<string> } = {}): Promise<Record<string, string>> {
   let raw: unknown;
   try {
     raw = JSON.parse(await read());
