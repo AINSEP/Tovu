@@ -10,6 +10,7 @@
  * move drops that site's pin or hide.
  */
 import { useCallback, useState } from 'react';
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { DEFAULT_SITE_LIST_PREFS, parseSiteListPrefs, type SiteListPrefs } from '@jini-ai/ui/site-card';
 
 export const SITE_LIST_STORAGE_KEY = 'tovu-runner.site-list';
@@ -32,22 +33,19 @@ const windowStorage: SiteListStorage = {
  * @returns Valid preferences. @complexity O(n) stored ids.
  */
 export function readSiteListPrefs({ storage }: { storage: SiteListStorage }, _options = {}): SiteListPrefs {
-  try {
+  return orFallbackSync({ work: () => {
     const stored = storage.getItem({ key: SITE_LIST_STORAGE_KEY });
     return stored === null ? DEFAULT_SITE_LIST_PREFS : parseSiteListPrefs({ stored: JSON.parse(stored) });
-  } catch {
-    return DEFAULT_SITE_LIST_PREFS;
-  }
+  }, fallback: DEFAULT_SITE_LIST_PREFS, step: 'Read desktop site list preferences' });
 }
 
 /** Saves the choices. A denied store keeps them for this session only: they are still on screen, and
  *  nothing the person can do here would fix storage. @complexity O(n) stored ids. */
 export function writeSiteListPrefs({ storage, prefs }: { storage: SiteListStorage; prefs: SiteListPrefs }, _options = {}): void {
-  try {
+  // See this function's doc: session-only is the honest fallback.
+  orFallbackSync({ work: () => {
     storage.setItem({ key: SITE_LIST_STORAGE_KEY, value: JSON.stringify(prefs) });
-  } catch {
-    // See this function's doc: session-only is the honest fallback.
-  }
+  }, fallback: undefined, step: 'Save desktop site list preferences' });
 }
 
 export interface SiteListPrefsState {

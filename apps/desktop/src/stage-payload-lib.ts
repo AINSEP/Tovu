@@ -16,6 +16,7 @@
 import { chmodSync, closeSync, cpSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync } from "node:fs";
 import type { Dirent } from "node:fs";
 import path from "node:path";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import { createNodePackagingFilesystem, missingClosureDependencies, stageTransitiveDependencies as stageClosure } from "@jini-ai/devops/packaging/electron";
 
@@ -619,12 +620,8 @@ export function stageBundledNpm({ npmSrc, outDir }: StageBundledNpmInput): Stage
     dereference: true,
     filter: (src) => {
       if (src === npmSrc) return true;
-      let isDirectory: boolean;
-      try {
-        isDirectory = statSync(src).isDirectory();
-      } catch {
-        return false;
-      }
+      const isDirectory = orFallbackSync({ work: () => statSync(src).isDirectory(), fallback: undefined, step: "Inspect staged package entry" });
+      if (isDirectory === undefined) return false;
       return !isNpmStagingDrop({ absPath: src, isDirectory });
     },
   });

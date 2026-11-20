@@ -22,6 +22,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import { readJsonFile, writeJsonFileAtomic } from "./durable-json-file.ts";
 
@@ -109,12 +110,10 @@ function applicationsTargetPath({ bundlePath }: { bundlePath: string }, _options
 /** @returns a bundle's `CFBundleShortVersionString` from its XML `Info.plist` (what electron-builder
  *  writes), or `null` when it cannot be read. @complexity O(n) in the plist's size. */
 function readBundleVersion({ bundlePath }: { bundlePath: string }, _options = {}): string | null {
-  try {
+  return orFallbackSync({ work: () => {
     const plist = fs.readFileSync(path.join(bundlePath, "Contents", "Info.plist"), "utf8");
     return /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/.exec(plist)?.[1]?.trim() ?? null;
-  } catch {
-    return null;
-  }
+  }, fallback: null, step: "Read application bundle version" });
 }
 
 /** The dotted numeric part of a version (`0.2.0-beta.1` → `[0, 2, 0]`), or `null`. @complexity O(n). */

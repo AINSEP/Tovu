@@ -37,6 +37,7 @@
  * `site-dir-store.ts` and `site-child-registry.ts`.
  */
 import fs from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import path from "node:path";
 import { assertSpecificSiteRoot } from "./site-scan-policy.ts";
 
@@ -577,12 +578,8 @@ function assertDiscoveryLimits({ scanRoots, maxCandidates, maxRoots }: { scanRoo
  * @complexity O(k) for k entries in the root.
  */
 function collectRootEntries({ root, candidates, maxCandidates }: { root: string; candidates: string[]; maxCandidates: number }, _options = {}): void {
-  let directory: fs.Dir;
-  try {
-    directory = fs.opendirSync(root);
-  } catch {
-    return;
-  }
+  const directory = orFallbackSync({ work: () => fs.opendirSync(root), fallback: undefined, step: "Open tracked sites root" });
+  if (directory === undefined) return;
   try {
     let entry: fs.Dirent | null;
     while ((entry = directory.readSync()) !== null) {
@@ -597,11 +594,7 @@ function collectRootEntries({ root, candidates, maxCandidates }: { root: string;
  * @complexity O(1) filesystem resolution per path.
  */
 function siteDiscoveryIdentity({ siteDir }: { siteDir: string }, _options = {}): string {
-  try {
-    return fs.realpathSync(siteDir);
-  } catch {
-    return path.resolve(siteDir);
-  }
+  return orFallbackSync({ work: () => fs.realpathSync(siteDir), fallback: undefined, step: "Resolve tracked site directory" }) ?? path.resolve(siteDir);
 }
 
 /**
@@ -620,13 +613,12 @@ function siteDiscoveryIdentity({ siteDir }: { siteDir: string }, _options = {}):
  * @complexity O(1) beyond `classifySiteDir`'s own cost.
  */
 function isDiscoverableSite({ dir, classifySiteDir }: { dir: string; classifySiteDir: ClassifySiteDirFn }, _options = {}): boolean {
-  try {
+  const isDirectory = orFallbackSync({ work: () => {
     // Following symlinks is the intent — a symlinked site dir is a site.
     const stat = fs.statSync(dir, { throwIfNoEntry: false });
-    if (stat === undefined || !stat.isDirectory()) return false;
-  } catch {
-    return false;
-  }
+    return stat !== undefined && stat.isDirectory();
+  }, fallback: false, step: "Check tracked site directory" });
+  if (!isDirectory) return false;
   return classifiesAsSite({ dir, classifySiteDir });
 }
 
@@ -642,11 +634,7 @@ function isDiscoverableSite({ dir, classifySiteDir }: { dir: string; classifySit
  * @complexity O(1) beyond `classifySiteDir`'s own cost.
  */
 function classifiesAsSite({ dir, classifySiteDir }: { dir: string; classifySiteDir: ClassifySiteDirFn }, _options = {}): boolean {
-  try {
-    return classifySiteDir({ dir }) === "site";
-  } catch {
-    return false;
-  }
+  return orFallbackSync({ work: () => classifySiteDir({ dir }) === "site", fallback: false, step: "Classify tracked site directory" });
 }
 
 /**

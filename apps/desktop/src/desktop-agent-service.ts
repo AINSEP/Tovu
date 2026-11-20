@@ -1,4 +1,5 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 /** One cold Jini supervisor per desktop instance. Sites retain tools and durable authority. */
 import { spawn as nodeSpawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
@@ -84,7 +85,8 @@ function siteControlRefusal({ error }: { error: unknown }, _options = {}): strin
  */
 export function siteScopeKey({ siteDir }: { siteDir: string }, _options = {}): SiteScopeKey {
   let canonical = path.resolve(siteDir);
-  try { canonical = fs.realpathSync.native(canonical); } catch { /* an absent dir still has one resolved spelling */ }
+  /* an absent dir still has one resolved spelling */
+  canonical = orFallbackSync({ work: () => fs.realpathSync.native(canonical), fallback: canonical, step: "Resolve desktop site scope path" });
   // Windows paths are case-insensitive; one site must not get two scopes from two spellings.
   if (process.platform === "win32") canonical = canonical.toLowerCase();
   return createHash("sha256").update(canonical).digest("hex").slice(0, 32) as SiteScopeKey;

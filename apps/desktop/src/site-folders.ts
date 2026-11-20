@@ -2,6 +2,7 @@
  * Atomic replacement and cross-process locking remain owned by Jini's durable JSON adapter.
  */
 import fs from 'node:fs';
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import path from 'node:path';
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
@@ -28,8 +29,7 @@ export interface SiteFoldersPort {
  */
 function distinctRoots({ roots }: { roots: string[] }, _options = {}): string[] {
   return [...new Set(roots.map((root) => {
-    try { return fs.realpathSync(root); }
-    catch { return path.resolve(root); }
+    return orFallbackSync({ work: () => fs.realpathSync(root), fallback: undefined, step: 'Resolve site folder' }) ?? path.resolve(root);
   }))];
 }
 

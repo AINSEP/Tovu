@@ -12,6 +12,7 @@
  * the real asar verifier, and `process.stdout`/`process.stderr`.
  */
 import path from "node:path";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import type { AsarVerification } from "./asar-verify.ts";
 
@@ -51,12 +52,7 @@ interface VerifyPackagePorts {
  *  An unreadable (or absent) directory contributes nothing.
  *  @complexity O(n) in directory entries under `dir`. */
 function findAppBundles({ fs, dir }: { fs: VerifyPackageFs; dir: string }, _options = {}): string[] {
-  let entries: VerifyPackageDirent[];
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
+  const entries = orFallbackSync({ work: () => fs.readdirSync(dir, { withFileTypes: true }), fallback: [], step: "Find application bundles" });
   return entries.filter((entry) => entry.isDirectory()).flatMap((entry) => {
     const full = path.join(dir, entry.name);
     return entry.name.endsWith(".app") ? [full] : findAppBundles({ fs, dir: full });

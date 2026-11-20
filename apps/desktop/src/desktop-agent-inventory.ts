@@ -10,6 +10,7 @@
  * and model list, which is far too slow to repeat on every pane mount. `rescan` forces a fresh one.
  */
 import type { RuntimeAgentDef } from "@jini-ai/core/contracts/agents";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { RunnerAgentSummary } from "./contracts/runtime-inventory.ts";
 
 /** The slice of `@jini-ai/agent-runtime` this module reads — injected so tests probe nothing. */
@@ -28,7 +29,11 @@ interface AgentRuntimePorts {
 async function summarizeAgent({ def, ports }: { def: RuntimeAgentDef; ports: AgentRuntimePorts }, _optional = {}): Promise<RunnerAgentSummary> {
   const launch = ports.resolveLaunch({ def });
   const available = Boolean(launch.launchPath);
-  const models = available ? (await ports.probeModels({ def }).catch(() => ({ models: def.fallbackModels }))).models : def.fallbackModels;
+  let models = def.fallbackModels;
+  if (available) {
+    const probe = ports.probeModels({ def });
+    models = (await orFallback({ work: () => probe, fallback: { models: def.fallbackModels }, step: "Probe desktop agent models" })).models;
+  }
   return {
     id: def.id,
     name: def.name,

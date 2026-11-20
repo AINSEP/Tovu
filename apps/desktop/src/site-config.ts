@@ -29,6 +29,7 @@
  * `tracked-sites.ts`, `site-dir-store.ts` and `site-child-registry.ts`.
  */
 import fs from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import path from "node:path";
 
 const CONFIG_FILE_NAME = "config.json";
@@ -70,13 +71,11 @@ export function normalizeSiteName({ raw }: { raw: unknown }, _options: Record<st
  */
 function readSiteConfig({ siteDir }: { siteDir: string }, _options: Record<string, never> = {}): Record<string, unknown> | null {
   const filePath = path.join(siteDir, CONFIG_FILE_NAME);
-  try {
+  return orFallbackSync({ work: () => {
     if (fs.statSync(filePath).size > MAX_CONFIG_BYTES) return null;
     const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
     return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
+  }, fallback: null, step: "Read site name config" });
 }
 
 /**
