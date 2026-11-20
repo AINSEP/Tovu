@@ -117,28 +117,9 @@ export async function authorizeSend(required: {
   } });
 }
 
-/**
- * REQ-16 — materialize `subscribed` subscriptions into 1 snapshot + N send rows. Idempotent by
- * presence-check (INV-06/orchestrator.spec §6): a retry for a campaign that already has
- * `audienceSnapshotId` set is a no-op returning the existing snapshot, never a second snapshot.
- * Unresolvable subscribers are silently excluded (AC-22, EC-07) — never an error.
- */
-export async function freezeAudience(required: {
-  deps: SendPipelineDeps;
-  input: { workspaceId: string; campaignId: string; listId: string };
-}, _optional: Record<string, never> = {}): Promise<{ snapshot: AudienceSnapshotRow; sendIds: readonly string[] }> {
-  const { deps, input } = required;
-  const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
-  if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
-
-  if (campaign.audienceSnapshotId) {
-    const existing = await deps.audienceSnapshotRepo.findById({ workspaceId: input.workspaceId, id: campaign.audienceSnapshotId });
-    if (existing) {
-      const rows = await deps.sendRepo.listByCampaign({ workspaceId: input.workspaceId, campaignId: input.campaignId, limit: 100000 });
-      return { snapshot: existing, sendIds: rows.map((r) => r.id) };
-    }
-  }
-
+async function materializeAudience({ deps, input }: {
+  deps: SendPipelineDeps; input: Parameters<typeof freezeAudience>[0]["input"];
+}) {
   const subscribed = await deps.subscriptionRepo.listSubscribed({ workspaceId: input.workspaceId, listId: input.listId });
   const contacts = await deps.subscriberDirectory.getContacts({
     workspaceId: input.workspaceId,
@@ -178,6 +159,32 @@ export async function freezeAudience(required: {
       updatedAt: now,
     });
   }
+  return { now, snapshotId, snapshot, sendRows };
+}
+
+/**
+ * REQ-16 — materialize `subscribed` subscriptions into 1 snapshot + N send rows. Idempotent by
+ * presence-check (INV-06/orchestrator.spec §6): a retry for a campaign that already has
+ * `audienceSnapshotId` set is a no-op returning the existing snapshot, never a second snapshot.
+ * Unresolvable subscribers are silently excluded (AC-22, EC-07) — never an error.
+ */
+export async function freezeAudience(required: {
+  deps: SendPipelineDeps;
+  input: { workspaceId: string; campaignId: string; listId: string };
+}, _optional: Record<string, never> = {}): Promise<{ snapshot: AudienceSnapshotRow; sendIds: readonly string[] }> {
+  const { deps, input } = required;
+  const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
+  if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
+
+  if (campaign.audienceSnapshotId) {
+    const existing = await deps.audienceSnapshotRepo.findById({ workspaceId: input.workspaceId, id: campaign.audienceSnapshotId });
+    if (existing) {
+      const rows = await deps.sendRepo.listByCampaign({ workspaceId: input.workspaceId, campaignId: input.campaignId, limit: 100000 });
+      return { snapshot: existing, sendIds: rows.map((r) => r.id) };
+    }
+  }
+
+  const { now, snapshotId, snapshot, sendRows } = await materializeAudience({ deps, input });
   const finalSnapshot: AudienceSnapshotRow = { ...snapshot, recipientCount: sendRows.length };
   await deps.audienceSnapshotRepo.save(finalSnapshot);
   if (sendRows.length > 0) await deps.sendRepo.saveBatch(sendRows);

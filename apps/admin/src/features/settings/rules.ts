@@ -110,24 +110,7 @@ export function resolveExternalMcpEffectiveAuthMode(values: SourceFieldValues, _
   return "static_env";
 }
 
-/**
- * Builds the field-spec list a draft's CURRENT `transport`/`authMode` values imply.
- *
- * Order matters for both forms this feeds: connection identity first, then how to reach it
- * (transport-specific), then how to authenticate (auth-mode-specific) — an operator reads the form
- * top to bottom in the order they'd naturally think through setting up a connection.
- *
- * @param values - The draft's current field values (or a saved item's `fields`, for the edit card).
- * @returns The specs to render AND validate against for these values — nothing else exists to the
- * form once this returns; see this module's own section header for why that is the whole mechanism.
- * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
- */
-export function buildExternalMcpFieldSpecs(values: SourceFieldValues, { t = identityTranslate }: { t?: Translate } = {}): SourceFieldSpec[] {
-  const transport = resolveExternalMcpEffectiveTransport(values);
-  const authMode = resolveExternalMcpEffectiveAuthMode(values);
-  const isStdio = transport === "stdio";
-  const isOAuth = authMode === "oauth";
-
+function buildExternalMcpIdentityFieldSpecs({ t }: { t: Translate }): SourceFieldSpec[] {
   const specs: SourceFieldSpec[] = [
     { key: "id", label: t("ID"), kind: "text", required: true, placeholder: t("lowercase letters, digits and dashes") },
     {
@@ -154,6 +137,29 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues, { t = iden
       ],
     },
   ];
+
+  return specs;
+}
+
+/**
+ * Builds the field-spec list a draft's CURRENT `transport`/`authMode` values imply.
+ *
+ * Order matters for both forms this feeds: connection identity first, then how to reach it
+ * (transport-specific), then how to authenticate (auth-mode-specific) — an operator reads the form
+ * top to bottom in the order they'd naturally think through setting up a connection.
+ *
+ * @param values - The draft's current field values (or a saved item's `fields`, for the edit card).
+ * @returns The specs to render AND validate against for these values — nothing else exists to the
+ * form once this returns; see this module's own section header for why that is the whole mechanism.
+ * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
+ */
+export function buildExternalMcpFieldSpecs(values: SourceFieldValues, { t = identityTranslate }: { t?: Translate } = {}): SourceFieldSpec[] {
+  const transport = resolveExternalMcpEffectiveTransport(values);
+  const authMode = resolveExternalMcpEffectiveAuthMode(values);
+  const isStdio = transport === "stdio";
+  const isOAuth = authMode === "oauth";
+
+  const specs = buildExternalMcpIdentityFieldSpecs({ t });
 
   if (authMode === "static_env") specs.push(...buildAccessTokenFieldSpecs({ isStdio, t }));
 
@@ -227,16 +233,7 @@ function buildAccessTokenFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Trans
   return specs;
 }
 
-/**
- * The OAuth-mode field specs — split out purely to keep {@link buildExternalMcpFieldSpecs} under the
- * shop's complexity ceiling, the same move this file's header describes for `mergeSourceUpdate`'s
- * 2026-08-12 pass: every field here shares one revealing condition (`authMode === 'oauth'`), so
- * extracting the whole block removes it from the caller's own branch count entirely, rather than
- * just relocating branches that would still be counted there.
- *
- * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
- */
-function buildOAuthFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Translate }, _options = {}): SourceFieldSpec[] {
+function buildOAuthClientFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Translate }): SourceFieldSpec[] {
   const specs: SourceFieldSpec[] = [
     {
       key: "oauthProviderId",
@@ -275,6 +272,20 @@ function buildOAuthFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Translate }
     { key: "oauthClientSecret", label: t("Client secret"), kind: "password", placeholder: t("leave blank to keep the stored secret") },
     { key: "oauthScopes", label: t("Scopes"), kind: "text", placeholder: t("space- or comma-separated") },
   ];
+  return specs;
+}
+
+/**
+ * The OAuth-mode field specs — split out purely to keep {@link buildExternalMcpFieldSpecs} under the
+ * shop's complexity ceiling, the same move this file's header describes for `mergeSourceUpdate`'s
+ * 2026-08-12 pass: every field here shares one revealing condition (`authMode === 'oauth'`), so
+ * extracting the whole block removes it from the caller's own branch count entirely, rather than
+ * just relocating branches that would still be counted there.
+ *
+ * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
+ */
+function buildOAuthFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Translate }, _options = {}): SourceFieldSpec[] {
+  const specs = buildOAuthClientFieldSpecs({ isStdio, t });
   if (isStdio) {
     specs.push({
       key: "oauthTokenEnvName",
