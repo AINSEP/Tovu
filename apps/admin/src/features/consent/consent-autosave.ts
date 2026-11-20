@@ -1,4 +1,4 @@
-import type { ConsentSettingsView } from '@jini-ai/admin/consent/react';
+import type { ConsentSettingsView } from '@jini-ai/cookie-consent/react';
 import { isConsentConflict } from './rules';
 import type { ConsentDraftSaved, ConsentRevisionsPort } from './settings.hooks';
 
