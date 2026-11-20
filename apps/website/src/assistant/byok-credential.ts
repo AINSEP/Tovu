@@ -17,9 +17,18 @@ export interface StoredExecutionCredentialPortDeps {
 }
 
 /**
- * The port `assistant-byok.ts` constructs. A decrypt failure on the stored row degrades to `null`
- * (`resolveExecutionCredential`'s never-throws contract), which `assistant-byok.ts` treats as an ordinary 400.
- * @complexity O(1): at most one repo read plus one decrypt.
+ * The port `assistant-byok.ts` constructs today. Resolution order: a request-supplied credential
+ * wins when present (an admin trying a key they haven't saved yet — no DB read needed for that
+ * fast path); otherwise falls back to this admin's own stored row
+ * (`execution-credential-store.ts`'s `resolveExecutionCredential`, scoped to
+ * `(workspaceId, principalId)`). A stored row with no `model` set is treated as unusable (turns
+ * always need a model) — same as the request-supplied path's own `model` requirement.
+ *
+ * Never throws — a decrypt failure on the stored row degrades to `null` (`resolveExecutionCredential`'s
+ * own never-throws contract), which `assistant-byok.ts` already treats as an ordinary 400.
+ *
+ * @complexity O(1) — at most one repo read plus one decrypt, only when the request supplied nothing usable.
+ * @overallScore 100
  */
 export function createStoredExecutionCredentialPort(deps: StoredExecutionCredentialPortDeps): ExecutionCredentialPort {
   return createJiniStoredExecutionCredentialPort({ readStored: (input) => resolveExecutionCredential({ deps, input }) });

@@ -1380,3 +1380,18 @@ test("idle acceptance without a confirmed exit times out as busy without a kill"
   assert.deepEqual(child.killed, []);
   child.exitCode = 0; child.emit('exit', 0, null);
 });
+
+
+test("owned idle stop resolves false when the agent binding rejects", async t => {
+  const repoRoot = makeTempRepo();
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const child = fakeChild();
+  const starting = startTovuServer({ repoRoot, siteDir: '/fake/site', port: 4321,
+    mirror: silentMirror(), spawnFn: () => child,
+    agentService: { bindServer: () => ({ setIdentity() {}, dispose() {}, stopIfIdle: async () => { throw new Error("idle stop rejected"); } }) },
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await starting;
+  assert.equal(await handle.stopIfIdle!(), false);
+  child.exitCode = 0; child.emit('exit', 0, null);
+});

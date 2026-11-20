@@ -1,6 +1,7 @@
 /**
- * @file Coverage for the History binding in `main/boot/boot-sequence.ts`, plus the wiring that only
- * source text can show: that the preload subscribes to the same channel. That sites home installs this menu (with Settings) before its window opens
+ * @file Coverage for `site-history-menu.ts`, plus the wiring that only source text can show: that
+ * the preload subscribes to the same channel, and that the inlined channel literal still matches
+ * `contracts/project.ts`. That sites home installs this menu (with Settings) before its window opens
  * is behaviour now, in `main/boot/boot-sequence.test.ts`.
  */
 import test from "node:test";

@@ -15,9 +15,11 @@ import type { SitePresence, PresenceSender } from "./project-ipc.presence.ts";
  * can hand in without one: `origin` and `siteId` are optional, because {@link mayEraseDirectory}
  * already treats an absent `origin` as "not created" (refuse) and {@link identityHasChanged} already
  * treats an absent `siteId` as "nothing recorded" — this type describes that existing tolerance
- * rather than inventing it. Deliberately no index signature: a real `TrackedSiteRow` (also no index
- * signature) must flow into this type at every real call site. The erase guard receives a projection
- * of the row's directory, provenance and identity instead of a cast to an indexed type.
+ * rather than inventing it. Deliberately no index signature, unlike `project-delete-guard.ts`'s own
+ * `RowLike`: a real `TrackedSiteRow` (also no index signature) must flow into this type at every
+ * real call site, and TypeScript does not consider a plain interface assignable to one that HAS an
+ * index signature. See the `as MayEraseRowLike` casts where a `SiteRow` is handed to
+ * {@link mayEraseDirectory} instead.
  */
 export interface SiteRow {
   siteDir: string;

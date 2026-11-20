@@ -8,9 +8,9 @@ true satisfies (ContentDatabase["entry_refs"] extends EntryRefsSqlRow
   : false);
 
 /**
- * @file The entry-refs repo on a site's SQLite `content.db`: Jini's `@jini-ai/cms/widgets/sql`
- * query body bound to the content kernel and `entry_refs` table, kept under the
- * `SqliteEntryRefsRepo` name for the composition root.
+ * @file The entry-refs repo on a site's SQLite `content.db`: the one Kysely query body
+ * (`repos/entry-refs-repo.ts`), kept under the `SqliteEntryRefsRepo` name so the composition root
+ * that builds it from the content db handle stays as it is. New code calls `entryRefsRepoFor`.
  */
 export class SqliteEntryRefsRepo extends SqlEntryRefsRepo {
   /** The connection's kernel, or the content db handle it is derived from. */

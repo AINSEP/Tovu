@@ -120,8 +120,9 @@ export { InMemoryAdminExecutionCredentialRepo } from "./execution-credential-sto
 
 export { ensureExecutionSettingDefinitions } from "./execution-mode-settings.js";
 
-// `createStoredExecutionCredentialPort` is Tovu's stored-row binding of the Jini credentials port
-// (`@jini-ai/agent-runtime/providers/credentials`, which also owns the credential types).
+// `createRequestSuppliedExecutionCredentialPort` (the request-only port variant) has no external
+// caller today — kept internal. `createStoredExecutionCredentialPort` is the one
+// `assistant-byok.ts` actually constructs.
 export { createStoredExecutionCredentialPort } from "./byok-credential.js";
 
 export { runByokProviderTurn } from "./byok-provider-turn.js";
