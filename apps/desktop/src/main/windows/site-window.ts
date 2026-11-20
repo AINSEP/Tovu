@@ -48,7 +48,7 @@ interface SiteWindowPorts<S extends SiteWindowServer, W extends SiteWindow, C ex
   /** `main.ts`'s `createWindow` (see `app-window.ts`). */
   createWindow: (required: { url: string; title: string; partition: string }) => W;
   readSiteName: (required: { siteDir: string }) => string;
-  /** Drop this child's crash-safety row — `site-child-registry.ts`'s `siteChildRegistry.recordClosed`. */
+  /** Drop this child's crash-safety row — `site-process-registry.ts`'s `recordSiteClosed`. */
   recordSiteClosed: (required: { registryPath: string; siteDir: string; pid: number }) => void;
   siteThemePreviews: { sync: SiteHook; stop: SiteHook };
   sitePreviewScheduler: { cancel: SiteHook };

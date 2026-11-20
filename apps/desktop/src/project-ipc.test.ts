@@ -111,8 +111,8 @@ function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-project-ipc-"));
 }
 
-/** What these tests store per site through `createChildEntries` — mirrors
- *  `@jini-ai/sidecar/supervisor` tests's own `TestEntry`, its established precedent for this exact generic. */
+/** What these tests store per site through `createSiteSupervisor` — mirrors
+ *  `site-supervisor.test.ts`'s own `TestEntry`, its established precedent for this exact generic. */
 interface SupervisorEntry {
   server: ObservedServer & { port: number };
 }

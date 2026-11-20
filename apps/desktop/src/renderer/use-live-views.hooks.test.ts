@@ -1,3 +1,9 @@
+/**
+ * @file The plain decisions behind live site views (`use-live-views.hooks.ts`): the limit, the
+ * recency order, which hidden tabs are offered for release, how a guest's answer is read, and the
+ * scroll script a restored guest runs. `useLiveViews` itself, rendered under jsdom with real
+ * guests, is covered by `app/SiteWorkspace.live-views.render.test.ts`.
+ */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LIVE_SITE_VIEWS } from '../contracts/site-view-preference.js';

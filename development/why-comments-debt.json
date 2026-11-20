@@ -2156,6 +2156,162 @@
     {
       "id": "adcf423bba41",
       "reason": "Whole file apps/website/src/platform/db/repos/entry-refs-repo.ts deleted by 6adc57a1e (refactor(cms): planned extraction Tovu halves — S8a-T entry-refs repo,…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "51db73d688d5",
+      "reason": "89cb9bd72 removed tryLocalOwnerSession from apps/admin/src/lib/local-owner-signin.ts when session bootstrap moved to @jini-ai/user-management/session-bootstrap."
+    },
+    {
+      "id": "22e7b0c19eef",
+      "reason": "bee1daa56 removed AppDataRoot from apps/desktop/src/desktop-user-data-dir.ts when platform path resolution moved to @jini-ai/platform/fs resolveElectronUserDataDir."
+    },
+    {
+      "id": "36de48cea8eb",
+      "reason": "bee1daa56 removed APP_DATA_ROOTS from apps/desktop/src/desktop-user-data-dir.ts when platform path resolution moved to @jini-ai/platform/fs resolveElectronUserDataDir."
+    },
+    {
+      "id": "27bb725d1031",
+      "reason": "41c13f3ae removed MayEraseRowLike from apps/desktop/src/project-ipc.ts when the Jini directory guard began receiving a row projection instead of the indexed-row cast."
+    },
+    {
+      "id": "fbec91029aa6",
+      "reason": "33c81690e removed scrollScript from apps/desktop/src/renderer/use-live-views.hooks.ts when scroll restoration moved to @jini-ai/ui/core."
+    },
+    {
+      "id": "4e1d0a812556",
+      "reason": "f6074b50b removed DesktopState from apps/desktop/src/site-dir-store.ts when MRU persistence moved to @jini-ai/platform/fs."
+    },
+    {
+      "id": "2921530d24b9",
+      "reason": "f6074b50b removed RecentSiteDirsRead from apps/desktop/src/site-dir-store.ts when MRU persistence moved to @jini-ai/platform/fs."
+    },
+    {
+      "id": "40f56c3cf26b",
+      "reason": "f6074b50b removed readDesktopState from apps/desktop/src/site-dir-store.ts in favor of @jini-ai/platform/fs readRecentDirectories."
+    },
+    {
+      "id": "84319db18c75",
+      "reason": "f6074b50b removed readRecentSiteDirs from apps/desktop/src/site-dir-store.ts when MRU persistence moved to @jini-ai/platform/fs."
+    },
+    {
+      "id": "b99ee7a1930d",
+      "reason": "f6074b50b removed writeDesktopState from apps/desktop/src/site-dir-store.ts in favor of @jini-ai/platform/fs rememberRecentDirectory."
+    },
+    {
+      "id": "bc61b72b9714",
+      "reason": "1f6b88199 removed stopChild from apps/desktop/src/tovu-server.ts in favor of @jini-ai/sidecar/supervisor/node stopSpawnedChild."
+    },
+    {
+      "id": "57aa4f2850bf",
+      "reason": "1f6b88199 removed stopChild's bounded post-kill exit wait from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "46650d93b7c4",
+      "reason": "1f6b88199 removed both stopChild and killWin32Tree pid guards from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "65257357f9c0",
+      "reason": "1f6b88199 removed stopChild's signal-error handling from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "efa78b7ad396",
+      "reason": "1f6b88199 removed stopChild's stdin EPIPE listener from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "74dcc3e0b6a2",
+      "reason": "1f6b88199 removed stopChild's polite-signal failure handling from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "709364573242",
+      "reason": "1f6b88199 removed killWin32Tree from apps/desktop/src/tovu-server.ts when Windows tree stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "c9f13194f0d4",
+      "reason": "1f6b88199 removed ExitOutcome from apps/desktop/src/tovu-server.ts when replayable exit signals moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "88048911625b",
+      "reason": "1f6b88199 removed ExitSignal from apps/desktop/src/tovu-server.ts when replayable exit signals moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "97b5740a6741",
+      "reason": "1f6b88199 removed createExitSignal from apps/desktop/src/tovu-server.ts in favor of @jini-ai/sidecar/supervisor/node createChildExitSignal."
+    },
+    {
+      "id": "cfa0c6adefc1",
+      "reason": "b17df641c moved the two credential-port implementations and their parsing out of apps/website/src/assistant/byok-credential.ts into @jini-ai/agent-runtime/providers/credentials; only the stored-row binding remains."
+    },
+    {
+      "id": "b1d1dc53c1e9",
+      "reason": "b17df641c removed RequestSuppliedByokConfig from apps/website/src/assistant/byok-credential.ts in favor of @jini-ai/agent-runtime/providers/credentials RequestSuppliedProviderConfig."
+    },
+    {
+      "id": "d99c8565d488",
+      "reason": "b17df641c removed ExecutionCredentialPort.resolve from apps/website/src/assistant/byok-credential.ts in favor of the port in @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "430fb7be79f6",
+      "reason": "b17df641c removed parseRequestSuppliedCredential from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "720d123d9049",
+      "reason": "b17df641c removed parseByokProtocol from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "cd90857a73cb",
+      "reason": "b17df641c removed parseByokRequiredString from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "0bdc65d437bb",
+      "reason": "b17df641c removed parseByokOptionalString from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "0cd92a0b9d77",
+      "reason": "b17df641c removed parseByokMaxTokens from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "eeb1e313c704",
+      "reason": "b17df641c removed createRequestSuppliedExecutionCredentialPort from apps/website/src/assistant/byok-credential.ts in favor of @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "f8ba5eeedccb",
+      "reason": "32278af79 removed readAllStdin from apps/website/src/cli/commands/agent-plugin-tokens.ts in favor of @jini-ai/cli readStreamText through stdin-input.ts."
+    },
+    {
+      "id": "37fbcdfa7d14",
+      "reason": "32278af79 removed the non-TTY first-line parser from apps/website/src/cli/commands/init.ts in favor of @jini-ai/cli readQuietLine."
+    },
+    {
+      "id": "ac925850157a",
+      "reason": "6adc57a1e removed trashItemToolDefinition from apps/website/src/features/trash/trash-item-tool.ts when catalog construction moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "8cdf4b6e28b8",
+      "reason": "6adc57a1e removed the sideEffects declaration from apps/website/src/features/trash/trash-item-tool.ts when catalog construction moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "a882923cbcf3",
+      "reason": "6adc57a1e removed moveToTrashOutcomeToError from apps/website/src/features/trash/trash-item-tool.ts in favor of @jini-ai/cms/trash."
+    },
+    {
+      "id": "bffe74e746cb",
+      "reason": "6adc57a1e removed handlerByEntityType construction from apps/website/src/features/trash/trash-item-tool.ts when registration dispatch moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "900abae35b09",
+      "reason": "6adc57a1e removed the generic registry-handler loop from apps/website/src/features/trash/trash-item-tool.ts when registration dispatch moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "32c6978434b5",
+      "reason": "6adc57a1e removed the live kind-handler lookup and admission check from apps/website/src/features/trash/trash-item-tool.ts when registration dispatch moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "cb69bc055911",
+      "reason": "32278af79 removed DeliverySourceGoneError from apps/website/src/server/runtime/composition/form-delivery.ts in favor of Jini planFormDeliveries with onSourceGone: empty-plan."
+    },
+    {
+      "id": "a9a54593565f",
+      "reason": "32278af79 removed emptyPlanWhenGone from apps/website/src/server/runtime/composition/form-delivery.ts in favor of Jini planFormDeliveries with onSourceGone: empty-plan."
     }
   ]
 }

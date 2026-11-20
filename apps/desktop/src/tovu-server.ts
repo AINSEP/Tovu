@@ -16,6 +16,7 @@ import { SITES_MCP_SERVER_ID, DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTO
  * under `apps/website/` has to change for the desktop shell to exist.
  */
 import { redactSecrets } from "@jini-ai/core";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import net from "node:net";
 import path from "node:path";
@@ -935,15 +936,13 @@ function createStopIfIdle(
   },
   _optional = {},
 ): (required?: Record<string, never>, optional?: Record<string, never>) => Promise<boolean> {
-  return async () => {
-    try {
+  return async () => orFallback({ work: async () => {
       if (!agentBinding || !(await agentBinding.stopIfIdle({}, {}))) return false;
       return await new Promise<boolean>(resolve => {
         const timer = setTimeout(() => resolve(false), stopGraceMs * 2);
         exitSignal.onExit({ listener: exit => { clearTimeout(timer); resolve(exit.code === SITE_SLEEP_EXIT_CODE); } });
       });
-    } catch { return false; }
-  };
+    }, fallback: false, step: "desktop-stop-if-idle" });
 }
 
 export {

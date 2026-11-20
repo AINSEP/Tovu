@@ -605,6 +605,37 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
       res.json({ user: { id: result.principal.id, username: user?.username ?? result.principal.displayName } });
     },
   });
+  registerPasswordLoginRoute({ app, deps }, { loginRateLimiter, onAdminSignIn });
+  registerMfaLoginRoute({ app, deps }, { loginRateLimiter, onAdminSignIn });
+  registerLogoutRoute({ app, deps });
+  registerBootSessionRoute({ app, deps }, onAdminSignIn);
+  registerLocalBootSessionRoute({ app, deps }, { localOwnerSignIn, onAdminSignIn });
+  registerCurrentUserRoute({ app, deps }, localOwnerSignIn);
+
+  // Password-banner plan (2026-09-24), Slice 2: tells the DASHBOARD (not deployment-overview,
+  // which is owner-only and `system.read`-gated) whether the SIGNED-IN CALLER's own stored
+  // credential still verifies against `DEFAULT_OWNER_PASSWORD`. No extra permission is needed —
+  // it's a check against your own row, so it can't be used to probe anyone else's password.
+  // Deliberately a separate route from `/auth/me` rather than a field on it: that route runs on
+  // every admin boot, and only the dashboard needs the ~tens-of-ms argon2id verify this adds.
+  //
+  // Results are memoized by the stored hash: argon2id is deliberately expensive, and a signed-in
+  // session could otherwise call this in a loop. A hash is salted per write, so any password change
+  // produces a new key and is re-verified — the cache can never report a stale answer. Capped and
+  // cleared wholesale; it only holds hashes already in the DB and booleans.
+  const defaultPasswordByHash = new Map<string, boolean>();
+  const usesDefaultPasswordFor = async ({ passwordHash }: { passwordHash: string }, _optional = {}): Promise<boolean> => {
+    const cached = defaultPasswordByHash.get(passwordHash);
+    if (cached !== undefined) return cached;
+    const result = await deps.passwordHasher.verify({ hash: passwordHash, password: DEFAULT_OWNER_PASSWORD });
+    if (defaultPasswordByHash.size >= 256) defaultPasswordByHash.clear();
+    defaultPasswordByHash.set(passwordHash, result);
+    return result;
+  };
+  registerPasswordStatusRoute({ app, deps }, { localOwnerSignIn, usesDefaultPasswordFor });
+}
+
+function registerPasswordLoginRoute({ app, deps }: Parameters<typeof registerAuthRoutes>[0], { loginRateLimiter, onAdminSignIn }: { loginRateLimiter: ReturnType<typeof createRateLimiter>; onAdminSignIn?: AdminSignInPort }): void {
 
   app.post("/api/admin/v1/auth/login", async (req, res) => {
     try {
@@ -657,6 +688,9 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
       sendAuthFailure({ res, error: err, operation: "login" });
     }
   });
+}
+
+function registerMfaLoginRoute({ app, deps }: Parameters<typeof registerAuthRoutes>[0], { loginRateLimiter, onAdminSignIn }: { loginRateLimiter: ReturnType<typeof createRateLimiter>; onAdminSignIn?: AdminSignInPort }): void {
 
   app.post("/api/admin/v1/auth/mfa/login", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
@@ -681,6 +715,9 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
       sendAuthFailure({ res, error, operation: "login" });
     }
   });
+}
+
+function registerLogoutRoute({ app, deps }: Parameters<typeof registerAuthRoutes>[0]): void {
 
   app.post("/api/admin/v1/auth/logout", async (req, res) => {
     // Express 4 drops a rejected async handler, so without this a failing identity bootstrap or
@@ -694,6 +731,9 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
       sendAuthFailure({ res, error, operation: "logout" });
     }
   });
+}
+
+function registerBootSessionRoute({ app, deps }: Parameters<typeof registerAuthRoutes>[0], onAdminSignIn: AdminSignInPort | undefined): void {
 
   /**
    * Exchange a single-use boot token for an ordinary admin session.
@@ -731,6 +771,9 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
       res.json({ user: { id: principal.id } });
     } catch (error) { next(error); }
   });
+}
+
+function registerLocalBootSessionRoute({ app, deps }: Parameters<typeof registerAuthRoutes>[0], { localOwnerSignIn, onAdminSignIn }: { localOwnerSignIn: LocalOwnerSignInPolicy; onAdminSignIn?: AdminSignInPort }): void {
 
   // Desktop must present its private launch capability before browser-style header admission.
   // The browser has no private parent stdout pipe. A launcher-armed, same-origin loopback
@@ -763,6 +806,9 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
       res.json({ user: { id: principal.id } });
     } catch (error) { next(error); }
   });
+}
+
+function registerCurrentUserRoute({ app, deps }: Parameters<typeof registerAuthRoutes>[0], localOwnerSignIn: LocalOwnerSignInPolicy): void {
 
   app.get("/api/admin/v1/auth/me", asyncRoute({ handler: async (req, res) => {
     const principal = await currentPrincipal({ deps, req }, { localOwnerSignIn });
@@ -805,27 +851,9 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
       canPublishToLive: canPublishToLive(),
     });
   } }));
+}
 
-  // Password-banner plan (2026-09-24), Slice 2: tells the DASHBOARD (not deployment-overview,
-  // which is owner-only and `system.read`-gated) whether the SIGNED-IN CALLER's own stored
-  // credential still verifies against `DEFAULT_OWNER_PASSWORD`. No extra permission is needed —
-  // it's a check against your own row, so it can't be used to probe anyone else's password.
-  // Deliberately a separate route from `/auth/me` rather than a field on it: that route runs on
-  // every admin boot, and only the dashboard needs the ~tens-of-ms argon2id verify this adds.
-  //
-  // Results are memoized by the stored hash: argon2id is deliberately expensive, and a signed-in
-  // session could otherwise call this in a loop. A hash is salted per write, so any password change
-  // produces a new key and is re-verified — the cache can never report a stale answer. Capped and
-  // cleared wholesale; it only holds hashes already in the DB and booleans.
-  const defaultPasswordByHash = new Map<string, boolean>();
-  const usesDefaultPasswordFor = async ({ passwordHash }: { passwordHash: string }, _optional = {}): Promise<boolean> => {
-    const cached = defaultPasswordByHash.get(passwordHash);
-    if (cached !== undefined) return cached;
-    const result = await deps.passwordHasher.verify({ hash: passwordHash, password: DEFAULT_OWNER_PASSWORD });
-    if (defaultPasswordByHash.size >= 256) defaultPasswordByHash.clear();
-    defaultPasswordByHash.set(passwordHash, result);
-    return result;
-  };
+function registerPasswordStatusRoute({ app, deps }: Parameters<typeof registerAuthRoutes>[0], { localOwnerSignIn, usesDefaultPasswordFor }: { localOwnerSignIn: LocalOwnerSignInPolicy; usesDefaultPasswordFor: (required: { passwordHash: string }) => Promise<boolean> }): void {
   app.get("/api/admin/v1/auth/me/password-status", asyncRoute({ handler: async (req, res) => {
     const principal = await currentPrincipal({ deps, req }, { localOwnerSignIn });
     if (!principal) {
@@ -844,3 +872,4 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
     res.json({ usesDefaultPassword });
   } }));
 }
+

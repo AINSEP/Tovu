@@ -210,7 +210,11 @@ const TRASH_ITEM_PRESENTATION = {
       "Waits for human approval, then moves one item to Trash with {entityType, entityId}. The entityType enum lists supported kinds. Runs the kind's existing permission and version checks through its own delete tool, moveToTrash, or (for a user) the Users screen's own delete. Returns {entityType, entityId, via, outcome}, where via names the delegate, 'moveToTrash' or 'trashUser' and outcome reports the reversible removal. A trashed user is disabled and signed out; only the owner or an admin may trash one, never themselves or the owner. Refuses unsupported kinds, missing items, denied permissions, and version conflicts. Recover with trash_restore_item. For permanent deletion use trash_purge_item or trash_empty if available to you; otherwise link /admin/trash. Secrets, credentials and MCP connections have no Trash screen. The 60-day retention backstop still removes expired items.",
   entityTypeDescription: "Which kind of thing to trash. page uses the existing post adapter and content_post_delete; the stored Trash entityType is post.",
   entityIdDescription: "That thing's own id.",
+  // The floor only, like `trash_restore_item`: the real gate is the delegate's own permission,
+  // pre-checked at the handler per kind.
   floorPermission: "content.read",
+  // Pages already use the post delete service/adapter. Keep one stored Trash kind so list,
+  // restore, revisions and publication hooks all retain their existing owner.
   aliases: new Map([["page", POST_ENTITY_TYPE]]),
 };
 

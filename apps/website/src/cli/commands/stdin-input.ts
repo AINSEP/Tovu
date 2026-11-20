@@ -8,7 +8,7 @@ export async function readStdinOrRefuse(
   try {
     return await readStreamText({ input });
   } catch (e) {
-    if (e instanceof PayloadTooLargeError) throw new ValidationError({ message: `init: ${flag} payload is too large` });
+    if (e instanceof PayloadTooLargeError) throw new ValidationError({ message: `init: ${flag} payload is too large` }, { cause: e });
     throw e;
   }
 }
