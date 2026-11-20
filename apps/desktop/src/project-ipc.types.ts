@@ -1,7 +1,7 @@
 import type { SitesWorkspace } from "./shared-sites.ts";
 import type { SiteIdentityOptions } from "./site-directory-identity.ts";
 import type { ResourcesSnapshot } from "./contracts/resources.ts";
-import type { removeSiteTree } from "./remove-site-tree.ts";
+import type { removeDirectoryTree } from "@jini-ai/platform/fs";
 import type { OpenSiteEntry, ServerExitLike, SiteRuntime } from "./project-ipc.site-lifecycle.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
 import type { ExternalSiteStopper } from "./external-site-stop.ts";

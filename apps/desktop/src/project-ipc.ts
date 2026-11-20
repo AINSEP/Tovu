@@ -6,6 +6,7 @@ import { cancel, createLifecycleApi, createSiteLifecycleCtx, manualStart, notePr
 import { registerIdleSiteSleepIpc } from "./site-view-preference.ts";
 import { readTrackedSites } from "./tracked-sites.ts";
 import { createDirectoryRelocationGate } from "@jini-ai/platform/fs";
+import { classifySiteDirSafely } from "./site-dir-store.ts";
 import { type ProjectIpcDeps, type ProjectSiteLifecycle, type SiteRow } from "./project-ipc.types.ts";
 import { handleStart, handleStop, handleOpenExternal, handleGetPreview } from "./project-ipc.server.ts";
 import { createSitePresence, type PresenceSender } from "./project-ipc.presence.ts";

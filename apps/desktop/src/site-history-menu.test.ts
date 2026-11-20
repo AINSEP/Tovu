@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { SITE_HISTORY_CHANNEL } from "./contracts/project.ts";
 import { appWideMenuTemplate } from "./main/boot/boot-sequence.ts";
+import type { HistoryMenu } from "@jini-ai/desktop-host/electron/usability";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
@@ -27,7 +28,7 @@ function fakeWindow({ destroyed = false }: { destroyed?: boolean } = {}) {
 
 test("History has Back on CmdOrCtrl+[ and Forward on CmdOrCtrl+]", () => {
   const menu = appWideMenuTemplate({ platform: "darwin", settings: () => ({ label: "Settings" }) })
-    .find((entry) => "label" in entry && entry.label === "History");
+    .find((entry): entry is HistoryMenu => "label" in entry && entry.label === "History");
   assert.ok(menu && "submenu" in menu);
   assert.equal(menu.label, "History");
   assert.deepEqual(
@@ -41,7 +42,7 @@ test("History has Back on CmdOrCtrl+[ and Forward on CmdOrCtrl+]", () => {
 
 test("clicking Back and Forward sends the command to the focused window's renderer", () => {
   const menu = appWideMenuTemplate({ platform: "darwin", settings: () => ({ label: "Settings" }) })
-    .find((entry) => "label" in entry && entry.label === "History");
+    .find((entry): entry is HistoryMenu => "label" in entry && entry.label === "History");
   assert.ok(menu && "submenu" in menu);
   const [back, forward] = menu.submenu;
   assert.ok(back && "click" in back);
@@ -57,7 +58,7 @@ test("clicking Back and Forward sends the command to the focused window's render
 
 test("with no focused window, a destroyed one, or one without webContents, nothing is sent", () => {
   const menu = appWideMenuTemplate({ platform: "darwin", settings: () => ({ label: "Settings" }) })
-    .find((entry) => "label" in entry && entry.label === "History");
+    .find((entry): entry is HistoryMenu => "label" in entry && entry.label === "History");
   assert.ok(menu && "submenu" in menu);
   const [back, forward] = menu.submenu;
   assert.ok(back && "click" in back);

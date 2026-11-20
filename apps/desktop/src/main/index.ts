@@ -954,7 +954,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     importSiteArchive,
     stopRunningImports,
     openSiteServer: ({ siteDir, ctx }: { siteDir: string; ctx: SitesHomeCtx }) => siteBackend.openSiteServer({ siteDir, ctx }),
-    recordSiteClosed: ({ registryDir, siteDir }, options) => siteChildRegistry.recordClosed({ registryDir, key: siteDir }, options),
+    recordSiteClosed: ({ registryDir, siteDir }: { registryDir: string; siteDir: string }, options: { pid?: number } = {}) => siteChildRegistry.recordClosed({ registryDir, key: siteDir }, options),
     // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —
     // `openSites` above is this process's own memory and cannot (D-08). See
     // `project-ipc.ts`'s `liveForeignServers`.
