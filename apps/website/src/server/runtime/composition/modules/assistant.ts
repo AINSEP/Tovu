@@ -231,10 +231,10 @@ async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response
   const messageId = req.method === "GET" ? req.query.messageId : (req.body as { messageId?: unknown } | undefined)?.messageId;
   const runId = req.params.runId;
   const run = typeof messageId === "string" ? await (store.head ?? store.load)({ messageId }, {}) : runId === undefined ? null : await store.find({ runId, principalId }, {});
-  return ownedRunOrNull(run, principalId, deps.workspaceId);
+  return ownedRunOrNull({ run, principalId, workspaceId: deps.workspaceId });
 }
 
-function ownedRunOrNull(run: DurableRunHead | null | undefined, principalId: string, workspaceId: string): DurableRunHead | null {
+function ownedRunOrNull({ run, principalId, workspaceId }: { run: DurableRunHead | null | undefined; principalId: string; workspaceId: string }, _optional = {}): DurableRunHead | null {
   return run?.principalId === principalId && run.workspaceId === workspaceId ? run : null;
 }
 

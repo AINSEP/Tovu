@@ -23,93 +23,9 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/features/newsletter/delivery/tool-registrations.ts",
-      "function": "createNewsletterCampaignRun#1.<anonymous>#1",
-      "line": 131,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/newsletter/delivery/tool-registrations.ts",
-      "function": "createNewsletterCampaignRun#1.<anonymous>#1",
-      "line": 131,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/newsletter/subscriptions.ts",
-      "function": "importSubscriptions#1",
-      "line": 128,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/post/post-tool-duplicate.ts",
-      "function": "duplicatePostOrPage#1",
-      "line": 1377,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/site-backup/sources.ts",
-      "function": "sitePluginPackageFiles#1",
-      "line": 488,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/features/source-control/store.ts",
       "function": "updateSourceControlCredential#1",
       "line": 445,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/platform/site-dir/read-site-dir.ts",
-      "function": "validateMeta#1",
-      "line": 110,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts",
-      "function": "sendExternalMcpOAuthError#1",
-      "line": 62,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/server/runtime/boot/bootstrap.ts",
-      "function": "logBundledPluginRetirements#1",
-      "line": 117,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts",
-      "function": "run#1",
-      "line": 99,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant.ts",
-      "function": "ownedDurableRun#1",
-      "line": 222,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/peer-site-reads.ts",
-      "function": "createPeerReadOpener#1.<anonymous>#1",
-      "line": 401,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/provider-plugins.ts",
-      "function": "gatedPort#1.<anonymous>#2.<anonymous>#1",
-      "line": 207,
       "rule": "complexity",
       "value": 11
     }

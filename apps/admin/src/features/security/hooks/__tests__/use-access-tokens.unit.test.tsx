@@ -12,7 +12,7 @@ import { useAccessTokens, useWiredAccessTokens } from "../use-access-tokens.hook
 import { createFakeAccessTokensPort } from "../access-tokens-dependencies.hooks";
 import { ACCESS_TOKENS_RESOURCE } from "../../rules";
 import type { AccessTokenExistingRowState, AccessTokenProviderGroupState } from "../use-access-tokens.hooks";
-import type { AccessTokenRow } from "../../rules";
+import type { AccessTokenRow } from "../../access-token-rows";
 import { PUBLISH_TARGETS } from "../../../deployment/__tests__/publish-targets.fixture";
 import { SOURCE_CONTROL_TEST_DESCRIPTORS } from "../../__tests__/access-token-providers.fixture";
 

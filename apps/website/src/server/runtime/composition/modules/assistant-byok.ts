@@ -533,6 +533,21 @@ export function createAssistantByokModule(
   };
   let serverFederation: ReturnType<typeof createAssistantServerFederation>;
   const liveToolRuns = new Map<string, LiveByokToolRun>();
+  /** Abort is the provider turn's existing Stop path and closes its signal-bound cards/tools.
+   * No credentials are minted for provider-direct execution. Await the existing turn finally.
+   * @complexity O(live runs), no I/O besides the existing Stop/cleanup paths. */
+  async function lowerLocal(change: ToolAccessChange): Promise<void> {
+    const selected = new Map(liveToolRuns);
+    const current = admittedToolSources({ tools: resolvedToolSurface.registry.list({}) });
+    for (const run of selected.values()) rememberByokSources(run, current);
+    const result = await stopRunsForToolAccessChange({ runs: [...selected.values()], change,
+      revoke: ({ runId }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to revoke"); entry.lowered = true; entry.abort.abort(); },
+      cancel: async ({ runId }) => { automaticPluginRuns.forget({ runId }); },
+      waitForCleanup: ({ runId }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to await"); return awaitByokCleanup({ done: entry.done }); },
+      notice: async ({ runId, message }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to notify"); const response = entry.res; sse({ res: response, event: 'agent', data: { type: 'status', label: message } }); sse({ res: response, event: 'agent', data: { type: 'text_delta', delta: `\n\n${message}` } }); },
+    }, {});
+    if (result.failedRunIds.length) throw new ToolAccessLoweringError();
+  }
 
   // `outboundTestOrigins` is set only by the site-import journey harness; absent, this factory is
   // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
@@ -549,12 +564,33 @@ export function createAssistantByokModule(
   let automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>;
   const resolvedToolSurface =
     toolSurface ??
-    createByokToolSurface(surfaceDeps, byokSurfaceOptions(routeDeps, contributions, { federationConnect, attachmentLookup, automaticPluginRuns: () => automaticPluginRuns }));
+    createByokToolSurface(surfaceDeps, {
+      contributions,
+      ...(federationConnect ? { federationConnect } : {}),
+      // Preserve the daemon's remembered approval contract on the existing server confirmer.
+      // Async call context supplies the current chat; no process-global last-chat binding.
+      federationApprovals: {
+        ...(routeDeps.externalMcpToolApprovalRepo ? { always: routeDeps.externalMcpToolApprovalRepo } : {}),
+        ...(routeDeps.conversationToolApprovals ? { chat: routeDeps.conversationToolApprovals } : {}),
+        conversationIdForRun: () => readDaemonCallContext()?.conversationId,
+      },
+      hostRegistrations: ({ registrations }) => buildDaemonAttachmentTools({ deps: routeDeps, registrations }, attachmentLookup ? { getLookup: () => attachmentLookup } : {}),
+      prepareGuidance: (required, optional) => automaticPluginRuns.prepareGuidance(required, optional),
+      // The root injects the audit sink; see RouteDeps.toolAttemptAuditSink for why
+      // consumers must not open their own database. A supplied toolSurface bypasses this branch.
+      toolAttemptAudit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
+      // Feature registrars `assistant/` must not import by value (module cycles) — injected here.
+      registerInstalledExtensions: async ({ registry, deps, log }, _optional = {}) => {
+        await registerInstalledExtensionTools({ registry, deps, log });
+        // The awaited extension pass also lets the run controller bind to this surface below.
+        registry.register(automaticPluginRuns.loadRegistration);
+      },
+    });
   automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice,
     surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges, assertAccessApprover: createAccessApprover(routeDeps) } });
   // Reuse the server's admission-aware adapters. No daemon federation or second registrar:
   // both catalog demand and execution await this same server surface's lazy startup.
-  serverFederation = createAssistantServerFederation({ toolSurface: resolvedToolSurface }, { lowerLocal: change => lowerLocal(change, { liveToolRuns, resolvedToolSurface, automaticPluginRuns }) });
+  serverFederation = createAssistantServerFederation({ toolSurface: resolvedToolSurface }, { lowerLocal });
   const runStore = routeDeps.chatRunLedger.durable;
   if (runStore) assistantRunFinalizerFor({ ledger: routeDeps.chatRunLedger, tracker: routeDeps.tracker, observability: routeDeps.observability,
     onAttemptEnded: async ({ runId }) => {
@@ -566,10 +602,6 @@ export function createAssistantByokModule(
     sealer: routeDeps.siteAssistantSecretSealer,
   });
 
-  return byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }, serverFederation);
-}
-
-function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }: ByokTurnContext, serverFederation: ReturnType<typeof createAssistantServerFederation>): AssistantByokModuleHandle {
   return {
     name: "assistant-byok",
     toolSurface: resolvedToolSurface,
@@ -596,7 +628,7 @@ function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns,
     registerRoutes: ({ app }, _options = {}) => {
       app.use(BYOK_TURN_PATH, requireAdminSession(routeDeps));
       app.post(BYOK_TURN_PATH, (req: Request, res: Response, next: NextFunction) => {
-        void handleTurn(req, res, { routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns }).catch((error: unknown) => {
+        void handleTurn(req, res).catch((error: unknown) => {
           console.error("[assistant-byok] unhandled error", error);
           if (res.headersSent) {
             sse({ res, event: "error", data: { message: "assistant failed" } });
@@ -608,66 +640,11 @@ function byokModuleHandle({ routeDeps, resolvedToolSurface, automaticPluginRuns,
       });
     },
   };
-}
 
-function byokSurfaceOptions(routeDeps: RouteDeps & ByokToolSurfaceDeps, contributions: NonNullable<Parameters<typeof createByokToolSurface>[1]>["contributions"], { federationConnect, attachmentLookup, automaticPluginRuns }: {
-  federationConnect: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"];
-  attachmentLookup: AttachmentLookup | undefined;
-  automaticPluginRuns: () => ReturnType<typeof createAutomaticPluginRuns>;
-}): NonNullable<Parameters<typeof createByokToolSurface>[1]> {
-  return {
-      contributions,
-      ...(federationConnect ? { federationConnect } : {}),
-      // Preserve the daemon's remembered approval contract on the existing server confirmer.
-      // Async call context supplies the current chat; no process-global last-chat binding.
-      federationApprovals: {
-        ...(routeDeps.externalMcpToolApprovalRepo ? { always: routeDeps.externalMcpToolApprovalRepo } : {}),
-        ...(routeDeps.conversationToolApprovals ? { chat: routeDeps.conversationToolApprovals } : {}),
-        conversationIdForRun: () => readDaemonCallContext()?.conversationId,
-      },
-      hostRegistrations: ({ registrations }) => buildDaemonAttachmentTools({ deps: routeDeps, registrations }, attachmentLookup ? { getLookup: () => attachmentLookup } : {}),
-      prepareGuidance: (required, optional) => automaticPluginRuns().prepareGuidance(required, optional),
-      // The root injects the audit sink; see RouteDeps.toolAttemptAuditSink for why
-      // consumers must not open their own database. A supplied toolSurface bypasses this branch.
-      toolAttemptAudit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
-      // Feature registrars `assistant/` must not import by value (module cycles) — injected here.
-      registerInstalledExtensions: async ({ registry, deps, log }, _optional = {}) => {
-        await registerInstalledExtensionTools({ registry, deps, log });
-        // The awaited extension pass also lets the run controller bind to this surface below.
-        registry.register(automaticPluginRuns().loadRegistration);
-      },
-    };
-}
-
-
-type ByokTurnContext = {
-  routeDeps: RouteDeps & ByokToolSurfaceDeps;
-  resolvedToolSurface: ByokToolSurface;
-  automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>;
-  credentialPort: ExecutionCredentialPort;
-  liveToolRuns: Map<string, LiveByokToolRun>;
-};
-
-/** Abort is the provider turn's existing Stop path and closes its signal-bound cards/tools.
-   * No credentials are minted for provider-direct execution. Await the existing turn finally.
-   * @complexity O(live runs), no I/O besides the existing Stop/cleanup paths. */
-async function lowerLocal(change: ToolAccessChange, { liveToolRuns, resolvedToolSurface, automaticPluginRuns }: Pick<ByokTurnContext, "liveToolRuns" | "resolvedToolSurface" | "automaticPluginRuns">): Promise<void> {
-    const selected = new Map(liveToolRuns);
-    const current = admittedToolSources({ tools: resolvedToolSurface.registry.list({}) });
-    for (const run of selected.values()) rememberByokSources(run, current);
-    const result = await stopRunsForToolAccessChange({ runs: [...selected.values()], change,
-      revoke: ({ runId }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to revoke"); entry.lowered = true; entry.abort.abort(); },
-      cancel: async ({ runId }) => { automaticPluginRuns.forget({ runId }); },
-      waitForCleanup: ({ runId }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to await"); return awaitByokCleanup({ done: entry.done }); },
-      notice: async ({ runId, message }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to notify"); const response = entry.res; sse({ res: response, event: 'agent', data: { type: 'status', label: message } }); sse({ res: response, event: 'agent', data: { type: 'text_delta', delta: `\n\n${message}` } }); },
-    }, {});
-    if (result.failedRunIds.length) throw new ToolAccessLoweringError();
-  }
-
-/** Loads explicit picks independently, so one unavailable plugin cannot discard the others.
+  /** Loads explicit picks independently, so one unavailable plugin cannot discard the others.
    * Returns the ordered prompt suffix and whether any pick failed; failures never escape.
    * @complexity One sequential lifecycle resolution per pinned reference; O(guidance bytes) space. */
-async function loadPinnedPluginGuidance({ pinned }: { pinned: string[] }, routeDeps: RouteDeps): Promise<{ prefix: string; skippedPinned: boolean }> {
+  async function loadPinnedPluginGuidance({ pinned }: { pinned: string[] }, _options: Record<string, never> = {}): Promise<{ prefix: string; skippedPinned: boolean }> {
     let skippedPinned = false;
     let prefix = "";
     for (const pluginId of pinned) {
@@ -682,14 +659,14 @@ async function loadPinnedPluginGuidance({ pinned }: { pinned: string[] }, routeD
     return { prefix, skippedPinned };
   }
 
-/** Starts the existing automatic plugin lifecycle and appends its guidance; failure leaves the prompt intact.
+  /** Starts the existing automatic plugin lifecycle and appends its guidance; failure leaves the prompt intact.
    * Emits consent/usage surfaces through this turn's response and logs a preflight failure.
    * @complexity One automatic-use preparation; candidate discovery/ranking belongs to that owner. */
-async function appendAutomaticPluginGuidance({ run, principal, conversationId, pluginBody, messages, pinned, abort, res, system }: {
+  async function appendAutomaticPluginGuidance({ run, principal, conversationId, pluginBody, messages, pinned, abort, res, system }: {
     run: { id: string }; principal: Principal; conversationId: string;
     pluginBody: { agentPluginState?: unknown; userPrompt?: unknown }; messages: ByokChatMessage[];
     pinned: string[]; abort: AbortController; res: Response; system: string;
-  }, automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>): Promise<string> {
+  }, _options: Record<string, never> = {}): Promise<string> {
     try {
       const guidance = await automaticPluginRuns.start({ runId: run.id, context: {
         principal, conversationId, state: readChatAgentPluginState({ value: pluginBody.agentPluginState }),
@@ -703,28 +680,25 @@ async function appendAutomaticPluginGuidance({ run, principal, conversationId, p
     return system;
   }
 
-/** Composes pinned and automatic guidance before provider planning; plugin failures remain fail-soft.
+  /** Composes pinned and automatic guidance before provider planning; plugin failures remain fail-soft.
    * Registers response-close cleanup and returns the augmented prompt.
    * @complexity O(pinned references + guidance bytes), plus the automatic lifecycle's preparation. */
-async function preparePluginGuidance({ req, res, run, principal, messages, abort, system }: {
+  async function preparePluginGuidance({ req, res, run, principal, messages, abort, system }: {
     req: Request; res: Response; run: { id: string }; principal: Principal; messages: ByokChatMessage[]; abort: AbortController; system: string;
-  }, context: Pick<ByokTurnContext, "routeDeps" | "automaticPluginRuns">): Promise<string> {
-    const { routeDeps, automaticPluginRuns } = context;
+  }, _options: Record<string, never> = {}): Promise<string> {
     // Preflight uses the same catalog/consent/guidance owner as CLI, before the provider plans.
     const pluginBody = (req.body ?? {}) as { conversationId?: unknown; agentPluginState?: unknown; pluginRefIds?: unknown; userPrompt?: unknown };
     const conversationId = typeof pluginBody.conversationId === 'string' ? pluginBody.conversationId : undefined;
     const pinned = Array.isArray(pluginBody.pluginRefIds) ? pluginBody.pluginRefIds.filter((id): id is string => typeof id === 'string') : [];
-    const { prefix, skippedPinned } = await loadPinnedPluginGuidance({ pinned }, routeDeps);
+    const { prefix, skippedPinned } = await loadPinnedPluginGuidance({ pinned });
     system += prefix;
     if (skippedPinned) sse({ res, event: 'agent', data: { type: 'status', label: 'Some selected Agent Plugins could not be loaded and were skipped.' } });
     res.on('close', () => automaticPluginRuns.forget({ runId: run.id }));
     if (!conversationId) return system;
-    return appendAutomaticPluginGuidance({ run, principal, conversationId, pluginBody, messages, pinned, abort, res, system }, automaticPluginRuns);
+    return appendAutomaticPluginGuidance({ run, principal, conversationId, pluginBody, messages, pinned, abort, res, system });
   }
 
-
-async function handleTurn(req: Request, res: Response, context: ByokTurnContext): Promise<void> {
-    const { routeDeps, resolvedToolSurface, automaticPluginRuns, credentialPort, liveToolRuns } = context;
+  async function handleTurn(req: Request, res: Response): Promise<void> {
     const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
     if (!inputs) return undefined;
     const { messages, principal, credential } = inputs;
@@ -766,7 +740,7 @@ async function handleTurn(req: Request, res: Response, context: ByokTurnContext)
         if (!res.writableEnded) abort.abort();
       });
 
-      system = await preparePluginGuidance({ req, res, run, principal, messages, abort, system }, context);
+      system = await preparePluginGuidance({ req, res, run, principal, messages, abort, system });
 
       // Older injected surfaces retain their wrapper contract; production creates one exposure per run.
       const toolRun = resolvedToolSurface.createRun?.({ principal, run });
@@ -792,22 +766,10 @@ async function handleTurn(req: Request, res: Response, context: ByokTurnContext)
         if (toolRun) return toolRun.executeTool(call, { signal: abort.signal, emitSurface });
         return resolvedToolSurface.executeMetaTool({ principal: principal, run: run, call: call }, { signal: abort.signal, emitSurface: emitSurface });
       };
-      return await traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messages, principal, abort, res, system, liveToolRun, toolRun, executeTool });
-    } catch (error) {
-      if (!liveToolRun.lowered) throw error;
-      return endByokResponse({ res, lowered: true, reason: 'stop' });
-    } finally { liveToolRuns.delete(run.id); finishCleanup(); }
-  }
-// One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
-      // DB and outbound spans nest under the run rather than the long-lived request.
 
-function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messages, principal, abort, res, system, liveToolRun, toolRun, executeTool }: {
-  routeDeps: RouteDeps & ByokToolSurfaceDeps; resolvedToolSurface: ByokToolSurface; run: { id: string };
-  credential: ResolvedByokCredential; messages: ByokChatMessage[]; principal: Principal; abort: AbortController; res: Response; system: string;
-  liveToolRun: LiveByokToolRun; toolRun: ReturnType<NonNullable<ByokToolSurface["createRun"]>> | undefined;
-  executeTool: Parameters<typeof runByokProviderTurn>[0]["executeTool"];
-}) {
-  return routeDeps.tracker.trace({ name: "assistant.run", run: async (span) => {
+      // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
+      // DB and outbound spans nest under the run rather than the long-lived request.
+      return await routeDeps.tracker.trace({ name: "assistant.run", run: async (span) => {
         const aiTrace = startByokTrace({ routeDeps, run, credential, messages });
         void routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
         let reportedError = false;
@@ -825,38 +787,7 @@ function traceByokTurn({ routeDeps, resolvedToolSurface, run, credential, messag
         }
         let result: ByokProviderTurnResult;
         try {
-          result = await runByokProviderTurn(byokProviderTurnOptions({ credential, system, messages, toolRun, resolvedToolSurface, executeTool, abort,
-            // `error`-typed events get their OWN SSE event name, not folded into `agent` — mirrors the
-            // daemon path's distinct `source.addEventListener("error", ...)` on the client
-            // (`assistant-transport.ts`), which is what actually calls `handlers.onError` rather than
-            // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
-            // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
-            
-            onEvent: (event: ByokTurnEvent) => {
-              if (liveToolRun.lowered) return;
-              aiTrace?.observe(event as unknown as Record<string, unknown>);
-              // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
-              if (event.type === "error" && !abort.signal.aborted && !reportedError) { reportedError = true; reportRunFailure({ error: new Error(event.message) }); }
-              sse({ res, event: event.type === "error" ? "error" : "agent", data: stampUsage(event) });
-            }
-          }));
-        } catch (error) {
-          finishFailedTurn({ error });
-          return;
-        }
-
-        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
-        aiTrace?.finish({ outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }) });
-        void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
-        endByokResponse({ res, lowered: liveToolRun.lowered, reason: result.stopReason ?? 'stop' });
-      } }, { agent: { runId: run.id, agentName: credential.protocol } });
-}
-
-function byokProviderTurnOptions({ credential, system, messages, toolRun, resolvedToolSurface, executeTool, abort, onEvent }: {
-  credential: ResolvedByokCredential; toolRun: ReturnType<NonNullable<ByokToolSurface["createRun"]>> | undefined;
-  resolvedToolSurface: ByokToolSurface; abort: AbortController;
-} & Pick<Parameters<typeof runByokProviderTurn>[0], "system" | "messages" | "executeTool" | "onEvent">): Parameters<typeof runByokProviderTurn>[0] {
-  return {
+          result = await runByokProviderTurn({
             protocol: credential.protocol,
             apiKey: credential.apiKey,
             ...(credential.baseUrl ? { baseUrl: credential.baseUrl } : {}),
@@ -880,9 +811,27 @@ function byokProviderTurnOptions({ credential, system, messages, toolRun, resolv
             // (`assistant-transport.ts`), which is what actually calls `handlers.onError` rather than
             // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
             // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
-            onEvent,
-          };
+            onEvent: (event: ByokTurnEvent) => {
+              if (liveToolRun.lowered) return;
+              aiTrace?.observe(event as unknown as Record<string, unknown>);
+              // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
+              if (event.type === "error" && !abort.signal.aborted && !reportedError) { reportedError = true; reportRunFailure({ error: new Error(event.message) }); }
+              sse({ res, event: event.type === "error" ? "error" : "agent", data: stampUsage(event) });
+            },
+          });
+        } catch (error) {
+          finishFailedTurn({ error });
+          return;
+        }
+
+        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
+        aiTrace?.finish({ outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }) });
+        void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
+        endByokResponse({ res, lowered: liveToolRun.lowered, reason: result.stopReason ?? 'stop' });
+      } }, { agent: { runId: run.id, agentName: credential.protocol } });
+    } catch (error) {
+      if (!liveToolRun.lowered) throw error;
+      return endByokResponse({ res, lowered: true, reason: 'stop' });
+    } finally { liveToolRuns.delete(run.id); finishCleanup(); }
+  }
 }
-
-
-

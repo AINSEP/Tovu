@@ -1704,6 +1704,10 @@
     {
       "id": "f59c5e000434",
       "reason": "tv-ex-err replaced the bare console line with redacted reportServerFailure diagnostics; the new doc states the new contract."
+    },
+    {
+      "id": "d8268eba1aed",
+      "reason": "Owner decision (combine-6): a batch reports per-item results, so 'execution failures stop subsequent items' no longer holds; the rewritten comment beside the test states the per-item contract."
     }
   ]
 }

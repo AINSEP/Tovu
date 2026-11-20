@@ -6,7 +6,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
 import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { PostNotFoundError, PostValidationError, type PostRecord } from "./post.js";
+import { PostNotFoundError, PostValidationError, type PostRecord, type PublicPostRecord } from "./post.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
@@ -128,7 +128,7 @@ async function duplicatePostOrPage(
 }
 
 async function createDuplicatePost(routeDeps: PostToolDeps, { source, newId, title, slug, status, bodyJsonForCreate, sourceHtml, input }: {
-  source: PostRecord; newId: string; title: string; slug: string | undefined; status: PostStatus;
+  source: PublicPostRecord; newId: string; title: string; slug: string | undefined; status: PostStatus;
   bodyJsonForCreate: JsonObject | undefined; sourceHtml: string | undefined;
   input: Parameters<typeof duplicatePostOrPage>[0]["input"];
 }) {
