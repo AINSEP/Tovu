@@ -1,6 +1,6 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
-import type { SecurityHeaderSet } from "#src/contracts/core/public-page-security-headers";
+import type { SecurityHeaderSet } from "@jini-ai/core/contracts/server/security-headers";
 import { publicPageSecurityHeaders as defaultSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 
 /**

@@ -1,5 +1,6 @@
+import { validateNativePermissionSnapshot, InvalidNativePermissionsError } from "@jini-ai/agent-runtime/native-permissions";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY, CLI_CAPABILITY_KEYS, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 
 /** Fresh, owner/site-scoped launch snapshot in the existing ledger. Legacy booleans are read only
@@ -28,10 +29,15 @@ export async function readAssistantCliPermissions(required: {
  * @complexity O(c) for the fixed capability list.
  */
 function parseCliPermissionsSnapshot(required: { value: unknown }): AssistantCliPermissions {
-  const { enabled, capabilities, byAgent, userMcpDefaultOn } = required.value as Partial<AssistantCliPermissions> & { userMcpDefaultOn?: unknown };
-  if (typeof enabled !== "boolean" || !capabilities ||
-    !ASSISTANT_CLI_CAPABILITIES.every(({ key }) => typeof capabilities[key] === "boolean")) throw new Error("Invalid CLI permissions");
-  if (byAgent !== undefined) validateAgentPermissions({ byAgent });
+  let validated: AssistantCliPermissions;
+  try {
+    validated = validateNativePermissionSnapshot({ value: required.value, capabilityKeys: CLI_CAPABILITY_KEYS }, { message: "Invalid CLI permissions" });
+  } catch (error) {
+    if (error instanceof InvalidNativePermissionsError) throw new Error("Invalid CLI permissions");
+    throw error;
+  }
+  const { enabled, capabilities } = validated;
+  const { byAgent, userMcpDefaultOn } = required.value as Partial<AssistantCliPermissions> & { userMcpDefaultOn?: unknown };
   // Site-level saves before 2026-11-10 persisted personal MCP false as the default, whatever the
   // owner meant; read that false as unset. Saves since carry userMcpDefaultOn, so their false is the
   // owner's choice. Per-agent entries are only written by the owner's switch and are always kept.
@@ -73,19 +79,3 @@ export async function readAssistantSubagentsEnabled(required: {
   }
 }
 
-/** Reject malformed per-agent overrides before any grant can reach a launch. Fixed keys per agent. */
-function validateAgentPermissions({ byAgent }: { byAgent: unknown }): void {
-  if (!byAgent || typeof byAgent !== "object" || Array.isArray(byAgent)) throw new Error("Invalid CLI permissions");
-  for (const value of Object.values(byAgent)) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid CLI permissions");
-    const entry = value as { enabled?: unknown; capabilities?: unknown };
-    if (entry.enabled !== undefined && typeof entry.enabled !== "boolean") throw new Error("Invalid CLI permissions");
-    validateAgentCapabilities({ capabilities: entry.capabilities });
-  }
-}
-
-function validateAgentCapabilities({ capabilities }: { capabilities: unknown }): void {
-  if (capabilities === undefined) return;
-  if (!capabilities || typeof capabilities !== "object" || Array.isArray(capabilities)) throw new Error("Invalid CLI permissions");
-  if (Object.entries(capabilities).some(([key, value]) => typeof value !== "boolean" || !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key))) throw new Error("Invalid CLI permissions");
-}

@@ -43,15 +43,16 @@ import { namePasteHandler } from '../contracts/site-name.js';
  * the header's "Create website" fill — while the site is on (owner 2026-10-30). Nothing is reachable two ways, which is the rule that keeps the column readable as it
  * grows.
  */
-import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteListController } from '@jini-ai/ui/site-card';
-import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
+import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, cardOpenProps, closeMenuThen, duplicateDisplayNames, type SiteListController } from '@jini-ai/ui/site-card';
+import { useDeleteConfirmation } from './App.hooks.js';
+import { useDismissibleDropdown } from './use-dropdown-menu.hooks.js';
 import { useSiteListPrefs } from './use-site-list-prefs.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
 import { codeSpans, externalStopConfirm, powerControl, useSitePower } from './use-site-power.hooks.js';
 import { useSiteLocate } from './use-site-locate.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
-import { cardOpenClass, cardOpenProps, duplicateDisplayNames, siteCardTone, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
+import { cardOpenClass, siteCardTone, cardOverlay, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import { siteCardStatus, sitePortPresentation } from './site-port.rules.js';
 import type { SiteRecord } from '../contracts/project.js';

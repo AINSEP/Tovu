@@ -14,8 +14,8 @@ import type { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { DefaultMemberAccessResolver } from "#src/features/members/index";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
-import { SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
-import { SqlFormSubmissionReceiptRepo } from "#src/platform/db/repos/form-submission-receipt-repo";
+import { SqlFormPullLeaseRepo, SqlFormSubmissionReceiptRepo } from "@jini-ai/cms/forms/sql";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { adoptLegacyTrashedWidgets } from "@jini-ai/cms/widgets";
 import { bindSiteSearchPorts } from "../modules/site-search.js";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
@@ -81,7 +81,7 @@ export function wireFormsAndSearch(required: WireFormsAndSearchRequired, _option
   // receiver key, and the pull imports what it stored (`form-submissions.ts`).
   const formSubmissions = composeFormSubmissions({
     formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
-    receipts: new SqlFormSubmissionReceiptRepo(kernel), pullLeases: new SqlFormPullLeaseRepo({ kernel }), outbox, bus, clock, idGen,
+    receipts: new SqlFormSubmissionReceiptRepo({ kernel: schemaErasedKernel({ store: kernel }), table: "form_submission_remote_receipts" }), pullLeases: new SqlFormPullLeaseRepo({ kernel: schemaErasedKernel({ store: kernel }), table: "form_receiver_pulls" }), outbox, bus, clock, idGen,
     credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock, idGen },
     loadFormDestinations: ({ workspaceId }, _optional = {}) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     settingsRepo,

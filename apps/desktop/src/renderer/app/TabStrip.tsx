@@ -1,4 +1,4 @@
-import { useTabStrip } from '../use-tab-strip.hooks.js';
+import { useScrollableTabStrip } from '@jini-ai/ui/tab-strip';
 import type { SiteRecord } from '../../contracts/project.js';
 
 /** The temporary Import tab (owner, 2026-11-10): there while an import is open, closable like a site's. */
@@ -47,16 +47,16 @@ export function TabStrip({
   onSelectSitesHome,
   onSelectTab,
   onCloseTab,
-  importTab, useTabStripHook = useTabStrip,
+  importTab, useTabStripHook = useScrollableTabStrip,
 }: {
   importTab?: ImportTab | undefined;
   projects: readonly SiteRecord[];
   activeTab: string | null;
   onSelectSitesHome: () => void;
   onSelectTab: (id: string) => void;
-  onCloseTab: (id: string) => void; useTabStripHook?: typeof useTabStrip;
+  onCloseTab: (id: string) => void; useTabStripHook?: typeof useScrollableTabStrip;
 }) {
-  const { stripRef, overflow, showArrows, scrollLeft, scrollRight, tabIndex, onKeyDown } = useTabStripHook({ activeTab, projects });
+  const { stripRef, overflow, showArrows, scrollLeft, scrollRight, tabIndex, onKeyDown } = useTabStripHook({ activeTab, tabs: projects.map(({ id, displayName }) => ({ id, label: displayName })) }, { activeSelector: ".is-active" });
   const allSelected = activeTab === null && importTab?.selected !== true;
   return (
     <div className="tabstrip-frame">

@@ -15,7 +15,8 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { Kysely } from "kysely";
-import { SqlFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-repo";
+import { type SqlFormDeliveryRepo } from "@jini-ai/cms/forms/sql";
+import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { composeFormDelivery } from "../form-delivery.js";
 
@@ -80,7 +81,7 @@ async function seedForms(workspaceId: string) {
 
 /** Plans one submission of `workspaceId` and runs one outbox drain over its child jobs. */
 async function deliverOnce(kernel: ContentKernel, workspaceId: string) {
-  const plans = new SqlFormDeliveryRepo({ kernel });
+  const plans = createSiteFormDeliveryRepo({ kernel });
   const outbox = outboxOn({ kernel });
   const bus = new InMemoryEventBus();
   const forms = await seedForms(workspaceId);

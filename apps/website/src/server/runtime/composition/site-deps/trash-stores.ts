@@ -1,4 +1,4 @@
-import { SqlFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-repo";
+import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
 import { SqliteTaxonomyRevisionRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqliteTrashRepo } from "#src/features/trash/index";
@@ -41,6 +41,6 @@ export function composeTrashStores(required: ComposeTrashStoresRequired, _option
   const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
   // Built here (stateless over `kernel`) because a form or submission purge scrubs its frozen
   // delivery jobs; the delivery wiring further down reuses the same instance.
-  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
+  const formDeliveryRepo = createSiteFormDeliveryRepo({ kernel });
   return { trashRegistry, sqliteTrashDb, trashRepo, taxonomyFollowUpTermRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, formDeliveryRepo };
 }

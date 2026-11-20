@@ -37,7 +37,7 @@ import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/f
 import { SqliteSettingsRepo } from '#src/features/settings/repo.sqlite';
 import { SqliteWorkspaceRepo } from '#src/features/workspace/index';
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from '#src/features/forms/repo.sqlite';
-import { SqlFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-repo';
+import { createSiteFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-binding';
 import { SqliteTaxonomyRepo, SqliteTermRepo, SqliteEntryTermRepo, SqliteTaxonomyRevisionRepo } from '#src/features/taxonomy/repo.sqlite';
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from '#src/features/navigation/repo.sqlite';
 import { SqliteEntryRepo } from '#src/features/entries/repo.sqlite';
@@ -227,7 +227,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
   const dbOps = new SqliteDbOpsAdapter({ connection: { backup: unavailable({ field: 'dbOps.captureRestorePoint' }) },
     filePath: contentDbPath, readWatermark: unavailable({ field: 'dbOps.readWatermark' }) });
   const trashRepo = new SqliteTrashRepo({ store: kernel });
-  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
+  const formDeliveryRepo = createSiteFormDeliveryRepo({ kernel });
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const bag = {
     ...identity, contentKernel: kernel, workspaceId, clock, idGen, settingsRepo, getEffective,

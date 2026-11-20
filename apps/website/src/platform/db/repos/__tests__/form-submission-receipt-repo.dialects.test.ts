@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlFormSubmissionReceiptRepo } from "../form-submission-receipt-repo.js";
-import type { ContentKernel } from "../../content-kernel.js";
+import { SqlFormSubmissionReceiptRepo } from "@jini-ai/cms/forms/sql";
+import { schemaErasedKernel, type ContentKernel } from "../../content-kernel.js";
 
 /** @file Form destination import receipts on SQLite and PGlite (migration 0018). */
 
 describeEachDialect(
   "form submission remote receipts",
-  { tables: ["form_submission_remote_receipts"], make: (kernel: ContentKernel) => ({ kernel, repo: new SqlFormSubmissionReceiptRepo(kernel) }) },
+  { tables: ["form_submission_remote_receipts"], make: (kernel: ContentKernel) => ({ kernel, repo: new SqlFormSubmissionReceiptRepo({ kernel: schemaErasedKernel({ store: kernel }), table: "form_submission_remote_receipts" }) }) },
   (make) => {
     const receipt = { workspaceId: "w", destinationKey: "host:https://a.example", remoteId: "r1", submissionId: "s1", importedAt: "2026-10-19T12:00:00.000Z" };
 

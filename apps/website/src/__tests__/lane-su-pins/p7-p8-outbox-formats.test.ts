@@ -5,7 +5,7 @@ import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { sql } from "kysely";
 
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-repo";
+import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
 import { outboxEventValues } from "@jini-ai/db/events";
 import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 
@@ -75,6 +75,6 @@ test("P7 the notification summary counts outbox rows by the forms:notify:<submis
     await kernel.execute(sql`INSERT INTO outbox_events (id, workspace_id, event_json, status, attempts, next_attempt_at, created_at)
       VALUES (${id}, ${WS}, '{}', ${status}, 0, ${T0}, ${T0})`);
   }
-  const summary = await new SqlFormDeliveryRepo({ kernel }).notificationSummary({ workspaceId: WS, submissionId: "sub-1" });
+  const summary = await createSiteFormDeliveryRepo({ kernel }).notificationSummary({ workspaceId: WS, submissionId: "sub-1" });
   assert.deepEqual(summary, { failed: 1, pending: 2 });
 });

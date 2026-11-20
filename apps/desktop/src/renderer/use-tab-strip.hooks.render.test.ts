@@ -12,7 +12,7 @@ import { createRoot } from 'react-dom/client';
 
 import type { SiteRecord } from '../contracts/project.js';
 import { installDom } from './dom-hook-harness.js';
-import { useTabStrip } from './use-tab-strip.hooks.js';
+import { useScrollableTabStrip } from '@jini-ai/ui/tab-strip';
 
 const SITES = [{ id: '/a', displayName: 'A' }, { id: '/b', displayName: 'B' }] as unknown as SiteRecord[];
 
@@ -32,10 +32,10 @@ function fakeResizeObserver() {
 function renderStrip(t: { after: (fn: () => void) => void }, input: { activeTab: string | null; Impl: typeof ResizeObserver; mounted?: boolean }) {
   const window = installDom();
   const reveals: string[] = [];
-  let latest!: ReturnType<typeof useTabStrip>;
+  let latest!: ReturnType<typeof useScrollableTabStrip>;
   let activeTab = input.activeTab;
   function Strip() {
-    latest = useTabStrip({ activeTab, projects: SITES }, { ResizeObserverImpl: input.Impl });
+    latest = useScrollableTabStrip({ activeTab, tabs: SITES.map(({ id, displayName }) => ({ id, label: displayName })) }, { ResizeObserverImpl: input.Impl, activeSelector: ".is-active" });
     if (input.mounted === false) return null;
     return createElement('div', { ref: latest.stripRef as RefObject<HTMLDivElement> }, SITES.map((site) => createElement('button', {
       key: site.id, role: 'tab', className: site.id === activeTab ? 'is-active' : undefined,

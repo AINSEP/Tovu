@@ -37,3 +37,11 @@ test("non-owners cannot establish an individual grant", () => {
   const actual = resolveAssistantCliPermissions({ isOwner: false, env: {}, settings: assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }) });
   assert.ok(Object.values(actual.capabilities).every(value => !value));
 });
+
+test("fill and owner/local projection retain the supplied per-agent map", () => {
+  const byAgent = { codex: { capabilities: { shell: false } } };
+  const settings = assistantCliPermissions({ enabled: true, byAgent });
+  assert.strictEqual(settings.byAgent, byAgent);
+  const projected = resolveAssistantCliPermissions({ isOwner: true, env: {}, settings, agentId: "codex" });
+  assert.strictEqual(projected.byAgent, byAgent);
+});

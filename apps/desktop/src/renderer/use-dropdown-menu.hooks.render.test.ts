@@ -7,9 +7,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act, createElement } from 'react';
-import { countingTarget, renderHookWithView as renderHook, type TestContext } from './app-hooks.test-support.js';
+import { renderHookWithView as renderHook, type TestContext } from './app-hooks.test-support.js';
 import { installDom } from './dom-hook-harness.js';
-import { useDismissibleDropdown, useMenuKeyboard, type DocumentFocus, type DocumentListeners } from './use-dropdown-menu.hooks.js';
+import { useDismissibleDropdown } from './use-dropdown-menu.hooks.js';
+import { useMenuKeyboard, type DocumentFocus } from '@jini-ai/ui/browser';
 
 const window = installDom();
 
@@ -25,24 +26,38 @@ test('useDismissibleDropdown: outside pointerdown and Escape close it; a press i
   pointer(document.body);
   assert.equal(hook.current().open, false);
   act(() => hook.current().setOpen(true));
-  act(() => { document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })); });
+  const inside = document.getElementById('inside')!;
+  inside.addEventListener('keydown', event => event.stopPropagation());
+  act(() => { inside.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, isComposing: true })); });
+  assert.equal(hook.current().open, true);
+  act(() => { inside.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
   assert.equal(hook.current().open, false);
 });
 
 test('useDismissibleDropdown: listens only while open, ignores other keys, and detaches on close and unmount', (t) => {
-  const doc = countingTarget<DocumentListeners>(document);
-  const hook = renderHook(t, () => useDismissibleDropdown<HTMLDivElement>({}, { doc: doc.port }),
+  const live = new Set<EventListenerOrEventListenerObject>();
+  const addEventListener = document.addEventListener.bind(document);
+  const removeEventListener = document.removeEventListener.bind(document);
+  t.mock.method(document, 'addEventListener', (type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => {
+    if (type === 'pointerdown' || type === 'keydown') live.add(listener);
+    addEventListener(type, listener, options);
+  });
+  t.mock.method(document, 'removeEventListener', (type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions) => {
+    if (type === 'pointerdown' || type === 'keydown') live.delete(listener);
+    removeEventListener(type, listener, options);
+  });
+  const hook = renderHook(t, () => useDismissibleDropdown<HTMLDivElement>(),
     (value) => createElement('div', { ref: value.containerRef }, createElement('button', { id: 'counted-inside' })));
-  assert.equal(doc.live(), 0, 'a closed dropdown listens to nothing');
+  assert.equal(live.size, 0, 'a closed dropdown listens to nothing');
   act(() => hook.current().setOpen(true));
-  assert.equal(doc.live(), 2, 'one pointerdown and one keydown listener');
+  assert.equal(live.size, 2, 'one pointerdown and one keydown listener');
   act(() => { document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter' })); });
   assert.equal(hook.current().open, true, 'a key that is not Escape leaves it open');
   act(() => { document.body.dispatchEvent(new window.Event('pointerdown', { bubbles: true })); });
-  assert.deepEqual([hook.current().open, doc.live()], [false, 0]);
+  assert.deepEqual([hook.current().open, live.size], [false, 0]);
   act(() => hook.current().setOpen(true));
   hook.unmount();
-  assert.equal(doc.live(), 0);
+  assert.equal(live.size, 0);
 });
 
 // ── useMenuKeyboard ─────────────────────────────────────────────────────────────────────────────

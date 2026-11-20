@@ -1,5 +1,5 @@
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { collectCoverMediaRefs } from "#src/contracts/core/cover-image";
+import { collectCoverMediaRefs } from "@jini-ai/cms/media/cover-image";
 import type { StaticFeaturedImage } from "#src/features/theme/index";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/bootstrap";

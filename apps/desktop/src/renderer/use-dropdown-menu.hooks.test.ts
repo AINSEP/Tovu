@@ -6,7 +6,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { SetStateAction } from 'react';
-import { menuFocusIndex, settingsControlHandlers } from './use-dropdown-menu.hooks.js';
+import { menuFocusIndex } from '@jini-ai/ui/browser';
+import { settingsControlHandlers } from './use-dropdown-menu.hooks.js';
 
 test('menu arrow keys wrap at both ends, Home/End jump, and other keys are left alone', () => {
   const at = (key: string, current: number) => menuFocusIndex({ key, current, count: 5 });

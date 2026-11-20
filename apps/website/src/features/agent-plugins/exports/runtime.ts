@@ -9,7 +9,7 @@ import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { checkPluginExportConfig, selectPluginExport, PluginEmbedValidationError, type PluginEmbedDiagnostic, type SelectedPluginExport } from "./diagnostics.js";
 import type { AgentPluginExport } from "@jini-ai/agent-plugins/manifest";
 import { pluginExportFileUrl, type PluginExportPackage, type PluginExportSource } from "./source.js";
-import type { DeclaredPageHosts } from "../../../contracts/core/public-page-security-headers.js";
+import type { DeclaredPageHosts } from "@jini-ai/core/contracts/server/security-headers";
 
 export interface PluginExportRenderSession extends PluginExportsPort {
   headHtml(required: Record<string, never>, options?: Record<string, never>): string;
