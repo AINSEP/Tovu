@@ -28,6 +28,7 @@
     "@jini-ai/cms": "^0.7.0",
     "@jini-ai/cookie-consent": "^0.7.2",
     "@jini-ai/core": "^0.7.0",
+    "@jini-ai/devops": "^0.7.2",
     "@jini-ai/integrations": "^0.7.0",
     "@jini-ai/platform": "^0.7.0",
     "@jini-ai/plugins": "^0.7.0",
