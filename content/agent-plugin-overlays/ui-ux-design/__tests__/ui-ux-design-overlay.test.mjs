@@ -14,25 +14,27 @@ import test from 'node:test';
 
 const overlayRoot = path.resolve(import.meta.dirname, '..');
 const readGuidance = () => readFile(path.join(overlayRoot, 'GUIDANCE.md'), 'utf8');
+// The theme QA gate is a host file, loaded on demand, so GUIDANCE.md fits the automatic guidance limit.
+const readQa = () => readFile(path.join(overlayRoot, 'host/theme-screenshot-qa.md'), 'utf8');
 
 // Owner-approved wording (w1, 2026-11-02), whitespace-normalized so line wrapping may change.
 const APPROVED = '## Tovu chat rules Load design guidance and references with `agent_plugin_ui_ux_design`, passing `skill` and optional `file`. Discover available theme, page, media and screenshot tools with `search_tools` and `describe_tool`. Use theme/page tools for actual site edits. Never use Bash, curl, npx or package installers from chat. CLI and React examples apply only to an authorized coding-agent checkout, not an authored HTML Tovu theme. If shadcn MCP or another capability is unavailable, explain the limitation; do not invent tools or install dependencies to work around it. Project specs and design notes are optional context. Tovu chat requires neither an AI Dev Shop checkout nor `<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available tool.';
 
-test('the overlay retains exactly the approved Tovu chat rules before the theme QA rules', async () => {
-  const [chatRules] = (await readGuidance()).split('\n## Design direction');
+test('the overlay retains exactly the approved Tovu chat rules before its load table', async () => {
+  const [chatRules] = (await readGuidance()).split('\n## Load before building');
   assert.equal(chatRules.replace(/\s+/g, ' ').trim(), APPROVED);
 });
 
 test('design inspiration inspects Awwwards before Dribbble and Pinterest', async () => {
   const guidance = await readGuidance();
-  const direction = guidance.slice(guidance.indexOf('## Design direction'), guidance.indexOf('## Theme screenshot QA'));
+  const direction = guidance.slice(guidance.indexOf('## Design direction'));
   assert.match(direction, /Awwwards first/);
   assert.ok(direction.indexOf('Awwwards') < direction.indexOf('Dribbble'));
   assert.ok(direction.indexOf('Dribbble') < direction.indexOf('Pinterest'));
 });
 
 test('theme QA fails clipped headlines, horizontal overflow and large dead gaps', async () => {
-  const guidance = (await readGuidance()).replace(/\s+/g, ' ');
+  const guidance = (await readQa()).replace(/\s+/g, ' ');
   assert.match(guidance, /FAIL[^.]*clipped text[^.]*horizontal overflow/);
   assert.match(guidance, /FAIL[^.]*large dead gaps[^.]*160px/);
   assert.match(guidance, /360, 390, 768, 1024, 1280 and 1440px/);
@@ -41,7 +43,7 @@ test('theme QA fails clipped headlines, horizontal overflow and large dead gaps'
 });
 
 test('theme guidance scales display type to its container and refuses overflow masking', async () => {
-  const guidance = (await readGuidance()).replace(/\s+/g, ' ');
+  const guidance = (await readQa()).replace(/\s+/g, ' ');
   assert.match(guidance, /clamp\(\)/);
   assert.match(guidance, /container-type: inline-size/);
   assert.match(guidance, /font-size: clamp\(2rem, 8cqi, 7rem\)/);
@@ -56,10 +58,26 @@ test('the overlay keeps the safety rules the in-skill copy carried', async () =>
   assert.match(guidance, /If shadcn MCP or another capability is unavailable, explain the\s+limitation/);
 });
 
-test('the overlay ships guidance only: no supporting files, nothing else to stage', async () => {
-  assert.deepEqual((await readdir(overlayRoot)).filter(name => name !== '__tests__').sort(), ['GUIDANCE.md']);
+test('the overlay ships its guidance and one host file, nothing else to stage', async () => {
+  assert.deepEqual((await readdir(overlayRoot)).filter(name => name !== '__tests__').sort(), ['GUIDANCE.md', 'host']);
+  assert.deepEqual(await readdir(path.join(overlayRoot, 'host')), ['theme-screenshot-qa.md']);
+});
+
+test('the load table names the exact calls: design references, kUInetic first, QA before done, shadcn-ui', async () => {
+  const guidance = await readGuidance();
+  const table = guidance.slice(guidance.indexOf('## Load before building'), guidance.indexOf('## Design direction'));
+  assert.match(table, /`agent_plugin_ui_ux_design\(\{ "file": "references\/ui-loop\.md" \}\)`/);
+  assert.match(table, /kUInetic requested, or the theme already uses it[^\n]*\n\s+`agent_plugin_kuinetic\(\{\}\)` first\./);
+  assert.match(table, /Before reporting a theme or page done: `agent_plugin_ui_ux_design\(\{ "file": "host\/theme-screenshot-qa\.md" \}\)`/);
+  assert.match(table, /`agent_plugin_shadcn_ui\(\{\}\)`/);
+});
+
+test('a redesign keeps the theme design system; the Starter rule is for new themes', async () => {
+  const guidance = (await readGuidance()).replace(/\s+/g, ' ');
+  assert.ok(guidance.includes("A redesign keeps the theme's own design system: its tokens, fonts, colours and components."));
+  assert.match(guidance, /We don't ever want to use Tovu Starter for CSS\. We only use it for the structure\./);
 });
 
 test('the overlay is vendor-neutral: no model or vendor names', async () => {
-  assert.doesNotMatch(await readGuidance(), /\b(Claude|Anthropic|Codex|OpenAI|GPT|Gemini|Copilot)\b/);
+  assert.doesNotMatch((await readGuidance()) + (await readQa()), /\b(Claude|Anthropic|Codex|OpenAI|GPT|Gemini|Copilot)\b/);
 });

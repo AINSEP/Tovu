@@ -22,8 +22,8 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
  */
 const EXPECTED_BUNDLED_AGENT_PLUGIN_IDS = [
   'charts-recharts', 'cloudflare', 'composio', 'fly', 'github', 'github-pages', 'google-login', 'google-workspace',
-  'higgsfield-media', 'how-tovu-works', 'jev', 'meilisearch', 'netlify', 'opentelemetry', 'posthog',
-  'railway', 'render', 'resend', 's3-compatible', 'sentry', 'site-compliance', 'site-import', 'slide-design', 'software-engineering', 'supabase',
+  'higgsfield-media', 'how-tovu-works', 'jev', 'kuinetic', 'meilisearch', 'netlify', 'opentelemetry', 'posthog',
+  'railway', 'render', 'resend', 's3-compatible', 'sentry', 'shadcn-ui', 'site-compliance', 'site-import', 'slide-design', 'software-engineering', 'supabase',
   'tovu-theme', 'ui-ux-design', 'vercel', 'wordpress',
 ];
 

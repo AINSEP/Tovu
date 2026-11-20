@@ -10,7 +10,21 @@ notes are optional context. Tovu chat requires neither an AI Dev Shop checkout n
 `<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available
 tool.
 
+## Load before building
+
+These calls are required before the step they name, not optional:
+
+- Any theme, page or import build: `agent_plugin_ui_ux_design({ "file": "references/ui-loop.md" })`,
+  then each file the design skill's load table names for the task.
+- kUInetic requested, or the theme already uses it (`data-kui`, `vendor/kuinetic/`):
+  `agent_plugin_kuinetic({})` first.
+- Before reporting a theme or page done: `agent_plugin_ui_ux_design({ "file": "host/theme-screenshot-qa.md" })`, then pass it.
+- shadcn/ui React app work: `agent_plugin_shadcn_ui({})` (off until an operator enables it).
+
 ## Design direction
+
+A redesign keeps the theme's own design system: its tokens, fonts, colours and components. Add no
+new font or accent unless the owner asks. The rest of this section is for a new theme.
 
 Before styling, identify the site's purpose and choose a fitting visual direction. We don't ever
 want to use Tovu Starter for CSS. We only use it for the structure. Author fresh typography,
@@ -28,30 +42,3 @@ If access, login or screenshot tools prevent inspection, use accessible referenc
 With none available, state “external inspiration unverified,” propose an original direction and
 continue the inactive draft. Keep the Starter structure-only rule; use available tools without
 shell commands or installation. This inspiration budget does not replace final screenshot QA.
-
-## Theme screenshot QA
-
-For theme-from-reference work, the screenshot loop is a release gate. Capture the actual authored
-theme at 360, 390, 768, 1024, 1280 and 1440px viewport widths, including full-page views and close
-views of every hero and section headline. Inspect the final saved version after fonts and images
-load. A desktop and phone screenshot alone does not establish a pass at the widths between them.
-
-- FAIL on clipped text or horizontal overflow at any checked width, including a headline clipped
-  inside its own section even when the page itself has no horizontal scrollbar. Read every heading
-  through its last character and check both section edges. When inspection tools expose geometry,
-  compare document scrollWidth with clientWidth and check text bounds against the container bounds;
-  a clean document width alone cannot prove text is visible inside an overflow-clipped ancestor.
-- FAIL on large dead gaps: any unexplained blank space of 160px or more beneath a hero headline or
-  between content blocks. Compare the visible text and the next meaningful element, not just the
-  outer section boxes. Remove spacer blocks and inflated padding, margins, line-height or min-height
-  that create empty space. Use the reference's proportions to check smaller gaps too.
-- Scale display type to the available container with clamp(). For example, put
-  `container-type: inline-size` on the heading's parent and use
-  `font-size: clamp(2rem, 8cqi, 7rem)` on the heading. Tune all three bounds for the actual font,
-  wording and container; this example does not guarantee fit. Allow wrapping and reduce the minimum
-  size or adjust line breaks when needed. Check section headlines as carefully as the hero.
-- Never mask a failing headline with `overflow: hidden`, `clip`, ellipsis or offscreen positioning.
-  Keep every word readable and adjust type, wrapping and spacing together.
-- After any failure, fix the layout and repeat the captures at the same widths before claiming
-  completion. Report the checked widths and remaining failures. If screenshot or inspection tools
-  are unavailable, say the layout is unverified and do not report PASS.
