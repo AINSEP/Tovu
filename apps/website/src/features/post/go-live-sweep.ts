@@ -2,7 +2,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 
-import { announceDueGoLives, POST_GO_LIVE_LOOKBACK_MS, POST_GO_LIVE_SWEEP_INTERVAL_MS, type GoLiveCandidatesPort } from "./go-live.js";
+import { announceDueGoLives, type GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 
 /**
  * @file The go-live sweep's host scheduling (split from `go-live.ts`, 2026-11-18): an interval
@@ -11,6 +11,14 @@ import { announceDueGoLives, POST_GO_LIVE_LOOKBACK_MS, POST_GO_LIVE_SWEEP_INTERV
  * serving process and stays in Tovu; the pure decisions and announce functions it drives stay in
  * `go-live.ts`, which has no timer or clock of its own.
  */
+
+/** Idle wait between sweeps; bounds how late a go-live is announced. */
+export const POST_GO_LIVE_SWEEP_INTERVAL_MS = 60_000;
+
+/** How far behind the previous pass's instant each later pass re-reads. Covers a save whose
+ *  transaction committed after a pass had already read past its `publishAt`; the overlap is safe
+ *  because a repeated event id is a no-op. */
+export const POST_GO_LIVE_LOOKBACK_MS = 10 * 60_000;
 
 type IntervalHandle = { unref?: () => void };
 

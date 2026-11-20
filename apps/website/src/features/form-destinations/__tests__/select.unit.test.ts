@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildFormDestinationRegistry } from "../registry.js";
+import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import { selectFormReceiver } from "../select.js";
 import type { FormDestinationDescriptor, FormDestinationModule } from "../types.js";
 

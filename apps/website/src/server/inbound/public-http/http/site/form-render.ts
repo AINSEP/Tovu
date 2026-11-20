@@ -28,7 +28,7 @@ import { formValidationMessages, formDocumentLocale } from "./form-validation-me
 import { FORM_ATTEMPT_FIELD } from "@jini-ai/cms/forms/submission-attempts";
 import { FORM_SUBMISSION_TOO_FAST_MESSAGE } from "@jini-ai/cms/forms/html-render";
 import type { FieldDescriptor } from "@jini-ai/cms/forms";
-import { fieldMaxChars } from "#src/features/forms/render-entry";
+import { fieldMaxChars } from "@jini-ai/cms/forms";
 
 const FORM_CLASS = "tovu-form";
 const FORM_SUCCESS_CLASS = "tovu-form-success";

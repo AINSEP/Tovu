@@ -1,6 +1,7 @@
 // Keep request rendering separate from theme installation, imports, and agent tools.
 import { collectionMarkerKey, splitCollectionMarkerInner } from "#src/features/theme/static-render-collections";
-import { renderEntryList, type EntryListItem, type EntryListFieldValue } from "#src/features/theme/entry-list-render";
+import { renderEntryList, type EntryListItem, type EntryListFieldValue } from "@jini-ai/cms/listing";
+import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import { markersOfType, COLLECTION_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { listingBatchPath, listingKeyOfAttributes, readListingBatch, renderListingMore } from "@jini-ai/cms/listing";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
@@ -149,7 +150,7 @@ async function resolveOneCollectionMarker({ deps, marker, pagePath }: { deps: Pi
   const items = batch.items.map((row) => toCollectionEntryListItem({ row, fields: parsed.display.fields, timeZone }));
   const { template } = splitCollectionMarkerInner({ inner: marker.inner });
   const { columns, layout, structuredData } = parsed.display;
-  const list = renderEntryList({ items, options: { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }), ...(listingKey === undefined ? {} : { listingKey }) } });
+  const list = renderEntryList({ items, attribute: ENTRY_LIST_ATTRIBUTE, options: { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }), ...(listingKey === undefined ? {} : { listingKey }) } });
   if (list === undefined || listingKey === undefined || !batch.hasMore) return list;
   return list + renderListingMore({ key: listingKey, href: listingBatchPath({ pagePath, key: listingKey, after: batch.next }) });
 }

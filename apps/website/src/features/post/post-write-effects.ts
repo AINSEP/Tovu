@@ -4,7 +4,7 @@ import { isTrashed } from "../../contracts/core/soft-delete.js";
 import type { PostStatus } from "@jini-ai/cms/core";
 import { isLiveAt } from "../../contracts/core/scheduled-publish.js";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { announcePendingGoLive } from "./go-live.js";
+import { announcePendingGoLive } from "@jini-ai/cms/entries";
 
 /** Who a revision is attributed to; an absent actor is {@link SYSTEM_ACTOR_ID}, absent delegation `null`. */
 interface RevisionAttribution {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ENTRY_LIST_DEFAULT_STYLE } from "../entry-list-render.js";
+import { ENTRY_LIST_DEFAULT_STYLE } from "../entry-list-markup.js";
 
 import { collectionMarkerKey, splitCollectionMarkerInner } from "../static-render-collections.js";
 import { renderStaticPage } from "../static-render.js";

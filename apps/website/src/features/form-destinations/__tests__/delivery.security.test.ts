@@ -9,7 +9,7 @@ import { createCustomCredential, InMemoryCustomCredentialSetRepo, updateCustomCr
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/index";
 import { createCustomCredentialConnectionPort } from "../connection-port.js";
 import { createFormDestinationDeliverer } from "../deliver.js";
-import { buildFormDestinationRegistry } from "../registry.js";
+import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import type { FormDeliveryConnectionPort, FormDestinationCredential, FormDestinationKit, FormDestinationModule } from "../types.js";
 
 /**

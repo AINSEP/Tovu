@@ -2,14 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
-import {
-  announceDueGoLives,
-  goLiveEvent,
-  POST_GO_LIVE_LOOKBACK_MS,
-  wentLiveSinceSave,
-  type GoLiveCandidatesPort,
-} from "../go-live.js";
-import { startPostGoLiveSweep } from "../go-live-sweep.js";
+import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
+import { POST_GO_LIVE_LOOKBACK_MS, startPostGoLiveSweep } from "../go-live-sweep.js";
 import type { PostRecord } from "../post.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 
@@ -24,7 +18,6 @@ import { buildPostRecord } from "./post-record.fixture.js";
 
 const SAVED = "2026-10-21T10:00:00.000Z";
 const GO_LIVE = "2026-10-21T12:00:00.000Z";
-const ONE_MS_BEFORE_GO_LIVE = "2026-10-21T11:59:59.999Z";
 const LATER = "2026-10-21T13:00:00.000Z";
 const scheduled = (fields: Partial<PostRecord> = {}) => buildPostRecord({ id: "p1", publishAt: GO_LIVE, updatedAt: SAVED, version: 3, ...fields });
 
@@ -62,32 +55,6 @@ function manualTimers() {
 }
 
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
-
-test("decision: a post whose publishAt equals now is live; one millisecond earlier it is not yet", () => {
-  assert.equal(wentLiveSinceSave({ post: scheduled(), nowIso: GO_LIVE }), true);
-  assert.equal(wentLiveSinceSave({ post: scheduled(), nowIso: ONE_MS_BEFORE_GO_LIVE }), false);
-});
-
-test("decision: the event id and payload are a golden of post id + publishAt + content type", () => {
-  assert.deepEqual(goLiveEvent({ post: scheduled({ workspaceId: "ws", kind: "post" }) }), {
-    id: `p1-entry.published-at-${GO_LIVE}`,
-    name: "entry.published",
-    occurredAt: GO_LIVE,
-    aggregateId: "p1",
-    workspaceId: "ws",
-    payload: { entryId: "p1", contentType: "post" },
-  });
-});
-
-test("announceDueGoLives enqueues every candidate each time it runs; the two calls carry equal event ids", async () => {
-  const repo = new FakeCandidates([scheduled()]);
-  const outbox = new RecordingOutbox();
-  const input = { workspaceId: "ws", nowIso: LATER };
-  assert.deepEqual(await announceDueGoLives({ deps: { repo, outbox }, input }), { announced: 1 });
-  assert.deepEqual(await announceDueGoLives({ deps: { repo, outbox }, input }), { announced: 1 });
-  assert.equal(outbox.enqueued.length, 2, "no de-duplication here: that is the outbox's own contract");
-  assert.equal(outbox.enqueued[0]?.id, outbox.enqueued[1]?.id);
-});
 
 test("lifecycle: a failed pass leaves the window start unchanged, so the next tick retries the same range", async () => {
   const repo = new FakeCandidates([scheduled()]);

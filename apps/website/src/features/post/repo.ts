@@ -12,7 +12,7 @@ import type {
   PostRevisionInput,
   PostRevisionRecord,
 } from "./post.js";
-import type { GoLiveCandidatesPort } from "./go-live.js";
+import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { toPostSearchDocument } from "./search.js";
 import { currentIso } from "../../contracts/core/scheduled-publish.js";

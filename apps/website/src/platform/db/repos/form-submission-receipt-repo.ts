@@ -1,4 +1,4 @@
-import type { FormSubmissionReceiptPort } from "#src/features/forms/index";
+import type { FormSubmissionReceiptPort } from "@jini-ai/cms/forms/html";
 import type { ContentKernel } from "../content-kernel.js";
 
 /**

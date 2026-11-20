@@ -10,7 +10,8 @@ import { createFormDestinationPort, FORM_PULL_LEASE_MS, formDestinationKey, list
 import { readFormDestinationSetting } from "#src/features/settings/form-destination";
 import { readFormsAutoPull } from "#src/features/settings/index";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
-import { buildFormDestinationManifest, importRemoteFormSubmissions, type FormDestinationPullReport, type FormImportCounts, type FormPullCounts, type FormSubmissionReceiptPort, type FormSubmissionsPullPort, type FormSubmissionsPullResult, type FormsAutoPullPort, type RemoteImportResult, type RemoteSubmissionInput } from "#src/features/forms/index";
+import { importRemoteFormSubmissions, type FormImportCounts, type FormSubmissionReceiptPort, type RemoteImportResult, type RemoteSubmissionInput } from "@jini-ai/cms/forms/html";
+import { buildFormDestinationManifest, type FormDestinationPullReport, type FormPullCounts, type FormSubmissionsPullPort, type FormSubmissionsPullResult, type FormsAutoPullPort } from "#src/features/forms/index";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 /**

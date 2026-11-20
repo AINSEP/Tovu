@@ -2,16 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
-import {
-  announceDueGoLives,
-  announcePendingGoLive,
-  goLiveEvent,
-  POST_GO_LIVE_LOOKBACK_MS,
-  POST_GO_LIVE_SWEEP_INTERVAL_MS,
-  wentLiveSinceSave,
-  type GoLiveCandidatesPort,
-} from "../go-live.js";
-import { startPostGoLiveSweep } from "../go-live-sweep.js";
+import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
+import { POST_GO_LIVE_LOOKBACK_MS, POST_GO_LIVE_SWEEP_INTERVAL_MS, startPostGoLiveSweep } from "../go-live-sweep.js";
 import type { PostRecord } from "../post.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 
@@ -61,46 +53,6 @@ function fakeTimers() {
 
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
-test("wentLiveSinceSave: only a published, untrashed row saved before a publishAt that has passed", () => {
-  assert.equal(wentLiveSinceSave({ post: scheduled(), nowIso: LATER }), true);
-  assert.equal(wentLiveSinceSave({ post: scheduled(), nowIso: GO_LIVE }), true, "inclusive at the instant");
-  assert.equal(wentLiveSinceSave({ post: scheduled(), nowIso: SAVED }), false, "still scheduled");
-  assert.equal(wentLiveSinceSave({ post: scheduled({ status: "draft" }), nowIso: LATER }), false);
-  assert.equal(wentLiveSinceSave({ post: scheduled({ deletedAt: LATER }), nowIso: LATER }), false);
-  assert.equal(wentLiveSinceSave({ post: scheduled({ publishAt: null }), nowIso: LATER }), false);
-  assert.equal(wentLiveSinceSave({ post: scheduled({ updatedAt: LATER }), nowIso: LATER }), false, "saved after go-live: that save announced it");
-});
-
-test("goLiveEvent: keyed by the scheduled publication (post + publishAt), not the version, occurring at the go-live instant", () => {
-  assert.deepEqual(goLiveEvent({ post: scheduled({ kind: "page", workspaceId: "ws" }) }), {
-    id: `p1-entry.published-at-${GO_LIVE}`,
-    name: "entry.published",
-    occurredAt: GO_LIVE,
-    aggregateId: "p1",
-    workspaceId: "ws",
-    payload: { entryId: "p1", contentType: "page" },
-  });
-  assert.equal(goLiveEvent({ post: scheduled({ publishAt: null }) }).occurredAt, SAVED);
-  assert.equal(goLiveEvent({ post: scheduled({ version: 9 }) }).id, goLiveEvent({ post: scheduled() }).id, "every version of one schedule shares the id");
-});
-
-test("announcePendingGoLive: enqueues the go-live event only for a row that went live since its save", async () => {
-  const outbox = new RecordingOutbox();
-  await announcePendingGoLive({ outbox, post: scheduled(), nowIso: SAVED });
-  assert.deepEqual(outbox.enqueued, [], "still scheduled: nothing to announce yet");
-  await announcePendingGoLive({ outbox, post: scheduled(), nowIso: LATER });
-  assert.deepEqual(outbox.enqueued, [goLiveEvent({ post: scheduled() })]);
-});
-
-test("announceDueGoLives enqueues one event per candidate and passes the window through", async () => {
-  const repo = new FakeCandidates([scheduled(), scheduled({ id: "p2" })]);
-  const outbox = new RecordingOutbox();
-  assert.deepEqual(await announceDueGoLives({ deps: { repo, outbox }, input: { workspaceId: "ws", nowIso: LATER } }), { announced: 2 });
-  assert.deepEqual(outbox.enqueued.map((event) => event.id), [`p1-entry.published-at-${GO_LIVE}`, `p2-entry.published-at-${GO_LIVE}`]);
-  await announceDueGoLives({ deps: { repo, outbox }, input: { workspaceId: "ws", nowIso: LATER } }, { afterIso: GO_LIVE });
-  assert.deepEqual(repo.calls, [{ workspaceId: "ws", nowIso: LATER }, { workspaceId: "ws", nowIso: LATER, afterIso: GO_LIVE }]);
-});
-
 test("the sweep catches up fully at start, then reads only since the previous pass minus the lookback", async () => {
   const repo = new FakeCandidates([scheduled()]);
   const outbox = new RecordingOutbox();
@@ -117,6 +69,7 @@ test("the sweep catches up fully at start, then reads only since the previous pa
   await settle();
   assert.deepEqual(repo.calls[1], { workspaceId: "ws", nowIso: LATER, afterIso: new Date(Date.parse(GO_LIVE) - POST_GO_LIVE_LOOKBACK_MS).toISOString() });
   assert.equal(outbox.enqueued.length, 2, "the overlap re-enqueues; the outbox's id makes it a no-op");
+  assert.equal(outbox.enqueued[0]?.id, outbox.enqueued[1]?.id);
 
   await sweep.stop();
   assert.equal(state.cleared, true);

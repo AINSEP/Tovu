@@ -7,7 +7,8 @@ import { type OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
-import { SYSTEM_ACTOR_ID, announcePendingGoLive } from "../post/index.js";
+import { announcePendingGoLive } from "@jini-ai/cms/entries";
+import { SYSTEM_ACTOR_ID } from "../post/index.js";
 import type { PostKind } from "#src/contracts/core/post-kind";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";

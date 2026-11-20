@@ -4,7 +4,8 @@ import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { SiteChatSelection } from "../site-chat-markup.js";
 import { escapeHtml } from "#src/platform/html/escape";
 import { siteAssistantMarkup } from "./site-assistant-mount.js";
-import { withEntryListStyleOnce } from "#src/features/theme/entry-list-render";
+import { withEntryListStyleOnce } from "@jini-ai/cms/listing";
+import { ENTRY_LIST_ATTRIBUTE, ENTRY_LIST_DEFAULT_STYLE } from "#src/features/theme/entry-list-markup";
 // Every module counts in fresh render workers; omit the rendering re-export wrapper.
 import { renderThemeFontLinks } from "#src/features/theme/font-links";
 
@@ -86,7 +87,7 @@ ${assets.body}
   // `withEntryListStyleOnce` only ever matches its OWN `[data-tovu-entry-list]` wrapper attribute,
   // never a theme's own unrelated `.entry-list`-classed markup (`entryList`/`productEntryList`
   // below both use that class for the built-in post/product index).
-  return withEntryListStyleOnce({ html: document });
+  return withEntryListStyleOnce({ html: document, attribute: ENTRY_LIST_ATTRIBUTE, style: ENTRY_LIST_DEFAULT_STYLE });
 }
 
 function shellThemeAssets({ theme }: { theme: DiscoveredTheme | null }) {
