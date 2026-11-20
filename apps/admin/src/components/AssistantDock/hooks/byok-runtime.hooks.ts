@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 
@@ -38,16 +39,13 @@ function useByokModels(
       return undefined;
     }
     let cancelled = false;
-    executionPort.current
-      .listModels?.({ ...byokConfig.current, apiKey: byokApiKey, baseUrl: byokBaseUrl, protocol: byokProtocol })
-      .then((models) => {
-        if (!cancelled) setByokModels(models.map((id) => ({ id, label: id })));
-      })
-      // Silent: a failed discovery must not put an error in a chat composer. The visible
-      // consequence is only that the model row stays a plain value instead of a picker.
-      .catch(() => {
-        if (!cancelled) setByokModels([]);
-      });
+    const discovery = executionPort.current
+      .listModels?.({ ...byokConfig.current, apiKey: byokApiKey, baseUrl: byokBaseUrl, protocol: byokProtocol });
+    // Silent: a failed discovery must not put an error in a chat composer. The visible
+    // consequence is only that the model row stays a plain value instead of a picker.
+    if (discovery) void orFallback({ work: () => discovery, fallback: [], step: "Discover BYOK models" }).then((models) => {
+      if (!cancelled) setByokModels(models.map((id) => ({ id, label: id })));
+    });
     return () => {
       cancelled = true;
     };

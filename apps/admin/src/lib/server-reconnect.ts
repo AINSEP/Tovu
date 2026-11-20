@@ -1,3 +1,5 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
+
 /**
  * @file Riding out a server restart (2026-10-05, big-chat-capabilities plan S3). When the API is
  * briefly gone — `tsx watch` reloading on a save, or `npm run dev` restarting it onto a newly
@@ -125,13 +127,11 @@ export function shouldRetryAfterReconnect(input: {
  *  server is up; anything else — refused, a proxy's text 5xx, a timeout — means not yet.
  *  `request` defaults to the browser `fetch`; each probe gives up after 2s. */
 export async function probeReadyz(_required = {}, { request = fetch }: { request?: typeof fetch } = {}): Promise<boolean> {
-  try {
+  return orFallback({ work: async () => {
     const res = await request("/readyz", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(2_000) });
     const body: unknown = await res.json();
     return typeof (body as { ready?: unknown } | null)?.ready === "boolean";
-  } catch {
-    return false;
-  }
+  }, fallback: false, step: "Probe server readiness" });
 }
 
 /** The browser's real reconnect dependencies: the `/readyz` probe, a `setTimeout` sleep and the wall clock. */

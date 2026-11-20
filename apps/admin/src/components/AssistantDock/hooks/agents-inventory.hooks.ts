@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { type ChatPaneAgent } from "@jini-ai/chat/react";
 
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
@@ -167,7 +168,7 @@ export async function rescanAgentsInto(
     throw error;
   });
   // An empty rescan is normal during daemon restart; the fresh GET below retries it.
-  const rescanned = inventory === null ? null : await readAgentsResponse({ inventory, label: `POST ${AGENTS_URL}/rescan` }).catch(() => null);
+  const rescanned = inventory === null ? null : await orFallback({ work: () => readAgentsResponse({ inventory, label: `POST ${AGENTS_URL}/rescan` }), fallback: null, step: "Decode rescanned agents" });
   return replaceAgents({ loader, agents: rescanned ?? (await fetchAgents()) });
 }
 

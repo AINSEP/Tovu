@@ -1,4 +1,5 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
 
 /**
@@ -135,18 +136,16 @@ const LEGACY_CREDENTIALS_STORAGE_KEY = "tovu:execution-credentials:v1";
  * @overallScore 100
  */
 export function readLegacyLocalCredential(): string | null {
-  try {
+  // Malformed/inaccessible localStorage (private-browsing quota errors, a hand-edited value)
+  // reads as "nothing to migrate" rather than throwing — the prompt is a convenience, not a
+  // guarantee, and a parse failure here must not block the rest of the screen from rendering.
+  return orFallbackSync({ work: () => {
     const raw = window.localStorage.getItem(LEGACY_CREDENTIALS_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { apiKey?: unknown };
     const apiKey = typeof parsed.apiKey === "string" ? parsed.apiKey.trim() : "";
     return apiKey.length > 0 ? apiKey : null;
-  } catch {
-    // Malformed/inaccessible localStorage (private-browsing quota errors, a hand-edited value)
-    // reads as "nothing to migrate" rather than throwing — the prompt is a convenience, not a
-    // guarantee, and a parse failure here must not block the rest of the screen from rendering.
-    return null;
-  }
+  }, fallback: null, step: "Read legacy execution credential" });
 }
 
 /**
@@ -162,14 +161,13 @@ export function readLegacyLocalCredential(): string | null {
  * @overallScore 100
  */
 export function clearLegacyLocalCredential(): void {
-  try {
+  // Best-effort. A browser that cannot clear localStorage could not have written it moments ago
+  // either — this is not a new failure mode, and swallowing it here matches
+  // `readLegacyLocalCredential`'s own defensive posture rather than surfacing a confusing error
+  // after the part the admin actually cares about (the server save) already succeeded.
+  orFallbackSync({ work: () => {
     window.localStorage.removeItem(LEGACY_CREDENTIALS_STORAGE_KEY);
-  } catch {
-    // Best-effort. A browser that cannot clear localStorage could not have written it moments ago
-    // either — this is not a new failure mode, and swallowing it here matches
-    // `readLegacyLocalCredential`'s own defensive posture rather than surfacing a confusing error
-    // after the part the admin actually cares about (the server save) already succeeded.
-  }
+  }, fallback: undefined, step: "Clear legacy execution credential" });
 }
 
 /** Compatibility wrapper for config/credential reads; the package owns the shape guard. */

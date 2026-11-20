@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 /** Hook seam; the default adapter below owns browser storage and storage events. */
 export interface BrowserAgentSettingsPort {
@@ -15,16 +16,16 @@ let sessionOverride: boolean | undefined;
 
 export function getBrowserAgentEnabled(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): boolean {
   if (sessionOverride !== undefined) return sessionOverride;
-  try { return window.localStorage.getItem(WEBMCP_PREFERENCE_KEY) !== "false"; }
-  catch { return true; }
+  return orFallbackSync({ work: () => window.localStorage.getItem(WEBMCP_PREFERENCE_KEY) !== "false", fallback: true, step: "Read browser agent preference" });
 }
 
 export function setBrowserAgentEnabled({ enabled }: { enabled: boolean }, _optional: Record<string, never> = {}): void {
   sessionOverride = enabled;
-  try {
+  /* Keep the choice for this session when storage is blocked. */
+  orFallbackSync({ work: () => {
     window.localStorage.setItem(WEBMCP_PREFERENCE_KEY, String(enabled));
     sessionOverride = undefined;
-  } catch { /* Keep the choice for this session when storage is blocked. */ }
+  }, fallback: undefined, step: "Save browser agent preference" });
   for (const listener of listeners) listener();
 }
 

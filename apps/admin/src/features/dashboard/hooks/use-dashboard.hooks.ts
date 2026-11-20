@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { useFetchQuery, useInvalidate, type QueryResult } from "@jini-ai/ui/fetch-query";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 
@@ -25,21 +26,18 @@ const DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY = "tovu.admin.default-password-ban
  *  every load (see `rules.ts`'s `shouldShowDefaultPasswordBanner`).
  *  @complexity Time/space: O(1). */
 function readDefaultPasswordBannerDismissedBy(): string | null {
-  try {
+  return orFallbackSync({ work: () => {
     return localStorage.getItem(DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY);
-  } catch {
-    return null;
-  }
+  }, fallback: null, step: "Read password banner dismissal" });
 }
 
 /** Best-effort write — silent no-op on any storage failure, for the same reason the read above is.
  *  @complexity Time/space: O(1). */
 function writeDefaultPasswordBannerDismissedBy({ principalId }: { principalId: string }, _optional = {}): void {
-  try {
+  // best-effort; see this file's header note on the Dismiss control.
+  orFallbackSync({ work: () => {
     localStorage.setItem(DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY, principalId);
-  } catch {
-    // best-effort; see this file's header note on the Dismiss control.
-  }
+  }, fallback: undefined, step: "Remember password banner dismissal" });
 }
 
 /**

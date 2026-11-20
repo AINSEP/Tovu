@@ -1,4 +1,5 @@
 import { isDesktopAdmin } from "./features/settings/ai-agent-presentation";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { sitesApi } from "./features/sites/api/sites-api";
 import type { AdminUser } from "./features/auth/api/auth-api.types";
 import { useSitesSnapshot } from "./features/sites/hooks/use-sites-snapshot.hooks";
@@ -104,11 +105,12 @@ export const SITES_ROW_STORAGE_KEY = "tovu-admin-sites-row-available";
 
 /** Storage access throws in a locked-down browser; the row then simply waits for the server. */
 function readSitesRowFlag({ storage }: { storage: Pick<Storage, "getItem"> | undefined }, _options: Record<string, never> = {}): boolean {
-  try { return storage?.getItem(SITES_ROW_STORAGE_KEY) === "1"; } catch { return false; }
+  return orFallbackSync({ work: () => storage?.getItem(SITES_ROW_STORAGE_KEY) === "1", fallback: false, step: "Read Sites row preference" });
 }
 
 function writeSitesRowFlag({ storage, available }: { storage: Pick<Storage, "setItem"> | undefined; available: boolean }, _options: Record<string, never> = {}): void {
-  try { storage?.setItem(SITES_ROW_STORAGE_KEY, available ? "1" : "0"); } catch { /* best effort */ }
+  /* best effort */
+  orFallbackSync({ work: () => { storage?.setItem(SITES_ROW_STORAGE_KEY, available ? "1" : "0"); }, fallback: undefined, step: "Save Sites row preference" });
 }
 
 function defaultSitesRowStorage(): Storage | undefined {

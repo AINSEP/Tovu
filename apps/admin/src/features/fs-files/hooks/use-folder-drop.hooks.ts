@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { DragEvent } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { folderPathsFromDataTransfer } from "@jini-ai/ui";
@@ -163,12 +164,10 @@ function dropHasFolder(dataTransfer: DataTransfer): boolean {
  * @complexity O(1) plus one request.
  */
 async function readPreviousCustomRoot(required: { readonly getCustomRoot: () => Promise<{ readonly path: string | null }> }): Promise<string | null> {
-  try {
+  // Best-effort only — see this module's own doc on why a failed read never blocks REQ-02.
+  return orFallback({ work: async () => {
     return (await required.getCustomRoot()).path;
-  } catch {
-    // Best-effort only — see this module's own doc on why a failed read never blocks REQ-02.
-    return null;
-  }
+  }, fallback: null, step: "Read previous custom root" });
 }
 
 /**
