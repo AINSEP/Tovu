@@ -499,9 +499,13 @@ async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: st
   }
   // addFile adds nothing for a missing, excluded, linked or non-regular file, so a short list is every refusal.
   if (staged.files.length !== listed.files.length) return null;
+  return pinSitePluginFiles(staged.files, listed.files);
+}
+
+async function pinSitePluginFiles(files: PlannedDiskFile[], listed: NonNullable<Awaited<ReturnType<typeof listSitePluginPackage>>>["files"]): Promise<PlannedDiskFile[] | null> {
   const pinned: PlannedDiskFile[] = [];
-  for (const [index, planned] of staged.files.entries()) {
-    const listedFile = listed.files[index];
+  for (const [index, planned] of files.entries()) {
+    const listedFile = listed[index];
     if (listedFile === undefined) throw new Error(`Backup source inventory has no file at index ${index}`);
     const expected = listedFile.sha256;
     const read = await readDiskFile(planned, { unlinkedPath: true });

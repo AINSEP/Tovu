@@ -2,55 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/admin-http/request";
 import { t as translateSecurity } from "../security-i18n";
-import {
-  accessTokenProvidersWithSavedRows,
-  ACCESS_TOKEN_CATEGORIES,
-  OTHER_CREDENTIAL_STORES,
-  accessTokenCategoryLabel,
-  accessTokenCategoryMatches,
-  accessTokenNameTaken,
-  accessTokenProviderInfo,
-  accessTokenProviderMatchesQuery,
-  accessTokenProviders,
-  accessTokenReplaceReadyToSave,
-  accessTokenRowMatchesQuery,
-  accessTokenRowProviderInfo,
-  accessTokenRowReadyToSave,
-  accessTokenRowsForProvider,
-  accessTokensCountText,
-  buildAccessTokenConnectionInput,
-  buildAccessTokenRows,
-  buildAccessTokenUpdatePatch,
-  buildAdditionalHostsInput,
-  buildCustomCredentialRows,
-  buildCustomCredentialUpdatePatch,
-  buildCustomProviderConnectionInput,
-  classifyAccessTokenSubmitError,
-  customCredentialNameTaken,
-  customCredentialReadyToSave,
-  customCredentialReplaceReadyToSave,
-  accessTokenExistingRowReadyToSave,
-  envNamesFact,
-  extraFieldsAroundToken,
-  providerGroupSubtitleKeys,
-  invalidAdditionalHostsEntries,
-  isValidHttpUrl,
-  parseAdditionalHostsInput,
-  maskedTailFact,
-  mediaProviderLabel,
-  otherCredentialMatchesQuery,
-  otherCredentialStoreInfo,
-  providerGroupHandleLabel,
-  sortAccessTokenGroups,
-  tokenRowHandleLabel,
-  type AccessTokenFormFields,
-  type AccessTokenGroupSortInput,
-  type AccessTokenRow,
-  type AccessTokenRowCategoryId,
-  type CustomCredentialFormFields,
-  type RawCredentialSummary,
-  type RawCustomCredentialSummary,
-} from "../rules";
+import { accessTokenProvidersWithSavedRows, accessTokenProviderInfo, accessTokenProviders, accessTokenRowProviderInfo, extraFieldsAroundToken, providerGroupSubtitleKeys, providerGroupHandleLabel, tokenRowHandleLabel } from "../access-token-providers";
+import { ACCESS_TOKEN_CATEGORIES, accessTokenCategoryLabel, accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenGroupSortInput, type AccessTokenRowCategoryId } from "../rules";
+import { OTHER_CREDENTIAL_STORES, accessTokensCountText, envNamesFact, maskedTailFact, mediaProviderLabel, otherCredentialMatchesQuery, otherCredentialStoreInfo } from "../other-credential-stores";
+import { accessTokenNameTaken, accessTokenProviderMatchesQuery, accessTokenRowMatchesQuery, accessTokenRowsForProvider, buildAccessTokenRows, buildCustomCredentialRows, type AccessTokenRow, type RawCredentialSummary, type RawCustomCredentialSummary } from "../access-token-rows";
+import { accessTokenReplaceReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, accessTokenExistingRowReadyToSave, type AccessTokenFormFields } from "../access-token-forms";
+import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, customCredentialReplaceReadyToSave, invalidAdditionalHostsEntries, isValidHttpUrl, parseAdditionalHostsInput, type CustomCredentialFormFields } from "../custom-credential-forms";
 import { ACCESS_TOKEN_TEST_PROVIDERS as PROVIDERS, SOURCE_CONTROL_TEST_DESCRIPTORS } from "./access-token-providers.fixture";
 import { PLAIN_TARGET, PUBLISH_TARGETS } from "../../deployment/__tests__/publish-targets.fixture";
 

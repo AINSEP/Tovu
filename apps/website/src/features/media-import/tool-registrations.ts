@@ -280,115 +280,127 @@ async function requireMediaPermission(
   { entityType: "media", ...(entityId === undefined ? {} : { entityId }) });
 }
 
+function createMediaReplaceFileHandler(routeDeps: MediaImportToolDeps): ToolHandler {
+  return async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  refuseUnexpectedKeys(input, ["mediaId", "url", "root", "path"]);
+  const mediaId = requireString({ input, key: "mediaId" });
+  await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.update" }, { entityId: mediaId });
+  return withSchemaOnRejection({
+    toolId: "media_replace_file", catalog: CATALOG_BY_ID,
+    isShapeRejection: ({ error }) => isImportShapeRejection({ error }) || error instanceof FsFilePathError || error instanceof MediaValidationError,
+    fn: async () => {
+      const remote = requireReplacementSource({ input });
+      const media = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
+      if (!media || media.status !== "active") throw new MediaImportValidationError({ message: "Media was not found or is in Trash; restore it before replacing its file." });
+      if (!routeDeps.mediaRepo.replaceFileIfVersion || !routeDeps.mediaRepo.saveRenditionIfSource) {
+        throw new MediaImportValidationError({ message: "Media file replacement is unavailable on this storage adapter." });
+      }
+      const source = remote
+        ? await withCallerSafeEgressRefusal({
+          log: routeDeps.mediaImportEgressRefusalLog ?? console.warn,
+          work: async () => {
+            const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url: requireString({ input, key: "url" }) });
+            return { ...fetched, provenance: { kind: 'url' as const, url: fetched.url.href } };
+          },
+        },
+          { toolId: "media_replace_file" })
+        : await readLocalReplacement({ routeDeps, input });
+      ctx.signal.throwIfAborted();
+      const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+      if (!saved) throw new MediaImportValidationError({ message: "Media changed while replacing its file. Read the current item and retry; nothing was replaced." });
+      const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [saved] });
+      const result = { media: { id: saved.id, slug: saved.slug, title: saved.title, version: saved.version, sha256: saved.source.sha256, publicUrl: urls.get(saved.id) ?? null } };
+      return withChatPreview({ routeDeps, bytes: source.bytes, contentType: source.contentType, result });
+    },
+  });
+};
+}
+
+function createMediaImportLocalFileHandler(routeDeps: MediaImportToolDeps): ToolHandler {
+  return async (ctx): Promise<unknown> => {
+  const input = requireInputRecord({ input: ctx.input });
+  const root = requireString({ input, key: "root" });
+  const relativePath = requireString({ input, key: "path" });
+  await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.upload" });
+
+  return withSchemaOnRejection({
+    toolId: "media_import_local_file", catalog: CATALOG_BY_ID,
+    isShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof MediaImportValidationError || error instanceof MediaValidationError,
+    fn: async () => {
+      const request = resolveLocalImportRequest({ routeDeps, root, relativePath }, {});
+      const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
+      const bytes = await openFsFileForRead({ ...request, maxBytes });
+      const contentType = validateImageBytes({ source: relativePath, bytes, bytesTruncated: false });
+      const title = optionalString({ input, key: "title" });
+      // uploadMedia derives its title by stripping the final extension. A synthetic suffix lets
+      // an explicit editorial title keep its punctuation and spaces; this is never a disk path.
+      const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1) : `${title}.imported`;
+      if (filename === undefined) throw new Error("Media import path has no filename");
+      ctx.signal.throwIfAborted();
+      const result = await persistImportedMedia({
+        routeDeps, actorId: ctx.principal.id,
+        input: {
+          workspaceId: routeDeps.workspaceId, bytes, filename, contentType,
+          provenance: { kind: 'upload', path: request.relativePath },
+          alt: optionalString({ input, key: "alt" }), caption: optionalString({ input, key: "caption" }),
+          createdByPrincipal: ctx.principal.id,
+        },
+        sourceUrl: "",
+      });
+      return withChatPreview({ routeDeps, bytes, contentType, result });
+    },
+  });
+};
+}
+
+function createMediaImportFromUrlHandler(routeDeps: MediaImportToolDeps): ToolHandler {
+  return async (ctx): Promise<unknown> => {
+  const input = requireInputRecord({ input: ctx.input });
+  const url = requireString({ input, key: "url" });
+  await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.upload" });
+
+  const logEgressRefusal = routeDeps.mediaImportEgressRefusalLog ?? ((line: string) => console.warn(line));
+  return withSchemaOnRejection({
+    toolId: "media_import_from_url",
+    catalog: CATALOG_BY_ID,
+    isShapeRejection: ({ error }) => isImportShapeRejection({ error }) || error instanceof MediaValidationError,
+    fn: () =>
+      withCallerSafeEgressRefusal({ log: logEgressRefusal, work: async () => {
+        const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url });
+
+        ctx.signal.throwIfAborted();
+        const result = await persistImportedMedia({
+          routeDeps, actorId: ctx.principal.id,
+          input: {
+            workspaceId: routeDeps.workspaceId,
+            provenance: { kind: 'url', url: fetched.url.href },
+            bytes: fetched.bytes,
+            filename: buildImportFilename({ url: fetched.url, contentType: fetched.contentType }, { override: optionalString({ input, key: "filename" }) }),
+            contentType: fetched.contentType,
+            alt: optionalString({ input, key: "alt" }),
+            caption: optionalString({ input, key: "caption" }),
+            credit: optionalString({ input, key: "credit" }),
+            createdByPrincipal: ctx.principal.id,
+          },
+          sourceUrl: fetched.url.href,
+        });
+        return withChatPreview({ routeDeps, bytes: fetched.bytes, contentType: fetched.contentType, result });
+      } })
+  });
+};
+}
+
 /** Builds this domain's permission-gated durable import handlers; root/path validation precedes I/O.
  * @complexity O(1) registration work; handlers are bounded by the upload cap.
  */
 export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     /** Authorize before fetching; the admin's shared service owns blob staging and atomic versioning. */
-    media_replace_file: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      refuseUnexpectedKeys(input, ["mediaId", "url", "root", "path"]);
-      const mediaId = requireString({ input, key: "mediaId" });
-      await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.update" }, { entityId: mediaId });
-      return withSchemaOnRejection({
-        toolId: "media_replace_file", catalog: CATALOG_BY_ID,
-        isShapeRejection: ({ error }) => isImportShapeRejection({ error }) || error instanceof FsFilePathError || error instanceof MediaValidationError,
-        fn: async () => {
-          const remote = requireReplacementSource({ input });
-          const media = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
-          if (!media || media.status !== "active") throw new MediaImportValidationError({ message: "Media was not found or is in Trash; restore it before replacing its file." });
-          if (!routeDeps.mediaRepo.replaceFileIfVersion || !routeDeps.mediaRepo.saveRenditionIfSource) {
-            throw new MediaImportValidationError({ message: "Media file replacement is unavailable on this storage adapter." });
-          }
-          const source = remote
-            ? await withCallerSafeEgressRefusal({
-              log: routeDeps.mediaImportEgressRefusalLog ?? console.warn,
-              work: async () => {
-                const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url: requireString({ input, key: "url" }) });
-                return { ...fetched, provenance: { kind: 'url' as const, url: fetched.url.href } };
-              },
-            },
-              { toolId: "media_replace_file" })
-            : await readLocalReplacement({ routeDeps, input });
-          ctx.signal.throwIfAborted();
-          const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
-          if (!saved) throw new MediaImportValidationError({ message: "Media changed while replacing its file. Read the current item and retry; nothing was replaced." });
-          const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [saved] });
-          const result = { media: { id: saved.id, slug: saved.slug, title: saved.title, version: saved.version, sha256: saved.source.sha256, publicUrl: urls.get(saved.id) ?? null } };
-          return withChatPreview({ routeDeps, bytes: source.bytes, contentType: source.contentType, result });
-        },
-      });
-    },
-    media_import_local_file: async (ctx): Promise<unknown> => {
-      const input = requireInputRecord({ input: ctx.input });
-      const root = requireString({ input, key: "root" });
-      const relativePath = requireString({ input, key: "path" });
-      await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.upload" });
+    media_replace_file: createMediaReplaceFileHandler(routeDeps),
+    media_import_local_file: createMediaImportLocalFileHandler(routeDeps),
+    media_import_from_url: createMediaImportFromUrlHandler(routeDeps),
 
-      return withSchemaOnRejection({
-        toolId: "media_import_local_file", catalog: CATALOG_BY_ID,
-        isShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof MediaImportValidationError || error instanceof MediaValidationError,
-        fn: async () => {
-          const request = resolveLocalImportRequest({ routeDeps, root, relativePath }, {});
-          const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
-          const bytes = await openFsFileForRead({ ...request, maxBytes });
-          const contentType = validateImageBytes({ source: relativePath, bytes, bytesTruncated: false });
-          const title = optionalString({ input, key: "title" });
-          // uploadMedia derives its title by stripping the final extension. A synthetic suffix lets
-          // an explicit editorial title keep its punctuation and spaces; this is never a disk path.
-          const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1) : `${title}.imported`;
-          if (filename === undefined) throw new Error("Media import path has no filename");
-          ctx.signal.throwIfAborted();
-          const result = await persistImportedMedia({
-            routeDeps, actorId: ctx.principal.id,
-            input: {
-              workspaceId: routeDeps.workspaceId, bytes, filename, contentType,
-              provenance: { kind: 'upload', path: request.relativePath },
-              alt: optionalString({ input, key: "alt" }), caption: optionalString({ input, key: "caption" }),
-              createdByPrincipal: ctx.principal.id,
-            },
-            sourceUrl: "",
-          });
-          return withChatPreview({ routeDeps, bytes, contentType, result });
-        },
-      });
-    },
-
-    media_import_from_url: async (ctx): Promise<unknown> => {
-      const input = requireInputRecord({ input: ctx.input });
-      const url = requireString({ input, key: "url" });
-      await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.upload" });
-
-      const logEgressRefusal = routeDeps.mediaImportEgressRefusalLog ?? ((line: string) => console.warn(line));
-      return withSchemaOnRejection({
-        toolId: "media_import_from_url",
-        catalog: CATALOG_BY_ID,
-        isShapeRejection: ({ error }) => isImportShapeRejection({ error }) || error instanceof MediaValidationError,
-        fn: () =>
-          withCallerSafeEgressRefusal({ log: logEgressRefusal, work: async () => {
-            const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url });
-
-            ctx.signal.throwIfAborted();
-            const result = await persistImportedMedia({
-              routeDeps, actorId: ctx.principal.id,
-              input: {
-                workspaceId: routeDeps.workspaceId,
-                provenance: { kind: 'url', url: fetched.url.href },
-                bytes: fetched.bytes,
-                filename: buildImportFilename({ url: fetched.url, contentType: fetched.contentType }, { override: optionalString({ input, key: "filename" }) }),
-                contentType: fetched.contentType,
-                alt: optionalString({ input, key: "alt" }),
-                caption: optionalString({ input, key: "caption" }),
-                credit: optionalString({ input, key: "credit" }),
-                createdByPrincipal: ctx.principal.id,
-              },
-              sourceUrl: fetched.url.href,
-            });
-            return withChatPreview({ routeDeps, bytes: fetched.bytes, contentType: fetched.contentType, result });
-          } })
-      });
-    },
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

@@ -93,6 +93,85 @@ async function duplicatePostOrPage(
   const slug = input.overrides.slug;
   const status: PostStatus = overrideStatus ?? "draft";
 
+  const { sourceHtml, bodyJsonForCreate } = await readDuplicateBody(routeDeps, source, sourceId);
+
+  const newId = routeDeps.idGen.newId();
+
+  const { result } = await executeCommand<{ post: PostRecord }>({
+    deps: postCommandDeps(routeDeps),
+    command: {
+      workspaceId: routeDeps.workspaceId,
+      actor: { id: input.principalId, kind: AGENT_TOOL_PRINCIPAL_KIND },
+      summary: `Agent duplicate ${source.kind} '${source.title}' as '${title}'`,
+      permission: CONTENT_WRITE_PERMISSION,
+    },
+    mutation: {
+      entityType: "post",
+      entityId: newId,
+      operation: "create",
+      captureInverse: async () => null,
+      execute: () => routeDeps.postRepo.transaction({ fn: async () => {
+        return createDuplicatePost(routeDeps, { source, newId, title, slug, status, bodyJsonForCreate, sourceHtml, input });
+      } }),
+      captureEntityVersion: ({ result }) => result.post.version,
+    },
+  });
+
+  const finalPost = result.post;
+
+  // Mirrors content_post_create's identical inline processOutbox call — only fires an event when
+  // this copy was itself created directly as `status: "published"` (the default is "draft", so the
+  // common case enqueues nothing).
+  await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
+
+  return { post: toPostWriteResultView(routeDeps, finalPost) };
+}
+
+async function createDuplicatePost(routeDeps: PostToolDeps, { source, newId, title, slug, status, bodyJsonForCreate, sourceHtml, input }: {
+  source: PostRecord; newId: string; title: string; slug: string | undefined; status: PostStatus;
+  bodyJsonForCreate: JsonObject | undefined; sourceHtml: string | undefined;
+  input: Parameters<typeof duplicatePostOrPage>[0]["input"];
+}) {
+  const created = await createPost({
+    deps: {
+      repo: routeDeps.postRepo,
+      clock: routeDeps.clock,
+      beforeSaveHook: routeDeps.pluginBeforeSaveHook,
+      outbox: routeDeps.outbox,
+    },
+    // kind is the SOURCE's real kind (see this function's own doc), never the caller's
+    // disambiguation input. bodyJson is omitted (undefined) on the HTML branch — the new row
+    // is born as an ordinary empty "doc" row and converted by ensureHtmlFormat below, exactly
+    // like pages_write_html's own first-write sequence.
+    input: {
+      workspaceId: routeDeps.workspaceId,
+      id: newId,
+      title,
+      kind: source.kind,
+      slug,
+      bodyJson: bodyJsonForCreate,
+      status,
+      author: source.author ?? null,
+      showAuthor: source.showAuthor ?? false,
+      actorId: input.principalId,
+      analyticsSource: "assistant",
+      // See content_post_create's identical delegatedBy* comment above.
+      delegatedByWorkspaceId: routeDeps.workspaceId,
+      delegatedById: input.principalId,
+    },
+  });
+  if (sourceHtml === undefined) return created;
+  // Conversion belongs to the copy's transaction: a refused conversion must not leave a
+  // created row/revision behind or reach executeCommand's change-set recording step.
+  // Seeds the new row's HTML body — mirrors pages_write_html's own `ensureHtmlFormat` step.
+  // `created.post` is stale after this (still "doc" format, version 1); re-read to return the
+  // row's real, post-conversion state.
+  if (!routeDeps.pagesHtmlStore) throw new Error("Post duplication has no HTML page store");
+  await routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat({ seedHtml: sourceHtml });
+  return getAdminPostById({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId, id: newId } });
+}
+
+async function readDuplicateBody(routeDeps: PostToolDeps, source: PostRecord, sourceId: string) {
   // Resolved BEFORE the new row is created, not after: an HTML page whose body genuinely cannot be
   // copied must fail loudly with NOTHING written — never an orphaned draft row left behind for the
   // operator to notice and clean up (see agent-tools.ts's own tool doc, and
@@ -119,72 +198,7 @@ async function duplicatePostOrPage(
     bodyJsonForCreate = copyBodyJsonWithFreshEmbedPlacements({ bodyJson: source.bodyJson, newPlacementId: () => routeDeps.idGen.newId() });
   }
 
-  const newId = routeDeps.idGen.newId();
-
-  const { result } = await executeCommand<{ post: PostRecord }>({
-    deps: postCommandDeps(routeDeps),
-    command: {
-      workspaceId: routeDeps.workspaceId,
-      actor: { id: input.principalId, kind: AGENT_TOOL_PRINCIPAL_KIND },
-      summary: `Agent duplicate ${source.kind} '${source.title}' as '${title}'`,
-      permission: CONTENT_WRITE_PERMISSION,
-    },
-    mutation: {
-      entityType: "post",
-      entityId: newId,
-      operation: "create",
-      captureInverse: async () => null,
-      execute: () => routeDeps.postRepo.transaction({ fn: async () => {
-        const created = await createPost({
-          deps: {
-            repo: routeDeps.postRepo,
-            clock: routeDeps.clock,
-            beforeSaveHook: routeDeps.pluginBeforeSaveHook,
-            outbox: routeDeps.outbox,
-          },
-          // kind is the SOURCE's real kind (see this function's own doc), never the caller's
-          // disambiguation input. bodyJson is omitted (undefined) on the HTML branch — the new row
-          // is born as an ordinary empty "doc" row and converted by ensureHtmlFormat below, exactly
-          // like pages_write_html's own first-write sequence.
-          input: {
-            workspaceId: routeDeps.workspaceId,
-            id: newId,
-            title,
-            kind: source.kind,
-            slug,
-            bodyJson: bodyJsonForCreate,
-            status,
-            author: source.author ?? null,
-            showAuthor: source.showAuthor ?? false,
-            actorId: input.principalId,
-            analyticsSource: "assistant",
-            // See content_post_create's identical delegatedBy* comment above.
-            delegatedByWorkspaceId: routeDeps.workspaceId,
-            delegatedById: input.principalId,
-          },
-        });
-        if (sourceHtml === undefined) return created;
-        // Conversion belongs to the copy's transaction: a refused conversion must not leave a
-        // created row/revision behind or reach executeCommand's change-set recording step.
-        // Seeds the new row's HTML body — mirrors pages_write_html's own `ensureHtmlFormat` step.
-        // `created.post` is stale after this (still "doc" format, version 1); re-read to return the
-        // row's real, post-conversion state.
-        if (!routeDeps.pagesHtmlStore) throw new Error("Post duplication has no HTML page store");
-        await routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat({ seedHtml: sourceHtml });
-        return getAdminPostById({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId, id: newId } });
-      } }),
-      captureEntityVersion: ({ result }) => result.post.version,
-    },
-  });
-
-  const finalPost = result.post;
-
-  // Mirrors content_post_create's identical inline processOutbox call — only fires an event when
-  // this copy was itself created directly as `status: "published"` (the default is "draft", so the
-  // common case enqueues nothing).
-  await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
-
-  return { post: toPostWriteResultView(routeDeps, finalPost) };
+  return { sourceHtml, bodyJsonForCreate };
 }
 
 /**

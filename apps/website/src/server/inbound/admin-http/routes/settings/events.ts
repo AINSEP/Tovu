@@ -220,11 +220,56 @@ function runChangeFeed(required: Admission & {
 }): void {
   const { req, res, deps, principal, includePreview } = required;
   const { scheduleInterval, clearScheduledInterval } = required.timers;
-  let { access, cursor } = required;
+  const state: ChangeFeedState = { access: required.access, cursor: required.cursor, lastEmittedId: required.cursor, closed: false, ticking: false };
   const viewer: ChangeFeedViewer = { workspaceId: deps.workspaceId, principalId: principal.id };
+  const resolveNamespace = createNamespaceResolver(deps);
 
+  // One tiny site-local marker bridges saves from the separate agent-daemon process.
+  // Theme events have their own type and never advance the settings ledger's Last-Event-ID.
+  const previewFeed = createThemePreviewFeed({
+    read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir }) : null,
+    emit: ({ frame }, _options = {}) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
+  }, { resumeRevision: typeof req.query.themeRevision === "string" ? req.query.themeRevision : undefined });
+
+  const close = (): void => {
+    if (state.closed) return;
+    state.closed = true;
+    clearScheduledInterval(pollTimer);
+    clearScheduledInterval(keepaliveTimer);
+    clearScheduledInterval(reauthorizeTimer);
+  };
+  const reauthorize = createChangeFeedReauthorizer(required, state, close);
+  const emitSettingsChange = createSettingsChangeEmitter(res, state);
+  const tick = createChangeFeedTick(required, state, { previewFeed, viewer, resolveNamespace, emitSettingsChange });
+
+  const pollTimer = scheduleInterval(() => void tick(), POLL_INTERVAL_MS);
+  const keepaliveTimer = scheduleInterval(() => {
+    if (!state.closed) res.write(": keepalive\n\n");
+  }, KEEPALIVE_INTERVAL_MS);
+  const reauthorizeTimer = scheduleInterval(() => void reauthorize(), REAUTHORIZE_INTERVAL_MS);
+
+  // `close` fires on tab close, navigation, and `EventSource.close()` alike. Without this the
+  // timers outlive the response and every reconnect leaks another pair.
+  req.on("close", close);
+  res.on("close", close);
+
+  // An opening comment flushes headers immediately, so the client's `onopen` fires now rather
+  // than whenever the first real change happens to arrive.
+  res.write(": connected\n\n");
+}
+
+type ChangeFeedState = {
+  access: ChangeFeedAccess;
+  cursor: number;
   /** The last id written to the wire — workspace-scoped, unlike `cursor`. See where it is emitted. */
-  let lastEmittedId = cursor;
+  lastEmittedId: number;
+  closed: boolean;
+  /** True while a `tick` is mid-flight — see the guard at the top of `tick`. */
+  ticking: boolean;
+};
+
+function createNamespaceResolver(deps: SettingsEventsDeps) {
+
 
   /** Namespace per settingId, cached for the connection's life: a settingId's namespace changes
    *  only via `renameDefinition`, which appends its own revision and so re-notifies anyway. */
@@ -237,47 +282,37 @@ function runChangeFeed(required: Admission & {
     namespaceBySettingId.set(settingId, namespace);
     return namespace;
   };
+  return resolveNamespace;
+}
 
-  // One tiny site-local marker bridges saves from the separate agent-daemon process.
-  // Theme events have their own type and never advance the settings ledger's Last-Event-ID.
-  const previewFeed = createThemePreviewFeed({
-    read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir }) : null,
-    emit: ({ frame }, _options = {}) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
-  }, { resumeRevision: typeof req.query.themeRevision === "string" ? req.query.themeRevision : undefined });
-  let closed = false;
-  /** True while a `tick` is mid-flight — see the guard at the top of `tick`. */
-  let ticking = false;
-  const close = (): void => {
-    if (closed) return;
-    closed = true;
-    clearScheduledInterval(pollTimer);
-    clearScheduledInterval(keepaliveTimer);
-    clearScheduledInterval(reauthorizeTimer);
-  };
-
-  /**
+/**
    * Re-runs the same authorization that opened the stream, and ends it the
    * moment that stops holding or cannot be confirmed.
    *
    * Fail closed on errors: a later channel check may throw after settings.read was denied,
    * leaving the cached grant unchanged. Closing also suppresses any poll already in flight.
    */
-  const reauthorize = async (): Promise<void> => {
-    if (closed) return;
+function createChangeFeedReauthorizer(required: Parameters<typeof runChangeFeed>[0], state: ChangeFeedState, close: () => void) {
+  const { deps, principal, includePreview, res } = required;
+  return async (): Promise<void> => {
+    if (state.closed) return;
     try {
-      access = await authorizeChangeFeed({ authorize: deps.authorize, principalId: principal.id, workspaceId: deps.workspaceId, includePreview });
+      state.access = await authorizeChangeFeed({ authorize: deps.authorize, principalId: principal.id, workspaceId: deps.workspaceId, includePreview });
       // Each channel is authorized independently; a theme-only subscriber never gets namespaces.
-      if (closed || access.settings || access.preview) return;
+      if (state.closed || state.access.settings || state.access.preview) return;
     } catch (error) {
       console.error("[settings] change feed re-authorization failed", error);
     }
     close();
     res.end();
   };
+}
 
-  /** Write one visible batch, checking the current grant again after the ledger reads. */
-  const emitSettingsChange = (batch: ChangeFeedBatch, _optional: Record<string, never> = {}): void => {
-    if (closed || !access.settings || batch.namespaces.length === 0) return;
+/** Write one visible batch, checking the current grant again after the ledger reads. */
+function createSettingsChangeEmitter(res: Response, state: ChangeFeedState) {
+  
+  return (batch: ChangeFeedBatch, _optional: Record<string, never> = {}): void => {
+    if (state.closed || !state.access.settings || batch.namespaces.length === 0) return;
 
     // Emit the WORKSPACE-scoped position, not the internal `cursor`.
     //
@@ -289,34 +324,37 @@ function runChangeFeed(required: Admission & {
     // workspace-scoped `batch.cursor` is a valid resume point: reconnecting
     // from it re-examines rows already examined, which the workspace
     // predicate makes cheap, and cannot skip anything.
-    lastEmittedId = Math.max(lastEmittedId, batch.cursor);
-    res.write(`id: ${lastEmittedId}\n`);
+    state.lastEmittedId = Math.max(state.lastEmittedId, batch.cursor);
+    res.write(`id: ${state.lastEmittedId}\n`);
     res.write("event: settings-changed\n");
     res.write(`data: ${JSON.stringify({ namespaces: batch.namespaces })}\n\n`);
   };
+}
 
-  /**
+/**
    * One poll. Never throws: a transient read failure must not tear down a subscription the client
    * would then reconnect anyway, and `cursor` is left untouched so the same window is re-examined
    * on the next tick rather than skipped.
    */
-  const tick = async (): Promise<void> => {
-    if (closed || ticking) return;
+function createChangeFeedTick(required: Parameters<typeof runChangeFeed>[0], state: ChangeFeedState, { previewFeed, viewer, resolveNamespace, emitSettingsChange }: { previewFeed: () => void; viewer: ChangeFeedViewer; resolveNamespace: ReturnType<typeof createNamespaceResolver>; emitSettingsChange: (batch: ChangeFeedBatch) => void }) {
+  const { deps } = required;
+  return async (): Promise<void> => {
+    if (state.closed || state.ticking) return;
     // `setInterval` does not await an async callback, and one tick does two
     // repo round trips plus a definition lookup per visible revision. A tick
     // slower than the poll interval would otherwise have the next one start
     // mid-await: both read the same `cursor`, both query the same window, both
     // can emit the same frame, and the `cursor` write becomes a lost update.
-    ticking = true;
+    state.ticking = true;
     try {
-      if (!closed && access.preview) previewFeed();
-      if (!access.settings) return;
+      if (!state.closed && state.access.preview) previewFeed();
+      if (!state.access.settings) return;
       // Read the head BEFORE the page, so every row counted by it was already durable when the
       // query below ran. Reading it after would let a concurrent write inflate the head past rows
       // the query never had a chance to see, and the cursor advance would skip them.
       const ledgerHead = await deps.settingsRepo.maxRevisionSeq();
       const revisions = await deps.settingsRepo.listRevisionsSince({
-        sinceSeq: cursor,
+        sinceSeq: state.cursor,
         limit: REVISION_PAGE_SIZE,
         workspaceId: deps.workspaceId,
       });
@@ -333,30 +371,16 @@ function runChangeFeed(required: Admission & {
       // Advancing only to `batch.cursor` would leave the cursor parked behind a busy neighbour's
       // rows and re-walk them on every tick for the life of the connection.
       const examined = revisions.length < REVISION_PAGE_SIZE ? ledgerHead : batch.cursor;
-      cursor = Math.max(cursor, examined, batch.cursor);
+      state.cursor = Math.max(state.cursor, examined, batch.cursor);
       emitSettingsChange(batch);
     } catch (error) {
       console.error("[settings] change feed poll failed", error);
     } finally {
-      ticking = false;
+      state.ticking = false;
     }
   };
-
-  const pollTimer = scheduleInterval(() => void tick(), POLL_INTERVAL_MS);
-  const keepaliveTimer = scheduleInterval(() => {
-    if (!closed) res.write(": keepalive\n\n");
-  }, KEEPALIVE_INTERVAL_MS);
-  const reauthorizeTimer = scheduleInterval(() => void reauthorize(), REAUTHORIZE_INTERVAL_MS);
-
-  // `close` fires on tab close, navigation, and `EventSource.close()` alike. Without this the
-  // timers outlive the response and every reconnect leaks another pair.
-  req.on("close", close);
-  res.on("close", close);
-
-  // An opening comment flushes headers immediately, so the client's `onopen` fires now rather
-  // than whenever the first real change happens to arrive.
-  res.write(": connected\n\n");
 }
+
 
 export const registerAdminSettingsEventsRoute = ({ app, deps }: { app: Express; deps: SettingsEventsDeps }, _optional: Record<string, never> = {}): void => {
   app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", asyncRoute({ handler: async (req, res) => {

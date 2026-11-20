@@ -7,17 +7,8 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import { t as defaultT, accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "../security-i18n";
-import {
-  OTHER_CREDENTIAL_STORES,
-  ACCESS_TOKENS_RESOURCE,
-  accessTokenCategoryMatches,
-  envNamesFact,
-  maskedTailFact,
-  mediaProviderLabel,
-  otherCredentialMatchesQuery,
-  type AccessTokenCategoryId,
-  type OtherCredentialStoreInfo,
-} from "../rules";
+import { OTHER_CREDENTIAL_STORES, envNamesFact, maskedTailFact, mediaProviderLabel, otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "../other-credential-stores";
+import { ACCESS_TOKENS_RESOURCE, accessTokenCategoryMatches, type AccessTokenCategoryId } from "../rules";
 import { defaultOtherCredentialsPort } from "./other-credentials-dependencies.hooks";
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 

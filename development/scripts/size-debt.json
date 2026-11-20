@@ -254,13 +254,6 @@
       "value": 339
     },
     {
-      "file": "apps/admin/src/features/security/rules.ts",
-      "function": "<file>",
-      "line": 1040,
-      "rule": "max-lines",
-      "value": 563
-    },
-    {
       "file": "apps/admin/src/features/settings/SettingsUi.tsx",
       "function": "SettingsUi#1",
       "line": 289,
@@ -366,13 +359,6 @@
       "value": 146
     },
     {
-      "file": "apps/admin/src/lib/browser-stream.ts",
-      "function": "startBrowserStream#1",
-      "line": 48,
-      "rule": "max-lines-per-function",
-      "value": 105
-    },
-    {
       "file": "apps/admin/src/panels.tsx",
       "function": "<file>",
       "line": 893,
@@ -429,32 +415,11 @@
       "value": 155
     },
     {
-      "file": "apps/website/src/features/media-import/tool-registrations.ts",
-      "function": "buildMediaImportRegistrations#1",
-      "line": 277,
-      "rule": "max-lines-per-function",
-      "value": 118
-    },
-    {
       "file": "apps/website/src/features/navigation/publish-content.ts",
       "function": "menuReferenceMethods#1",
       "line": 168,
       "rule": "max-lines-per-function",
       "value": 98
-    },
-    {
-      "file": "apps/website/src/features/newsletter/tool-registrations.ts",
-      "function": "buildNewsletterRegistrations#1",
-      "line": 293,
-      "rule": "max-lines-per-function",
-      "value": 182
-    },
-    {
-      "file": "apps/website/src/features/post/post-tool-duplicate.ts",
-      "function": "duplicatePostOrPage#1",
-      "line": 59,
-      "rule": "max-lines-per-function",
-      "value": 83
     },
     {
       "file": "apps/website/src/features/post/publish-content.ts",
@@ -499,41 +464,6 @@
       "value": 154
     },
     {
-      "file": "apps/website/src/platform/db/sqlite/fresh-content-db.ts",
-      "function": "bootstrapFreshContentDb#1",
-      "line": 55,
-      "rule": "max-lines-per-function",
-      "value": 190
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/dev-auth.ts",
-      "function": "registerAuthRoutes#1",
-      "line": 584,
-      "rule": "max-lines-per-function",
-      "value": 183
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts",
-      "function": "registerAdminRecoveryRestoreRoutes#1",
-      "line": 61,
-      "rule": "max-lines-per-function",
-      "value": 162
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/settings/events.ts",
-      "function": "runChangeFeed#1",
-      "line": 218,
-      "rule": "max-lines-per-function",
-      "value": 81
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts",
-      "function": "registerAdminSourceControlCredentialsRoutes#1",
-      "line": 90,
-      "rule": "max-lines-per-function",
-      "value": 88
-    },
-    {
       "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts",
       "function": "registerAdminTaxonomyMergeTermRoutes#1",
       "line": 38,
@@ -546,41 +476,6 @@
       "line": 1085,
       "rule": "max-lines",
       "value": 597
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
-      "function": "createAssistantByokModule#1",
-      "line": 514,
-      "rule": "max-lines-per-function",
-      "value": 226
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
-      "function": "createAssistantByokModule#1.handleTurn#1",
-      "line": 697,
-      "rule": "max-lines-per-function",
-      "value": 85
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/site-assistant.ts",
-      "function": "createSiteAssistantModule#1",
-      "line": 570,
-      "rule": "max-lines-per-function",
-      "value": 185
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/site-assistant.ts",
-      "function": "createSiteAssistantModule#1.registerRoutes#1",
-      "line": 615,
-      "rule": "max-lines-per-function",
-      "value": 147
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/site-assistant.ts",
-      "function": "createSiteAssistantModule#1.registerRoutes#1.handleChat#1",
-      "line": 661,
-      "rule": "max-lines-per-function",
-      "value": 105
     }
   ]
 }

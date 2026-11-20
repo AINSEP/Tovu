@@ -111,6 +111,14 @@ export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app
     if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return true;
     return false;
   }
+  registerSourceControlProvidersRoute(app, deps, rejectUnlessAuthorized);
+  registerSourceControlListRoute(app, deps, { readDeps, rejectUnlessAuthorized });
+  registerSourceControlCreateRoute(app, deps, { writeDeps, rejectUnlessAuthorized });
+  registerSourceControlUpdateRoute(app, deps, { writeDeps, rejectUnlessAuthorized });
+  registerSourceControlDeleteRoute(app, deps, { readDeps, rejectUnlessAuthorized });
+}
+
+function registerSourceControlProvidersRoute(app: Express, deps: AdminSourceControlCredentialsDeps, rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean>): void {
 
   // The hosts the page renders a row for, from the plugins (the way `publish-targets` lists deploy
   // hosts): id, label, the declared credential form and its translations (`i18n`). `switchedOff` names each host an installed
@@ -134,6 +142,9 @@ export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app
       sendStoreError({ res, err });
     }
   } }));
+}
+
+function registerSourceControlListRoute(app: Express, deps: AdminSourceControlCredentialsDeps, { readDeps, rejectUnlessAuthorized }: { readDeps: Parameters<typeof listSourceControlCredentials>[0]; rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean> }): void {
 
   app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
@@ -144,6 +155,9 @@ export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app
       sendStoreError({ res, err });
     }
   } }));
+}
+
+function registerSourceControlCreateRoute(app: Express, deps: AdminSourceControlCredentialsDeps, { writeDeps, rejectUnlessAuthorized }: { writeDeps: Parameters<typeof createSourceControlCredential>[0]["deps"]; rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean> }): void {
 
   app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
@@ -165,6 +179,9 @@ export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app
       sendStoreError({ res, err });
     }
   } }));
+}
+
+function registerSourceControlUpdateRoute(app: Express, deps: AdminSourceControlCredentialsDeps, { writeDeps, rejectUnlessAuthorized }: { writeDeps: Parameters<typeof createSourceControlCredential>[0]["deps"]; rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean> }): void {
 
   app.put(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
@@ -182,6 +199,9 @@ export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app
       sendStoreError({ res, err });
     }
   } }));
+}
+
+function registerSourceControlDeleteRoute(app: Express, deps: AdminSourceControlCredentialsDeps, { readDeps, rejectUnlessAuthorized }: { readDeps: Parameters<typeof listSourceControlCredentials>[0]; rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean> }): void {
 
   app.delete(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
@@ -197,3 +217,4 @@ export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app
     }
   } }));
 }
+

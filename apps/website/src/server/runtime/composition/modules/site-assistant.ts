@@ -584,6 +584,30 @@ async function runSiteAssistantPreflight(
  *  expiry. The host passes none and gets real timeouts; a test passes its own to reach the expiry
  *  ending without waiting out the 60 s the visitor is given. */
 export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void; siteAssistantConfirmationScheduler?: SchedulerPort }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): ServerModuleHandle {
+  const context = createSiteAssistantContext(deps, env);
+  const { resolution } = context;
+  return {
+    name: "site-assistant",
+
+    start: () => {
+      // Logged once at boot, not per request. A refusal is the operator asking for something they
+      // did not get, and a gate that downgrades silently is one they will conclude is broken.
+      if (resolution.refusedReason) {
+        console.warn(`[site-assistant] ${resolution.refusedReason}`);
+      }
+      if (resolution.mode === "cli") {
+        console.warn(
+          "[site-assistant] DEMO MODE: cli execution is enabled. Every visitor message spawns an OS " +
+            "process with filesystem access. Do not run this on a publicly reachable deployment.",
+        );
+      }
+    },
+
+    registerRoutes: ({ app }, _options = {}) => registerSiteAssistantRoutes(app, context),
+  };
+}
+
+function createSiteAssistantContext(deps: Parameters<typeof createSiteAssistantModule>[0], env: NodeJS.ProcessEnv) {
   const confirmations = createVisitorConfirmations({ nowMs: deps.clock.nowMs.bind(deps.clock),
     exchanges: createSurfaceExchangeStore({ clock: deps.clock, scheduler: deps.siteAssistantConfirmationScheduler ?? createTimeoutScheduler({}),
       // This generator is cryptographic; the site's ordinary IDs can be time ordered.
@@ -611,25 +635,11 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
       { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
     canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }), reportError: ({ error }) => { reporter({ code: "visitor_frontend_control", diagnostic: error }); },
   });
+  return { deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, frontend };
+}
 
-  return {
-    name: "site-assistant",
-
-    start: () => {
-      // Logged once at boot, not per request. A refusal is the operator asking for something they
-      // did not get, and a gate that downgrades silently is one they will conclude is broken.
-      if (resolution.refusedReason) {
-        console.warn(`[site-assistant] ${resolution.refusedReason}`);
-      }
-      if (resolution.mode === "cli") {
-        console.warn(
-          "[site-assistant] DEMO MODE: cli execution is enabled. Every visitor message spawns an OS " +
-            "process with filesystem access. Do not run this on a publicly reachable deployment.",
-        );
-      }
-    },
-
-    registerRoutes: ({ app }, _options = {}) => {
+function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof createSiteAssistantContext>): void {
+      const { deps, env, confirmations, confirmLimiter, reporter, frontend } = context;
       frontend.mount({ app });
       registerSiteAssistantConfirm({ app, ports: {
         confirmations, limiter: confirmLimiter, resolveOwner: frontend.resolveOwner,
@@ -661,7 +671,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
       app.post(CHAT_PATH, (req: Request, res: Response) => {
         const secrets: string[] = env.GEMINI_API_KEY ? [env.GEMINI_API_KEY] : [];
         const reportError: SiteAssistantErrorReporter = required => reporter(required, { exactSecrets: secrets });
-        void handleChat(req, res, reportError, secrets).catch((error: unknown) => {
+        void handleChat(req, res, { ...context, reportError, secrets }).catch((error: unknown) => {
           // The stream may already be open, in which case status codes are no longer available —
           // report on the stream if we can, and never leave a visitor's connection hanging.
           const publicError = reportError({ code: "unavailable", diagnostic: error });
@@ -674,15 +684,17 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           }
         });
       });
+    }
 
-      async function handleChat(req: Request, res: Response, reportError: SiteAssistantErrorReporter, secrets: string[]): Promise<void> {
+async function handleChat(req: Request, res: Response, context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[] }): Promise<void> {
+        const { deps, env, resolution, frontend, reportError, secrets } = context;
         const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution, reportError);
         if (!preflight.ok) return;
         const { message, priorTurns, provider } = preflight;
         secrets.push(provider.apiKey);
         const provenance = await visitorAnalyticsProvenance({ deps, request: req });
         const logicalRunId = deps.idGen.newId();
-        let terminalNavigation = false;
+        const navigation = { terminalNavigation: false };
         const capture = async ({ name, properties }: { name: string; properties: Record<string, string | number | boolean> }, _optional = {}) => {
           if (!provenance?.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
           void (deps.visitorTracker ?? deps.tracker).capture({ name, userId: provenance.subjectId }, { properties: { chatSurface: "public", ...properties } });
@@ -708,6 +720,96 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         const binding = await frontend.bindRequest({ req, signal: abort.signal, runId: logicalRunId });
         const { owner, publication, release: releaseFrontend } = binding;
         res.once('close', releaseFrontend);
+        const capabilities = await createVisitorCapabilities({ req, res, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }, context);
+        const executeTool = createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }, navigation);
+
+        await runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation });
+      }
+
+/**
+         * Translates a model tool call into one `capabilities.invoke()` call and back into the
+         * `ByokToolResult` shape `runByokProviderTurn` expects (each provider adapter maps that onto
+         * its own wire shape — Gemini's `functionResponse`, Anthropic's `tool_result`, OpenAI's
+         * `[tool error]` content fold). This route is now ONE adapter over
+         * the registry (SPEC-046 REQ-0) — it makes no authorization decision itself, only maps
+         * outcome kinds onto the wire shape the model-facing tool loop understands.
+         *
+         * SPEC-046 REQ-4: an `outcome.directive`, when present, is written to the stream as its own
+         * `client_directive` frame — a side channel from the `content` returned to the model on the
+         * very same line below. This is what keeps the "no tool_use/tool_result echoed" privacy
+         * property intact: the client never receives `call.input`, only a bounded, sanitized summary
+         * for human confirmation. The visitor delegate separately emits that summary
+         * while held; its challenge is human-only and never part of this model-facing return value.
+         */
+function createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }: {
+  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; res: Response; releaseFrontend: () => void;
+  abort: AbortController; reportError: SiteAssistantErrorReporter;
+}, navigation: { terminalNavigation: boolean }): (call: ByokToolCall) => Promise<ByokToolResult> {
+  return async (call: ByokToolCall): Promise<ByokToolResult> => {
+          if (navigation.terminalNavigation) return { content: VISITOR_TOOL_REFUSAL, isError: true };
+          const input = (call.input ?? {}) as Record<string, unknown>;
+          const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
+          switch (outcome.kind) {
+            case "ok":
+              if (outcome.directive) sse({ res, event: "client_directive", data: outcome.directive });
+              if (isTerminalVisitorAction({ name: call.name, result: outcome.result })) {
+                navigation.terminalNavigation = true;
+                sse({ res, event: 'text', data: { delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' } });
+                sse({ res, event: 'end', data: { reason: 'navigation' } });
+                releaseFrontend();
+                res.end();
+                abort.abort();
+              }
+              return { content: JSON.stringify(outcome.result) };
+            case "refused":
+              // Same wire shape default-deny always used: reported to the model as a tool error, not
+              // thrown, so a bad/unauthorized call cannot resolve to anything nor kill the stream.
+              return { content: outcome.reason, isError: true };
+            case "error":
+              // A tool failure is reported back to the model as a tool error so it can respond to the
+              // visitor, rather than thrown, which would kill the whole stream over one bad lookup.
+              const publicError = reportError({ code: "unavailable", diagnostic: outcome.error });
+              return { content: publicError.message, isError: true };
+            // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
+            default: return undefined as never;
+          }
+        };
+}
+
+
+
+function visitorPageOptions({ binding, frontend, pageTargets }: {
+  binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>['bindRequest']>>;
+  frontend: ReturnType<typeof createVisitorFrontendControl>; pageTargets: ReturnType<typeof createVisitorPageTargets>;
+}) {
+  return binding.publication ? { page: { publication: binding.publication, registrations: frontend.control.toolRegistrations,
+    listPages: () => pageTargets.list({}), assertPath: pageTargets.assertPath } } : {};
+}
+
+function isTerminalVisitorAction({ name, result }: { name: string; result: unknown }): boolean {
+  if (name === 'page.navigate') return true;
+  return name === 'page.click' && Boolean((result as { terminalSubmission?: boolean } | null)?.terminalSubmission);
+}
+
+function visitorRunOutcome({ terminalNavigation, aborted, runOutcome }: { terminalNavigation: boolean; aborted: boolean; runOutcome: string }): string {
+  if (terminalNavigation) return 'completed';
+  return aborted ? 'cancelled' : runOutcome;
+}
+
+function visitorConfirmationChannel({ confirmations, res }: { confirmations: ReturnType<typeof createVisitorConfirmations>; res: Response }) {
+  // Content tools still need Ask confirmation when page credentials/publication are absent.
+  // The gate binds the request to its IP and adds the authenticated owner when available.
+  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse({ res, event: 'client_directive', data: directive }); } } };
+}
+
+async function createVisitorCapabilities({ req, res, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }: {
+  req: Request; res: Response; reportError: SiteAssistantErrorReporter; abort: AbortController;
+  binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>;
+  owner: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["owner"];
+  publication: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["publication"];
+  capture: (required: { name: string; properties: Record<string, string | number | boolean> }) => Promise<void>;
+  logicalRunId: string; memberResolver: DefaultMemberAccessResolver;
+}, { deps, env, confirmations, pageTargets, visitorToolBudgets, frontend }: ReturnType<typeof createSiteAssistantContext>) {
         const reportPolicyError = ({ error }: { error: unknown }) => { reportError({ code: "visitor_tools_policy", diagnostic: error }); };
         const readPolicy = () => readVisitorToolPolicy({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId,
           reportError: reportPolicyError });
@@ -736,52 +838,16 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           memberAccess: { resolvePostMemberAccess, decide: memberResolver.decide.bind(memberResolver) },
         }, { visitorExecution, ...visitorPageOptions({ binding, frontend, pageTargets }), siteGuide: { inputSchema: VISITOR_SITE_GUIDE_SCHEMA,
           run: ({ input, availableTools }) => runPublicSiteGuide({ input }, { availableTools }) } });
+  return capabilities;
+}
 
-        /**
-         * Translates a model tool call into one `capabilities.invoke()` call and back into the
-         * `ByokToolResult` shape `runByokProviderTurn` expects (each provider adapter maps that onto
-         * its own wire shape — Gemini's `functionResponse`, Anthropic's `tool_result`, OpenAI's
-         * `[tool error]` content fold). This route is now ONE adapter over
-         * the registry (SPEC-046 REQ-0) — it makes no authorization decision itself, only maps
-         * outcome kinds onto the wire shape the model-facing tool loop understands.
-         *
-         * SPEC-046 REQ-4: an `outcome.directive`, when present, is written to the stream as its own
-         * `client_directive` frame — a side channel from the `content` returned to the model on the
-         * very same line below. This is what keeps the "no tool_use/tool_result echoed" privacy
-         * property intact: the client never receives `call.input`, only a bounded, sanitized summary
-         * for human confirmation. The visitor delegate separately emits that summary
-         * while held; its challenge is human-only and never part of this model-facing return value.
-         */
-        const executeTool = async (call: ByokToolCall): Promise<ByokToolResult> => {
-          if (terminalNavigation) return { content: VISITOR_TOOL_REFUSAL, isError: true };
-          const input = (call.input ?? {}) as Record<string, unknown>;
-          const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
-          switch (outcome.kind) {
-            case "ok":
-              if (outcome.directive) sse({ res, event: "client_directive", data: outcome.directive });
-              if (isTerminalVisitorAction({ name: call.name, result: outcome.result })) {
-                terminalNavigation = true;
-                sse({ res, event: 'text', data: { delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' } });
-                sse({ res, event: 'end', data: { reason: 'navigation' } });
-                releaseFrontend();
-                res.end();
-                abort.abort();
-              }
-              return { content: JSON.stringify(outcome.result) };
-            case "refused":
-              // Same wire shape default-deny always used: reported to the model as a tool error, not
-              // thrown, so a bad/unauthorized call cannot resolve to anything nor kill the stream.
-              return { content: outcome.reason, isError: true };
-            case "error":
-              // A tool failure is reported back to the model as a tool error so it can respond to the
-              // visitor, rather than thrown, which would kill the whole stream over one bad lookup.
-              const publicError = reportError({ code: "unavailable", diagnostic: outcome.error });
-              return { content: publicError.message, isError: true };
-            // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
-            default: return undefined as never;
-          }
-        };
 
+async function runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation }: {
+  req: Request; res: Response; provider: SiteAssistantProviderConfig; priorTurns: SiteAssistantHistoryTurn[]; message: string;
+  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; executeTool: ReturnType<typeof createVisitorToolExecutor>;
+  abort: AbortController; releaseFrontend: () => void; capture: (required: { name: string; properties: Record<string, string | number | boolean> }) => Promise<void>;
+  logicalRunId: string; reportError: SiteAssistantErrorReporter; navigation: { terminalNavigation: boolean };
+}): Promise<void> {
         beginStream(req, res);
         // Hard-coded visitor policy: in-process HTTP plus this literal anonymous registry only.
         // Never spread admin CLI options or read the Full CLI access setting here (K1).
@@ -823,7 +889,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
             // it is written directly from `executeTool` above, the moment a page-action capability
             // resolves one, which is what keeps it a resolved-action-only channel rather than a
             // fourth kind of tool echo.
-            if (terminalNavigation) return;
+            if (navigation.terminalNavigation) return;
             if (event.type === "text_delta") sse({ res, event: "text", data: { delta: event.delta } });
             else if (event.type === "error") { runOutcome = "failed"; sse({ res, event: "error", data: reportError({ code: "provider_error", diagnostic: event.message }) }); }
             else {
@@ -831,34 +897,8 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
             }
           },
         });
-        } catch (error) { if (!terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }
-        finally { releaseFrontend(); await capture({ name: "assistant_run_finished", properties: { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` } }); }
+        } catch (error) { if (!navigation.terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }
+        finally { releaseFrontend(); await capture({ name: "assistant_run_finished", properties: { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation: navigation.terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` } }); }
         res.end();
-      }
-    },
-  };
-}
-
-function visitorPageOptions({ binding, frontend, pageTargets }: {
-  binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>['bindRequest']>>;
-  frontend: ReturnType<typeof createVisitorFrontendControl>; pageTargets: ReturnType<typeof createVisitorPageTargets>;
-}) {
-  return binding.publication ? { page: { publication: binding.publication, registrations: frontend.control.toolRegistrations,
-    listPages: () => pageTargets.list({}), assertPath: pageTargets.assertPath } } : {};
-}
-
-function isTerminalVisitorAction({ name, result }: { name: string; result: unknown }): boolean {
-  if (name === 'page.navigate') return true;
-  return name === 'page.click' && Boolean((result as { terminalSubmission?: boolean } | null)?.terminalSubmission);
-}
-
-function visitorRunOutcome({ terminalNavigation, aborted, runOutcome }: { terminalNavigation: boolean; aborted: boolean; runOutcome: string }): string {
-  if (terminalNavigation) return 'completed';
-  return aborted ? 'cancelled' : runOutcome;
-}
-
-function visitorConfirmationChannel({ confirmations, res }: { confirmations: ReturnType<typeof createVisitorConfirmations>; res: Response }) {
-  // Content tools still need Ask confirmation when page credentials/publication are absent.
-  // The gate binds the request to its IP and adds the authenticated owner when available.
-  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse({ res, event: 'client_directive', data: directive }); } } };
+      
 }

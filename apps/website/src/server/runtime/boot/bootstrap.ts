@@ -126,14 +126,18 @@ function logBundledPluginRetirements(
       consoleLogger.warn({ message: `[bundled-agent-plugins] retired '${retirement.pluginId}' could not be removed: ${retirement.reason}` });
     }
     if (retirement.status === "retired") {
-      // A parked plugin (formspree, 2026-11-10) retires into nothing; Jini reports its successor as "".
-      consoleLogger.info({ message: retirement.successorId === ""
-        ? `[bundled-agent-plugins] retired '${retirement.pluginId}' (no successor)`
-        : `[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})` });
-      if (retirement.successor === "left-disabled-by-operator") {
-        consoleLogger.warn({ message: `[bundled-agent-plugins] '${retirement.pluginId}' was enabled but its successor '${retirement.successorId}' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability` });
-      }
+      logRetiredBundledPlugin(retirement);
     }
+  }
+}
+
+function logRetiredBundledPlugin(retirement: Extract<Awaited<ReturnType<typeof seedBundledAgentPlugins>>["retirements"][number], { status: "retired" }>): void {
+  // A parked plugin (formspree, 2026-11-10) retires into nothing; Jini reports its successor as "".
+  consoleLogger.info({ message: retirement.successorId === ""
+    ? `[bundled-agent-plugins] retired '${retirement.pluginId}' (no successor)`
+    : `[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})` });
+  if (retirement.successor === "left-disabled-by-operator") {
+    consoleLogger.warn({ message: `[bundled-agent-plugins] '${retirement.pluginId}' was enabled but its successor '${retirement.successorId}' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability` });
   }
 }
 

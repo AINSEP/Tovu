@@ -91,6 +91,42 @@ async function validatePortableReferences(required: { db: ImportKernel }, _optio
   for (const check of checks) if ((await required.db.query(sql.raw(check))).length) throw new Error("Dangling portable content reference");
 }
 
+async function remapImportedWorkspace(fresh: ImportKernel, { workspace, recipient, portablePluginTables }: {
+  workspace: { id: string }; recipient: string; portablePluginTables: Set<string>;
+}): Promise<void> {
+  for (const table of [...SHARE_TABLES, ...portablePluginTables, "setting_values_workspace"]) {
+    const columns = await listColumns({ kernel: fresh, table });
+    if (!columns.some(column => column.name === "workspace_id")) continue;
+    if ((await fresh.query(sql`SELECT 1 FROM ${sql.table(table)} WHERE workspace_id <> ${workspace.id} LIMIT 1`)).length) throw new Error("Portable row belongs to a missing workspace");
+    // Identifiers come exclusively from the trusted core allowlist and bundled declarations.
+    await fresh.execute(sql`UPDATE ${sql.table(table)} SET workspace_id = ${recipient}`);
+  }
+  await fresh.execute(sql`UPDATE workspaces SET id = ${recipient}`);
+}
+
+async function remapImportedDocumentKeys(fresh: ImportKernel, recipient: string, documentKeys: Map<string, string>): Promise<void> {
+  // Documents must keep canonical keys in the recipient workspace, including blobs shared
+  // with ordinary media. Return the mapping so the verifier moves only verified bytes.
+  const documents = await fresh.query<{ storage_key: string; sha256: string }>(sql`SELECT DISTINCT b.storage_key, b.sha256 FROM asset_blobs b JOIN media m ON m.workspace_id=b.workspace_id AND m.source_sha256=b.sha256 WHERE m.kind='document'`);
+  for (const blob of documents) {
+    const destination = computeBlobStorageKey({ workspaceId: recipient, sha256: blob.sha256 });
+    documentKeys.set(blob.storage_key, destination);
+    await fresh.execute(sql`UPDATE asset_blobs SET storage_key=${destination} WHERE workspace_id=${recipient} AND sha256=${blob.sha256}`);
+  }
+  // Scan renditions once rather than issuing one unindexed storage-key scan per blob.
+  const renditions = await fresh.query<{ id: string; storage_key: string }>(sql`SELECT id,storage_key FROM asset_renditions`);
+  for (const rendition of renditions) {
+    const destination = documentKeys.get(rendition.storage_key);
+    if (destination) await fresh.execute(sql`UPDATE asset_renditions SET storage_key=${destination} WHERE id=${rendition.id}`);
+  }
+}
+
+function verifyRebuiltImport(fresh: ImportKernel): void {
+  const connection = sqliteConnectionOf({ kernel: fresh });
+  if (!connection) throw new Error("rebuilt import database has no SQLite connection");
+  if (!verifySqliteIntegrity({ db: connection, quick: true }).ok) throw new Error("Invalid rebuilt database");
+}
+
 /** Exact trusted schema equality rejects views, virtual-table substitutions, hidden/generated
  * columns, CHECK expressions, extension triggers and malicious indices before table reads.
  * The archive's migration ledger is data only and is never used to choose code to execute.
@@ -131,33 +167,11 @@ async function run(required: { root: string }, _options: Record<string, never> =
     // Runtime queries use the recipient template workspace. Content/media IDs stay stable.
     // Defer FKs while both sides change, then validate before commit through the kernel owner.
     await sqliteForeignKeyCheckedTransaction({ kernel: fresh, onViolation: () => new Error("Invalid imported references"), work: async () => {
-      for (const table of [...SHARE_TABLES, ...portablePluginTables, "setting_values_workspace"]) {
-        const columns = await listColumns({ kernel: fresh, table });
-        if (!columns.some(column => column.name === "workspace_id")) continue;
-        if ((await fresh.query(sql`SELECT 1 FROM ${sql.table(table)} WHERE workspace_id <> ${workspace.id} LIMIT 1`)).length) throw new Error("Portable row belongs to a missing workspace");
-        // Identifiers come exclusively from the trusted core allowlist and bundled declarations.
-        await fresh.execute(sql`UPDATE ${sql.table(table)} SET workspace_id = ${recipient}`);
-      }
-      await fresh.execute(sql`UPDATE workspaces SET id = ${recipient}`);
-      // Documents must keep canonical keys in the recipient workspace, including blobs shared
-      // with ordinary media. Return the mapping so the verifier moves only verified bytes.
-      const documents = await fresh.query<{ storage_key: string; sha256: string }>(sql`SELECT DISTINCT b.storage_key, b.sha256 FROM asset_blobs b JOIN media m ON m.workspace_id=b.workspace_id AND m.source_sha256=b.sha256 WHERE m.kind='document'`);
-      for (const blob of documents) {
-        const destination = computeBlobStorageKey({ workspaceId: recipient, sha256: blob.sha256 });
-        documentKeys.set(blob.storage_key, destination);
-        await fresh.execute(sql`UPDATE asset_blobs SET storage_key=${destination} WHERE workspace_id=${recipient} AND sha256=${blob.sha256}`);
-      }
-      // Scan renditions once rather than issuing one unindexed storage-key scan per blob.
-      const renditions = await fresh.query<{ id: string; storage_key: string }>(sql`SELECT id,storage_key FROM asset_renditions`);
-      for (const rendition of renditions) {
-        const destination = documentKeys.get(rendition.storage_key);
-        if (destination) await fresh.execute(sql`UPDATE asset_renditions SET storage_key=${destination} WHERE id=${rendition.id}`);
-      }
+      await remapImportedWorkspace(fresh, { workspace, recipient, portablePluginTables });
+      await remapImportedDocumentKeys(fresh, recipient, documentKeys);
     } });
     await validatePortableReferences({ db: fresh });
-    const connection = sqliteConnectionOf({ kernel: fresh });
-    if (!connection) throw new Error("rebuilt import database has no SQLite connection");
-    if (!verifySqliteIntegrity({ db: connection, quick: true }).ok) throw new Error("Invalid rebuilt database");
+    verifyRebuiltImport(fresh);
   } finally { await fresh.close(); }
   const media = projection.media.map(blob => documentKeys.has(blob.storageKey) ? { ...blob, destinationStorageKey: documentKeys.get(blob.storageKey) } : blob);
   await writeFile(path.join(required.root, "media.json"), JSON.stringify(media), { flag: "wx", mode: 0o600 });
