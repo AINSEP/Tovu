@@ -11,8 +11,9 @@ import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
 import { githubFromSource } from "../../../source-control/__tests__/fixtures/github-from-source.js";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
 import { planSiteBackup, pushSiteBackup, type PushResult, type SiteBackupToolDeps } from "../../backup-service.js";
-import { SiteBackupPlanStore } from "../../plan-store.js";
-import { SiteBackupPushJobs } from "../../push-jobs.js";
+import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
+import type { SiteBackupPlanContent } from "../../plan-content.js";
+import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
 import { SHARE_TABLES } from "../../share-policy.js";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
@@ -44,7 +45,7 @@ async function repositoryHarness(required: { h: ImportHarness }) {
     workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }),
     customCredentialSetRepo: repo, siteAssistantSecretSealer: sealer, customCredentialsHttpClient: github,
     loadSourceControlProviders: githubFromSource, siteBackupSanitize: sanitizeShareDatabase,
-    siteBackupPlanStore: new SiteBackupPlanStore(), siteBackupPushJobs: new SiteBackupPushJobs<PushResult>(),
+    siteBackupPlanStore: new SiteBackupPlanStore<SiteBackupPlanContent>({}), siteBackupPushJobs: new SiteBackupPushJobs<PushResult>({}),
     siteBackupNow: () => new Date(stamp), siteBackupSiteKeyStatus: () => ({ active: true }),
     siteBackupSources: { siteDir, themesDir: path.join(siteDir, "themes"), mediaUploadsDir: path.join(siteDir, "uploads"),
       skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir }, { env: {} }), tovuVersion: "test" },

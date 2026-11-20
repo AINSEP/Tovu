@@ -43,8 +43,8 @@
  * `declarative/`, `templated/`, or `handlebars/`
  *
  * Real theme discovery (`discoverAllBuiltInThemes`, `src/features/theme/theme.ts:1196`) scans
- * `ENGINE_SUBFOLDERS` (`declarative`, `templated`, `handlebars`, `static`) and explicitly excludes
- * `THEME_CATALOG_DIR` (`__original-themes__`) — that file's own doc comments spell out why: it is
+ * `@jini-ai/cms/themes/layout`'s `ENGINE_SUBFOLDERS` (`declarative`, `templated`, `handlebars`, `static`) and explicitly excludes
+ * `@jini-ai/cms/themes/layout`'s `THEME_CATALOG_DIR` (`__original-themes__`) — that file's own doc comments spell out why: it is
  * "NOT a tier and NOT a theme", never runnable, never listed, never the active theme. It is a
  * pristine-copy catalog kept for diffing/reset. Scanning it would check files nothing ever serves.
  * (The old `__marketplace__` fixture is gone; the marketplace was deleted 2026-10-04.)
@@ -62,7 +62,7 @@
  * widening this check to declarative/templated would be a NEW audit this task was not asked to
  * perform, layered onto a check whose whole point is to guard an already-audited, already-fixed
  * regression. If those tiers are ever audited, the fix is a one-line change: replace `SCAN_DIR`
- * below with a loop over `ENGINE_SUBFOLDERS` from `theme.ts`, reusing this file's parsing and
+ * below with a loop over `ENGINE_SUBFOLDERS` from `@jini-ai/cms/themes/layout`, reusing this file's parsing and
  * reporting untouched.
  *
  * ## Parsing approach

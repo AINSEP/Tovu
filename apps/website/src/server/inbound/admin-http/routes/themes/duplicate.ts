@@ -1,5 +1,7 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { DuplicateThemeError, duplicateDiscoveredTheme, requestThemePreviewRefresh, validThemeIds, type DuplicateThemeErrorCode } from "#src/features/theme/index";
+import { DuplicateThemeError, duplicateDiscoveredTheme, validThemeIds, type DuplicateThemeErrorCode } from "#src/features/theme/index";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 import { bodyRecord } from "./explore.js";
@@ -55,7 +57,7 @@ export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = ({ app, d
         { themes: deps.themes, themesDir: deps.themesDir, sourceThemeId, newName },
         { newId }
       );
-      requestThemePreviewRefresh({ themesDir: deps.themesDir });
+      requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
 
       res.status(201).json({
         theme: { id: result.id, name: result.name, tier: result.tier, status: theme?.status ?? "invalid", errors: theme?.errors ?? [] },

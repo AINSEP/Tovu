@@ -1,7 +1,7 @@
 import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import type { ThemeSlotDescriptor } from "../../contracts/core/theme-slots.js";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import type { ThemeTemplateFor } from "./template-applicability.js";
+import type { ThemeTemplateFor } from "@jini-ai/cms/themes/template-applicability";
 
 /**
  * ADR-020 capability tier. `declarative` = data-only (safe from anyone),
@@ -89,7 +89,7 @@ export interface ThemeManifest {
    * theme's on-disk shape uses v2 paths (`css/theme.css`, `scripts/`, `render/pages/`) — read by
    * `static-asset-contract.ts`'s `tokenStylesheetSentinel`/`rewriteAssetPaths`/
    * `findUnrewrittenAssetPaths` (via `static-render.ts` and `build-conformance.ts`), and by
-   * `resolveThemeLayout` (`theme-layout.ts`, 2026-08-19 architecture audit findings 1 & 2 — the one
+   * `resolveThemeLayout` (`@jini-ai/cms/themes/layout`, 2026-08-19 architecture audit findings 1 & 2 — the one
    * apiVersion-aware source of truth every other consumer routes through) to pick the matching
    * sentinel/folder names at request/install time. As of the 2026-08-18 Milestone 3 migration, all
    * seven built-in static themes (`content/themes/static/*`) declare `2` — this is the live, common case,

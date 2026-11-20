@@ -1,10 +1,12 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import { findThemeOrThrow, isShapeRejection, type ThemeToolDeps } from "./asset-operations.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refresh.js";
+import { requestThemePreviewRefresh, validatePreviewPath } from "@jini-ai/cms/themes/preview/refresh";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
-import { optionalThemeReadInteger, pageThemeReadContent, selectThemeReadContent, themeReadSelection } from "./theme-read-content.js";
+import { optionalThemeReadInteger, themeReadSelection } from "./theme-read-content.js";
+import { pageThemeReadContent, selectThemeReadContent } from "@jini-ai/cms/themes/files/read-content";
 import { optionalString, requireInputRecord, requireString, withSchemaOnRejection, type ToolHandler } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { THEME_READ_PERMISSION } from "./agent-tools.js";
@@ -25,9 +27,9 @@ import { CATALOG_BY_ID } from "./theme-tool-catalog.js";
     export async function preview_reload(routeDeps: ThemeToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input ?? {} });
       const path = optionalString({ input, key: "path" });
-      if (path !== undefined) validatePreviewPath({ path });
+      if (path !== undefined) validatePreviewPath({ path, isReservedPath: isReservedThemePreviewPath });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "theme" });
-      return { reloaded: true, ...requestThemePreviewRefresh({ themesDir: routeDeps.themesDir }, { path }) };
+      return { reloaded: true, ...requestThemePreviewRefresh({ themesDir: routeDeps.themesDir, isReservedPath: isReservedThemePreviewPath }, { path }) };
     }
     /**
      * Refreshes the rendering registry in place after folders arrive or disappear.
@@ -112,11 +114,11 @@ import { CATALOG_BY_ID } from "./theme-tool-catalog.js";
         const theme = findThemeOrThrow({ routeDeps, themeId });
         const file = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
         const content = readThemeFile(file);
-        if (selection.mode === "full") return { themeId, path: relativePath, ...pageThemeReadContent({ content, offset }) };
+        if (selection.mode === "full") return { themeId, path: relativePath, ...pageThemeReadContent({ content, offset, invalidOffsetError: () => new ToolInputError({ message: "theme_read_file: offset must be a UTF-8 boundary within the selected text. Use the preceding nextOffset and keep the line selection unchanged." }) }) };
         // Use the file's byte size, rather than decoded UTF-8 length (which differs for binary text).
         const totalBytes = statSync(resolveThemeFilePath(file)).size;
-        const selected = selectThemeReadContent({ content, selection });
-        const page = selection.mode === "window" ? pageThemeReadContent({ content: selected.content, offset }) : {};
+        const selected = selectThemeReadContent({ content, selection, truncationHint: "Search results were truncated; narrow the find pattern and reduce context." });
+        const page = selection.mode === "window" ? pageThemeReadContent({ content: selected.content, offset, invalidOffsetError: () => new ToolInputError({ message: "theme_read_file: offset must be a UTF-8 boundary within the selected text. Use the preceding nextOffset and keep the line selection unchanged." }) }) : {};
         return { themeId, path: relativePath, ...selected, ...page, totalBytes };
       } });
     }

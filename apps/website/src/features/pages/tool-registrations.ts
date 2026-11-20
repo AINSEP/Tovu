@@ -19,7 +19,8 @@ import { pagesAgentToolCatalog } from "./agent-tools.js";
 import { describeScriptRevealedContent } from "./hidden-until-script.js";
 import { requirePageAuthoringHtml } from "./authoring-html.js";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
-import { resolveActiveTheme, syncThemeRoster, type DiscoveredTheme } from "../theme/index.js";
+import { resolveActiveTheme, themeRosterPorts, type DiscoveredTheme } from "../theme/index.js";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
 import {
   PageConcurrentEditError,
   PageKindMismatchError,
@@ -414,7 +415,7 @@ async function readPageTheme(
   _options: Record<string, never> = {},
 ) {
   if (!deps.themes || !deps.resolveActiveThemeId) return null;
-  if (deps.themesDir) syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
+  if (deps.themesDir) syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
   const theme = resolveActiveTheme({ deps: { themes: deps.themes }, activeThemeId: await deps.resolveActiveThemeId() });
   if (theme === null || theme === NO_THEME_ID) return null;
   return { id: theme.manifest.id, tokens: theme.tokens, tokensLight: theme.tokensLight };

@@ -30,7 +30,8 @@
  */
 import { type ThemeToolDeps } from "./asset-operations.js";
 import { toolMetadata } from "../../contracts/core/tool-metadata/theme.js";
-import { syncThemeRoster } from "./theme-roster-sync.js";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
+import { themeRosterPorts } from "./theme-roster-ports.js";
 import { normalizeThemeReadInput } from "./theme-read-content.js";
 import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "@jini-ai/core";
@@ -113,9 +114,9 @@ export function buildThemesRegistrations(
   // Every handler here reads the roster, and another process (the web server's admin Duplicate or
   // Trash, a second daemon, a CLI) may have changed the themes folder since this one last looked —
   // so each call syncs first: an id created elsewhere is found, an id trashed elsewhere is not.
-  // No-op when nothing changed. See `theme-roster-sync.ts`.
+  // No-op when nothing changed. See `@jini-ai/cms/themes/preview/roster`.
   const syncedHandlers = Object.fromEntries(Object.entries(handlers).map(([id, handler]): [string, ToolHandler] => [id, (ctx, options) => {
-    syncThemeRoster({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+    syncThemeRoster({ ...themeRosterPorts, themes: routeDeps.themes, themesDir: routeDeps.themesDir });
     return handler(ctx, options);
   }]));
 

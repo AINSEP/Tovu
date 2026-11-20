@@ -60,9 +60,9 @@ export interface ActiveThemeResolutionDeps {
  * left the seed's literal and the resolver's implicit winner as two independent facts that merely
  * happened to agree. Both now read this one name, so they cannot disagree.
  *
- * Lives here rather than in `theme.ts` alongside `ENGINE_SUBFOLDERS`/`THEME_CATALOG_DIR` because its
+ * Lives here rather than alongside `@jini-ai/cms/themes/layout`'s `ENGINE_SUBFOLDERS`/`THEME_CATALOG_DIR` because its
  * entire meaning is step 2 of {@link resolveActiveTheme} directly below — the pair has to be read
- * together to be understood, and a reader of `theme.ts` has nothing there to say what "default"
+ * together to be understood, and a reader of the layout leaf has nothing there to say what "default"
  * means. It must stay inside `features/theme` (not `features/presentation`) for the measured reason
  * `features/presentation/active-theme-id.ts`'s own header records: `features/presentation` is inside
  * the pre-existing 36-module SCC and `features/theme` is not, so a constant consumed by

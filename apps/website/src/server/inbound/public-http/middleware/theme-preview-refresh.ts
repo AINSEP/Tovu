@@ -1,6 +1,8 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import type { Express, RequestHandler } from "express";
-import { requestThemePreviewRefresh } from "#src/features/theme/preview-refresh";
-import { syncThemeRoster } from "#src/features/theme/theme-roster-sync";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
+import { themeRosterPorts } from "#src/features/theme/index";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -86,7 +88,7 @@ export function registerThemePreviewRefresh(
         }
       },
       syncThemes: () => {
-        syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
+        syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
       },
     }),
   );
@@ -107,7 +109,7 @@ export function registerThemePreviewRefresh(
         return;
       }
       try {
-        res.json(requestThemePreviewRefresh({ themesDir: deps.themesDir }));
+        res.json(requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath }));
       } catch (error) {
         sendAdminFailure({ res, error }, { operation: "theme-preview:refresh", message: "The preview could not be reloaded." });
       }

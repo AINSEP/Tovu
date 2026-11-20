@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, r
 import { dirname, join, relative } from "node:path";
 
 import { discoverAllBuiltInThemes } from "./theme-discovery.js";
-import { THEME_CATALOG_DIR } from "./theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { type ThemeTier } from "./render-contract.js";
 import { isGeneratedThemePath } from "./theme-file-policy.js";
 

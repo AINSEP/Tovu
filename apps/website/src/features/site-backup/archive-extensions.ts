@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { resolveThemeOriginalSource } from "#src/features/theme/index";
+import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { collectSiteBackupFiles, readPlannedFile, type PlannedDiskFile, type SiteBackupSources } from "./sources.js";
 import type { ArchivePlugin } from "./archive-manifest.js";

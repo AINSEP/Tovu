@@ -9,7 +9,7 @@ import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { assertUserAccountAction } from "#src/features/identity/delete-user-service";
 import { createCommentTrashAdapter } from "#src/features/trash/index";
-import { createDirectoryTrashAdapter } from "#src/features/trash/index";
+import { createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
 import { createMediaTrashAdapter } from "#src/features/trash/index";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createPostTrashAdapter } from "#src/features/trash/index";

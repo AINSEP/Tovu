@@ -13,10 +13,12 @@ import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { builtInContentSeedDbPath } from "../site-paths.js";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { createSqlitePublishContentSeedHash } from "../publish-content-seed-hash.js";
-import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
+import { bindThemeTrashAdapter } from "#src/features/theme/theme-trash-binding";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
-import { syncThemeRoster } from "#src/features/theme/index";
-import { unhideIfRemoveThrows } from "#src/features/trash/index";
+import { themeRosterPorts } from "#src/features/theme/index";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
+import { unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
+import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 
 interface ComposePublishingStoresThemesRequired {
   kernel: SiteStore["content"];
@@ -56,14 +58,14 @@ export function composePublishingStoresThemes(required: ComposePublishingStoresT
   const siteThemes = discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: "built-in" });
   // Records what the folder looked like at discovery, so the first theme change ANOTHER process
   // makes (the agent daemon's `theme_duplicate`, or the web server's admin Duplicate seen from the
-  // daemon) is noticed by this one. See `theme-roster-sync.ts`.
-  syncThemeRoster({ themes: siteThemes, themesDir: resolvedThemesDir });
+  // daemon) is noticed by this one. See `@jini-ai/cms/themes/preview/roster`.
+  syncThemeRoster({ ...themeRosterPorts, themes: siteThemes, themesDir: resolvedThemesDir });
   // `theme` joins the Trash here rather than in `trashAdapters`' literal above: its adapter rescans
   // `siteThemes` after every move, and the Trash resolves adapters at call time, so this `set` is seen
   // by every later trash/restore/purge (`theme_trash`, `trash_restore_item`, the admin Trash screen).
-  const themeTrashAdapter = createThemeTrashAdapter({ themes: siteThemes, themesDir: resolvedThemesDir });
+  const themeTrashAdapter = bindThemeTrashAdapter({ themes: siteThemes, themesDir: resolvedThemesDir });
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
+  const removeTheme = unhideIfRemoveThrows({ onRollbackError: reportDirectoryRollbackFailure, adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
   return { mediaContentTypeStore, publishContentBundleRepo, publishContentBaselineRepo, publishContentFileBlobIndex, publishContentPeerRepo, publishContentSeedHash, siteThemes, removeTheme };
 }

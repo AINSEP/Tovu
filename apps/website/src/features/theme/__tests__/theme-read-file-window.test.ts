@@ -94,7 +94,9 @@ test('s5: a line window containing a minified line is also paged without losing 
 
 test('s5: byte cursors reject invalid positions before returning content', async t => {
   const { read } = fixture(t, 'é'.repeat(3000));
-  for (const offset of [-1, 0.5, 1, 7000]) await assert.rejects(read({ offset }), /offset/);
+  for (const offset of [-1, 0.5]) await assert.rejects(read({ offset }), /offset/);
+  for (const offset of [1, 7000]) await assert.rejects(read({ offset }), (error: unknown) =>
+    error instanceof ToolInputError && error.message === "theme_read_file: offset must be a UTF-8 boundary within the selected text. Use the preceding nextOffset and keep the line selection unchanged.");
   await assert.rejects(read({ offset: 0, find: 'é' }), /offset.*find/);
 });
 

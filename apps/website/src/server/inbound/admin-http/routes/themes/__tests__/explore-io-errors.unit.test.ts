@@ -8,7 +8,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import type { ContentRouteDeps } from "../../content/deps.js";
 import {

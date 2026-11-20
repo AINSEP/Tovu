@@ -3,7 +3,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { requireInputRecord, requireString, withSchemaOnRejection, type ToolHandler } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
-import { copyThemeFile, nextAvailableFileName, renameThemeFile } from "./theme-file-moves.js";
+import { copyThemeFile, nextAvailableFileName, renameThemeFile } from "@jini-ai/cms/themes/files/moves";
+import { themeFileMovePorts } from "./theme-file-write-ports.js";
 import { listThemeFiles } from "./theme-file-listing.js";
 import { resolveThemeFileWriteScope } from "./theme-file-policy.js";
 import { ThemePathError } from "./theme-files.js";
@@ -74,7 +75,7 @@ export function performThemeFileRename(
     throw new ThemeFileReadOnlyError({ message: `'${destPath}' is read-only: ${destWriteScope.reason}` });
   }
 
-  renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath, destPath });
+  renameThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath, destPath });
   return destPath;
 }
 
@@ -161,7 +162,7 @@ export function performThemeFileRename(
 
         const destPath = nextAvailableFileName({ desiredPath: sourcePath, existingPaths });
         ctx.signal.throwIfAborted();
-        copyThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath, destPath });
+        copyThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath, destPath });
         const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
 
         return {

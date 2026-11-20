@@ -9,7 +9,7 @@ import { createNodeAppFactory, createNodeArtifactWriter, createNodeAssetSource }
 import { extractListingMoreHrefs, extractListingPageHrefs, listingJsonNextPath } from "@jini-ai/cms/listing";
 import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
-import { resolveThemeLayout } from "#src/features/theme/index";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 import { type RouteManifestDeps } from "./route-manifest.js";
 import { withSecurityMeta } from "./static-security-headers.js";
 import { buildPreviewExportManifest } from "./theme-preview-manifest.js";

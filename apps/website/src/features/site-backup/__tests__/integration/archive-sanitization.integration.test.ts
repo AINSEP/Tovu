@@ -10,7 +10,7 @@ import { runtimeSchemaVersion } from "../../../../platform/site-dir/schema-guard
 import { buildShareZip } from "../../share-zip.js";
 import { verifySiteImport } from "../../import-verifier.js";
 import { createShareArchiveReader } from "../../import-archive-reader.js";
-import type { SiteSharePlanContent } from "../../plan-store.js";
+import type { SiteSharePlanContent } from "../../plan-content.js";
 import * as yauzl from "yauzl";
 import Database from "better-sqlite3";
 import fs from "node:fs/promises";

@@ -11,7 +11,7 @@ import { lazyKernel, type MarkerStore } from "./marker-sql.js";
  * `TRASHABLE` registry entry, because `hide` writes two tables (`principals` AND `sessions`) and
  * `purge` must go through `UserPurgePort.purgeUser` (`SqlUserPurge`, `identity/user-purge.ts`) for
  * its own eight-table delete, not through a single-table `compareAndDelete`. Mirrors
- * `adapters/directory.ts`'s "bespoke adapter" precedent.
+ * `@jini-ai/cms/trash/adapters/directory`'s "bespoke adapter" precedent.
  *
  * `entityVersion` is always `null`: `principals` has no version column, so `hide`/`unhide`/`purge`
  * never receive a meaningful `expectedVersion` to compare against (the trash core still passes one

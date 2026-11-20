@@ -34,9 +34,9 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
 import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
 import { SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
-import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
-import { CANCELLED, initialPushProgress, uploadPlannedContent, type SiteBackupPushProgress } from "./push-engine.js";
-import { SiteBackupPushJobs } from "./push-jobs.js";
+import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type TovuBackupPlanStore } from "./plan-content.js";
+import { CANCELLED, initialPushProgress, uploadBackupPlan } from "./push-content.js";
+import { SiteBackupPushJobs, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import {
   captureDatabaseSnapshot,
   checkSiteBackupLimits,
@@ -61,12 +61,12 @@ import {
  * Why two calls: the plan does every check that can fail (credential, repository visibility and
  * permissions, branch, folder, database snapshot, sizes) and returns what WOULD be written, so the
  * model can report the planned backup. The push uploads exactly what was planned: the database snapshot is
- * held in memory with the plan (`plan-store.ts`), and each disk file is re-read and refused if it
+ * held in memory with the plan (`plan-content.ts`), and each disk file is re-read and refused if it
  * changed since (`readPlannedFile`).
  *
  * A large backup outlasts one tool call: the push runs as a job (`push-jobs.ts`), the call waits for
  * it up to {@link PUSH_WAIT_MS} and otherwise returns its progress; calling the push again with the
- * same planId keeps waiting on the same job. The upload itself is `push-engine.ts`.
+ * same planId keeps waiting on the same job. The upload itself is `push-content.ts`.
  *
  * Safety rules, each re-checked at push time where the world can change in between:
  * - The database is the share projection ({@link captureBackupDatabase}): content, themes and
@@ -139,7 +139,7 @@ export interface SiteBackupToolDeps {
   /** Composition binds the same trusted catalogue and sanitizer as share/export. */
   readonly siteBackupSanitize: ShareDatabaseSanitizer;
   /** Test-only; defaults to the process-wide store. */
-  readonly siteBackupPlanStore?: SiteBackupPlanStore;
+  readonly siteBackupPlanStore?: TovuBackupPlanStore;
   /** Test-only; defaults to {@link siteAwareSiteKeyStatus} (site-aware — see that function's doc). */
   readonly siteBackupSiteKeyStatus?: () => { readonly active: boolean; readonly invalid?: boolean };
   /** Test-only; defaults to `console.warn`. Receives only lines built here — never a token. */
@@ -675,7 +675,7 @@ function pushRefusal(refusal: Refusal): PushResult {
  * private, branch not moved), upload, commit on the PLAN's parent. Stopping (`signal`) takes effect
  * between files and before the commit, never half-way through one.
  *
- * @complexity O(total bytes); see `push-engine.ts` for the uploads, plus a few fixed tree writes,
+ * @complexity O(total bytes); see `push-content.ts` for the uploads, plus a few fixed tree writes,
  *   one commit and one ref update.
  */
 async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps; plan: SiteBackupPlan; run: { signal: AbortSignal; progress: SiteBackupPushProgress } }, _optional: Record<string, never> = {}): Promise<PushResult> {
@@ -693,14 +693,13 @@ async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps
     });
   }
 
-  const uploaded = await uploadPlannedContent({
-    provider: credential.provider,
-    target,
-    plan,
-    signal: run.signal,
-    progress: run.progress,
-    toRefusal: (failure, _optional = {}) => providerRefusal({ deps, toolId: SITE_BACKUP_PUSH_TOOL_ID, failure }),
-  });
+  const uploaded = await uploadBackupPlan({
+    plan, signal: run.signal, progress: run.progress,
+    uploadBlob: async (file, _optional = {}) => {
+      const uploaded = await credential.provider.uploadBackupBlob(target, file);
+      return uploaded.ok ? { ok: true, blobSha: uploaded.blob.blobSha } : providerRefusal({ deps, toolId: SITE_BACKUP_PUSH_TOOL_ID, failure: uploaded });
+    },
+  }, { inlineTextMaxBytes: credential.provider.backupInlineTextMaxBytes });
   if (!uploaded.ok) return pushRefusal(uploaded);
   if (run.signal.aborted) return pushRefusal(CANCELLED);
 
@@ -737,7 +736,7 @@ const PLAN_TAKE_MESSAGES = {
  *  of a delegated tool call (`push-jobs.ts`), with room for the checks before the upload. */
 export const PUSH_WAIT_MS = 4 * 60 * 1000;
 
-const DEFAULT_PUSH_JOBS = new SiteBackupPushJobs<PushResult>();
+const DEFAULT_PUSH_JOBS = new SiteBackupPushJobs<PushResult>({});
 
 /** What a call returns while its job is still uploading. */
 function inProgressResult({ planId, progress, elapsedMs }: { planId: string; progress: SiteBackupPushProgress; elapsedMs: number }, _optional: Record<string, never> = {}): PushResult {
@@ -778,10 +777,10 @@ export async function pushSiteBackup(
   if (!job) {
     const taken = (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).take(key);
     if (!taken.ok) return { pushed: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
-    job = jobs.start({ key, progress: initialPushProgress(taken.plan), run: (signal, progress) => pushPlannedBackup({ deps, plan: taken.plan, run: { signal, progress } }) });
+    job = jobs.start({ key, progress: initialPushProgress({ plan: taken.plan }), run: ({ signal, progress }) => pushPlannedBackup({ deps, plan: taken.plan, run: { signal, progress } }) });
   }
 
-  const waited = await jobs.wait(job, { signal: ctx.signal, budgetMs: pushWaitBudget({ deps, waitMs: optional.waitMs }) });
+  const waited = await jobs.wait({ job, signal: ctx.signal, budgetMs: pushWaitBudget({ deps, waitMs: optional.waitMs }) });
   if (waited.state === "done") return waited.result;
   if (waited.state === "abandoned") return { pushed: false, cancelled: false, reason: "abandoned" };
   return inProgressResult({ planId, progress: waited.progress, elapsedMs: waited.elapsedMs });

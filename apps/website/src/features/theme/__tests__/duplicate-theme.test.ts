@@ -8,11 +8,11 @@ import test, { type TestContext } from "node:test";
 
 import { DuplicateThemeError, duplicateDiscoveredTheme, duplicateTheme, MAX_DUPLICATE_THEME_BYTES, themeIdFromName } from "../duplicate-theme.js";
 import { discoverAllBuiltInThemes, MIGRATION_STAGING_DIR_PREFIX } from "../theme-discovery.js";
-import { THEME_CATALOG_DIR } from "../theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { type DiscoveredTheme } from "../theme.js";
 import { MAX_LISTED_FILES } from "../theme-file-listing.js";
 import { MAX_WALK_DEPTH } from "../theme-files.js";
-import { resolveThemeOriginalSource } from "../theme-original-source.js";
+import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { writableThemeIds, ThemeStylingRequiredError } from "../active-theme.js";
 
 /**

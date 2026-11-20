@@ -182,7 +182,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
  * 2026-08-19 architecture audit findings 1 & 2: `startRename`'s client-side pre-check
  * (`LOCKED_RENAME_PATHS`) used to hardcode v1's `pages/index.html` unconditionally — no test in this
  * file exercised it before this addition. Now derived from `resolveThemeLayout` (the same
- * `@tovu/theme-layout` resolver the server route uses), keyed off `detail.apiVersion` from the port's
+ * `@jini-ai/cms/themes/layout` resolver the server route uses), keyed off `detail.apiVersion` from the port's
  * own response, so a v2 theme's `render/pages/index.html` is locked too instead of silently allowing
  * an inline rename the server would then refuse with a round trip.
  */

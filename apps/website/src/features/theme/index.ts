@@ -2,10 +2,6 @@ export { discoverThemes, discoverAllBuiltInThemes, findTheme, findStoredTheme, v
 export { loadTheme, type ThemeTokens, type DiscoveredTheme } from "./theme.js";
 export { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId, type ThemeManifest, type ThemeBuildInfo, type ThemeTier, type TemplateNode } from "./render-contract.js";
 export { isStandaloneThemePage, isPublishableThemePageCandidate } from "./theme-page-eligibility.js";
-export { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
-
-export { applicableThemeTemplates, type ThemeTemplateFor, type ThemeTemplateKind } from "./template-applicability.js";
-export { isPackageShippedTheme } from "./theme-original-source.js";
 
 // 2026-10-08 — the one "make a new theme" service: the admin Themes screen's Duplicate route and the
 // `theme_duplicate` agent tool both call `duplicateDiscoveredTheme`, so neither can drift.
@@ -130,19 +126,17 @@ export {
 
 // The Explore screen's file read/write surface (`apps/website/src/server/inbound/admin-http/routes/themes/explore.ts`) —
 // genuinely public, backing an admin route, no single-caller boot-sequence caveat like site-dir's.
-export { copyThemeFile, nextAvailableFileName, renameThemeFile } from "./theme-file-moves.js";
 export { isGeneratedThemePath, resolveThemeFileWriteScope, type ThemeFileWriteScope } from "./theme-file-policy.js";
 export { listThemeFiles } from "./theme-file-listing.js";
 export { MAX_THEME_FILE_BYTES, readThemeFile, ThemePathError } from "./theme-files.js";
-export { resetThemeFileToOriginal, themeFileDiffersFromOriginal } from "./theme-file-originals.js";
-export { resolveThemeOriginalSource, themeOriginalResetRefusal, type ThemeOriginalResetRefusal, type ThemeOriginalSource } from "./theme-original-source.js";
+export { themeFileMovePorts, themeOriginalFilePorts } from "./theme-file-write-ports.js";
+export { ORIGINAL_LAYOUT_MISMATCH_REFUSAL, type ThemeOriginalResetRefusal } from "./theme-file-errors.js";
 export { restoreBuiltThemeGeneratedTree } from "./theme-generated-restore.js";
 export { writeThemeFile } from "./theme-file-writing.js";
 
 // 2026-08-19 architecture audit findings 1 & 2 — the one apiVersion-aware theme-layout resolver,
-// shared by `apps/website/src/server/inbound/admin-http/routes/themes/explore.ts` and (via the `@tovu/theme-layout` alias,
-// `apps/admin/vite.config.ts`) the admin SPA. See `theme-layout.ts`'s own file header.
-export { resolveThemeLayout, isPageFilePath, isPartialFilePath, type ThemeLayout } from "./theme-layout.js";
+// shared by `apps/website/src/server/inbound/admin-http/routes/themes/explore.ts` and the admin SPA,
+// is imported directly from `@jini-ai/cms/themes/layout` so both runtimes use the same path facts.
 
 // 2026-08-19 architecture audit finding 4 — re-exported so `routes/site/pages.ts`'s missing-template
 // diagnostic builder can pick the same apiVersion-correct `<link>` sentinel `renderStaticPage` itself
@@ -163,7 +157,6 @@ export {
   requiredThemeFiles,
   validateFileIdentityChange,
   IDENTITY_LOCKED_GROUPS,
-  TRASH_DIR_NAME,
   type ThemeFileGroup,
   type FileIdentityLockResult,
 } from "./file-identity-lock.js";
@@ -187,9 +180,10 @@ export { saveThemeAsOriginal, type SaveThemeOriginalRefusal } from "./save-theme
 export { setThemePagePublished, ThemePagePublicationError } from "./page-publication.js";
 export { catalog as themePagePublishedAgentToolCatalog, buildRegistrations as buildThemePagePublishedRegistrations, contributeThemeSetPagePublishedTools } from "./page-publish-tool.js";
 
-export { createThemePreviewFeed, readThemePreviewRefresh, requestThemePreviewRefresh, validatePreviewPath, type ThemePreviewRefresh } from "./preview-refresh.js";
 // 2026-10-08 — a theme another process created, edited or trashed reaches this process's roster.
-export { syncThemeRoster, themeRosterFingerprint } from "./theme-roster-sync.js";
+export { themeRosterPorts } from "./theme-roster-ports.js";
 
 // Both deletion surfaces share the assistant's restorable file lifecycle.
 export { trashThemeFile, ThemeFileReadOnlyError } from "./asset-operations.js";
+
+export { refreshWatchedThemes, reportThemeWatchError } from "./theme-watch-bindings.js";

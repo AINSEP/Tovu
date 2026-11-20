@@ -1,17 +1,18 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 /** Shared theme file gates and live reload, independent of tool registration. */
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { isGeneratedThemePath, resolveThemeFileWriteScope } from "./theme-file-policy.js";
 import { listThemeFiles } from "./theme-file-listing.js";
-import { renameThemeFile } from "./theme-file-moves.js";
+import { renameThemeFile } from "@jini-ai/cms/themes/files/moves";
+import { themeFileMovePorts } from "./theme-file-write-ports.js";
 import { ThemePathError } from "./theme-files.js";
 import { isInsideCompiledSourceDir, isSourceDirWritableExtension, isTrashedThemePath, trashDestinationFor, validateFileIdentityChange } from "./file-identity-lock.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 
 export { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 export { resolveThemeFilePath } from "./theme-files.js";
 export { writeThemeBinaryFile } from "./theme-file-writing.js";
-export { nextAvailableFileName } from "./theme-file-moves.js";
 export {
   sniffThemeImportType,
   THEME_IMPORT_MAX_BYTES,
@@ -94,7 +95,7 @@ export class ThemeFileNoOriginalError extends Error {
   }
 }
 
-/** Raised when `theme_reset_file`'s theme HAS a stored original but {@link themeOriginalResetRefusal}
+/** Raised when `theme_reset_file`'s theme HAS a stored original but {@link hasThemeOriginalLayoutMismatch}
  * refuses it: saved under a different layout version than the live theme, or with an unreadable
  * `theme.json`. Its own class rather than {@link ThemeFileNoOriginalError}, so which check fired stays
  * clear. Retrying with the same input cannot succeed, so it is a shape rejection like that class; the
@@ -145,7 +146,7 @@ export function findThemeOrThrow({ routeDeps, themeId }: { routeDeps: ThemeToolD
  * there is exactly one place that decides "can this path be written at all" rather than copies that
  * could drift. The ADR-020/`preview/` pair is unchanged from `theme_write_file`'s own original inline
  * comments (git history); the `.trash/` refusal is new (2026-08-30, soft-delete) — see
- * `file-identity-lock.ts`'s `TRASH_DIR_NAME` doc for why writing directly into trash has to be
+ * `@jini-ai/cms/themes/layout`'s `TRASH_DIR_NAME` contract for why writing directly into trash has to be
  * refused rather than merely left unlikely: `theme_restore_trashed_file` is the only sanctioned door
  * back out, and an agent that could `theme_write_file`/`theme_edit_file` a `.trash/...` path in place
  * would have a second, unaudited way to mutate what is supposed to be inert, already-soft-deleted
@@ -184,7 +185,7 @@ export function reloadThemeInPlace({ routeDeps, theme, themeId }: { routeDeps: T
   const reloaded = loadTheme({ themeDir: theme.dir, id: themeId, source: theme.source });
   const index = routeDeps.themes.findIndex((t) => t.manifest.id === themeId);
   if (index >= 0) routeDeps.themes[index] = reloaded;
-  requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
+  requestThemePreviewRefresh({ themesDir: routeDeps.themesDir, isReservedPath: isReservedThemePreviewPath });
   return reloaded;
 }
 
@@ -232,7 +233,7 @@ export function trashThemeFile(
     throw new ThemeFileReadOnlyError({ message: `'${relativePath}' cannot be trashed: this theme is a built release with no writable location outside build.sourceDir/theme.json to move a trashed file into` });
   }
 
-  renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath: relativePath, destPath: trashedPath });
+  renameThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath: relativePath, destPath: trashedPath });
   const reloaded = reloadThemeInPlace({ routeDeps: deps, theme, themeId });
   return { trashedPath, reloaded };
 }

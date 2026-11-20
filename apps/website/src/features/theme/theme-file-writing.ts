@@ -1,7 +1,8 @@
 import { mkdirSync, realpathSync, statSync, writeFileSync, type Stats } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { ThemePathError, MAX_THEME_FILE_BYTES, resolveThemeFilePath, statOrThemePathError } from "./theme-files.js";
-import { writeFileAtomically } from "./theme-file-atomic-write.js";
+import { writeFileAtomically } from "@jini-ai/cms/themes/files/atomic-write";
+import { themeFileWritePorts } from "./theme-file-write-ports.js";
 
 
 /**
@@ -69,7 +70,7 @@ export function writeThemeFile(
 ): string {
   const target = validateThemeFileWrite(required, optional);
   mkdirSync(dirname(target), { recursive: true });
-  const revision = writeFileAtomically({ target, relativePathForError: required.relativePath, fillTemp: (tempPath) => writeFileSync(tempPath, required.content, "utf8") }, { stat: optional.stat, revisionFile: required, options: optional });
+  const revision = writeFileAtomically({ ports: themeFileWritePorts, target, relativePathForError: required.relativePath, fillTemp: (tempPath) => writeFileSync(tempPath, required.content, "utf8") }, { stat: optional.stat, revisionFile: required, options: optional });
   if (revision) {
     // Revision paths returned to tools must use that same canonical base, not a symlink spelling.
     const base = realpathSync(required.themeDir);
@@ -98,6 +99,6 @@ export function writeThemeBinaryFile(
   const existing = statOrThemePathError({ target, relativePath: required.relativePath }, { stat: undefined });
   assertOverwritableTarget({ existing, relativePath: required.relativePath, overwriteOversized: true });
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically({ target, relativePathForError: required.relativePath, fillTemp: (tempPath) => writeFileSync(tempPath, required.bytes) }, { stat: undefined, revisionFile: required });
+  writeFileAtomically({ ports: themeFileWritePorts, target, relativePathForError: required.relativePath, fillTemp: (tempPath) => writeFileSync(tempPath, required.bytes) }, { stat: undefined, revisionFile: required });
   return target;
 }

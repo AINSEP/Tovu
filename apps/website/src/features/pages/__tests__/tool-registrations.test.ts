@@ -1,4 +1,5 @@
 import { pageToolInputWithBasis } from "./page-tool-input.js";
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -9,7 +10,8 @@ import Ajv from "ajv";
 import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig, parseGalleryConfig } from "@jini-ai/cms/widgets/markers";
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { discoverAllBuiltInThemes, requestThemePreviewRefresh, type DiscoveredTheme } from "../../theme/index.js";
+import { discoverAllBuiltInThemes, type DiscoveredTheme } from "../../theme/index.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { buildPagesRegistrations, type PagesToolDeps } from "../tool-registrations.js";
 import { PageConcurrentEditError, PageNotFoundError, type PagesHtmlDocumentStorePort } from "../html-document-store.sqlite.js";
 
@@ -471,7 +473,7 @@ test("page reads refresh theme vocabulary after an external theme edit", async (
   const readTheme = async () => (await call("pages_read_html", { id: "disk-themed" }) as { theme: { id: string; tokens: Record<string, string> } }).theme;
   assert.equal((await readTheme()).tokens["--ink"], "#111");
   fs.writeFileSync(path.join(themeDir, "tokens.json"), JSON.stringify({ "--ink": "#abc" }));
-  requestThemePreviewRefresh({ themesDir }, { revision: "page-theme-updated" });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }, { revision: "page-theme-updated" });
   const refreshed = await readTheme();
   assert.equal(refreshed.id, "ink");
   assert.equal(refreshed.tokens["--ink"], "#abc");

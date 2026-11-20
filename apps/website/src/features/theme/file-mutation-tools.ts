@@ -2,11 +2,14 @@ import { requireInputRecord, requireString, withSchemaOnRejection, type AgentToo
 import { createChainedBatchHandler } from '@jini-ai/core/approval-batch-chain';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, type ThemeToolDeps } from './asset-operations.js';
-import { readThemeFileVersion } from "./theme-file-atomic-write.js";
+import { readThemeFileVersion } from "@jini-ai/cms/themes/files/atomic-write";
+import { themeFileWritePorts } from "./theme-file-write-ports.js";
 import { validateThemeFileWrite } from "./theme-file-writing.js";
-import { ThemeFileChangedError, runReviewedThemeFileWrite } from './reviewed-write-commit.js';
+import { ThemeFileChangedError } from './theme-file-errors.js';
+import { runReviewedThemeFileWrite } from '@jini-ai/cms/themes/files/reviewed-write';
 import { THEME_WRITE_PERMISSION } from './agent-tools.js';
-import { syncThemeRoster } from './theme-roster-sync.js';
+import { syncThemeRoster } from '@jini-ai/cms/themes/preview/roster';
+import { themeRosterPorts } from "./theme-roster-ports.js";
 import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../../contracts/core/tool-metadata/theme.js';
 
 const CONTENT_TOOLS: ReadonlySet<string> = new Set(THEME_CONTENT_REPLACEMENT_TOOL_IDS);
@@ -45,19 +48,19 @@ export function protectThemeFileTools(
           await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId,
             principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: 'theme', entityId: themeId });
           return withSchemaOnRejection({ toolId, catalog, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
-            syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
+            syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
             const theme = findThemeOrThrow({ routeDeps: deps, themeId });
             assertThemeFileWritable({ theme, relativePath });
             const file = { themeDir: theme.dir, themesRoot: deps.themesDir, relativePath };
             if (toolId === 'theme_write_file') validateThemeFileWrite({ ...file, content: requireString({ input, key: 'content' }) }, { overwriteOversized: input.overwriteOversized === true });
-            return { file, ...readThemeFileVersion(file) };
+            return { file, ...readThemeFileVersion({ ...file, ports: themeFileWritePorts }) };
           } });
         },
         // Revisions keep the old bytes; owner rule: only permanent deletes confirm.
         // The version pin still matters without a review gap: batch preparation and asynchronous
         // import downloads can yield before persistence. Never overwrite an intervening change.
         run: async ({ ctx, prepared }, options) => {
-          const current = readThemeFileVersion(prepared.file);
+          const current = readThemeFileVersion({ ...prepared.file, ports: themeFileWritePorts });
           if (current.target !== prepared.target || current.version !== prepared.version) throw new ThemeFileChangedError();
           const { result, committedVersion } = await runReviewedThemeFileWrite({ prepared, run: async () => registration.handler(ctx, options) });
           return { output: result, committed: committedVersion };

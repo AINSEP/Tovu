@@ -7,9 +7,10 @@ import { createContentDbTransactionRunner } from "#src/features/trash/index";
 import { createTrashService } from "@jini-ai/cms/trash";
 import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { randomUUID } from "node:crypto";
-import { unhideIfRemoveThrows } from "#src/features/trash/index";
+import { unhideIfRemoveThrows, type createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
+import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 import type { SiteStore } from "../open-site-store.js";
-import type { SqliteTrashRepo, createDirectoryTrashAdapter } from "#src/features/trash/index";
+import type { SqliteTrashRepo } from "#src/features/trash/index";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import type { SqlitePostRepo } from "#src/features/post/index";
 
@@ -42,7 +43,7 @@ export function composeTrashService(required: ComposeTrashServiceRequired, _opti
     onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
   });
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ adapter: pluginTrashAdapter, remove: bindRemoveEntity({
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ onRollbackError: reportDirectoryRollbackFailure, adapter: pluginTrashAdapter, remove: bindRemoveEntity({
     trash: trash,
     entityType: PLUGIN_ENTITY_TYPE
   }) });

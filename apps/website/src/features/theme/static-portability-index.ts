@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { PARTIAL_MARKER_TYPE, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { DEFAULT_THEME_SLOTS } from "../../contracts/core/theme-slots.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";
-import { resolveThemeLayout } from "./theme-layout.js";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file Milestone 5 — a generated root `index.html` for a `static`-tier theme, so the folder is a
@@ -16,7 +16,7 @@ import { resolveThemeLayout } from "./theme-layout.js";
  * that stands on its own — root-relative asset paths (the file sits at the theme's OWN root, one
  * level up from where a v2 theme's `render/pages/index.html` normally resolves `../css/`/`../scripts/`
  * from, or a v1 theme's `pages/index.html` resolves `../css/`/`../js/` from — see {@link
- * import("./theme-layout.js").resolveThemeLayout}, this module's own apiVersion-aware source of truth
+ * import("@jini-ai/cms/themes/layout").resolveThemeLayout}, this module's own apiVersion-aware source of truth
  * for both shapes, 2026-08-19 architecture audit finding 5), design tokens inlined as real CSS (a
  * theme's own required stylesheet deliberately defines none of its own — see that file's own header on
  * every migrated theme), and no dependency on a live Tovu instance to look right.

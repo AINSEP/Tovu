@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ThemeManifest } from "./render-contract.js";
-import { THEME_CATALOG_DIR } from "./theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { ThemePathError } from "./theme-files.js";
 import { resolveThemeFileWriteScope } from "./theme-file-policy.js";
 import { listThemeFiles } from "./theme-file-listing.js";

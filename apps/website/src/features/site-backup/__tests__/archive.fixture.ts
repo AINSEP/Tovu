@@ -5,7 +5,7 @@ import path from "node:path";
 import { buildShareZip } from "../share-zip.js";
 import { runtimeToArchivePath } from "../archive-paths.js";
 import { buildArchiveManifest, type ArchiveMedia, type ArchivePlugin } from "../archive-manifest.js";
-import type { SiteSharePlanContent } from "../plan-store.js";
+import type { SiteSharePlanContent } from "../plan-content.js";
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 export function fixtureArchivePlan(required: { plan: SiteSharePlanContent; files?: ReadonlyMap<string, Buffer> }): SiteSharePlanContent {

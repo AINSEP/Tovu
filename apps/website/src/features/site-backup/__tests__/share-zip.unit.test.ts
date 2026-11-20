@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { buildShareZip } from "../share-zip.js";
 import { SHARE_LIMITS } from "../share-policy.js";
-import type { SiteSharePlanContent } from "../plan-store.js";
+import type { SiteSharePlanContent } from "../plan-content.js";
 import { checkSiteBackupLimits, collectSiteBackupFiles, skipOversizedFiles, type PlannedDiskFile } from "../sources.js";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { createBundledExportFilePolicy } from "../bundled-export-file-policy.js";

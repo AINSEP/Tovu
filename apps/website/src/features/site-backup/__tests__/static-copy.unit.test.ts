@@ -15,7 +15,7 @@ import { createShareArchiveReader } from "../import-archive-reader.js";
 import { verifySiteImport } from "../import-verifier.js";
 import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
-import type { SiteSharePlanContent } from "../plan-store.js";
+import type { SiteSharePlanContent } from "../plan-content.js";
 import { SHARE_LIMITS } from "../share-policy.js";
 import { renderRedirectStub } from "@jini-ai/devops/static-export";
 import { rewriteExportOriginResponse } from "../../site-export/public-origin-policy.js";

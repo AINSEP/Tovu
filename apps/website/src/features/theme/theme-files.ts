@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { ENGINE_SUBFOLDERS } from "./theme-layout.js";
+import { ENGINE_SUBFOLDERS } from "@jini-ai/cms/themes/layout";
 
 
 /**

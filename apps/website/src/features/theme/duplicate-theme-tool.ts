@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -5,7 +6,7 @@ import type { ToolContributor } from "@jini-ai/core";
 
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 import { DuplicateThemeError, duplicateDiscoveredTheme } from "./duplicate-theme.js";
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { applyActiveTheme, type SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
 import { THEME_STYLING_REQUIRED_MESSAGE } from "./active-theme.js";
 
@@ -132,7 +133,7 @@ function buildDuplicateThemeHandlers(routeDeps: DuplicateThemeToolDeps): Record<
         isShapeRejection: ({ error }) => error instanceof DuplicateThemeError,
         fn: async () => duplicateDiscoveredTheme({ themes: routeDeps.themes, themesDir: routeDeps.themesDir, sourceThemeId, newName }, { newId, mode: duplicationMode(input) }),
       });
-      requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
+      requestThemePreviewRefresh({ themesDir: routeDeps.themesDir, isReservedPath: isReservedThemePreviewPath });
 
       const activation = activate ? await applyActiveTheme({ routeDeps, themeId: result.id, actorId: ctx.principal.id }) : undefined;
       return {

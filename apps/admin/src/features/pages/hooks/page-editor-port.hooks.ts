@@ -39,7 +39,7 @@ export interface PageEditorPort extends StandingDraftAutosavePort, Pick<PagesPor
     activeThemeId: string;
     /** The active theme's manifest `apiVersion` (`2`, or `undefined` for v1), looked up on
      *  `availableThemes` by `activeThemeId`. `undefined` also covers "the active theme is absent
-     *  from `availableThemes`", which `resolveThemeLayout` treats as v1 — the same conflation
+     *  from `availableThemes`", which `@jini-ai/cms/themes/layout`'s `resolveThemeLayout` treats as v1 — the same conflation
      *  `usePostEditor`'s own `activeThemeApiVersion` documents. */
     activeThemeApiVersion: 2 | undefined;
     /** The active theme's capability tier, looked up on `availableThemes` the same way as

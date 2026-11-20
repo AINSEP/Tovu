@@ -1,7 +1,7 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
-import { resolveThemeLayout } from "@tovu/theme-layout";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { defaultTemplateSourcePort } from "./template-source-dependencies.hooks";
@@ -25,7 +25,7 @@ import type { TemplateSourcePort } from "./template-source-port.hooks";
  * unconditionally — the v1 layout. Every current static theme (`the basic theme` and its six
  * siblings) is `apiVersion: 2`, whose page templates live under `render/pages/`, so "View Template"
  * 404ed for every real built-in theme. `templateAssetUrl` now takes the active theme's `apiVersion`
- * and resolves the folder through `@tovu/theme-layout` — the same resolver `explore.ts`'s server route
+ * and resolves the folder through `@jini-ai/cms/themes/layout` — the same resolver `explore.ts`'s server route
  * uses — instead of a second, independently-spelled `pages`/`render/pages` literal.
  */
 

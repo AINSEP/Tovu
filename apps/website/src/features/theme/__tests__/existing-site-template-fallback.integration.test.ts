@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
-import { discoverAllBuiltInThemes, rescanThemes, resolveTemplate, applicableThemeTemplates } from "../index.js";
+import { discoverAllBuiltInThemes, rescanThemes, resolveTemplate } from "../index.js";
+import { applicableThemeTemplates } from "@jini-ai/cms/themes/template-applicability";
 import { relativeFilePaths } from "../sync-originals.js";
 import { bareDeps, barePost } from "#src/server/inbound/admin-http/routes/posts/__tests__/preview-fixtures";
 import { renderPostPreview } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";

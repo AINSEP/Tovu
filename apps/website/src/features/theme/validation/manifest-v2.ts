@@ -2,7 +2,8 @@ import { validateScripts } from '@jini-ai/cookie-consent/policy';
 import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { isSourceDirGeneratedConflict } from "../theme-file-policy.js";
-import { parseTemplateFor } from "../template-applicability.js";
+import { parseTemplateFor } from "@jini-ai/cms/themes/template-applicability";
+import { rejectTemplateFor } from "../template-applicability-errors.js";
 import type { ThemeValidationIssue } from "./profiles.js";
 
 /**
@@ -446,7 +447,7 @@ export function validateManifestV2(
   issues.push(...checkFontStylesheets({ value: raw.fontStylesheets }));
   // The runtime parser owns this contract too: schema acceptance must never hide loader rejection.
   try {
-    parseTemplateFor({ value: raw.templateFor, templates: Array.isArray(raw.templates) ? raw.templates.map(String) : undefined });
+    parseTemplateFor({ onInvalid: rejectTemplateFor, value: raw.templateFor, templates: Array.isArray(raw.templates) ? raw.templates.map(String) : undefined });
   } catch (error) {
     issues.push({ ruleId: "v2-template-for", message: (error as Error).message });
   }

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { TRASH_DIR_NAME } from "./theme-layout.js";
+import { TRASH_DIR_NAME } from "@jini-ai/cms/themes/layout";
 
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
 

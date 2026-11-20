@@ -599,7 +599,7 @@ export interface PresentationDeps {
    * Design C (ADS-memory w4-theme-lifecycle-designs.md §5 / w6 dispatch, 2026-09-16) — the package's
    * own read-only stock themes root (`apps/website/src/server/runtime/composition/deps.ts`'s `builtInThemesDir()`), NOT `themesDir` above
    * (which is the SITE's own themes root in every real boot path except the hermetic one). Threaded
-   * through so `features/theme/theme-files.ts`'s `resolveThemeOriginalSource` can fall back to the
+   * through so `@jini-ai/cms/themes/files/original-source`'s `resolveThemeOriginalSource` can fall back to the
    * package's own generated catalog (Design D, `sync-originals.ts`) when an already-seeded site has
    * no catalog original of its own for a theme — closing that gap for the seven shipped themes that
    * never had a hand-maintained original, without writing anything into the site.

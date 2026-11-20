@@ -1,3 +1,5 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -234,14 +236,14 @@ test("preview reload refuses a principal without theme.set without writing a ref
 });
 
 test("cross-process: a theme another process created resolves on the server's next public request (no fallback)", async (t) => {
-  const { resolveActiveTheme, requestThemePreviewRefresh } = await import("#src/features/theme/index");
+  const { resolveActiveTheme } = await import("#src/features/theme/index");
   const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
   await request("/");
 
   // The agent daemon's `theme_duplicate`: a new folder on disk plus the marker bump — nothing in
   // THIS process's roster is touched.
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
-  requestThemePreviewRefresh({ themesDir });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
 
   const warnings: string[] = [];
   t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
@@ -265,7 +267,6 @@ test("cross-process: the admin Themes API sees a new theme without a manual resc
 });
 
 test("cross-process: a theme another process trashed drops out of the server's roster", async (t) => {
-  const { requestThemePreviewRefresh } = await import("#src/features/theme/index");
   const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
   await request("/");
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
@@ -273,17 +274,16 @@ test("cross-process: a theme another process trashed drops out of the server's r
   assert.ok(themes.some((theme) => theme.manifest.id === "editorial-rose"));
 
   fs.rmSync(path.join(themesDir, "static", "editorial-rose"), { recursive: true });
-  requestThemePreviewRefresh({ themesDir });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   await request("/admin/themes");
   assert.deepEqual(themes.map((theme) => theme.manifest.id), ["tovu-starter"]);
 });
 
 test("theme asset requests never touch the roster", async (t) => {
-  const { requestThemePreviewRefresh } = await import("#src/features/theme/index");
   const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
   await request("/");
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
-  requestThemePreviewRefresh({ themesDir });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   await request("/theme-assets/editorial-rose/styles.css");
   assert.deepEqual(themes.map((theme) => theme.manifest.id), ["tovu-starter"]);
 });
@@ -365,7 +365,7 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   assert.match(detail.diagnostic, /boom/);
   // The native stack is kept. The handler resumes after an await, so no frame of this test file is on it any
   // more; the failing call chain inside the product is the proof.
-  assert.match(detail.diagnostic, /at requestThemePreviewRefresh \(.*preview-refresh\.ts/);
+  assert.match(detail.diagnostic, /at requestThemePreviewRefresh \(.*refresh\.node\.(?:ts|js)/);
   assert.match(detail.diagnostic, /at handler \(.*theme-preview-refresh\.ts/);
   assert.doesNotMatch(detail.diagnostic, /SECRETSECRETSECRETSECRET/);
 });

@@ -13,7 +13,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
-import { THEME_CATALOG_DIR } from "../../features/theme/theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { resolveBatchableTools, batchDescriptorFor, withBatchInput } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";

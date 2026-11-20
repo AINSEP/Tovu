@@ -4,13 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { copyThemeFile } from "../theme-file-moves.js";
-import { isPackageShippedTheme } from "../theme-original-source.js";
+import { copyThemeFile } from "@jini-ai/cms/themes/files/moves";
+import { isPackageShippedTheme } from "@jini-ai/cms/themes/files/original-source";
 import { listThemeFiles, MAX_LISTED_FILES } from "../theme-file-listing.js";
 import { MAX_WALK_DEPTH, resolveThemeFilePath, ThemePathError } from "../theme-files.js";
-import { themeFileDiffersFromOriginal } from "../theme-file-originals.js";
+import { themeFileDiffersFromOriginal } from "@jini-ai/cms/themes/files/originals";
+import { themeFileMovePorts, themeOriginalFilePorts } from "../theme-file-write-ports.js";
 import { writeThemeFile } from "../theme-file-writing.js";
-import { THEME_CATALOG_DIR } from "../theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file Boundary cases of the theme file service: listing bounds and refusals, deep not-yet-existing
@@ -76,11 +77,11 @@ test("themeFileDiffersFromOriginal compares files larger than one chunk across e
   fs.writeFileSync(path.join(themeDir, "big.css"), bytes);
   fs.writeFileSync(path.join(originalDir, "big.css"), bytes);
   const required = { themeDir, themesRoot: root, originalDir, originalsRoot, relativePath: "big.css" };
-  assert.equal(themeFileDiffersFromOriginal(required), false);
+  assert.equal(themeFileDiffersFromOriginal({ ...required, ports: themeOriginalFilePorts }), false);
   const changedLate = Buffer.from(bytes);
   changedLate[changedLate.length - 1] = 98;
   fs.writeFileSync(path.join(themeDir, "big.css"), changedLate);
-  assert.equal(themeFileDiffersFromOriginal(required), true);
+  assert.equal(themeFileDiffersFromOriginal({ ...required, ports: themeOriginalFilePorts }), true);
 });
 
 test("writeThemeFile refuses to replace a directory", (t) => {
@@ -94,9 +95,9 @@ test("writeThemeFile refuses to replace a directory", (t) => {
 test("copyThemeFile refuses a missing source and a directory source, writing nothing", (t) => {
   const { root, themeDir } = themesRoot(t);
   fs.mkdirSync(path.join(themeDir, "pages"));
-  assert.throws(() => copyThemeFile({ themeDir, themesRoot: root, sourcePath: "absent.html", destPath: "copy.html" }), (error: unknown) =>
+  assert.throws(() => copyThemeFile({ ports: themeFileMovePorts, themeDir, themesRoot: root, sourcePath: "absent.html", destPath: "copy.html" }), (error: unknown) =>
     error instanceof ThemePathError && error.message === "file 'absent.html' does not exist in this theme");
-  assert.throws(() => copyThemeFile({ themeDir, themesRoot: root, sourcePath: "pages", destPath: "copy.html" }), (error: unknown) =>
+  assert.throws(() => copyThemeFile({ ports: themeFileMovePorts, themeDir, themesRoot: root, sourcePath: "pages", destPath: "copy.html" }), (error: unknown) =>
     error instanceof ThemePathError && error.message === "path 'pages' is not a regular file");
   assert.equal(fs.existsSync(path.join(themeDir, "copy.html")), false);
 });
@@ -113,8 +114,11 @@ test("isPackageShippedTheme: false without a package root, true only when the pa
 test("copyThemeFile maps a lost exclusive-create race to ThemePathError and rethrows any other copy failure", (t) => {
   const { root, themeDir } = themesRoot(t);
   fs.writeFileSync(path.join(themeDir, "about.html"), "<p>About</p>");
-  const required = { themeDir, themesRoot: root, sourcePath: "about.html", destPath: "about-1.html" };
-  const lostRace: typeof fs.copyFileSync = () => { throw Object.assign(new Error("EEXIST: file already exists"), { code: "EEXIST" }); };
+  const required = { themeDir, themesRoot: root, sourcePath: "about.html", destPath: "about-1.html", ports: themeFileMovePorts };
+  const lostRace: typeof fs.copyFileSync = (_source, _dest, flag) => {
+    assert.equal(flag, fs.constants.COPYFILE_EXCL);
+    throw Object.assign(new Error("EEXIST: file already exists"), { code: "EEXIST" });
+  };
   assert.throws(() => copyThemeFile(required, { copyFile: lostRace }), (error: unknown) =>
     error instanceof ThemePathError && error.message === "path 'about-1.html' already exists in this theme");
   const ioFault = Object.assign(new Error("EIO: i/o error"), { code: "EIO" });

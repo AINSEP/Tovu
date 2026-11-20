@@ -23,7 +23,7 @@ import { createSiteShareBackend } from "../share-backend.js";
 import { resolveShareDelivery, createRuntimeShareDelivery } from "../share-hosting.js";
 import { buildShareZip } from "../share-zip.js";
 import { SHARE_LIMITS, checkShareLimits } from "../share-policy.js";
-import type { SiteSharePlanContent } from "../plan-store.js";
+import type { SiteSharePlanContent } from "../plan-content.js";
 import { claimSharePath, excludedSharePath, requireShareSecretFree, validateSharePath } from "../share-file-policy.js";
 
 

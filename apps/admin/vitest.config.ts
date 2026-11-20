@@ -85,8 +85,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "src"),
       "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),
-      // Mirrors `vite.config.ts`'s identical alias — see that file's own comment.
-      "@tovu/theme-layout": path.resolve(__dirname, "../website/src/features/theme/theme-layout.ts"),
+      // Like production, layout consumers resolve the public @jini-ai/cms/themes/layout entry.
       // Same again for the Publish Content dialog's shared report semantics. This is a THIRD place
       // the alias has to be declared (tsconfig `paths`, `vite.config.ts`, here) — the three configs
       // are independent, and a missing entry fails in a different way in each: a type error, a

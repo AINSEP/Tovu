@@ -25,7 +25,7 @@ import { seedStarterTitle } from "./seed-starter-title.js";
  * Discovery of `themesDir` IS the site's theme list (`discoverAllBuiltInThemes`), so a theme left
  * out here does not exist to that site's admin UI. The seeded theme's `__original-themes__/` entry
  * comes along: `theme-files.ts` resolves "reset to original" at `join(themesRoot,
- * THEME_CATALOG_DIR, ...)` off the SITE's themes root — omit it and "reset to original" silently
+ * @jini-ai/cms/themes/layout's THEME_CATALOG_DIR, ...)` off the SITE's themes root — omit it and "reset to original" silently
  * has nothing to restore from. Originals of themes not seeded are left out too, so the catalog
  * never claims a theme the site does not have.
  *
@@ -70,7 +70,7 @@ export interface SeedSiteThemesRequired {
  */
 export const SEEDED_STOCK_THEME_IDS: readonly string[] = ["tovu-starter"];
 
-/** `features/theme/theme.ts`'s `THEME_CATALOG_DIR`, the "reset to original" copies — same cycle reason. */
+/** `@jini-ai/cms/themes/layout`'s `THEME_CATALOG_DIR`, the "reset to original" copies — same cycle reason. */
 const CATALOG_DIR_NAME = "__original-themes__";
 
 /**

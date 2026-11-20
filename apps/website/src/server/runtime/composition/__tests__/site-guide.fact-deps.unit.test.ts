@@ -5,7 +5,7 @@ import { FIELD_TYPES } from "@jini-ai/cms/forms";
 import { WIDGET_TYPE_REGISTRATIONS } from "@jini-ai/cms/widgets";
 import { EMBED_MARKER_TARGET_KEYS, FEATURED_IMAGE_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
 import { ToolInputError } from "@jini-ai/core";
-import { resolveThemeLayout } from "#src/features/theme/index";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 import { siteGuideFactDeps } from "../site-guide.js";
 
 /** The site guide's fact ports, exercised without a guide engine: registries are projected by key,

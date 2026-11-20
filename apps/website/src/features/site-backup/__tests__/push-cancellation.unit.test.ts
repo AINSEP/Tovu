@@ -4,16 +4,16 @@ import fs from "node:fs";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { collectSiteBackupFiles } from "../sources.js";
-import { SiteBackupPlanStore, type SiteBackupPlanContent } from "../plan-store.js";
-import { initialPushProgress, uploadPlannedContent, CANCELLED } from "../push-engine.js";
-import { SiteBackupPushJobs } from "../push-jobs.js";
+import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
+import type { SiteBackupPlanContent } from "../plan-content.js";
+import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
 import { pushSiteBackup, type PushResult, type SiteBackupToolDeps } from "../backup-service.js";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { buildSourceControlProviderForApi, type LoadSourceControlProviders } from "../../source-control/provider-registry.js";
+import { type LoadSourceControlProviders } from "../../source-control/provider-registry.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { FakeGitHub } from "./fixtures/fake-github.js";
@@ -51,18 +51,13 @@ async function fixture(required: { t: TestContext }) {
   const loaded = (await blobsOnly({ workspaceId: "ws" })).get({ providerId: "github" });
   assert.ok(loaded);
   const baseUrl = loaded.descriptor.apiOrigin;
-  const built = await buildSourceControlProviderForApi({ load: blobsOnly, workspaceId: "ws", baseUrl, httpClient: github });
-  assert.ok(built.ok);
   const content: SiteBackupPlanContent = { credentialLabel: "github", owner: "octo", repo: "backups", folder: "demo-site", commitMessage: "backup",
     repository: { branch: "main", parentCommitSha: "tip-1", baseTreeSha: "tree-of-tip-1", folderExists: false, htmlUrl: baseUrl },
     include, database: null, files: collected.files, skipped: [], scopeNotes: {}, totalBytes: collected.files.reduce((sum, file) => sum + file.bytes, 0),
     site: { name: "Cancel", folderName: "demo-site" }, schema: runtimeSchemaVersion(), tovuVersion: "test", createdAt: "2026-11-18T00:00:00Z" };
-  const store = new SiteBackupPlanStore({ newId: () => key.planId });
+  const store = new SiteBackupPlanStore<SiteBackupPlanContent>({}, { newId: () => key.planId });
   const plan = store.save({ principalId: key.principalId, workspaceId: key.workspaceId, content });
-  const controller = new AbortController();
-  return { root, sources, github, provider: built.provider, baseUrl, store, plan, controller,
-    target: { baseUrl, authorization: "Bearer fixture-token", owner: "octo", repo: "backups" },
-    toRefusal: (failure: { code: string; message: string }) => ({ ok: false as const, code: failure.code, message: failure.message }) };
+  return { root, sources, github, baseUrl, store, plan };
 }
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
@@ -76,7 +71,7 @@ async function serviceDeps(required: { f: Fixture }): Promise<SiteBackupToolDeps
   });
   return { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }), customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer, customCredentialsHttpClient: f.github, loadSourceControlProviders: blobsOnly,
-    siteBackupPlanStore: f.store, siteBackupPushJobs: new SiteBackupPushJobs<PushResult>(), siteBackupSources: f.sources,
+    siteBackupPlanStore: f.store, siteBackupPushJobs: new SiteBackupPushJobs<PushResult>({}), siteBackupSources: f.sources,
     siteBackupSanitize: async () => assert.fail("push must not recapture"), siteBackupSiteKeyStatus: () => ({ active: true }),
     dbOps: { getCapabilities: async () => assert.fail("push must not recapture"), captureRestorePoint: async () => assert.fail("push must not recapture"),
       restoreFromArtifact: async () => assert.fail("push must not restore") } };
@@ -87,58 +82,6 @@ function assertNoCommit(required: { github: FakeGitHub }): void {
   assert.equal(required.github.writes().some(request => /\/git\/(?:trees|commits|refs)/.test(new URL(request.url).pathname)), false);
   assert.equal(required.github.state.tip, "tip-1");
 }
-
-// Mutation: remove runBounded's signal check before taking an index.
-test("abort before the first index takes no file, uploads nothing and reports CANCELLED", async t => {
-  const f = await fixture({ t }), progress = initialPushProgress(f.plan);
-  f.controller.abort();
-  assert.deepEqual(await uploadPlannedContent({ ...f, signal: f.controller.signal, progress, concurrency: 1 }), CANCELLED);
-  assert.equal(progress.filesDone, 0);
-  assert.deepEqual(f.github.writes(), []);
-  assertNoCommit(f);
-});
-
-// Mutation: remove !signal.aborted from runBounded's worker loop; the second file uploads.
-test("abort during one upload lets it complete but takes no further index at concurrency one", async t => {
-  const f = await fixture({ t }), entered = gate<void>(), release = gate<void>();
-  const upload = f.provider.uploadBackupBlob.bind(f.provider);
-  const provider = { ...f.provider, uploadBackupBlob: async (...args: Parameters<typeof upload>) => {
-    entered.resolve(); await release.promise; return upload(...args);
-  } };
-  const progress = initialPushProgress(f.plan);
-  const running = uploadPlannedContent({ ...f, provider, signal: f.controller.signal, progress, concurrency: 1 });
-  await entered.promise;
-  f.controller.abort();
-  release.resolve();
-  assert.deepEqual(await running, CANCELLED);
-  assert.equal(f.github.blobContents.length, 1);
-  assert.equal(progress.filesDone, 1);
-  assert.equal(progress.bytesDone, f.plan.files[0]!.bytes);
-  assertNoCommit(f);
-});
-
-// Mutation: add a signal.aborted check after file.load(); this current-behaviour test turns red.
-test("abort during file.load currently still uploads THAT file (current behaviour, see BK-2 constraints)", async t => {
-  const f = await fixture({ t }), first = f.plan.files[0]!;
-  let loadEntered = false, uploads = 0;
-  const file = { ...first, get absPath() {
-    loadEntered = true; f.controller.abort(); return first.absPath;
-  } };
-  const plan = { ...f.plan, files: [file, f.plan.files[1]!] };
-  const upload = f.provider.uploadBackupBlob.bind(f.provider);
-  const provider = { ...f.provider, uploadBackupBlob: async (...args: Parameters<typeof upload>) => {
-    assert.equal(loadEntered, true);
-    assert.equal(f.controller.signal.aborted, true);
-    uploads++; return upload(...args);
-  } };
-  const progress = initialPushProgress(plan);
-  assert.deepEqual(await uploadPlannedContent({ ...f, provider, plan, signal: f.controller.signal, progress, concurrency: 1 }), CANCELLED);
-  assert.equal(loadEntered, true);
-  assert.equal(uploads, 1);
-  assert.equal(f.github.blobContents.length, 1);
-  assert.equal(progress.filesDone, 1);
-  assertNoCommit(f);
-});
 
 for (const point of ["repository inspection", "last manifest upload"] as const) {
   // Mutations: remove runBounded's pre-index abort gate / backup-service's post-upload abort check.
@@ -173,10 +116,10 @@ for (const outcome of ["complete", "abort"] as const) {
     t.mock.timers.enable({ apis: ["setTimeout"] });
     const scheduled = t.mock.method(globalThis, "setTimeout");
     const cleared = t.mock.method(globalThis, "clearTimeout");
-    const jobs = new SiteBackupPushJobs<number>({ now: () => 100 });
+    const jobs = new SiteBackupPushJobs<number>({}, { now: () => 100 });
     const complete = gate<number>(), caller = new AbortController();
     const job = jobs.start({ key, progress: { filesDone: 0, filesTotal: 1, bytesDone: 0, bytesTotal: 1 }, run: () => complete.promise });
-    const waiting = jobs.wait(job, { signal: caller.signal, budgetMs: 1000 });
+    const waiting = jobs.wait({ job, signal: caller.signal, budgetMs: 1000 });
     if (outcome === "complete") complete.resolve(42);
     else caller.abort();
     assert.deepEqual(await waiting, outcome === "complete" ? { state: "done", result: 42 } : { state: "abandoned" });

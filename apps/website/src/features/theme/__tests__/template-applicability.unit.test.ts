@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { loadTheme } from "../theme.js";
-import { applicableThemeTemplates, parseTemplateFor } from "../template-applicability.js";
+import { applicableThemeTemplates, parseTemplateFor } from "@jini-ai/cms/themes/template-applicability";
+import { rejectTemplateFor } from "../template-applicability-errors.js";
 import { validateManifestV2 } from "../validation/manifest-v2.js";
 
 const templates = ["post.html", "shared.html", "page.html", "both.html"];
@@ -45,7 +46,7 @@ for (const value of [null, [], "post", { "post.html": "post" }, { "post.html": [
   test(`templateFor: schema and loader parser reject ${JSON.stringify(value)}`, () => {
     const raw = { apiVersion: 2, id: "fixture", name: "Fixture", version: "1.0.0", templates, templateFor: value };
     assert.ok(validateManifestV2({ raw }).some((issue) => issue.ruleId === "v2-template-for"));
-    assert.throws(() => parseTemplateFor({ value, templates }), /templateFor/);
+    assert.throws(() => parseTemplateFor({ onInvalid: rejectTemplateFor, value, templates }), /templateFor/);
   });
 }
 
@@ -67,8 +68,8 @@ test("templateFor: inherited object names remain unlisted and apply to both kind
 });
 
 test("templateFor without any declared templates: an empty mapping parses, any named template is refused", () => {
-  assert.deepEqual(parseTemplateFor({ value: {} }), {});
-  assert.throws(() => parseTemplateFor({ value: { "landing.html": ["page"] } }), {
+  assert.deepEqual(parseTemplateFor({ onInvalid: rejectTemplateFor, value: {} }), {});
+  assert.throws(() => parseTemplateFor({ onInvalid: rejectTemplateFor, value: { "landing.html": ["page"] } }), {
     message: "theme.json templateFor 'landing.html' is not listed in templates",
   });
 });

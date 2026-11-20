@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 
 import { diffThemeFolders, relativeFilePaths, syncThemeOriginals, writeGeneratedThemeOriginal } from "../sync-originals.js";
-import { THEME_CATALOG_DIR } from "../theme-layout.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file `syncThemeOriginals()`/`writeGeneratedThemeOriginal()` — the generator that replaces a
