@@ -87,143 +87,8 @@ async function login(request: APIRequestContext): Promise<Record<string, string>
 const MODELS_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/execution/models";
 const TEST_CONN_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/execution/test-connection";
 const AZURE_UNSUPPORTED_MESSAGE = "Azure OpenAI deployment discovery is not supported from the inference endpoint.";
-
-test.describe("azure model discovery: refused honestly, independent of baseUrl shape (GOOD behavior — not a bug)", () => {
-  test("the same clean 'not supported' message for a garbage baseUrl, a well-formed one, and the pre-check for a blank one", async ({
-    request,
-  }) => {
-    const headers = await login(request);
-
-    // A syntactically invalid `baseUrl` still gets the clean message: the azure branch in
-    // `listProviderModels` returns BEFORE any URL parsing / SSRF validation runs, so there is
-    // no "invalid URL" leak here — proven by contrast with Test Connection's same input below.
-    const garbage = await request.post(MODELS_PATH, { headers,
-      data: { protocol: "azure", baseUrl: "not-a-url-at-all", apiKey: "fake-key" },
-    });
-    expect(garbage.status()).toBe(200);
-    const garbageBody = await garbage.json();
-    expect(garbageBody).toEqual({ ok: false, models: [], message: AZURE_UNSUPPORTED_MESSAGE });
-
-    // A well-formed, real-looking Azure endpoint gets the identical message — discovery is
-    // unconditionally refused for this protocol, not conditionally on what's reachable.
-    const wellFormed = await request.post(MODELS_PATH, { headers,
-      data: { protocol: "azure", baseUrl: "https://my-resource.openai.azure.com", apiKey: "fake-key" },
-    });
-    expect(wellFormed.status()).toBe(200);
-    expect(await wellFormed.json()).toEqual({ ok: false, models: [], message: AZURE_UNSUPPORTED_MESSAGE });
-
-    // An EMPTY baseUrl doesn't even reach that branch — Tovu's own route
-    // (`list-models.ts`) rejects it before calling into `listProviderModels` at all, for
-    // every protocol including azure. Different shape (400, not the {ok:false} envelope), but
-    // consistent: this is Tovu's own required-field validation, not an azure-specific gap.
-    const blank = await request.post(MODELS_PATH, { headers, data: { protocol: "azure", baseUrl: "", apiKey: "fake-key" } });
-    expect(blank.status()).toBe(400);
-    expect(await blank.json()).toEqual({ error: "baseUrl is required", code: "VALIDATION_ERROR" });
-  });
-});
-
-test.describe("azure Test Connection: NOT short-circuited — a real asymmetry with model discovery", () => {
-  test("the exact same garbage baseUrl that discovery waves through instead surfaces 'Invalid baseUrl' here", async ({
-    request,
-  }) => {
-    const headers = await login(request);
-
-    const res = await request.post(TEST_CONN_PATH, { headers,
-      data: { protocol: "azure", baseUrl: "not-a-url-at-all", apiKey: "fake-key", model: "my-deployment" },
-    });
-    expect(res.status()).toBe(200);
-    const body = await res.json();
-    // Different code path, different message, same protocol and same input that discovery
-    // above accepted with a clean generic message — this is the asymmetry this block exists
-    // to pin, not a claim that either message is individually wrong.
-    expect(body.ok).toBe(false);
-    expect(body.message).toBe("Invalid baseUrl");
-  });
-
-  test("a real unreachable loopback port produces the raw, untranslated 'fetch failed' — no azure-specific (or any) translation", async ({
-    request,
-  }) => {
-    const headers = await login(request);
-
-    // Port 1 on loopback: the SSRF guard allows loopback by design (see
-    // `byok-ssrf-guard.spec.ts`), so this reaches the real `fetch()` call and gets a real
-    // ECONNREFUSED, not a guard rejection. `testProviderConnection`'s catch block passes
-    // `err.message` straight through with no per-`kind` translation — Node/undici's own
-    // `TypeError#message` for this failure mode is literally the string "fetch failed", with
-    // the actual reason (`err.cause.code === 'ECONNREFUSED'`) left in `.cause` and never
-    // surfaced to the operator.
-    const res = await request.post(TEST_CONN_PATH, { headers,
-      data: { protocol: "azure", baseUrl: "http://127.0.0.1:1", apiKey: "fake-key", model: "my-deployment" },
-    });
-    expect(res.status()).toBe(200);
-    expect(await res.json()).toEqual({ ok: false, message: "fetch failed" });
-  });
-
-  test("a real local listener proves Test Connection genuinely attempts network egress for azure, with the exact URL shape the app builds", async ({
-    request,
-  }) => {
-    const headers = await login(request);
-
-    // Same "confused deputy" pattern as `byok-ssrf-guard.spec.ts` / `byok-empty-key-guard.spec.ts`:
-    // a real `node:http` listener this spec owns, standing in for a real Azure OpenAI resource.
-    // The point here isn't SSRF (that's the dedicated file's job) — it's proving Test
-    // Connection makes a REAL request for azure, in direct contrast to model discovery, which
-    // never does.
-    let hitCount = 0;
-    let receivedPath: string | undefined;
-    let receivedMethod: string | undefined;
-    let receivedHeaders: http.IncomingHttpHeaders | undefined;
-    let receivedBody: unknown;
-    const deputy = http.createServer((req, res) => {
-      hitCount++;
-      receivedPath = req.url;
-      receivedMethod = req.method;
-      receivedHeaders = req.headers;
-      const chunks: Buffer[] = [];
-      req.on("data", (chunk: Buffer) => chunks.push(chunk));
-      req.on("end", () => {
-        const rawBody = Buffer.concat(chunks).toString("utf8");
-        try {
-          receivedBody = JSON.parse(rawBody);
-        } catch {
-          receivedBody = rawBody;
-        }
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
-      });
-    });
-    await new Promise<void>((resolve) => deputy.listen(0, "127.0.0.1", resolve));
-    const port = (deputy.address() as AddressInfo).port;
-
-    try {
-      const res = await request.post(TEST_CONN_PATH, { headers,
-        data: {
-          protocol: "azure",
-          baseUrl: `http://127.0.0.1:${port}`,
-          apiKey: "fake-key",
-          model: "my-deployment",
-        },
-      });
-      const body = await res.json();
-      expect(hitCount, "the deputy must have actually received a request").toBe(1);
-      // The Azure-specific URL shape `azureRequestUrl` builds: deployment name in the path,
-      // default api-version (2024-10-21) in the query — confirmed against the real builder,
-      // not inferred.
-      expect(receivedPath).toBe("/openai/deployments/my-deployment/chat/completions?api-version=2024-10-21");
-      expect(receivedMethod).toBe("POST");
-      expect(receivedHeaders?.["api-key"]).toBe("fake-key");
-      expect(receivedHeaders?.authorization).toBeUndefined();
-      expect(receivedBody).toEqual({
-        max_tokens: 512,
-        messages: [{ role: "user", content: "Reply with only: ok" }],
-        stream: false,
-      });
-      expect(body).toEqual({ ok: true, message: "valid completion" });
-    } finally {
-      await new Promise<void>((resolve) => deputy.close(() => resolve()));
-    }
-  });
-});
+registerAzureModelDiscovery({ login, MODELS_PATH, AZURE_UNSUPPORTED_MESSAGE });
+registerAzureConnectionTests({ login, TEST_CONN_PATH });
 
 async function login_ui(page: Page): Promise<void> {
   await page.goto("/admin/", { waitUntil: "domcontentloaded" });
@@ -257,89 +122,8 @@ async function gotoByok(page: Page): Promise<void> {
 function azureModelInput(page: Page) {
   return byokModelTextInput(page);
 }
-
-test.describe("the real operator path in the browser: exact messages shown, in order", () => {
-  test("selecting Azure shows an immediate, accurate 'baseUrl is required' hint, then settles on the honest 'not supported' message once a baseUrl exists", async ({
-    page,
-  }) => {
-    await login_ui(page);
-    await gotoByok(page);
-
-    await page.getByRole("tab", { name: "Azure OpenAI" }).click();
-
-    // Immediate, because `config.byok.protocol` changing re-fires the discovery effect right
-    // away with whatever baseUrl the azure preset seeds — which is `''`. This is accurate
-    // (there genuinely is no baseUrl yet), not misleading, even though it appears before the
-    // operator has done anything.
-    await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveText(
-      "Could not load live models: baseUrl is required",
-    );
-
-    // A single `.fill()` (not per-keystroke — that behavior is this file's own dedicated
-    // block below) settles the discovery effect on the real, azure-specific message.
-    await page.locator('label:has-text("Base URL") input').fill("https://my-resource.openai.azure.com");
-    await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveText(
-      `Could not load live models: ${AZURE_UNSUPPORTED_MESSAGE}`,
-    );
-
-    // The Model field itself stays fully usable throughout — discovery failing never disables
-    // it, matching the non-blocking contract `ByokProviderForm.tsx` documents.
-    const modelInput = azureModelInput(page);
-    await expect(modelInput).toBeEditable();
-    await modelInput.fill("my-deployment");
-    await page.locator('.jini-byok-card .jini-field-input-row input').fill("fake-azure-key-NOT-REAL");
-
-    // Test Connection becomes enabled once all three required fields are present — it is not
-    // gated on discovery ever succeeding, which for azure it never will.
-    await expect(page.locator('button:has-text("Test connection")')).toBeEnabled();
-  });
-});
-
-test.describe("model discovery settles Base URL edits (known gap)", () => {
-  test("typing a baseUrl character by character sends one settled discovery request", async ({
-    page,
-  }) => {
-    let modelsCallCount = 0;
-    let lastBaseUrl: string | undefined;
-    let lastApiKey: string | undefined;
-    // Intercepted, not real: this test is about counting HOW OFTEN the effect fires, not what
-    // it returns — a real server round-trip per keystroke would make this test slow and, for
-    // any protocol other than azure, would be spamming a real provider. See this file's header
-    // for why the same effect is NOT harmless outside azure's special case.
-    await page.route("**/assistant/execution/models", async (route) => {
-      modelsCallCount++;
-      const data = route.request().postDataJSON() as { baseUrl?: string; apiKey?: string };
-      lastBaseUrl = data.baseUrl;
-      lastApiKey = data.apiKey;
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ ok: false, models: [], message: AZURE_UNSUPPORTED_MESSAGE }),
-      });
-    });
-
-    await login_ui(page);
-    await gotoByok(page);
-
-    await page.getByRole("tab", { name: "Azure OpenAI" }).click();
-    // A typed test key makes discovery eligible even if a prior test saved a key for another endpoint.
-    await page.locator('.jini-byok-card .jini-field-input-row input').fill("fake-azure-discovery-key-NOT-REAL");
-    await expect.poll(() => modelsCallCount, "the immediate fire on preset select").toBeGreaterThanOrEqual(1);
-    await expect.poll(() => lastBaseUrl).toBe("");
-    await expect.poll(() => lastApiKey).toBe("fake-azure-discovery-key-NOT-REAL");
-    const afterSelect = modelsCallCount;
-
-    const TYPED = "https://my-resource.openai.azure.com"; // 38 characters
-    await page.locator('label:has-text("Base URL") input').pressSequentially(TYPED, { delay: 15 });
-
-    // First prove discovery reached the finished URL. A blocked probe or broken harness must fail
-    // normally; only the known over-eager request count is an expected failure.
-    await expect.poll(() => lastBaseUrl, { timeout: 10_000 }).toBe(TYPED);
-    // PRODUCT-SUSPECT: retained original desired-behavior pin; setup must succeed before expecting failure.
-    test.fail(true, "ExecutionTab discovers on each baseUrl change without debouncing.");
-    expect(modelsCallCount - afterSelect).toBe(1);
-  });
-});
+registerAzureBrowserPath({ login_ui, gotoByok, azureModelInput, AZURE_UNSUPPORTED_MESSAGE });
+registerAzureSettledDiscovery({ login_ui, gotoByok, AZURE_UNSUPPORTED_MESSAGE });
 });
 
 // Migrated from byok-blank-key-save-guard.spec.ts; original pin intent and why comments follow.
@@ -409,26 +193,7 @@ let page: Page;
 
 test.beforeEach(async ({ page: fixturePage }, testInfo) => {
   page = fixturePage;
-  await page.goto(ADMIN_ORIGIN_PATH, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(".login-card", { timeout: 15_000 });
-  await page.fill('.login-card label:has-text("Username") input', "admin");
-  await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
-  const loginResponse = page.waitForResponse((r) => r.url().includes("/auth/login"));
-  await page.click('.login-card button:has-text("Sign in")');
-  const status = (await loginResponse).status();
-  expect(
-    status,
-    `login returned ${status}; 429 means the byok suite exceeded LOGIN_STRICT (10 logins / 60s) — `
-      + `see this file's one-login-per-file note.`,
-  ).toBe(200);
-  await page.waitForSelector(".login-card", { state: "detached", timeout: 15_000 });
-  // These pins formerly depended on a previous test's saved key. Seed the same state per test.
-  if (testInfo.title.includes("key already stored")) {
-    await openAdminPanel(page);
-    await keyField(page).fill(FAKE_KEY);
-    await saveButton(page, "Save key").click();
-    await expect(keySaveLine(page)).toHaveText(/Saved to the server, encrypted\./);
-  }
+  await prepareBlankKeyPanel({ page, testInfo, ADMIN_ORIGIN_PATH, FAKE_KEY, openAdminPanel, keyField, saveButton, keySaveLine });
 });
 
 /**
@@ -446,61 +211,9 @@ test.beforeEach(async ({ page: fixturePage }, testInfo) => {
  * spending another login against `LOGIN_STRICT`.
  */
 test.afterEach(async ({ page }) => {
-  try {
-    const cleared = await pinSessionRequest({ page, url: CREDENTIAL_PATH, method: "DELETE" });
-    expect(
-      cleared.ok,
-      "failed to delete the credential this file created — later specs in this suite will inherit it "
-        + "and see a stored-key form where they expect an unconfigured one",
-    ).toBe(true);
-    const after = await pinSessionRequest({ page, url: CREDENTIAL_PATH }).then((r) => r.json());
-    expect(after.data.isSet, "the credential must actually be gone, not merely reported deleted").toBe(false);
-  } finally {
-    await page.close();
-  }
+  await clearBlankKeyCredential({ page, CREDENTIAL_PATH });
 });
-
-/** The shared `ByokProviderForm` API-key input, whichever panel is mounted. */
-function keyField(page: Page) {
-  return page.locator(".jini-byok-card .jini-field-input-row input");
-}
-
-/** `exact` on both: each card now carries TWO save buttons ("Save key" under the key field, "Save
- *  settings" at the foot of the card), and a loose match would resolve either one — or, if the tabs
- *  ever rendered together, the other panel's. */
-function saveButton(page: Page, label: "Save key" | "Save settings" | "Save model settings") {
-  return page.getByRole("button", { name: label, exact: true });
-}
-
-/** The KEY footer's own status line.
- *
- *  Scoped to `.assistant-key-footer` deliberately: `.assistant-save-line` alone matches two
- *  elements on the admin panel — this one (the credential's own "Saved to the server, encrypted.")
- *  and `AdminExecutionMode`'s separate line for the `core.execution` LEDGER save, which is usually
- *  empty. They report two different writes, and an unscoped locator both trips Playwright's strict
- *  mode and, if it ever resolved, could pass on the wrong one. */
-function keySaveLine(page: Page) {
-  return page.locator(".assistant-key-footer .assistant-save-line");
-}
-
-async function openAdminPanel(page: Page): Promise<void> {
-  await page.goto(`${ADMIN_ORIGIN_PATH}ai-assistant`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Admin AI Assistant", exact: true }).click();
-  // Runtime discovery temporarily projects BYOK over the saved Local CLI mode. Selecting BYOK
-  // during that projection preserves Local CLI; discovery then removes the form mid-edit.
-  // This isolated site is local: wait for its capability before choosing the persisted mode.
-  await expect(page.locator(".assistant-execution")).toHaveAttribute("data-tovu-local-cli", "available");
-  // A fresh workspace defaults to `mode: "local-cli"` (`DEFAULT_EXECUTION_CONFIG`), which renders
-  // the CLI grid and no BYOK card at all — so this click is what makes the subject exist.
-  await page.getByRole("tab", { name: "BYOK" }).click();
-  await expect(keyField(page)).toBeVisible({ timeout: 15_000 });
-}
-
-async function openVisitorPanel(page: Page): Promise<void> {
-  await page.goto(`${ADMIN_ORIGIN_PATH}ai-assistant`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Visitor's AI Assistant", exact: true }).click();
-  await expect(keyField(page)).toBeVisible({ timeout: 15_000 });
-}
+const { keyField, saveButton, keySaveLine, openAdminPanel, openVisitorPanel } = createBlankKeyPanelAccess({ ADMIN_ORIGIN_PATH });
 
 test.describe("blank-key save guard", () => {
   test("ADMIN panel, nothing stored: Save key is disabled for an empty field and for whitespace, enabled for a real key", async () => {
@@ -521,208 +234,24 @@ test.describe("blank-key save guard", () => {
   });
 
   test("VISITOR panel, nothing stored: Save key is disabled for an empty field and for whitespace, enabled for a real key", async () => {
-    // Asserted independently of the admin panel above: different guard, different code path,
-    // different credential row — they merely agree on the rule. See this file's header.
-    await openVisitorPanel(page);
-    const save = saveButton(page, "Save key");
-
-    await keyField(page).fill(FAKE_KEY);
-    await expect(save).toBeEnabled({ timeout: 15_000 });
-
-    await keyField(page).fill("");
-    await expect(save, "an empty field with nothing stored has nothing to write").toBeDisabled();
-
-    await keyField(page).fill("   \t   ");
-    await expect(save, 'whitespace is not a credential — "   " must read as empty').toBeDisabled();
+    await verifyEmptyVisitorKey({ page, FAKE_KEY, openVisitorPanel, keyField, saveButton });
   });
 
   test("ADMIN panel, key already stored: an empty field leaves Save key disabled and the stored key intact", async () => {
-    // The trap the two tests above could otherwise cause someone to walk into. Everything here is
-    // about the OTHER meaning of an empty field.
-    await openAdminPanel(page);
-
-    await keyField(page).fill(FAKE_KEY);
-    await saveButton(page, "Save key").click();
-    await expect(keySaveLine(page)).toHaveText(/Saved to the server, encrypted\./, {
-      timeout: 15_000,
-    });
-
-    const afterSave = await page.request.get(CREDENTIAL_PATH, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json());
-    expect(afterSave.data.isSet, "the fake key should now be stored").toBe(true);
-    const maskBefore = afterSave.data.masked;
-    expect(maskBefore, "a stored key must come back masked, never in full").toMatch(/^••••/);
-
-    // The field clears itself on a successful save (`saveKey`'s own contract), so this IS the
-    // returning-operator state: empty input, masked placeholder, working credential on the server.
-    await expect(keyField(page)).toHaveValue("");
-    // The UI now shows the server's non-secret fingerprint (tail + length), not its legacy mask.
-    expect(afterSave.data.tokenHint).toEqual({ last4: "ONLY", length: 42 });
-    await expect(keyField(page)).toHaveAttribute("placeholder", "…ONLY, 42 chars");
-
-    // DISABLED, and this is a reversal of what this spec asserted before (owner ruling, 2026-09-02).
-    // Save key writes the key and nothing else, so a blank field has nothing to write. The earlier
-    // "keep it enabled for a model change" reasoning is obsolete twice over: the admin's
-    // model/protocol are persisted by the `core.execution` settings slice on their own path, and the
-    // credential row's own copy of them is now written by the separate "Save settings" button.
-    await expect(
-      saveButton(page, "Save key"),
-      "an empty field has no key to write — a stored key does not change that",
-    ).toBeDisabled();
-
-    // And the stored key is of course still there; disabling the button is not clearing anything.
-    const afterBlank = await page.request.get(CREDENTIAL_PATH, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json());
-    expect(afterBlank.data.isSet).toBe(true);
-    expect(
-      afterBlank.data.masked,
-      "the stored key must survive untouched — the field being empty is a display fact, not a delete",
-    ).toBe(maskBefore);
+    await verifyStoredAdminKey({ page, CREDENTIAL_PATH, FAKE_KEY, openAdminPanel, keyField, saveButton, keySaveLine });
   });
 
   test("ADMIN panel, key already stored: typing a key and then CLEARING it disables Save key again", async () => {
-    // The owner's exact reported sequence: start typing, change your mind, delete it. The field is
-    // blank but `dirty` is true and a key is stored — the state in which Save key used to stay live
-    // over an empty field. Asserted on the transition, not on a pristine form, because a
-    // never-touched blank field was already handled and this one was not.
-    await openAdminPanel(page);
-
-    await keyField(page).fill(FAKE_KEY);
-    await expect(saveButton(page, "Save key"), "a typed key is saveable").toBeEnabled();
-
-    await keyField(page).fill("");
-    await expect(
-      saveButton(page, "Save key"),
-      "the key was typed and then cleared — Save key must go back to disabled, with no delay",
-    ).toBeDisabled();
+    await verifyClearedAdminKey({ page, FAKE_KEY, openAdminPanel, keyField, saveButton });
   });
 
   test("ADMIN panel, key already stored: a whitespace-only field never reaches the server as the new key", async () => {
-    // The narrowest case, and the one a future refactor is most likely to break.
-    //
-    // `saveKey` trims the field ONCE, at the top, and that same trimmed value is both what the
-    // `hasTypedAdminKey` guard tests and what the patch carries. Those two reading one value is the
-    // whole property. Split them — gate on the trimmed value, send the raw one — and a
-    // whitespace-only field with a key already stored puts "   " on the wire as the REPLACEMENT
-    // credential. Today that would still be caught, but only by the server's own
-    // `assertValidExecutionCredentialApiKey` ("apiKey must not be empty — use DELETE to clear it"),
-    // one layer deeper than it should be and surfacing to the operator as a validation error from
-    // pressing Save on a form that looked ready.
-    //
-    // Recorded honestly: this pins behaviour that is ALREADY correct on the current source. It was
-    // written while investigating a report of blank keys being saved, and it is what established
-    // that the client never sends one.
-    // beforeEach already opened this panel to seed the stored key. Keep that mount: navigating
-    // again can discard its pending BYOK-mode autosave and reload the default Local CLI screen.
-    await expect(keyField(page)).toBeVisible();
-
-    const before = await page.request.get(CREDENTIAL_PATH, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json());
-    expect(before.data.isSet, "this case depends on the previous test having stored a key").toBe(true);
-
-    await keyField(page).fill("   \t   ");
-    // Whitespace is not a credential, so this is the blank case: the button must be disabled and the
-    // request must never be made. Previously this pressed Save and relied on the client trimming
-    // before building the patch; the guard is now in front of the button instead.
-    await expect(saveButton(page, "Save key")).toBeDisabled();
-    await expect(page.locator(".save-error")).toHaveCount(0);
-
-    const after = await page.request.get(CREDENTIAL_PATH, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json());
-    expect(after.data.masked, "a whitespace-only field must never replace the stored key").toBe(before.data.masked);
+    await verifyWhitespaceStoredAdminKey({ page, CREDENTIAL_PATH, keyField, saveButton });
   });
 
   for (const panel of ["ADMIN", "VISITOR"] as const) {
     test(`${panel} panel: Save settings persists the model without changing the stored key`, async () => {
-      const credentialPath = panel === "ADMIN" ? CREDENTIAL_PATH : VISITOR_CREDENTIAL_PATH;
-      const openPanel = panel === "ADMIN" ? openAdminPanel : openVisitorPanel;
-      const original = (await page.request.get(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json())).data;
-      const received: Array<{ path: string | undefined; authorization: string | undefined }> = [];
-      const deputy = http.createServer((req, res) => {
-        received.push({ path: req.url, authorization: req.headers.authorization });
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ data: [{ id: "guard-model", object: "model" }] }));
-      });
-      await new Promise<void>((resolve) => deputy.listen(0, "127.0.0.1", resolve));
-      const baseUrl = `http://127.0.0.1:${(deputy.address() as AddressInfo).port}`;
-      const settings = panel === "ADMIN"
-        ? { protocol: "openai", providerId: "openai", baseUrl, model: "guard-model" }
-        : { provider: "openai", baseUrl, model: "guard-model" };
-      try {
-        expect((await page.request.put(credentialPath, { headers: await pinSessionHeaders({ request: page.request }), data: settings })).ok()).toBe(true);
-        await openPanel(page);
-        if (panel === "ADMIN") {
-          // The admin form hydrates from the execution ledger, not the credential row. Match the
-          // seeded endpoint before expecting its hint; another endpoint must never show this key.
-          const ledgerSaved = page.waitForResponse((response) => {
-            if (response.request().method() !== "PUT" || !new URL(response.url()).pathname.endsWith("/settings/value")) return false;
-            const body = response.request().postDataJSON();
-            return body.namespace === "core.execution" && body.key === "byok.model" && body.valueJson === "guard-model";
-          });
-          await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
-          await page.locator('label:has-text("Base URL") input').fill(baseUrl);
-          await setByokModel(page, "guard-model");
-          expect((await ledgerSaved).ok()).toBe(true);
-        }
-        await keyField(page).fill(FAKE_KEY);
-        const keyWrite = page.waitForResponse((r) => r.url().endsWith(credentialPath) && r.request().method() === "PUT");
-        await saveButton(page, "Save key").click();
-        expect((await keyWrite).ok()).toBe(true);
-        await expect(keyField(page)).toHaveValue("");
-        const stored = (await page.request.get(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json())).data;
-        expect(stored.isSet).toBe(true);
-        expect(stored.tokenHint).toEqual({ last4: "ONLY", length: 42 });
-        await expect(keyField(page)).toHaveAttribute("placeholder", "…ONLY, 42 chars");
-
-        await keyField(page).fill(FAKE_KEY);
-        await expect(saveButton(page, "Save key")).toBeEnabled();
-        for (const blank of ["", "   \t   "]) {
-          await keyField(page).fill(blank);
-          await expect(saveButton(page, "Save key")).toBeDisabled();
-          const afterBlank = (await page.request.get(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json())).data;
-          expect(afterBlank.isSet).toBe(true);
-          expect(afterBlank.masked).toBe(stored.masked);
-        }
-
-        // The admin's visible model is ledger-owned. Let its autosave finish before remounting;
-        // Save settings below independently persists the credential row without writing a key.
-        const modelSaved = panel === "ADMIN" ? page.waitForResponse((response) => {
-          if (response.request().method() !== "PUT" || !new URL(response.url()).pathname.endsWith("/settings/value")) return false;
-          const body = response.request().postDataJSON();
-          return body.namespace === "core.execution" && body.key === "byok.model" && body.valueJson === "guard-model-updated";
-        }) : null;
-        await setByokModel(page, "guard-model-updated");
-        // The visitor panel's button reads "Save model settings" since its redesign (7b82f7b02); the
-        // admin panel keeps "Save settings". Same control, same credential-row write.
-        const saveSettingsLabel = panel === "ADMIN" ? "Save settings" : "Save model settings";
-        await expect(saveButton(page, saveSettingsLabel)).toBeEnabled();
-        const settingsWrite = page.waitForResponse((r) => r.url().endsWith(credentialPath) && r.request().method() === "PUT");
-        await saveButton(page, saveSettingsLabel).click();
-        const response = await settingsWrite;
-        expect(response.ok()).toBe(true);
-        expect(response.request().postDataJSON()).not.toHaveProperty("apiKey");
-        expect(response.request().postDataJSON()).toMatchObject({ ...settings, model: "guard-model-updated" });
-        if (modelSaved) expect((await modelSaved).ok()).toBe(true);
-        await openPanel(page);
-        await expect(byokModelTextInput(page)).toHaveValue("guard-model-updated");
-        await expect(keyField(page)).toHaveValue("");
-        const reloaded = (await page.request.get(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json())).data;
-        expect(reloaded).toMatchObject({ ...settings, model: "guard-model-updated", isSet: true, masked: stored.masked });
-
-        received.length = 0;
-        const probe = await page.request.post(MODELS_PATH, { headers: await pinSessionHeaders({ request: page.request }),
-          data: { protocol: "openai", baseUrl, apiKey: "", ...(panel === "ADMIN" ? { useAdminStoredCredential: true } : { useStoredCredential: true }) },
-        });
-        expect(probe.status()).toBe(200);
-        expect((await probe.json()).ok).toBe(true);
-        expect(received).toContainEqual({ path: "/v1/models", authorization: `Bearer ${FAKE_KEY}` });
-      } finally {
-        try {
-          expect((await page.request.delete(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) })).ok()).toBe(true);
-          const restoredSettings = panel === "ADMIN"
-            ? { protocol: original.protocol, providerId: original.providerId, baseUrl: original.baseUrl ?? "", model: original.model ?? "" }
-            : { provider: original.provider, baseUrl: original.baseUrl ?? "", model: original.model ?? "" };
-          expect((await page.request.put(credentialPath, { headers: await pinSessionHeaders({ request: page.request }), data: restoredSettings })).ok()).toBe(true);
-        } finally {
-          await new Promise<void>((resolve) => deputy.close(() => resolve()));
-        }
-      }
+      await verifyStoredKeySettings({ page, panel, CREDENTIAL_PATH, VISITOR_CREDENTIAL_PATH, MODELS_PATH, FAKE_KEY, keyField, saveButton, openAdminPanel, openVisitorPanel });
     });
   }
 });
@@ -793,47 +322,7 @@ async function stubExecutionRoutes(page: Page): Promise<void> {
 }
 
 test.describe("byok credential persistence, multi-tab, and cross-provider contamination", () => {
-  test("DEFENSE-IN-DEPTH: a non-string apiKey inside a NON-ACTIVE provider's legacy localStorage draft must not break the Settings page render", async ({
-    page,
-  }) => {
-    test.slow();
-    await login(page);
-    await stubExecutionRoutes(page);
-
-    // This is the pre-ADR-058 poison payload that used to reach `@jini-ai/ui`'s
-    // `credentialsForPreset` unvalidated and crash the whole page with no `ErrorBoundary` to catch
-    // it. Post-ADR-058, `loadExecutionConfig` never populates `savedByProviderId` from anywhere —
-    // it is scoped out entirely (`execution-settings.ts`'s header, item 2's "Never populated") — so
-    // this specific payload is now structurally unreachable, not fixed by validation. The test is
-    // kept as a defense-in-depth check: an old/hand-edited/hostile value at the LEGACY key must
-    // still not break the render, on the general principle that a malformed localStorage entry
-    // should degrade a field, never the whole page.
-    await page.evaluate(
-      ({ key }) => {
-        window.localStorage.setItem(
-          key,
-          JSON.stringify({
-            apiKey: "",
-            savedByProviderId: {
-              openai: { apiKey: 12345, baseUrl: "https://api.openai.com/v1", model: "" },
-            },
-          }),
-        );
-      },
-      { key: CREDENTIALS_KEY },
-    );
-
-    const pageErrors: string[] = [];
-    page.on("pageerror", (err) => pageErrors.push(err.message));
-
-    await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
-
-    // The nav click comes FIRST: the Execution section is reached through the settings dialog's
-    // own left nav, so the BYOK tab is not mounted merely by landing on /admin/settings.
-    await page.getByTestId("settings-dialog-nav-execution").click();
-    await expect(page.getByRole("tab", { name: "BYOK" })).toBeVisible({ timeout: 10_000 });
-    expect(pageErrors).toEqual([]);
-  });
+  registerPoisonedCredentialPin({ login, stubExecutionRoutes, ADMIN_ORIGIN_PATH, CREDENTIALS_KEY });
 
   test("DEFENSE-IN-DEPTH: non-JSON garbage in legacy localStorage falls back to an empty field instead of crashing the settings page", async ({
     page,
@@ -865,154 +354,8 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
     await expect(page.locator('.jini-byok-card .jini-field-input-row input')).toHaveValue("");
     expect(pageErrors).toEqual([]);
   });
-
-  test("SECURITY PIN: a typed API key never reaches localStorage, checked under the exact two-tab race that used to leak it pre-ADR-058", async ({
-    context,
-  }) => {
-    test.slow();
-    const secrets = ["sk-ant-FROM-TAB-A", "sk-ant-FROM-TAB-B"];
-    const ledgerWrites: string[] = [];
-    context.on("request", (request) => {
-      if (request.method() === "PUT" && new URL(request.url()).pathname.includes("/settings/")) ledgerWrites.push(request.postData() ?? "");
-    });
-    // Install before either application boots, so transient writes and writes to any storage key
-    // remain observable even if a later removeItem hides them from the final snapshot.
-    await context.addInitScript(() => {
-      const state = window as unknown as { __storageWrites: Array<{ key: string; value: string }> };
-      state.__storageWrites = [];
-      const setItem = Storage.prototype.setItem;
-      Storage.prototype.setItem = function (key, value) {
-        state.__storageWrites.push({ key: String(key), value: String(value) });
-        return setItem.call(this, key, value);
-      };
-    });
-    const tabA = await context.newPage();
-    const tabB = await context.newPage();
-    await login(tabA);
-    await stubExecutionRoutes(tabA);
-    await stubExecutionRoutes(tabB);
-
-    // Both tabs mount from the same (empty) persisted state before either one edits anything —
-    // this is what made tab B's later save "stale" rather than merely "different" in the original,
-    // pre-ADR-058 version of this test (see git history: it asserted the OPPOSITE of what follows —
-    // that a typed key survived a cross-tab race in localStorage). That assertion stopped being
-    // true, and for the right reason: `saveExecutionConfig` (execution-settings.ts) no longer
-    // writes `apiKey` anywhere, so there is nothing left in that path for a race to corrupt. What's
-    // worth pinning permanently instead is stricter than the original test: the key must never
-    // reach localStorage at all, not even transiently, not even under concurrent tabs.
-    await gotoByok(tabA);
-    await tabB.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
-    // Same left-nav step `gotoByok` does for tab A — spelled out here rather than reusing the
-    // helper because this test deliberately drives tab B through the raw navigation, so that both
-    // tabs demonstrably mount from the same empty persisted state before either edits anything.
-    await tabB.getByTestId("settings-dialog-nav-execution").click();
-    await tabB.getByRole("tab", { name: "BYOK" }).click();
-
-    // Tab A types a key and lets the debounced auto-save flush (SAVE_DEBOUNCE_MS = 600ms,
-    // `use-settings-slice.hooks.ts`) — the exact trigger that used to write the key to
-    // localStorage pre-ADR-058.
-    await tabA.locator('.jini-byok-card .jini-field-input-row input').fill(secrets[0]!);
-    const waitForModelSave = (page: Page, model: string) => page.waitForResponse((response) => {
-      if (response.request().method() !== "PUT" || !new URL(response.url()).pathname.endsWith("/settings/value")) return false;
-      const body = response.request().postDataJSON();
-      return body.namespace === "core.execution" && body.key === "byok.model" && body.valueJson === model;
-    });
-    const modelA = `e2e-tab-a-${Date.now()}`;
-    const tabASaved = waitForModelSave(tabA, modelA);
-    await setByokModel(tabA, modelA);
-    expect((await tabASaved).ok()).toBe(true);
-    const afterTabASave = await tabA.evaluate(
-      (key) => window.localStorage.getItem(key),
-      CREDENTIALS_KEY,
-    );
-    expect(afterTabASave).toBeNull();
-
-    // Tab B edits an unrelated field and lets its own debounce flush — the exact trigger that used
-    // to race tab A's save and silently wipe it. There is no key in localStorage left to wipe now,
-    // so this is checking the same race produces the same (empty) outcome, not a different one.
-    await tabB.locator('.jini-byok-card .jini-field-input-row input').fill(secrets[1]!);
-    const modelB = `e2e-tab-b-${Date.now()}`;
-    const tabBSaved = waitForModelSave(tabB, modelB);
-    await setByokModel(tabB, modelB);
-    expect((await tabBSaved).ok()).toBe(true);
-
-    const afterTabBSave = await tabA.evaluate(
-      (key) => window.localStorage.getItem(key),
-      CREDENTIALS_KEY,
-    );
-    expect(afterTabBSave).toBeNull();
-    // Belt-and-suspenders: even if some future, unrelated change starts writing SOMETHING to this
-    // localStorage key again, the raw key material itself must never appear in it.
-    expect(afterTabBSave ?? "").not.toContain("FROM-TAB-A");
-    expect(ledgerWrites.length).toBeGreaterThanOrEqual(2);
-    for (const tab of [tabA, tabB]) {
-      const storage = await tab.evaluate(() => ({
-        writes: (window as unknown as { __storageWrites: unknown[] }).__storageWrites,
-        local: Object.entries(localStorage),
-        session: Object.entries(sessionStorage),
-      }));
-      for (const secret of secrets) expect(JSON.stringify(storage)).not.toContain(secret);
-    }
-    for (const secret of secrets) expect(JSON.stringify(ledgerWrites)).not.toContain(secret);
-
-    await tabA.close();
-    await tabB.close();
-  });
-
-  test("HELD: switching to a never-configured provider clears the API key field and never sends the OLD provider's key in the NEW provider's request", async ({
-    page,
-  }) => {
-    // Unrelated to the localStorage-to-server migration (ADR-058): this exercises component-level
-    // UI state (`nextConfigForPresetSelect` in `@jini-ai/ui`'s `features/execution/rules.ts`),
-    // which per-provider draft an unsaved field falls back to when the operator switches presets.
-    // Neither side of that mechanism touched localStorage before Bug 7 or touches the server store
-    // now — it lives entirely in `ExecutionTab`'s in-memory config.
-    test.slow();
-    await login(page);
-    await page.route("**/assistant/execution/models", (route) => route.fulfill(jsonRoute({ ok: true, models: ["stub-model"] })));
-
-    let capturedBody: { protocol?: string; apiKey?: string } | null = null;
-    await page.route("**/assistant/execution/test-connection", async (route) => {
-      capturedBody = route.request().postDataJSON();
-      await route.fulfill(jsonRoute({ ok: false, message: "stub — no real key present" }));
-    });
-
-    const apiKeyField = page.locator(".jini-byok-card .jini-field-input-row input");
-
-    await gotoByok(page);
-    await apiKeyField.fill("sk-ant-SECRET-FOR-ANTHROPIC-ONLY");
-    await setByokModel(page, "claude-sonnet-4-5");
-
-    // OpenAI has never been configured in this session — `nextConfigForPresetSelect`
-    // (`features/execution/rules.ts`) must load ITS OWN blank draft, never carry Anthropic's key
-    // forward as a default. This is the first of the two properties in this test's name.
-    await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
-    await expect(apiKeyField).toHaveValue("");
-
-    await setByokModel(page, "gpt-4o");
-    // OpenAI needs a key of ITS OWN before the request can be fired at all.
-    //
-    // The original form of this test typed no OpenAI key and asserted the captured request had
-    // `apiKey: ""`. That is unreachable, and always has been post-ADR-058: "Test connection" is
-    // `disabled={connectionTest.status === 'testing' || missing.size > 0}` (`ByokProviderForm.tsx`)
-    // and `missingRequiredFields` counts an empty `apiKey` for any preset with
-    // `presetRequiresApiKey` — relaxed only by `apiKeyStoredExternally`, which is false here
-    // because this hermetic run has never saved a key server-side. Measured 2026-08-05: the click
-    // spent the full 90s test timeout on `element is not enabled`. The test had never been run
-    // green (single commit `876b4fe`); the earlier Model-field failure masked this second one.
-    //
-    // Repaired rather than deleted, because the property in the title is real and this makes it
-    // STRICTER: an exact-equality assertion on OpenAI's own key cannot pass if Anthropic's key
-    // leaked into the request, whereas the old `toBe("")` only ever proved the field was empty.
-    await apiKeyField.fill("sk-openai-OWN-KEY-NOT-REAL");
-    await page.locator('button:has-text("Test connection")').click();
-    await expect.poll(() => capturedBody).not.toBeNull();
-
-    const body = capturedBody as unknown as { protocol: string; apiKey: string };
-    expect(body.protocol).toBe("openai");
-    expect(body.apiKey).toBe("sk-openai-OWN-KEY-NOT-REAL");
-    expect(JSON.stringify(capturedBody)).not.toContain("SECRET-FOR-ANTHROPIC");
-  });
+  registerCredentialRacePin({ login, stubExecutionRoutes, gotoByok, ADMIN_ORIGIN_PATH, CREDENTIALS_KEY });
+  registerProviderContaminationPin({ login, gotoByok, jsonRoute });
 });
 });
 
@@ -3646,4 +2989,748 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
   });
 });
 });
+}
+
+async function verifyAzureNetworkConnection({ request, login, TEST_CONN_PATH }: { request: APIRequestContext; login: (request: APIRequestContext) => Promise<Record<string, string>>; TEST_CONN_PATH: string }) {
+    const headers = await login(request);
+
+    // Same "confused deputy" pattern as `byok-ssrf-guard.spec.ts` / `byok-empty-key-guard.spec.ts`:
+    // a real `node:http` listener this spec owns, standing in for a real Azure OpenAI resource.
+    // The point here isn't SSRF (that's the dedicated file's job) — it's proving Test
+    // Connection makes a REAL request for azure, in direct contrast to model discovery, which
+    // never does.
+    let hitCount = 0;
+    let receivedPath: string | undefined;
+    let receivedMethod: string | undefined;
+    let receivedHeaders: http.IncomingHttpHeaders | undefined;
+    let receivedBody: unknown;
+    const deputy = http.createServer((req, res) => {
+      hitCount++;
+      receivedPath = req.url;
+      receivedMethod = req.method;
+      receivedHeaders = req.headers;
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        const rawBody = Buffer.concat(chunks).toString("utf8");
+        try {
+          receivedBody = JSON.parse(rawBody);
+        } catch {
+          receivedBody = rawBody;
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+      });
+    });
+    await new Promise<void>((resolve) => deputy.listen(0, "127.0.0.1", resolve));
+    const port = (deputy.address() as AddressInfo).port;
+
+    try {
+      const res = await postAzureDeploymentConnection({ request, TEST_CONN_PATH, headers, port });
+      const body = await res.json();
+      expect(hitCount, "the deputy must have actually received a request").toBe(1);
+      // The Azure-specific URL shape `azureRequestUrl` builds: deployment name in the path,
+      // default api-version (2024-10-21) in the query — confirmed against the real builder,
+      // not inferred.
+      expect(receivedPath).toBe("/openai/deployments/my-deployment/chat/completions?api-version=2024-10-21");
+      expect(receivedMethod).toBe("POST");
+      expect(receivedHeaders?.["api-key"]).toBe("fake-key");
+      expect(receivedHeaders?.authorization).toBeUndefined();
+      expect(receivedBody).toEqual({
+        max_tokens: 512,
+        messages: [{ role: "user", content: "Reply with only: ok" }],
+        stream: false,
+      });
+      expect(body).toEqual({ ok: true, message: "valid completion" });
+    } finally {
+      await new Promise<void>((resolve) => deputy.close(() => resolve()));
+    }
+}
+
+async function postAzureDeploymentConnection({ request, TEST_CONN_PATH, headers, port }: { request: APIRequestContext; TEST_CONN_PATH: string; headers: Record<string, string>; port: number }) {
+      const res = await request.post(TEST_CONN_PATH, { headers,
+        data: {
+          protocol: "azure",
+          baseUrl: `http://127.0.0.1:${port}`,
+          apiKey: "fake-key",
+          model: "my-deployment",
+        },
+      });
+  return res;
+}
+
+function registerAzureSettledDiscovery({ login_ui, gotoByok, AZURE_UNSUPPORTED_MESSAGE }: { login_ui: (page: Page) => Promise<void>; gotoByok: (page: Page) => Promise<void>; AZURE_UNSUPPORTED_MESSAGE: string }) {
+
+test.describe("model discovery settles Base URL edits (known gap)", () => {
+  test("typing a baseUrl character by character sends one settled discovery request", async ({
+    page,
+  }) => {
+    let modelsCallCount = 0;
+    let lastBaseUrl: string | undefined;
+    let lastApiKey: string | undefined;
+    // Intercepted, not real: this test is about counting HOW OFTEN the effect fires, not what
+    // it returns — a real server round-trip per keystroke would make this test slow and, for
+    // any protocol other than azure, would be spamming a real provider. See this file's header
+    // for why the same effect is NOT harmless outside azure's special case.
+    await page.route("**/assistant/execution/models", async (route) => {
+      modelsCallCount++;
+      const data = route.request().postDataJSON() as { baseUrl?: string; apiKey?: string };
+      lastBaseUrl = data.baseUrl;
+      lastApiKey = data.apiKey;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, models: [], message: AZURE_UNSUPPORTED_MESSAGE }),
+      });
+    });
+
+    await login_ui(page);
+    await gotoByok(page);
+
+    await page.getByRole("tab", { name: "Azure OpenAI" }).click();
+    // A typed test key makes discovery eligible even if a prior test saved a key for another endpoint.
+    await page.locator('.jini-byok-card .jini-field-input-row input').fill("fake-azure-discovery-key-NOT-REAL");
+    await expect.poll(() => modelsCallCount, "the immediate fire on preset select").toBeGreaterThanOrEqual(1);
+    await expect.poll(() => lastBaseUrl).toBe("");
+    await expect.poll(() => lastApiKey).toBe("fake-azure-discovery-key-NOT-REAL");
+    const afterSelect = modelsCallCount;
+
+    const TYPED = "https://my-resource.openai.azure.com"; // 38 characters
+    await page.locator('label:has-text("Base URL") input').pressSequentially(TYPED, { delay: 15 });
+
+    // First prove discovery reached the finished URL. A blocked probe or broken harness must fail
+    // normally; only the known over-eager request count is an expected failure.
+    await expect.poll(() => lastBaseUrl, { timeout: 10_000 }).toBe(TYPED);
+    // PRODUCT-SUSPECT: retained original desired-behavior pin; setup must succeed before expecting failure.
+    test.fail(true, "ExecutionTab discovers on each baseUrl change without debouncing.");
+    expect(modelsCallCount - afterSelect).toBe(1);
+  });
+});
+}
+
+function registerAzureBrowserPath({ login_ui, gotoByok, azureModelInput, AZURE_UNSUPPORTED_MESSAGE }: { login_ui: (page: Page) => Promise<void>; gotoByok: (page: Page) => Promise<void>; azureModelInput: (page: Page) => ReturnType<typeof byokModelTextInput>; AZURE_UNSUPPORTED_MESSAGE: string }) {
+
+test.describe("the real operator path in the browser: exact messages shown, in order", () => {
+  test("selecting Azure shows an immediate, accurate 'baseUrl is required' hint, then settles on the honest 'not supported' message once a baseUrl exists", async ({
+    page,
+  }) => {
+    await login_ui(page);
+    await gotoByok(page);
+
+    await page.getByRole("tab", { name: "Azure OpenAI" }).click();
+
+    // Immediate, because `config.byok.protocol` changing re-fires the discovery effect right
+    // away with whatever baseUrl the azure preset seeds — which is `''`. This is accurate
+    // (there genuinely is no baseUrl yet), not misleading, even though it appears before the
+    // operator has done anything.
+    await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveText(
+      "Could not load live models: baseUrl is required",
+    );
+
+    // A single `.fill()` (not per-keystroke — that behavior is this file's own dedicated
+    // block below) settles the discovery effect on the real, azure-specific message.
+    await page.locator('label:has-text("Base URL") input').fill("https://my-resource.openai.azure.com");
+    await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveText(
+      `Could not load live models: ${AZURE_UNSUPPORTED_MESSAGE}`,
+    );
+
+    // The Model field itself stays fully usable throughout — discovery failing never disables
+    // it, matching the non-blocking contract `ByokProviderForm.tsx` documents.
+    const modelInput = azureModelInput(page);
+    await expect(modelInput).toBeEditable();
+    await modelInput.fill("my-deployment");
+    await page.locator('.jini-byok-card .jini-field-input-row input').fill("fake-azure-key-NOT-REAL");
+
+    // Test Connection becomes enabled once all three required fields are present — it is not
+    // gated on discovery ever succeeding, which for azure it never will.
+    await expect(page.locator('button:has-text("Test connection")')).toBeEnabled();
+  });
+});
+}
+
+function registerAzureConnectionTests({ login, TEST_CONN_PATH }: { login: (request: APIRequestContext) => Promise<Record<string, string>>; TEST_CONN_PATH: string }) {
+
+test.describe("azure Test Connection: NOT short-circuited — a real asymmetry with model discovery", () => {
+  test("the exact same garbage baseUrl that discovery waves through instead surfaces 'Invalid baseUrl' here", async ({
+    request,
+  }) => {
+    const headers = await login(request);
+
+    const res = await request.post(TEST_CONN_PATH, { headers,
+      data: { protocol: "azure", baseUrl: "not-a-url-at-all", apiKey: "fake-key", model: "my-deployment" },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    // Different code path, different message, same protocol and same input that discovery
+    // above accepted with a clean generic message — this is the asymmetry this block exists
+    // to pin, not a claim that either message is individually wrong.
+    expect(body.ok).toBe(false);
+    expect(body.message).toBe("Invalid baseUrl");
+  });
+
+  test("a real unreachable loopback port produces the raw, untranslated 'fetch failed' — no azure-specific (or any) translation", async ({
+    request,
+  }) => {
+    const headers = await login(request);
+
+    // Port 1 on loopback: the SSRF guard allows loopback by design (see
+    // `byok-ssrf-guard.spec.ts`), so this reaches the real `fetch()` call and gets a real
+    // ECONNREFUSED, not a guard rejection. `testProviderConnection`'s catch block passes
+    // `err.message` straight through with no per-`kind` translation — Node/undici's own
+    // `TypeError#message` for this failure mode is literally the string "fetch failed", with
+    // the actual reason (`err.cause.code === 'ECONNREFUSED'`) left in `.cause` and never
+    // surfaced to the operator.
+    const res = await request.post(TEST_CONN_PATH, { headers,
+      data: { protocol: "azure", baseUrl: "http://127.0.0.1:1", apiKey: "fake-key", model: "my-deployment" },
+    });
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ ok: false, message: "fetch failed" });
+  });
+
+  test("a real local listener proves Test Connection genuinely attempts network egress for azure, with the exact URL shape the app builds", async ({
+    request,
+  }) => {
+    await verifyAzureNetworkConnection({ request, login, TEST_CONN_PATH });
+  });
+});
+}
+
+function registerAzureModelDiscovery({ login, MODELS_PATH, AZURE_UNSUPPORTED_MESSAGE }: { login: (request: APIRequestContext) => Promise<Record<string, string>>; MODELS_PATH: string; AZURE_UNSUPPORTED_MESSAGE: string }) {
+
+test.describe("azure model discovery: refused honestly, independent of baseUrl shape (GOOD behavior — not a bug)", () => {
+  test("the same clean 'not supported' message for a garbage baseUrl, a well-formed one, and the pre-check for a blank one", async ({
+    request,
+  }) => {
+    const headers = await login(request);
+
+    // A syntactically invalid `baseUrl` still gets the clean message: the azure branch in
+    // `listProviderModels` returns BEFORE any URL parsing / SSRF validation runs, so there is
+    // no "invalid URL" leak here — proven by contrast with Test Connection's same input below.
+    const garbage = await request.post(MODELS_PATH, { headers,
+      data: { protocol: "azure", baseUrl: "not-a-url-at-all", apiKey: "fake-key" },
+    });
+    expect(garbage.status()).toBe(200);
+    const garbageBody = await garbage.json();
+    expect(garbageBody).toEqual({ ok: false, models: [], message: AZURE_UNSUPPORTED_MESSAGE });
+
+    // A well-formed, real-looking Azure endpoint gets the identical message — discovery is
+    // unconditionally refused for this protocol, not conditionally on what's reachable.
+    const wellFormed = await request.post(MODELS_PATH, { headers,
+      data: { protocol: "azure", baseUrl: "https://my-resource.openai.azure.com", apiKey: "fake-key" },
+    });
+    expect(wellFormed.status()).toBe(200);
+    expect(await wellFormed.json()).toEqual({ ok: false, models: [], message: AZURE_UNSUPPORTED_MESSAGE });
+
+    // An EMPTY baseUrl doesn't even reach that branch — Tovu's own route
+    // (`list-models.ts`) rejects it before calling into `listProviderModels` at all, for
+    // every protocol including azure. Different shape (400, not the {ok:false} envelope), but
+    // consistent: this is Tovu's own required-field validation, not an azure-specific gap.
+    const blank = await request.post(MODELS_PATH, { headers, data: { protocol: "azure", baseUrl: "", apiKey: "fake-key" } });
+    expect(blank.status()).toBe(400);
+    expect(await blank.json()).toEqual({ error: "baseUrl is required", code: "VALIDATION_ERROR" });
+  });
+});
+}
+
+async function verifyStoredKeySettings({ page, panel, CREDENTIAL_PATH, VISITOR_CREDENTIAL_PATH, MODELS_PATH, FAKE_KEY, keyField, saveButton, openAdminPanel, openVisitorPanel }: { page: Page; panel: "ADMIN" | "VISITOR"; CREDENTIAL_PATH: string; VISITOR_CREDENTIAL_PATH: string; MODELS_PATH: string; FAKE_KEY: string; keyField: ReturnType<typeof createBlankKeyPanelAccess>["keyField"]; saveButton: ReturnType<typeof createBlankKeyPanelAccess>["saveButton"]; openAdminPanel: ReturnType<typeof createBlankKeyPanelAccess>["openAdminPanel"]; openVisitorPanel: ReturnType<typeof createBlankKeyPanelAccess>["openVisitorPanel"] }) {
+      const credentialPath = panel === "ADMIN" ? CREDENTIAL_PATH : VISITOR_CREDENTIAL_PATH;
+      const openPanel = panel === "ADMIN" ? openAdminPanel : openVisitorPanel;
+      const original = (await page.request.get(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json())).data;
+      const received: Array<{ path: string | undefined; authorization: string | undefined }> = [];
+      const deputy = http.createServer((req, res) => {
+        received.push({ path: req.url, authorization: req.headers.authorization });
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: [{ id: "guard-model", object: "model" }] }));
+      });
+      await new Promise<void>((resolve) => deputy.listen(0, "127.0.0.1", resolve));
+      const baseUrl = `http://127.0.0.1:${(deputy.address() as AddressInfo).port}`;
+      const settings = panel === "ADMIN"
+        ? { protocol: "openai", providerId: "openai", baseUrl, model: "guard-model" }
+        : { provider: "openai", baseUrl, model: "guard-model" };
+      try {
+        const stored = await seedStoredCredentialKey({ page, panel, credentialPath, settings, baseUrl, FAKE_KEY, keyField, saveButton, openPanel });
+        await saveStoredCredentialModel({ page, panel, credentialPath, settings, stored, keyField, saveButton, openPanel });
+        await verifyStoredCredentialDiscovery({ page, panel, MODELS_PATH, FAKE_KEY, baseUrl, received });
+      } finally {
+        try {
+          expect((await page.request.delete(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) })).ok()).toBe(true);
+          const restoredSettings = panel === "ADMIN"
+            ? { protocol: original.protocol, providerId: original.providerId, baseUrl: original.baseUrl ?? "", model: original.model ?? "" }
+            : { provider: original.provider, baseUrl: original.baseUrl ?? "", model: original.model ?? "" };
+          expect((await page.request.put(credentialPath, { headers: await pinSessionHeaders({ request: page.request }), data: restoredSettings })).ok()).toBe(true);
+        } finally {
+          await new Promise<void>((resolve) => deputy.close(() => resolve()));
+        }
+      }
+}
+
+async function verifyStoredCredentialDiscovery({ page, panel, MODELS_PATH, FAKE_KEY, baseUrl, received }: { page: Page; panel: "ADMIN" | "VISITOR"; MODELS_PATH: string; FAKE_KEY: string; baseUrl: string; received: Array<{ path: string | undefined; authorization: string | undefined }> }) {
+
+        received.length = 0;
+        const probe = await page.request.post(MODELS_PATH, { headers: await pinSessionHeaders({ request: page.request }),
+          data: { protocol: "openai", baseUrl, apiKey: "", ...(panel === "ADMIN" ? { useAdminStoredCredential: true } : { useStoredCredential: true }) },
+        });
+        expect(probe.status()).toBe(200);
+        expect((await probe.json()).ok).toBe(true);
+        expect(received).toContainEqual({ path: "/v1/models", authorization: `Bearer ${FAKE_KEY}` });
+}
+
+async function saveStoredCredentialModel({ page, panel, credentialPath, settings, stored, keyField, saveButton, openPanel }: { page: Page; panel: "ADMIN" | "VISITOR"; credentialPath: string; settings: { protocol: string; providerId: string; baseUrl: string; model: string } | { provider: string; baseUrl: string; model: string }; stored: { masked: string }; keyField: ReturnType<typeof createBlankKeyPanelAccess>["keyField"]; saveButton: ReturnType<typeof createBlankKeyPanelAccess>["saveButton"]; openPanel: (page: Page) => Promise<void> }) {
+
+        // The admin's visible model is ledger-owned. Let its autosave finish before remounting;
+        // Save settings below independently persists the credential row without writing a key.
+        const modelSaved = panel === "ADMIN" ? page.waitForResponse((response) => {
+          if (response.request().method() !== "PUT" || !new URL(response.url()).pathname.endsWith("/settings/value")) return false;
+          const body = response.request().postDataJSON();
+          return body.namespace === "core.execution" && body.key === "byok.model" && body.valueJson === "guard-model-updated";
+        }) : null;
+        await setByokModel(page, "guard-model-updated");
+        // The visitor panel's button reads "Save model settings" since its redesign (7b82f7b02); the
+        // admin panel keeps "Save settings". Same control, same credential-row write.
+        const saveSettingsLabel = panel === "ADMIN" ? "Save settings" : "Save model settings";
+        await expect(saveButton(page, saveSettingsLabel)).toBeEnabled();
+        const settingsWrite = page.waitForResponse((r) => r.url().endsWith(credentialPath) && r.request().method() === "PUT");
+        await saveButton(page, saveSettingsLabel).click();
+        const response = await settingsWrite;
+        expect(response.ok()).toBe(true);
+        expect(response.request().postDataJSON()).not.toHaveProperty("apiKey");
+        expect(response.request().postDataJSON()).toMatchObject({ ...settings, model: "guard-model-updated" });
+        if (modelSaved) expect((await modelSaved).ok()).toBe(true);
+        await openPanel(page);
+        await expect(byokModelTextInput(page)).toHaveValue("guard-model-updated");
+        await expect(keyField(page)).toHaveValue("");
+        const reloaded = (await page.request.get(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json())).data;
+        expect(reloaded).toMatchObject({ ...settings, model: "guard-model-updated", isSet: true, masked: stored.masked });
+}
+
+async function seedStoredCredentialKey({ page, panel, credentialPath, settings, baseUrl, FAKE_KEY, keyField, saveButton, openPanel }: { page: Page; panel: "ADMIN" | "VISITOR"; credentialPath: string; settings: { protocol: string; providerId: string; baseUrl: string; model: string } | { provider: string; baseUrl: string; model: string }; baseUrl: string; FAKE_KEY: string; keyField: ReturnType<typeof createBlankKeyPanelAccess>["keyField"]; saveButton: ReturnType<typeof createBlankKeyPanelAccess>["saveButton"]; openPanel: (page: Page) => Promise<void> }) {
+        expect((await page.request.put(credentialPath, { headers: await pinSessionHeaders({ request: page.request }), data: settings })).ok()).toBe(true);
+        await openPanel(page);
+        if (panel === "ADMIN") {
+          // The admin form hydrates from the execution ledger, not the credential row. Match the
+          // seeded endpoint before expecting its hint; another endpoint must never show this key.
+          const ledgerSaved = page.waitForResponse((response) => {
+            if (response.request().method() !== "PUT" || !new URL(response.url()).pathname.endsWith("/settings/value")) return false;
+            const body = response.request().postDataJSON();
+            return body.namespace === "core.execution" && body.key === "byok.model" && body.valueJson === "guard-model";
+          });
+          await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+          await page.locator('label:has-text("Base URL") input').fill(baseUrl);
+          await setByokModel(page, "guard-model");
+          expect((await ledgerSaved).ok()).toBe(true);
+        }
+        await keyField(page).fill(FAKE_KEY);
+        const keyWrite = page.waitForResponse((r) => r.url().endsWith(credentialPath) && r.request().method() === "PUT");
+        await saveButton(page, "Save key").click();
+        expect((await keyWrite).ok()).toBe(true);
+        await expect(keyField(page)).toHaveValue("");
+        const stored = (await page.request.get(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json())).data;
+        expect(stored.isSet).toBe(true);
+        expect(stored.tokenHint).toEqual({ last4: "ONLY", length: 42 });
+        await expect(keyField(page)).toHaveAttribute("placeholder", "…ONLY, 42 chars");
+
+        await keyField(page).fill(FAKE_KEY);
+        await expect(saveButton(page, "Save key")).toBeEnabled();
+        for (const blank of ["", "   \t   "]) {
+          await keyField(page).fill(blank);
+          await expect(saveButton(page, "Save key")).toBeDisabled();
+          const afterBlank = (await page.request.get(credentialPath, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json())).data;
+          expect(afterBlank.isSet).toBe(true);
+          expect(afterBlank.masked).toBe(stored.masked);
+        }
+  return stored;
+}
+
+async function verifyStoredAdminKey({ page, CREDENTIAL_PATH, FAKE_KEY, openAdminPanel, keyField, saveButton, keySaveLine }: { page: Page; CREDENTIAL_PATH: string; FAKE_KEY: string; openAdminPanel: ReturnType<typeof createBlankKeyPanelAccess>["openAdminPanel"]; keyField: ReturnType<typeof createBlankKeyPanelAccess>["keyField"]; saveButton: ReturnType<typeof createBlankKeyPanelAccess>["saveButton"]; keySaveLine: ReturnType<typeof createBlankKeyPanelAccess>["keySaveLine"] }) {
+    // The trap the two tests above could otherwise cause someone to walk into. Everything here is
+    // about the OTHER meaning of an empty field.
+    await openAdminPanel(page);
+
+    await keyField(page).fill(FAKE_KEY);
+    await saveButton(page, "Save key").click();
+    await expect(keySaveLine(page)).toHaveText(/Saved to the server, encrypted\./, {
+      timeout: 15_000,
+    });
+
+    const afterSave = await page.request.get(CREDENTIAL_PATH, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json());
+    expect(afterSave.data.isSet, "the fake key should now be stored").toBe(true);
+    const maskBefore = afterSave.data.masked;
+    expect(maskBefore, "a stored key must come back masked, never in full").toMatch(/^••••/);
+
+    // The field clears itself on a successful save (`saveKey`'s own contract), so this IS the
+    // returning-operator state: empty input, masked placeholder, working credential on the server.
+    await expect(keyField(page)).toHaveValue("");
+    // The UI now shows the server's non-secret fingerprint (tail + length), not its legacy mask.
+    expect(afterSave.data.tokenHint).toEqual({ last4: "ONLY", length: 42 });
+    await expect(keyField(page)).toHaveAttribute("placeholder", "…ONLY, 42 chars");
+
+    // DISABLED, and this is a reversal of what this spec asserted before (owner ruling, 2026-09-02).
+    // Save key writes the key and nothing else, so a blank field has nothing to write. The earlier
+    // "keep it enabled for a model change" reasoning is obsolete twice over: the admin's
+    // model/protocol are persisted by the `core.execution` settings slice on their own path, and the
+    // credential row's own copy of them is now written by the separate "Save settings" button.
+    await expect(
+      saveButton(page, "Save key"),
+      "an empty field has no key to write — a stored key does not change that",
+    ).toBeDisabled();
+
+    // And the stored key is of course still there; disabling the button is not clearing anything.
+    const afterBlank = await page.request.get(CREDENTIAL_PATH, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json());
+    expect(afterBlank.data.isSet).toBe(true);
+    expect(
+      afterBlank.data.masked,
+      "the stored key must survive untouched — the field being empty is a display fact, not a delete",
+    ).toBe(maskBefore);
+}
+
+async function verifyClearedAdminKey({ page, FAKE_KEY, openAdminPanel, keyField, saveButton }: { page: Page; FAKE_KEY: string; openAdminPanel: ReturnType<typeof createBlankKeyPanelAccess>["openAdminPanel"]; keyField: ReturnType<typeof createBlankKeyPanelAccess>["keyField"]; saveButton: ReturnType<typeof createBlankKeyPanelAccess>["saveButton"] }) {
+    // The owner's exact reported sequence: start typing, change your mind, delete it. The field is
+    // blank but `dirty` is true and a key is stored — the state in which Save key used to stay live
+    // over an empty field. Asserted on the transition, not on a pristine form, because a
+    // never-touched blank field was already handled and this one was not.
+    await openAdminPanel(page);
+
+    await keyField(page).fill(FAKE_KEY);
+    await expect(saveButton(page, "Save key"), "a typed key is saveable").toBeEnabled();
+
+    await keyField(page).fill("");
+    await expect(
+      saveButton(page, "Save key"),
+      "the key was typed and then cleared — Save key must go back to disabled, with no delay",
+    ).toBeDisabled();
+}
+
+async function verifyWhitespaceStoredAdminKey({ page, CREDENTIAL_PATH, keyField, saveButton }: { page: Page; CREDENTIAL_PATH: string; keyField: ReturnType<typeof createBlankKeyPanelAccess>["keyField"]; saveButton: ReturnType<typeof createBlankKeyPanelAccess>["saveButton"] }) {
+    // The narrowest case, and the one a future refactor is most likely to break.
+    //
+    // `saveKey` trims the field ONCE, at the top, and that same trimmed value is both what the
+    // `hasTypedAdminKey` guard tests and what the patch carries. Those two reading one value is the
+    // whole property. Split them — gate on the trimmed value, send the raw one — and a
+    // whitespace-only field with a key already stored puts "   " on the wire as the REPLACEMENT
+    // credential. Today that would still be caught, but only by the server's own
+    // `assertValidExecutionCredentialApiKey` ("apiKey must not be empty — use DELETE to clear it"),
+    // one layer deeper than it should be and surfacing to the operator as a validation error from
+    // pressing Save on a form that looked ready.
+    //
+    // Recorded honestly: this pins behaviour that is ALREADY correct on the current source. It was
+    // written while investigating a report of blank keys being saved, and it is what established
+    // that the client never sends one.
+    // beforeEach already opened this panel to seed the stored key. Keep that mount: navigating
+    // again can discard its pending BYOK-mode autosave and reload the default Local CLI screen.
+    await expect(keyField(page)).toBeVisible();
+
+    const before = await page.request.get(CREDENTIAL_PATH, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json());
+    expect(before.data.isSet, "this case depends on the previous test having stored a key").toBe(true);
+
+    await keyField(page).fill("   \t   ");
+    // Whitespace is not a credential, so this is the blank case: the button must be disabled and the
+    // request must never be made. Previously this pressed Save and relied on the client trimming
+    // before building the patch; the guard is now in front of the button instead.
+    await expect(saveButton(page, "Save key")).toBeDisabled();
+    await expect(page.locator(".save-error")).toHaveCount(0);
+
+    const after = await page.request.get(CREDENTIAL_PATH, { headers: await pinSessionHeaders({ request: page.request }) }).then((r) => r.json());
+    expect(after.data.masked, "a whitespace-only field must never replace the stored key").toBe(before.data.masked);
+}
+
+async function verifyEmptyVisitorKey({ page, FAKE_KEY, openVisitorPanel, keyField, saveButton }: { page: Page; FAKE_KEY: string; openVisitorPanel: ReturnType<typeof createBlankKeyPanelAccess>["openVisitorPanel"]; keyField: ReturnType<typeof createBlankKeyPanelAccess>["keyField"]; saveButton: ReturnType<typeof createBlankKeyPanelAccess>["saveButton"] }) {
+    // Asserted independently of the admin panel above: different guard, different code path,
+    // different credential row — they merely agree on the rule. See this file's header.
+    await openVisitorPanel(page);
+    const save = saveButton(page, "Save key");
+
+    await keyField(page).fill(FAKE_KEY);
+    await expect(save).toBeEnabled({ timeout: 15_000 });
+
+    await keyField(page).fill("");
+    await expect(save, "an empty field with nothing stored has nothing to write").toBeDisabled();
+
+    await keyField(page).fill("   \t   ");
+    await expect(save, 'whitespace is not a credential — "   " must read as empty').toBeDisabled();
+}
+
+async function prepareBlankKeyPanel({ page, testInfo, ADMIN_ORIGIN_PATH, FAKE_KEY, openAdminPanel, keyField, saveButton, keySaveLine }: { page: Page; testInfo: { title: string }; ADMIN_ORIGIN_PATH: string; FAKE_KEY: string; openAdminPanel: ReturnType<typeof createBlankKeyPanelAccess>["openAdminPanel"]; keyField: ReturnType<typeof createBlankKeyPanelAccess>["keyField"]; saveButton: ReturnType<typeof createBlankKeyPanelAccess>["saveButton"]; keySaveLine: ReturnType<typeof createBlankKeyPanelAccess>["keySaveLine"] }) {
+  await page.goto(ADMIN_ORIGIN_PATH, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".login-card", { timeout: 15_000 });
+  await page.fill('.login-card label:has-text("Username") input', "admin");
+  await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
+  const loginResponse = page.waitForResponse((r) => r.url().includes("/auth/login"));
+  await page.click('.login-card button:has-text("Sign in")');
+  const status = (await loginResponse).status();
+  expect(
+    status,
+    `login returned ${status}; 429 means the byok suite exceeded LOGIN_STRICT (10 logins / 60s) — `
+      + `see this file's one-login-per-file note.`,
+  ).toBe(200);
+  await page.waitForSelector(".login-card", { state: "detached", timeout: 15_000 });
+  // These pins formerly depended on a previous test's saved key. Seed the same state per test.
+  if (testInfo.title.includes("key already stored")) {
+    await openAdminPanel(page);
+    await keyField(page).fill(FAKE_KEY);
+    await saveButton(page, "Save key").click();
+    await expect(keySaveLine(page)).toHaveText(/Saved to the server, encrypted\./);
+  }
+}
+
+async function clearBlankKeyCredential({ page, CREDENTIAL_PATH }: { page: Page; CREDENTIAL_PATH: string }) {
+  try {
+    const cleared = await pinSessionRequest({ page, url: CREDENTIAL_PATH, method: "DELETE" });
+    expect(
+      cleared.ok,
+      "failed to delete the credential this file created — later specs in this suite will inherit it "
+        + "and see a stored-key form where they expect an unconfigured one",
+    ).toBe(true);
+    const after = await pinSessionRequest({ page, url: CREDENTIAL_PATH }).then((r) => r.json());
+    expect(after.data.isSet, "the credential must actually be gone, not merely reported deleted").toBe(false);
+  } finally {
+    await page.close();
+  }
+}
+
+function createBlankKeyPanelAccess({ ADMIN_ORIGIN_PATH }: { ADMIN_ORIGIN_PATH: string }) {
+
+/** The shared `ByokProviderForm` API-key input, whichever panel is mounted. */
+function keyField(page: Page) {
+  return page.locator(".jini-byok-card .jini-field-input-row input");
+}
+
+/** `exact` on both: each card now carries TWO save buttons ("Save key" under the key field, "Save
+ *  settings" at the foot of the card), and a loose match would resolve either one — or, if the tabs
+ *  ever rendered together, the other panel's. */
+function saveButton(page: Page, label: "Save key" | "Save settings" | "Save model settings") {
+  return page.getByRole("button", { name: label, exact: true });
+}
+
+/** The KEY footer's own status line.
+ *
+ *  Scoped to `.assistant-key-footer` deliberately: `.assistant-save-line` alone matches two
+ *  elements on the admin panel — this one (the credential's own "Saved to the server, encrypted.")
+ *  and `AdminExecutionMode`'s separate line for the `core.execution` LEDGER save, which is usually
+ *  empty. They report two different writes, and an unscoped locator both trips Playwright's strict
+ *  mode and, if it ever resolved, could pass on the wrong one. */
+function keySaveLine(page: Page) {
+  return page.locator(".assistant-key-footer .assistant-save-line");
+}
+
+async function openAdminPanel(page: Page): Promise<void> {
+  await page.goto(`${ADMIN_ORIGIN_PATH}ai-assistant`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Admin AI Assistant", exact: true }).click();
+  // Runtime discovery temporarily projects BYOK over the saved Local CLI mode. Selecting BYOK
+  // during that projection preserves Local CLI; discovery then removes the form mid-edit.
+  // This isolated site is local: wait for its capability before choosing the persisted mode.
+  await expect(page.locator(".assistant-execution")).toHaveAttribute("data-tovu-local-cli", "available");
+  // A fresh workspace defaults to `mode: "local-cli"` (`DEFAULT_EXECUTION_CONFIG`), which renders
+  // the CLI grid and no BYOK card at all — so this click is what makes the subject exist.
+  await page.getByRole("tab", { name: "BYOK" }).click();
+  await expect(keyField(page)).toBeVisible({ timeout: 15_000 });
+}
+
+async function openVisitorPanel(page: Page): Promise<void> {
+  await page.goto(`${ADMIN_ORIGIN_PATH}ai-assistant`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Visitor's AI Assistant", exact: true }).click();
+  await expect(keyField(page)).toBeVisible({ timeout: 15_000 });
+}
+  return { keyField, saveButton, keySaveLine, openAdminPanel, openVisitorPanel };
+}
+
+async function verifySecondTabCredentialIsolation({ tabA, tabB, secrets, ledgerWrites, CREDENTIALS_KEY, waitForModelSave }: { tabA: Page; tabB: Page; secrets: string[]; ledgerWrites: string[]; CREDENTIALS_KEY: string; waitForModelSave: (page: Page, model: string) => ReturnType<Page["waitForResponse"]> }) {
+
+    // Tab B edits an unrelated field and lets its own debounce flush — the exact trigger that used
+    // to race tab A's save and silently wipe it. There is no key in localStorage left to wipe now,
+    // so this is checking the same race produces the same (empty) outcome, not a different one.
+    await tabB.locator('.jini-byok-card .jini-field-input-row input').fill(secrets[1]!);
+    const modelB = `e2e-tab-b-${Date.now()}`;
+    const tabBSaved = waitForModelSave(tabB, modelB);
+    await setByokModel(tabB, modelB);
+    expect((await tabBSaved).ok()).toBe(true);
+
+    const afterTabBSave = await tabA.evaluate(
+      (key) => window.localStorage.getItem(key),
+      CREDENTIALS_KEY,
+    );
+    expect(afterTabBSave).toBeNull();
+    // Belt-and-suspenders: even if some future, unrelated change starts writing SOMETHING to this
+    // localStorage key again, the raw key material itself must never appear in it.
+    expect(afterTabBSave ?? "").not.toContain("FROM-TAB-A");
+    expect(ledgerWrites.length).toBeGreaterThanOrEqual(2);
+    for (const tab of [tabA, tabB]) {
+      const storage = await tab.evaluate(() => ({
+        writes: (window as unknown as { __storageWrites: unknown[] }).__storageWrites,
+        local: Object.entries(localStorage),
+        session: Object.entries(sessionStorage),
+      }));
+      for (const secret of secrets) expect(JSON.stringify(storage)).not.toContain(secret);
+    }
+    for (const secret of secrets) expect(JSON.stringify(ledgerWrites)).not.toContain(secret);
+
+    await tabA.close();
+    await tabB.close();
+}
+
+function registerProviderContaminationPin({ login, gotoByok, jsonRoute }: { login: (page: Page) => Promise<void>; gotoByok: (page: Page) => Promise<void>; jsonRoute: (body: unknown) => { status: number; contentType: string; body: string } }) {
+
+  test("HELD: switching to a never-configured provider clears the API key field and never sends the OLD provider's key in the NEW provider's request", async ({
+    page,
+  }) => {
+    // Unrelated to the localStorage-to-server migration (ADR-058): this exercises component-level
+    // UI state (`nextConfigForPresetSelect` in `@jini-ai/ui`'s `features/execution/rules.ts`),
+    // which per-provider draft an unsaved field falls back to when the operator switches presets.
+    // Neither side of that mechanism touched localStorage before Bug 7 or touches the server store
+    // now — it lives entirely in `ExecutionTab`'s in-memory config.
+    test.slow();
+    await login(page);
+    await page.route("**/assistant/execution/models", (route) => route.fulfill(jsonRoute({ ok: true, models: ["stub-model"] })));
+
+    let capturedBody: { protocol?: string; apiKey?: string } | null = null;
+    await page.route("**/assistant/execution/test-connection", async (route) => {
+      capturedBody = route.request().postDataJSON();
+      await route.fulfill(jsonRoute({ ok: false, message: "stub — no real key present" }));
+    });
+
+    const apiKeyField = page.locator(".jini-byok-card .jini-field-input-row input");
+
+    await gotoByok(page);
+    await apiKeyField.fill("sk-ant-SECRET-FOR-ANTHROPIC-ONLY");
+    await setByokModel(page, "claude-sonnet-4-5");
+
+    // OpenAI has never been configured in this session — `nextConfigForPresetSelect`
+    // (`features/execution/rules.ts`) must load ITS OWN blank draft, never carry Anthropic's key
+    // forward as a default. This is the first of the two properties in this test's name.
+    await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+    await expect(apiKeyField).toHaveValue("");
+
+    await setByokModel(page, "gpt-4o");
+    // OpenAI needs a key of ITS OWN before the request can be fired at all.
+    //
+    // The original form of this test typed no OpenAI key and asserted the captured request had
+    // `apiKey: ""`. That is unreachable, and always has been post-ADR-058: "Test connection" is
+    // `disabled={connectionTest.status === 'testing' || missing.size > 0}` (`ByokProviderForm.tsx`)
+    // and `missingRequiredFields` counts an empty `apiKey` for any preset with
+    // `presetRequiresApiKey` — relaxed only by `apiKeyStoredExternally`, which is false here
+    // because this hermetic run has never saved a key server-side. Measured 2026-08-05: the click
+    // spent the full 90s test timeout on `element is not enabled`. The test had never been run
+    // green (single commit `876b4fe`); the earlier Model-field failure masked this second one.
+    //
+    // Repaired rather than deleted, because the property in the title is real and this makes it
+    // STRICTER: an exact-equality assertion on OpenAI's own key cannot pass if Anthropic's key
+    // leaked into the request, whereas the old `toBe("")` only ever proved the field was empty.
+    await apiKeyField.fill("sk-openai-OWN-KEY-NOT-REAL");
+    await page.locator('button:has-text("Test connection")').click();
+    await expect.poll(() => capturedBody).not.toBeNull();
+
+    const body = capturedBody as unknown as { protocol: string; apiKey: string };
+    expect(body.protocol).toBe("openai");
+    expect(body.apiKey).toBe("sk-openai-OWN-KEY-NOT-REAL");
+    expect(JSON.stringify(capturedBody)).not.toContain("SECRET-FOR-ANTHROPIC");
+  });
+}
+
+function registerCredentialRacePin({ login, stubExecutionRoutes, gotoByok, ADMIN_ORIGIN_PATH, CREDENTIALS_KEY }: { login: (page: Page) => Promise<void>; stubExecutionRoutes: (page: Page) => Promise<void>; gotoByok: (page: Page) => Promise<void>; ADMIN_ORIGIN_PATH: string; CREDENTIALS_KEY: string }) {
+
+  test("SECURITY PIN: a typed API key never reaches localStorage, checked under the exact two-tab race that used to leak it pre-ADR-058", async ({
+    context,
+  }) => {
+    test.slow();
+    const secrets = ["sk-ant-FROM-TAB-A", "sk-ant-FROM-TAB-B"];
+    const ledgerWrites: string[] = [];
+    context.on("request", (request) => {
+      if (request.method() === "PUT" && new URL(request.url()).pathname.includes("/settings/")) ledgerWrites.push(request.postData() ?? "");
+    });
+    // Install before either application boots, so transient writes and writes to any storage key
+    // remain observable even if a later removeItem hides them from the final snapshot.
+    await context.addInitScript(() => {
+      const state = window as unknown as { __storageWrites: Array<{ key: string; value: string }> };
+      state.__storageWrites = [];
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        state.__storageWrites.push({ key: String(key), value: String(value) });
+        return setItem.call(this, key, value);
+      };
+    });
+    const tabA = await context.newPage();
+    const tabB = await context.newPage();
+    await login(tabA);
+    await stubExecutionRoutes(tabA);
+    await stubExecutionRoutes(tabB);
+
+    // Both tabs mount from the same (empty) persisted state before either one edits anything —
+    // this is what made tab B's later save "stale" rather than merely "different" in the original,
+    // pre-ADR-058 version of this test (see git history: it asserted the OPPOSITE of what follows —
+    // that a typed key survived a cross-tab race in localStorage). That assertion stopped being
+    // true, and for the right reason: `saveExecutionConfig` (execution-settings.ts) no longer
+    // writes `apiKey` anywhere, so there is nothing left in that path for a race to corrupt. What's
+    // worth pinning permanently instead is stricter than the original test: the key must never
+    // reach localStorage at all, not even transiently, not even under concurrent tabs.
+    await gotoByok(tabA);
+    await tabB.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
+    // Same left-nav step `gotoByok` does for tab A — spelled out here rather than reusing the
+    // helper because this test deliberately drives tab B through the raw navigation, so that both
+    // tabs demonstrably mount from the same empty persisted state before either edits anything.
+    await tabB.getByTestId("settings-dialog-nav-execution").click();
+    await tabB.getByRole("tab", { name: "BYOK" }).click();
+
+    // Tab A types a key and lets the debounced auto-save flush (SAVE_DEBOUNCE_MS = 600ms,
+    // `use-settings-slice.hooks.ts`) — the exact trigger that used to write the key to
+    // localStorage pre-ADR-058.
+    await tabA.locator('.jini-byok-card .jini-field-input-row input').fill(secrets[0]!);
+    const waitForModelSave = (page: Page, model: string) => page.waitForResponse((response) => {
+      if (response.request().method() !== "PUT" || !new URL(response.url()).pathname.endsWith("/settings/value")) return false;
+      const body = response.request().postDataJSON();
+      return body.namespace === "core.execution" && body.key === "byok.model" && body.valueJson === model;
+    });
+    const modelA = `e2e-tab-a-${Date.now()}`;
+    const tabASaved = waitForModelSave(tabA, modelA);
+    await setByokModel(tabA, modelA);
+    expect((await tabASaved).ok()).toBe(true);
+    const afterTabASave = await tabA.evaluate(
+      (key) => window.localStorage.getItem(key),
+      CREDENTIALS_KEY,
+    );
+    expect(afterTabASave).toBeNull();
+    await verifySecondTabCredentialIsolation({ tabA, tabB, secrets, ledgerWrites, CREDENTIALS_KEY, waitForModelSave });
+  });
+}
+
+function registerPoisonedCredentialPin({ login, stubExecutionRoutes, ADMIN_ORIGIN_PATH, CREDENTIALS_KEY }: { login: (page: Page) => Promise<void>; stubExecutionRoutes: (page: Page) => Promise<void>; ADMIN_ORIGIN_PATH: string; CREDENTIALS_KEY: string }) {
+  test("DEFENSE-IN-DEPTH: a non-string apiKey inside a NON-ACTIVE provider's legacy localStorage draft must not break the Settings page render", async ({
+    page,
+  }) => {
+    test.slow();
+    await login(page);
+    await stubExecutionRoutes(page);
+
+    // This is the pre-ADR-058 poison payload that used to reach `@jini-ai/ui`'s
+    // `credentialsForPreset` unvalidated and crash the whole page with no `ErrorBoundary` to catch
+    // it. Post-ADR-058, `loadExecutionConfig` never populates `savedByProviderId` from anywhere —
+    // it is scoped out entirely (`execution-settings.ts`'s header, item 2's "Never populated") — so
+    // this specific payload is now structurally unreachable, not fixed by validation. The test is
+    // kept as a defense-in-depth check: an old/hand-edited/hostile value at the LEGACY key must
+    // still not break the render, on the general principle that a malformed localStorage entry
+    // should degrade a field, never the whole page.
+    await page.evaluate(
+      ({ key }) => {
+        window.localStorage.setItem(
+          key,
+          JSON.stringify({
+            apiKey: "",
+            savedByProviderId: {
+              openai: { apiKey: 12345, baseUrl: "https://api.openai.com/v1", model: "" },
+            },
+          }),
+        );
+      },
+      { key: CREDENTIALS_KEY },
+    );
+
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(err.message));
+
+    await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
+
+    // The nav click comes FIRST: the Execution section is reached through the settings dialog's
+    // own left nav, so the BYOK tab is not mounted merely by landing on /admin/settings.
+    await page.getByTestId("settings-dialog-nav-execution").click();
+    await expect(page.getByRole("tab", { name: "BYOK" })).toBeVisible({ timeout: 10_000 });
+    expect(pageErrors).toEqual([]);
+  });
 }
