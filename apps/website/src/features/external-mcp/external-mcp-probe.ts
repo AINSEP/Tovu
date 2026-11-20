@@ -2,7 +2,8 @@
  * classifies; this file binds Tovu's store read and HTTP session and keeps Tovu's response contract: statuses,
  * legacy codes, copy and settings links. Never spawns local commands or invokes remote tools (D-7). */
 import { credentialText } from "@tovu/contracts/credential-copy";
-import { connectMcpHttpSession, createFetchMcpHttpExchange } from "../../assistant/index.js";
+import { connectMcpHttpSession } from "../../assistant/index.js";
+import { createFetchMcpHttpExchange } from "@jini-ai/mcp/federation";
 import type { McpHttpLaunchSpec, McpSessionPort } from "@jini-ai/mcp/federation";
 import { probeExternalMcpServer as probeHostedMcpServer, type ExternalMcpProbeFailure, type ExternalMcpProbeSessionFactory } from "@jini-ai/mcp/federation/hosted";
 import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "./external-mcp-oauth.js";

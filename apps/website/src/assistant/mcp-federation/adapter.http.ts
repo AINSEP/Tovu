@@ -6,7 +6,6 @@ import {
 import { TOVU_MCP_CLIENT_INFO } from "./presets.js";
 import { tovuFederationMessages } from "./presets.js";
 import type { McpHttpExchange, McpHttpLaunchSpec, McpSessionPort } from "@jini-ai/mcp/federation";
-export { createFetchMcpHttpExchange } from "@jini-ai/mcp/federation";
 // Transport code and rationale: Jini/packages/mcp/src/federation/{adapter.http,mcp-protocol}.ts.
 
 /** Binds Tovu's protocol identity, refusal copy and existing exchange to the Jini transport.

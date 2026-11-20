@@ -120,11 +120,9 @@ export { InMemoryAdminExecutionCredentialRepo } from "./execution-credential-sto
 
 export { ensureExecutionSettingDefinitions } from "./execution-mode-settings.js";
 
-// `createRequestSuppliedExecutionCredentialPort` (the request-only port variant) has no external
-// caller today — kept internal. `createStoredExecutionCredentialPort` is the one
-// `assistant-byok.ts` actually constructs.
+// `createStoredExecutionCredentialPort` is Tovu's stored-row binding of the Jini credentials port
+// (`@jini-ai/agent-runtime/providers/credentials`, which also owns the credential types).
 export { createStoredExecutionCredentialPort } from "./byok-credential.js";
-export type { ExecutionCredentialPort, ResolvedByokCredential, RequestSuppliedByokConfig } from "./byok-credential.js";
 
 export { runByokProviderTurn } from "./byok-provider-turn.js";
 export {
@@ -204,7 +202,7 @@ export {
 // launch spec, so it can list a remote's tools on demand instead of waiting for the next daemon boot.
 // `adapter.stdio.ts` stays unexported and unreached from here: D-7 restricts the probe to hosted
 // connections only, so nothing outside `assistant/` needs the stdio transport's spawn path.
-export { connectMcpHttpSession, createFetchMcpHttpExchange } from "./mcp-federation/adapter.http.js";
+export { connectMcpHttpSession } from "./mcp-federation/adapter.http.js";
 
 // Roster-change fan-out: the seam that lets `put.ts`/`oauth-callback.ts`/
 // `features/external-mcp/tool-registrations.ts` announce a saved or newly connected row without
