@@ -36,3 +36,42 @@ test("createServingApp runs an injected due-bindings sweep on the injected inter
   await new Promise((resolve) => setTimeout(resolve, 40));
   assert.equal(limits.length, afterStop, "no sweep after stop");
 });
+
+test("a due-bindings pass traces domain.bindings.sweep once", async () => {
+  const deps = createRouteDeps(), names: string[] = [], limits: number[] = [];
+  deps.verifyDueDomainBindings = async ({ limit }) => { limits.push(limit); return []; };
+  deps.tracker = {
+    ...deps.tracker,
+    async trace({ name, run }) { names.push(name); return run({ setOutcome() {} }); },
+  };
+  const { domainBindingSweeper, webhookDeliveryWorker, outboxDrainer, trashSweeper } = createServingApp(deps);
+  try {
+    await domainBindingSweeper.tick();
+    assert.deepEqual(names, ["domain.bindings.sweep"]);
+    assert.deepEqual(limits, [10]);
+  } finally {
+    await domainBindingSweeper.stop();
+    await webhookDeliveryWorker.stop();
+    await outboxDrainer.stop();
+    await trashSweeper.stop({});
+  }
+});
+
+test("an absent due-bindings sweep retains the idle handle without a trace", async () => {
+  const deps = createRouteDeps(), names: string[] = [];
+  assert.equal(deps.verifyDueDomainBindings, undefined);
+  deps.tracker = {
+    ...deps.tracker,
+    async trace({ name, run }) { names.push(name); return run({ setOutcome() {} }); },
+  };
+  const { domainBindingSweeper, webhookDeliveryWorker, outboxDrainer, trashSweeper } = createServingApp(deps, { domainBindingSweepIntervalMs: 0 });
+  try {
+    await domainBindingSweeper.tick();
+    assert.deepEqual(names, []);
+  } finally {
+    await domainBindingSweeper.stop();
+    await webhookDeliveryWorker.stop();
+    await outboxDrainer.stop();
+    await trashSweeper.stop({});
+  }
+});
