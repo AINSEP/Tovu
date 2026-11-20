@@ -21,13 +21,8 @@ export const adminKit = {
     InfoTip, Lightbox, WidgetSelect, TabBar, HtmlEditor: InteractiveHtmlEditor, ErrorNotice },
   hooks: { useAgentHandle, useFocusTrap, useDirtyGuard, useSettlementGeneration, useConfirmController, useNativeDialog },
   query: { useFetchQuery, useFetchMutation, useInvalidate, useCachedLoader, useFetchQueryScope },
-  // The AdminKit rules port is still positional while ui's rules take one required object (ui-4); adapt here.
-  mediaProviders: { useMediaProvidersTab, rules: {
-    sortProvidersByConfigured: (catalog, providers, pinnedIds) => sortProvidersByConfigured({ catalog, providers }, { pinnedIds }),
-    isEntryPresent: entry => isEntryPresent({ entry }), isMarkerOnlyEntry: entry => isMarkerOnlyEntry({ entry }),
-    maskedKeyLabel: entry => maskedKeyLabel({ entry }), isProviderBaseUrlInvalid: entry => isProviderBaseUrlInvalid({ entry }),
-    invalidBaseUrlProviderIds: providers => invalidBaseUrlProviderIds({ providers }),
-  } },
+  mediaProviders: { useMediaProvidersTab, rules: { sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel,
+    isProviderBaseUrlInvalid, invalidBaseUrlProviderIds } },
   theme: { applyAdminTheme, resolveColorScheme, defaultAdminTheme },
 } satisfies AdminKit;
 

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/admin/consent/react';
+import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/cookie-consent/react';
 
 import { describeApiError } from '@/lib/admin-http/request';
 import { createConsentAutosave, type ConsentAutosave, type ConsentTimers } from './consent-autosave';
-import { consentPreviewScale } from '@jini-ai/admin/consent/react';
+import { consentPreviewScale } from '@jini-ai/cookie-consent/react';
 import { canPublishConsent, isConsentConflict, type ConsentSaveState } from './rules';
 import type { ConsentEditorLimits, ConsentReadiness, ConsentRevisionsPort, ConsentSettingsSnapshot } from './settings.hooks';
 
