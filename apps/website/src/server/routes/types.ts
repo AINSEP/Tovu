@@ -114,14 +114,14 @@ import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclos
 import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
-import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
+import type { MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
 import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
 import type {
   RemoveTermFn,
   RemoveTaxonomyFn,
   TermTrashReadPort,
   TaxonomyTrashReadPort,
-} from "../../features/taxonomy/trash-term.js";
+} from "@jini-ai/cms/taxonomy";
 import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
@@ -334,7 +334,7 @@ export interface ContentTaxonomyDeps {
    * one both delete flows always have, so it is the canonical source. */
   /** Widened once more with `TaxonomyTrashReadPort` (`findForTrash`, a host-only addition — see
    *  `EntryTermReadPort`'s doc above for why these are declared directly against Jini's `@jini-ai/cms/taxonomy` read ports/
-   *  `apps/website/src/features/taxonomy/trash-term.ts` rather than folded into a certified Jini port) for `trashTaxonomy`'s read. */
+   *  `Jini packages/cms/src/taxonomy/trash-term.ts` rather than folded into a certified Jini port) for `trashTaxonomy`'s read. */
   /** Widened for publish-content (`features/taxonomy/publish-content.ts`) with the id-preserving
    *  import's `ImportableTaxonomyRepoPort` and the trash-inclusive `TaxonomyPublishReadPort`. */
   taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort & TaxonomyTrashReadPort & ImportableTaxonomyRepoPort & TaxonomyPublishReadPort;

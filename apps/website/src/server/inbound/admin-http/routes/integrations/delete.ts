@@ -1,3 +1,4 @@
+import { RecordVersionConflictError, versionConflictBody } from "@jini-ai/core/optimistic-concurrency";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
@@ -39,6 +40,11 @@ export const registerAdminIntegrationsDeleteRoute: IntegrationsRouteRegistrar = 
       } catch (err) {
         if (err instanceof WebhookSubscriptionNotFoundError) {
           res.status(404).json({ error: err.message });
+          return;
+        }
+
+        if (err instanceof RecordVersionConflictError) {
+          res.status(409).json(versionConflictBody({ error: err }));
           return;
         }
 

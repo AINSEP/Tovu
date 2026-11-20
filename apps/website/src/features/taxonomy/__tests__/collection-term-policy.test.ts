@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { authorizeContentEdit, contentEditPermission, createContentTargetPorts, createLiveCollectionTermPolicy } from "../collection-term-policy.js";
+import { authorizeContentEdit, contentEditPermission, createContentTargetPorts, createLiveCollectionTermPolicy } from "../content-targets.js";
 
 // F3.6/F4.4: target requests are pinned; seeded widget collections still cannot carry terms.
 test("live collection policy rejects widget types, absent and tombstoned owners, scoped to this workspace", async () => {

@@ -120,7 +120,7 @@ export function pauseSubscription({ deps, input }: PauseSubscriptionRequired, op
 }
 
 /** Translate the host callback while retaining soft-delete audit history. */
-export function deleteSubscription({ deps, input }: DeleteSubscriptionRequired, optional: WebhookSubscriptionOptional = {}) {
+export function deleteSubscription({ deps, input }: DeleteSubscriptionRequired, optional: WebhookSubscriptionOptional & { expectedVersion?: number } = {}) {
   return deleteWebhookSubscription({ deps: adaptSubscriptionDeps(deps), input }, optional);
 }
 // Lifecycle/egress rationale: Jini/packages/integrations/src/webhooks/subscriptions.ts (ADR-036).
