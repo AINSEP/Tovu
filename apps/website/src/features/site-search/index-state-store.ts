@@ -129,9 +129,11 @@ function createIndexState(kernel: KyselyKernel<SearchIndexDatabase>): SearchInde
     async put({ row }) {
       const values = toStateColumns(row);
       const { site_id: _s, provider_id: _p, generation: _g, doc_key: _k, ...updatable } = values;
-      await kernel.run(db => db.insertInto("search_index_state").values(values)
-        .onConflict(oc => oc.columns(["site_id", "provider_id", "generation", "doc_key"]).doUpdateSet(updatable))
-        .execute());
+      const result = await kernel.run(db => db.insertInto("search_index_state").values(values)
+        .onConflict(oc => oc.columns(["site_id", "provider_id", "generation", "doc_key"]).doUpdateSet(updatable)
+          .where("search_index_state.revision", "<=", row.revision))
+        .executeTakeFirst());
+      return Number(result.numInsertedOrUpdatedRows ?? 0n) === 1;
     },
     /**
      * Compare-and-swap settle: ONE UPDATE that matches only while the stored row still carries the
