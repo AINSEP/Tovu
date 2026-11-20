@@ -26,7 +26,7 @@ export function EditFieldsDialog({
   onCancel,
   useEditFieldsDialogHook = useWiredEditFieldsDialog,
   t,
-}: EditFieldsDialogProps, _optional: Record<string, never> = {}) {
+}: EditFieldsDialogProps) {
   const { fields, updateField, removeField, addField, error, saving, submit, cancel } = useEditFieldsDialogHook({
     contentType,
     onSaved,

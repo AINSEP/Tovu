@@ -52,7 +52,7 @@ export function LoadedSitesStepper({ setting, labelledBy,
 
 /** The gear menu's row under Theme, plus a failed save's message. An older preload with no save
  *  channel gets no row rather than a stepper that cannot save. */
-export function LoadedSitesRow({ setting }: { setting: LoadedSitesSetting }, _options = {}) {
+export function LoadedSitesRow({ setting }: { setting: LoadedSitesSetting }) {
   if (!setting.available) return null;
   return <>
     <div className="settings__row">

@@ -2,7 +2,7 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer, SecretOpenError } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
@@ -355,7 +355,7 @@ test("a freshly saved key is sealed with AAD bound to (workspaceId, principalId)
   const row = await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A });
   assert.equal(row?.aadVersion, 2);
 
-  await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));
+  await assert.rejects(() => sealer.open({ sealed: row!.sealed! }), SecretOpenError);
   const opened = await sealer.open({ sealed: row!.sealed! }, { aad: buildVaultAad((await repo.vault.findOne!(assistantVaultContext({ kind: "personal-execution", workspaceId: WORKSPACE, principalId: ADMIN_A })))!) });
   assert.deepEqual(JSON.parse(opened), { apiKey: "aad-bound-key-1234" });
 });

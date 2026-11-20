@@ -1,3 +1,5 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
+
 export interface QueuedStartPorts {
   readonly post: (required: { body: unknown }, optional?: Record<string, never>) => Promise<Response>;
   readonly wait: (required: { signal?: AbortSignal }, optional?: Record<string, never>) => Promise<void>;
@@ -13,7 +15,7 @@ export async function startQueuedDaemonRun(
     const response = await ports.post({ body }, {});
     if (response.status !== 409) return response;
     // A non-JSON conflict is returned unchanged for the caller to handle.
-    const payload = await response.clone().json().catch(() => null) as { code?: string } | null;
+    const payload = await orFallback({ work: () => response.clone().json(), fallback: null, step: "Read queued run refusal" }) as { code?: string } | null;
     if (payload?.code !== "CHAT_RUN_BUSY") return response;
     await ports.wait({ signal }, {});
   }

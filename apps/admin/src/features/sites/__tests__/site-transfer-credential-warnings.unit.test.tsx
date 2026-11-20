@@ -230,4 +230,10 @@ describe("live port: acknowledgement and download check", () => {
     expect(await defaultSiteTransferPort.shareDownloadRefusal({ share: share() })).toEqual({ status: 409, code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings });
     expect(methods).toEqual(["HEAD", "GET"]);
   });
+
+  it("keeps the GET status and no warnings when a refusal body is not JSON", async () => {
+    vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) =>
+      init?.method === "HEAD" ? new Response(null, { status: 409 }) : new Response("refused", { status: 403 }));
+    expect(await defaultSiteTransferPort.shareDownloadRefusal({ share: share() })).toEqual({ status: 403, credentialWarnings: [] });
+  });
 });

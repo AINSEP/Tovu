@@ -1,4 +1,5 @@
 import type { MediaProviderMap, MediaProvidersPort } from "@jini-ai/ui";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import { mediaApi } from "./api/media-api";
 
@@ -28,11 +29,7 @@ import { mediaApi } from "./api/media-api";
  * @overallScore 100
  */
 async function fetchMediaProviders(): Promise<MediaProviderMap | null> {
-  try {
-    return await mediaApi.getMediaProviders();
-  } catch {
-    return null;
-  }
+  return orFallback({ work: () => mediaApi.getMediaProviders(), fallback: null, step: "Read media providers" });
 }
 
 /**

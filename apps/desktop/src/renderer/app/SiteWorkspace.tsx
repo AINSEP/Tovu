@@ -251,7 +251,7 @@ function WorkspaceGuest({ workspace, project, guestRef, onSiteUpdated }: {
   project: SiteRecord;
   guestRef: (node: HTMLWebViewElement | null) => void;
   onSiteUpdated: (record: SiteRecord) => void;
-}, _options = {}) {
+}) {
   return (
     <div className="workspace__guest">
       {/* `allowpopups` grants the guest nothing: `registerGuestNavigationPolicy` in `main.js`
@@ -297,7 +297,7 @@ function WorkspaceGuest({ workspace, project, guestRef, onSiteUpdated }: {
 function WorkspaceLoadingOverlay({ workspace, project }: {
   workspace: ReturnType<typeof useSiteWorkspace>;
   project: SiteRecord;
-}, _options = {}) {
+}) {
   return <>
     {/* Covers the guest from the moment it mounts until its FIRST real content answers —
         `did-finish-load`, not the server merely accepting the connection. Without this an

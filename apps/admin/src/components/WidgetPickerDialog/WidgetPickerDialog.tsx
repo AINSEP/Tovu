@@ -303,7 +303,7 @@ export function WidgetSelectionDialog({ useAddControl = useWiredWidgetAddControl
   agentHandle?: string;
   useAddControl?: typeof useWiredWidgetAddControl;
   useDialog?: typeof useWiredWidgetPickerDialog;
-}, _optional: Record<string, never> = {}) {
+}) {
   const vm = useAddControl({ triggerLabel: "Insert widget", onResolved: props.onResolved, initialWidgetType: "text" });
   return (
     <Dialog open title={vm.t("Insert widget")} onClose={() => onCancel()}

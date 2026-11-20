@@ -336,7 +336,7 @@ function CardOverlays({ project, overlay, rename, copy, deleting, deleteError, p
   power: SitePower;
   onCancelDelete: () => void;
   onConfirmDelete: (id: string) => Promise<void>;
-}, _options = {}) {
+}) {
   return <>
     {overlay === 'rename' && <CardRenameOverlay project={project} rename={rename} />}
     {overlay === 'confirm' && (

@@ -113,7 +113,7 @@ export function SitesFoldersDialog({ settings, showTrigger, Shell = SettingsDial
 function SitesFoldersWarning({ settings, view }: {
   settings: ReturnType<typeof useSiteStorageSettings>;
   view: ReturnType<typeof useSitesFoldersDialog>;
-}, _options = {}) {
+}) {
   return settings.folders.warning && <div role="alert" className="sites-settings__warning">
     <p>{settings.folders.warning.message}</p>
     <div className="sites-settings__warning-actions">

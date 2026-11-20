@@ -10,7 +10,7 @@ type StoreState = ReturnType<typeof useSharedKeys>;
 /** Sites-home entry point. Closing unmounts all password inputs; native dialog restores focus.
  * @example <SharedKeysLauncher />
  */
-export function SharedKeysLauncher(_input = {}, _options = {}) {
+export function SharedKeysLauncher() {
   const [open, setOpen] = useState(false);
   return <>
     <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"
@@ -30,7 +30,7 @@ export function SharedKeys({ onClose, bridge = ownerStoreBridge({}),
   useSharedKeysHook = useSharedKeys }: {
   onClose: () => void; bridge?: OwnerStoreBridge;
   useSharedKeysHook?: typeof useSharedKeys;
-}, _options = {}) {
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const state = useSharedKeysHook({ bridge });
   useEffect(() => {

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer, SecretOpenError } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import {
   MediaProviderCredentialSecretStoreUnconfiguredError,
@@ -650,7 +650,7 @@ test("a freshly saved key is sealed as JSON under vault AAD and retains its comp
 
   // Opening under the WRONG aad (the legacy no-aad shape) must fail closed — proof the seal really
   // bound an aad, not merely that the field was set.
-  await assert.rejects(() => deps.sealer.open({ sealed: row!.sealed! }));
+  await assert.rejects(() => deps.sealer.open({ sealed: row!.sealed! }), SecretOpenError);
   const aad = buildVaultAad(row!.vaultRecord!);
   const opened = await deps.sealer.open({ sealed: row!.sealed! }, { aad });
   assert.deepEqual(JSON.parse(opened), { apiKey: ("s" + "k-aad-bound-1234") });

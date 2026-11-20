@@ -27,7 +27,7 @@ export function LifecycleConfirmDialog({
   onCancel,
   useLifecycleConfirmDialogHook = useLifecycleConfirmDialog,
   t,
-}: LifecycleConfirmDialogProps, _optional: Record<string, never> = {}) {
+}: LifecycleConfirmDialogProps) {
   const { copy, autoFocusCancel } = useLifecycleConfirmDialogHook({ op, onCancel });
 
   return (
