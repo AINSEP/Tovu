@@ -66,7 +66,7 @@ export function buildAnalyticsProviders(
 export function analyticsProviderRouteDeps(
   routeDeps: RouteDeps,
   _optional: Record<string, never> = {},
-): Pick<AnalyticsIngestRouteDeps, "forwarders" | "hooks"> {
+): Pick<AnalyticsIngestRouteDeps<Request>, "forwarders" | "hooks" | "vendorHooksAllowed"> {
   const providers = routeDeps.analyticsProviders;
   if (!providers) return {};
   return {
@@ -80,5 +80,6 @@ export function analyticsProviderRouteDeps(
       httpClient: providers.httpClient,
     }),
     hooks: createPluginAnalyticsHooks({ loadProviders: providers.load }),
+    vendorHooksAllowed: async ({ request }) => (await readSiteVisitorConsent({ deps: routeDeps, req: request })).analyticsLevel === 'full',
   };
 }

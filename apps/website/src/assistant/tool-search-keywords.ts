@@ -1,4 +1,5 @@
 import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
 import type { ToolMetadata } from '@jini-ai/core';
 import { createSearchEnricher } from '@jini-ai/registry/tool-catalog-builder';
@@ -24,16 +25,15 @@ export function readBundledToolKeywords(required: { sourceRoot: string }, option
   readText?: (file: string) => string;
 } = {}): Record<string, string> {
   const keywords: Record<string, string> = Object.create(null);
-  let sources: ReturnType<BundledToolKeywordSources>;
-  if (!optional.sources) return keywords;
-  try { sources = optional.sources({ ...required, filename: 'plugin.json' }); }
-  catch { return keywords; }
+  const listSources = optional.sources;
+  if (!listSources) return keywords;
+  const sources = orFallbackSync({ work: () => listSources({ ...required, filename: 'plugin.json' }), fallback: [], step: 'List tool keyword manifests' });
   for (const source of sources) {
-    try {
+    orFallbackSync({ work: () => {
       const readText = optional.readText ?? ((file: string) => readFileSync(file, 'utf8'));
       const manifest = JSON.parse(readText(path.join(source.packageRoot, 'plugin.json')));
       appendToolKeywords({ keywords, declaration: readAgentPluginMetadata({ value: manifest }).metadata.toolKeywords });
-    } catch { /* Optional search data never prevents tool catalog construction. */ }
+    }, fallback: undefined, step: 'Read tool keyword manifest' }); /* Optional search data never prevents tool catalog construction. */
   }
   return keywords;
 }

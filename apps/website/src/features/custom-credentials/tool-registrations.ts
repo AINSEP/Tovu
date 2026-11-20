@@ -1,4 +1,5 @@
 import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
+import { orFallback } from '@jini-ai/core/errors/idioms';
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { createCredentialSaveHandlers, createCredentialToolRegistrations } from "@jini-ai/integrations/credentialed-http/tools";
 export { createCredentialSaveHandlers, createCredentialToolRegistrations };
@@ -296,12 +297,12 @@ async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomC
   const providers: { id: string; vendorId: string }[] = [];
   // Catalogs enrich a create-time prefill only. An unavailable plugin must not prevent saving
   // an API key or erase explicitly supplied compatibility IDs.
-  try { for (const { descriptor } of (await routeDeps.loadDeployTargets?.({ workspaceId: routeDeps.workspaceId }))?.list() ?? []) {
+  await orFallback({ work: async () => { for (const { descriptor } of (await routeDeps.loadDeployTargets?.({ workspaceId: routeDeps.workspaceId }))?.list() ?? []) {
     if (descriptor.credential) providers.push({ id: descriptor.id, vendorId: descriptor.credential.vendorId });
-  } } catch { /* The API key form still works without hosting plugins. */ }
-  try { for (const { descriptor } of (await routeDeps.loadSourceControlProviders({ workspaceId: routeDeps.workspaceId })).list()) {
+  } }, fallback: undefined, step: 'Read hosting credential choices' }); /* The API key form still works without hosting plugins. */
+  await orFallback({ work: async () => { for (const { descriptor } of (await routeDeps.loadSourceControlProviders({ workspaceId: routeDeps.workspaceId })).list()) {
     providers.push({ id: descriptor.id, vendorId: descriptor.id });
-  } } catch { /* Source-control catalog enrichment is optional too. */ }
+  } }, fallback: undefined, step: 'Read source-control credential choices' }); /* Source-control catalog enrichment is optional too. */
   return providers;
 }
 

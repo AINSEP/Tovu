@@ -1,4 +1,5 @@
 import { requireDeployPlatform } from '@jini-ai/devops/deploy';
+import { orFallback, orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { readFileSync } from "node:fs";
@@ -57,10 +58,10 @@ export async function loadBundledDeployOpsRegistry(required: { readonly sourceRo
  * Ambiguous ids are omitted, as in the executable registry. @complexity O(p + platforms). */
 export function readBundledDeployOpsDescriptors(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): readonly DeployOpsDescriptor[] {
   const descriptors = bundledContributionSources({ ...required, filename: DEPLOY_OPS_FILENAME }).flatMap(plugin => {
-    try {
+    return orFallbackSync({ work: () => {
       const parsed = parseDeployOpsFile({ raw: readFileSync(path.join(plugin.packageRoot, DEPLOY_OPS_FILENAME), "utf8") });
       return parsed.ok ? parsed.descriptors : [];
-    } catch { return []; }
+    }, fallback: [], step: 'Read bundled deployment operations' });
   });
   const counts = new Map<string, number>();
   for (const descriptor of descriptors) counts.set(descriptor.id, (counts.get(descriptor.id) ?? 0) + 1);
@@ -90,7 +91,7 @@ export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, requir
       // A switched-off plugin's manifest is read as data (no module imported) so a refusal can name it.
       onInactive: async ({ plugin }) => {
         // An unreadable manifest only loses the name; it must not refuse every active platform.
-        const parsed = parseDeployOpsFile({ raw: await readTrustedPluginFile({ plugin, filename: DEPLOY_OPS_FILENAME }).catch(() => "") });
+        const parsed = parseDeployOpsFile({ raw: await orFallback({ work: () => readTrustedPluginFile({ plugin, filename: DEPLOY_OPS_FILENAME }), fallback: "", step: 'Read inactive deployment operations' }) });
         for (const descriptor of parsed.ok ? parsed.descriptors : []) if (!switchedOff.has(descriptor.id)) switchedOff.set(descriptor.id, plugin.pluginId);
       },
     });
