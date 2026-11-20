@@ -10,6 +10,20 @@ import { rejectSettingsRequest } from "../settings/shared.js";
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "./assistant-owner-grant.js";
 import type { Express } from "express";
 
+function projectAssistantSubagentsRead({ settings, isOwner }: { settings: Awaited<ReturnType<typeof readAssistantCliPermissions>>; isOwner: boolean }) {
+  // An env lock keeps canEdit (the owner's stored choice still saves) but must say why every
+  // switch reads OFF; without a reason the dock showed clickable switches that snapped back.
+  const envLock = fullCliEnvLock({ env: process.env });
+  const hostSignals = resolveHostSignals({ env: process.env });
+  const permissions = resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals });
+  let availability: { unavailableReason?: string };
+  if (isHostedAssistantRuntime({ env: process.env }, { hostSignals })) availability = { unavailableReason: "Not available on hosted sites" };
+  else if (!isOwner) availability = { unavailableReason: "Only the owner can change agent permissions." };
+  else if (envLock) availability = { unavailableReason: `Turned off on this computer by ${envLock}.` };
+  else availability = {};
+  return { ...permissions, agents: AGENT_DEFS.map(({ id, name, externalMcpInjection }) => ({ id, name, inheritedRunKey: (externalMcpInjection === "opencode-env-content" || externalMcpInjection === "mimo-env-content") || externalMcpInjection === "env-passthrough", writesPersonalConfig: externalMcpInjection === "env-passthrough" })), ...availability, permissionMode: resolveAgentPermissionMode({ env: process.env }, { hostSignals }) };
+}
+
 /** Owner/site-scoped CLI permissions through the existing authenticated, audited grant owner.
  * The master writes all defaults; explicit item choices survive until the master is changed.
  * @complexity O(1), fixed capability payload and one atomic ledger revision per write.
@@ -23,19 +37,7 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
     read: async () => readAssistantCliPermissions({ ...required.deps, principalId: await required.deps.ownerPrincipalId,
       settingsReady: required.deps.settingsUiTabsReady }, { readFailure: "throw" }),
     canEdit: ({ isOwner }) => isOwner && !isHostedAssistantRuntime({ env: process.env }, { hostSignals: resolveHostSignals({ env: process.env }) }),
-    // An env lock keeps canEdit (the owner's stored choice still saves) but must say why every
-    // switch reads OFF; without a reason the dock showed clickable switches that snapped back.
-    projectRead: ({ settings, isOwner }) => {
-      const envLock = fullCliEnvLock({ env: process.env });
-      const hostSignals = resolveHostSignals({ env: process.env });
-      const permissions = resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals });
-      let availability: { unavailableReason?: string };
-      if (isHostedAssistantRuntime({ env: process.env }, { hostSignals })) availability = { unavailableReason: "Not available on hosted sites" };
-      else if (!isOwner) availability = { unavailableReason: "Only the owner can change agent permissions." };
-      else if (envLock) availability = { unavailableReason: `Turned off on this computer by ${envLock}.` };
-      else availability = {};
-      return { ...permissions, agents: AGENT_DEFS.map(({ id, name, externalMcpInjection }) => ({ id, name, inheritedRunKey: (externalMcpInjection === "opencode-env-content" || externalMcpInjection === "mimo-env-content") || externalMcpInjection === "env-passthrough", writesPersonalConfig: externalMcpInjection === "env-passthrough" })), ...availability, permissionMode: resolveAgentPermissionMode({ env: process.env }, { hostSignals }) };
-    },
+    projectRead: ({ settings, isOwner }) => projectAssistantSubagentsRead({ settings, isOwner }),
     parse: ({ body }, _optional = {}) => {
       const overrides = body.capabilities;
       const malformed = overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides));

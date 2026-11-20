@@ -577,6 +577,13 @@ function externalMcpAccessHandler({ routeDeps, surfaces }: { routeDeps: External
   }, { flag: 'saved' });
 }
 
+async function prepareExternalMcpSaveInput({ routeDeps, surfaces, ctx }: { routeDeps: ExternalMcpToolDeps; surfaces: ChatDeleteSurfaceDeps; ctx: Parameters<ToolHandler>[0] }) {
+  const input = requireInputRecord({ input: ctx.input });
+  const modelInput = buildModelSaveInput(input);
+  await requireMcpSaveApprover({ routeDeps, surfaces, principalId: ctx.principal.id, id: modelInput.id });
+  return modelInput;
+}
+
 /** Bind the domain form/save ports to Jini's one lifecycle owner.
  * @complexity O(s + f) during preparation in server views and fixed form fields, plus store/probe I/O.
  */
@@ -593,9 +600,7 @@ function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMc
     }, Record<string, unknown>, Record<string, unknown>>({
       toolId: EXTERNAL_MCP_SAVE_TOOL_ID,
       prepare: async ({ ctx }) => {
-        const input = requireInputRecord({ input: ctx.input });
-        const modelInput = buildModelSaveInput(input);
-        await requireMcpSaveApprover({ routeDeps, surfaces, principalId: ctx.principal.id, id: modelInput.id });
+        const modelInput = await prepareExternalMcpSaveInput({ routeDeps, surfaces, ctx });
         const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
         errorLocale = locale;
         const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: modelInput.id });
@@ -669,16 +674,47 @@ export const externalMcpDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
   ["external_mcp_oauth_poll_device", "mutates-durable-state"],
 ]);
 
+async function connectExternalMcpOAuth({ routeDeps, ctx }: { routeDeps: ExternalMcpToolDeps; ctx: Parameters<ToolHandler>[0] }) {
+  const input = requireInputRecord({ input: ctx.input });
+  const id = requireString({ input, key: "id" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+    workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE,
+    entityId: id });
+
+  if (!routeDeps.externalMcpOAuth) {
+    throw new Error(
+      `external_mcp_oauth_connect: this execution context has no OAuth service wired, so an authorization ` +
+        `cannot be started here. Ask the operator to connect '${id}' from Settings → External MCP instead.`,
+    );
+  }
+
+  const redirectUri = resolveExternalMcpOAuthRedirectUri({ serverId: id, derivedPublicOrigin: routeDeps.derivedPublicOrigin });
+  try {
+    return await routeDeps.externalMcpOAuth.beginConnect({ serverId: id, actorId: ctx.principal.id, ...(redirectUri === undefined ? {} : { redirectUri }), delivery: 'hosted' });
+  } catch (error) {
+    // `ExternalMcpValidationError` is exactly "the caller named something this connection cannot
+    // do, and a different input or one config change fixes it" — an unknown id, a non-OAuth row,
+    // or (since 2026-09-09) an authorization_code grant with no configured public origin. As a
+    // bare `Error` those all reach the model redacted, which is how a clearly-worded refusal
+    // naming TOVU_PUBLIC_URL became, in practice, a silent one. Nothing internal is in these
+    // messages beyond the server id the caller already sent.
+    if (error instanceof ExternalMcpValidationError) throw new ToolInputError({ message: error.message });
+    throw error;
+  }
+}
+
+async function listExternalMcpConnections({ routeDeps, ctx }: { routeDeps: ExternalMcpToolDeps; ctx: Parameters<ToolHandler>[0] }) {
+  requireNoInput({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+    workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE });
+
+  const servers = await listExternalMcpServerViews({ deps: { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, workspaceId: routeDeps.workspaceId });
+  return { servers };
+}
+
 export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, surfaces: ChatDeleteSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    external_mcp_list: async (ctx) => {
-      requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE });
-
-      const servers = await listExternalMcpServerViews({ deps: { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, workspaceId: routeDeps.workspaceId });
-      return { servers };
-    },
+    external_mcp_list: async (ctx) => listExternalMcpConnections({ routeDeps, ctx }),
 
     /**
      * See this file's header ("`external_mcp_save`: one call, held open"). Fails closed rather than
@@ -712,34 +748,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
     },
 
     /** See this file's header ("`external_mcp_oauth_connect` has no live HTTP request"). */
-    external_mcp_oauth_connect: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const id = requireString({ input, key: "id" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE,
-        entityId: id });
-
-      if (!routeDeps.externalMcpOAuth) {
-        throw new Error(
-          `external_mcp_oauth_connect: this execution context has no OAuth service wired, so an authorization ` +
-            `cannot be started here. Ask the operator to connect '${id}' from Settings → External MCP instead.`,
-        );
-      }
-
-      const redirectUri = resolveExternalMcpOAuthRedirectUri({ serverId: id, derivedPublicOrigin: routeDeps.derivedPublicOrigin });
-      try {
-        return await routeDeps.externalMcpOAuth.beginConnect({ serverId: id, actorId: ctx.principal.id, ...(redirectUri === undefined ? {} : { redirectUri }), delivery: 'hosted' });
-      } catch (error) {
-        // `ExternalMcpValidationError` is exactly "the caller named something this connection cannot
-        // do, and a different input or one config change fixes it" — an unknown id, a non-OAuth row,
-        // or (since 2026-09-09) an authorization_code grant with no configured public origin. As a
-        // bare `Error` those all reach the model redacted, which is how a clearly-worded refusal
-        // naming TOVU_PUBLIC_URL became, in practice, a silent one. Nothing internal is in these
-        // messages beyond the server id the caller already sent.
-        if (error instanceof ExternalMcpValidationError) throw new ToolInputError({ message: error.message });
-        throw error;
-      }
-    },
+    external_mcp_oauth_connect: async (ctx) => connectExternalMcpOAuth({ routeDeps, ctx }),
 
     external_mcp_oauth_poll_device: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });

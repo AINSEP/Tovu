@@ -380,6 +380,81 @@ export function buildSourceControlCredentialHandler({ deps, surfaces }: { deps: 
   return (ctx, optional = {}) => proposeSourceControlCredential({ ctx, deps: { ...deps, loadSourceControlProviders: providerLoader(deps) }, surfaces }, optional);
 }
 
+async function previewSourceControlCommit({ deps, command, host }: { deps: SourceControlToolDeps; command: ParsedCommitCommand; host: Awaited<ReturnType<typeof requireKnownHost>> }) {
+  // Same "presence only" read `source_control_get_capabilities` and the real-commit path
+  // below both rely on — never decrypts. No dialog: a dry run only previews what a real
+  // commit would export, so it never opens the confirmation surface or touches `emitSurface`.
+  const existing = await findConfiguredCredential({ deps, providerId: command.provider });
+  const preview = await previewCommitExport(commitInput({ deps, command }), { providerId: command.provider, validateTarget: host.validateTarget });
+  if (!preview.ok) {
+    return {
+      dryRun: true,
+      committed: false,
+      owner: command.owner,
+      repo: command.repo,
+      branch: command.branch,
+      credentialConfigured: existing !== null,
+      code: preview.code,
+      message: preview.message,
+    };
+  }
+  return {
+    dryRun: true,
+    committed: false,
+    owner: command.owner,
+    repo: command.repo,
+    branch: command.branch,
+    credentialConfigured: existing !== null,
+    fileCount: preview.fileCount,
+    totalBytes: preview.totalBytes,
+    paths: preview.paths,
+    folder: command.folder,
+    entryPath: prefixRepositoryPath({ folder: command.folder, path: deps.staticSitePackager.entryFile }),
+    note: "Nothing was sent. Call again without dryRun to commit.",
+  };
+}
+
+async function executeSourceControlCommit({ deps, ctx }: { deps: SourceControlToolDeps; ctx: Parameters<ToolHandler>[0] }) {
+  const raw = requireInputRecord({ input: ctx.input });
+  const command = parseCommitCommand(raw);
+
+  const authorizeCommit = () => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.commit" }, { entityType: "source-control" });
+  const host = await requireKnownHost({ deps, providerId: command.provider, authorizeSavedLookup: authorizeCommit });
+  const hostLabel = host.label;
+  requireValidTarget({ command, validateTarget: host.validateTarget });
+  await authorizeCommit();
+  if (command.folder && host.supportsFolder !== true) return { committed: false, reason: "folder-unsupported", message: `${hostLabel} does not support folder commits. Update its provider before selecting a folder.` };
+
+  if (command.dryRun) {
+    return previewSourceControlCommit({ deps, command, host });
+  }
+
+  // Never decrypts — a plain repo read, same "presence only" contract `source_control_get_capabilities`
+  // relies on. Checked before raising any dialog so a guaranteed-fail call never wastes a human's
+  // attention.
+  const existing = await findConfiguredCredential({ deps, providerId: command.provider });
+  if (!existing) {
+    return {
+      committed: false,
+      reason: "no-credential",
+      message: `No ${hostLabel} source control credential is configured for this workspace. Call credential_save with kind source-control to open a human credential form before committing.`,
+    };
+  }
+  const commitAdapter = await resolveCommitAdapter({ deps, providerId: command.provider });
+  if (!commitAdapter.ok) return { committed: false, reason: "no-provider", message: commitAdapter.message };
+
+  // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+  if (ctx.signal.aborted) return { committed: false, cancelled: false, reason: "abandoned" };
+  const outcome = await commitSiteToSourceControl(
+    { providerId: existing.providerId, supportsFolder: host.supportsFolder === true, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
+      resolveSavedApiKey: (input, options = {}) => resolveSavedApiKey({ deps, ...input }, options),
+    }, gitAdapter: commitAdapter.adapter, ...(host.validateTarget ? { validateTarget: host.validateTarget } : {}) },
+    commitInput({ deps, command })
+  );
+
+  return buildCommitOutcomeResult(outcome);
+}
+
 export function buildSourceControlRegistrations(deps: SourceControlToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     source_control_get_capabilities: async (ctx) => {
@@ -417,77 +492,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
 
     /** Shared approval precedes real export commits, which can remove stale paths;
      * dry-run previews stay direct. Target, credential and branch checks remain. */
-    source_control_execute_commit: async (ctx) => {
-      const raw = requireInputRecord({ input: ctx.input });
-      const command = parseCommitCommand(raw);
-
-      const authorizeCommit = () => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.commit" }, { entityType: "source-control" });
-      const host = await requireKnownHost({ deps, providerId: command.provider, authorizeSavedLookup: authorizeCommit });
-      const hostLabel = host.label;
-      requireValidTarget({ command, validateTarget: host.validateTarget });
-      await authorizeCommit();
-      if (command.folder && host.supportsFolder !== true) return { committed: false, reason: "folder-unsupported", message: `${hostLabel} does not support folder commits. Update its provider before selecting a folder.` };
-
-      if (command.dryRun) {
-        // Same "presence only" read `source_control_get_capabilities` and the real-commit path
-        // below both rely on — never decrypts. No dialog: a dry run only previews what a real
-        // commit would export, so it never opens the confirmation surface or touches `emitSurface`.
-        const existing = await findConfiguredCredential({ deps, providerId: command.provider });
-        const preview = await previewCommitExport(commitInput({ deps, command }), { providerId: command.provider, validateTarget: host.validateTarget });
-        if (!preview.ok) {
-          return {
-            dryRun: true,
-            committed: false,
-            owner: command.owner,
-            repo: command.repo,
-            branch: command.branch,
-            credentialConfigured: existing !== null,
-            code: preview.code,
-            message: preview.message,
-          };
-        }
-        return {
-          dryRun: true,
-          committed: false,
-          owner: command.owner,
-          repo: command.repo,
-          branch: command.branch,
-          credentialConfigured: existing !== null,
-          fileCount: preview.fileCount,
-          totalBytes: preview.totalBytes,
-          paths: preview.paths,
-          folder: command.folder,
-          entryPath: prefixRepositoryPath({ folder: command.folder, path: deps.staticSitePackager.entryFile }),
-          note: "Nothing was sent. Call again without dryRun to commit.",
-        };
-      }
-
-      // Never decrypts — a plain repo read, same "presence only" contract `source_control_get_capabilities`
-      // relies on. Checked before raising any dialog so a guaranteed-fail call never wastes a human's
-      // attention.
-      const existing = await findConfiguredCredential({ deps, providerId: command.provider });
-      if (!existing) {
-        return {
-          committed: false,
-          reason: "no-credential",
-          message: `No ${hostLabel} source control credential is configured for this workspace. Call credential_save with kind source-control to open a human credential form before committing.`,
-        };
-      }
-      const commitAdapter = await resolveCommitAdapter({ deps, providerId: command.provider });
-      if (!commitAdapter.ok) return { committed: false, reason: "no-provider", message: commitAdapter.message };
-
-      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
-      if (ctx.signal.aborted) return { committed: false, cancelled: false, reason: "abandoned" };
-      const outcome = await commitSiteToSourceControl(
-        { providerId: existing.providerId, supportsFolder: host.supportsFolder === true, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
-          resolveSavedApiKey: (input, options = {}) => resolveSavedApiKey({ deps, ...input }, options),
-        }, gitAdapter: commitAdapter.adapter, ...(host.validateTarget ? { validateTarget: host.validateTarget } : {}) },
-        commitInput({ deps, command })
-      );
-
-      return buildCommitOutcomeResult(outcome);
-
-    },
+    source_control_execute_commit: async (ctx) => executeSourceControlCommit({ deps, ctx }),
   };
 
   // No `unwiredToolIds`: this domain wires its ENTIRE catalog — a 3rd catalog entry added without a

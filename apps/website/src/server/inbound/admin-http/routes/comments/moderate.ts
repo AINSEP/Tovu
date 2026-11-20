@@ -67,6 +67,34 @@ function respondToModerationResult(res: Response, result: Awaited<ReturnType<Com
   res.status(204).end();
 }
 
+function registerAdminCommentsPurgeRoute({ app, deps }: { app: Express; deps: AdminCommentsModerateDeps }) {
+  app.post("/api/admin/v1/workspaces/:workspaceId/comments/:commentId/purge", async (req, res) => {
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
+
+    try {
+      const principal = getAuthedPrincipal(res);
+      const params = { principalId: principal.id, permission: "comments.delete.force", workspaceId: deps.workspaceId, entityType: "comment", entityId: req.params.commentId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
+
+      const body = req.body as Record<string, unknown>;
+      const result = await deps.commentWriteService.purge({
+        workspaceId: deps.workspaceId,
+        id: req.params.commentId,
+        actorPrincipalId: principal.id,
+        note: typeof body.note === "string" ? body.note : null,
+      });
+
+      if (!result.ok) {
+        res.status(404).json({ error: result.reason });
+        return;
+      }
+      res.status(204).end();
+    } catch (err) {
+      sendAdminFailure({ res, error: err }, { operation: "routes/comments/moderate", code: "INTERNAL_ERROR" });
+    }
+  });
+}
+
 export function registerAdminCommentsModerateRoutes({ app, deps }: { app: Express; deps: AdminCommentsModerateDeps }, _optional: Record<string, never> = {}): void {
   for (const spec of ACTIONS) {
     app.post(`/api/admin/v1/workspaces/:workspaceId/comments/:commentId/${spec.path}`, async (req, res) => {
@@ -99,30 +127,5 @@ export function registerAdminCommentsModerateRoutes({ app, deps }: { app: Expres
       }
     });
   }
-
-  app.post("/api/admin/v1/workspaces/:workspaceId/comments/:commentId/purge", async (req, res) => {
-    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
-
-    try {
-      const principal = getAuthedPrincipal(res);
-      const params = { principalId: principal.id, permission: "comments.delete.force", workspaceId: deps.workspaceId, entityType: "comment", entityId: req.params.commentId };
-      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
-
-      const body = req.body as Record<string, unknown>;
-      const result = await deps.commentWriteService.purge({
-        workspaceId: deps.workspaceId,
-        id: req.params.commentId,
-        actorPrincipalId: principal.id,
-        note: typeof body.note === "string" ? body.note : null,
-      });
-
-      if (!result.ok) {
-        res.status(404).json({ error: result.reason });
-        return;
-      }
-      res.status(204).end();
-    } catch (err) {
-      sendAdminFailure({ res, error: err }, { operation: "routes/comments/moderate", code: "INTERNAL_ERROR" });
-    }
-  });
+  registerAdminCommentsPurgeRoute({ app, deps });
 }

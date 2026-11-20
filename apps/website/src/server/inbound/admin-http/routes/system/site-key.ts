@@ -258,6 +258,27 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
   } }));
 }
 
+function registerAdminSiteKeyGenerateRoute({ app, deps, siteKey }: { app: Express; deps: AdminSiteKeyDeps; siteKey: SiteKeyKeyWriter }) {
+  app.post(`${BASE_PATH}/generate`, asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res, deps)) return;
+    try {
+      const result = await generateSiteKey(deps, siteKey);
+      // The raw key is never in this body (sol finding 3-2, 2026-09-16): the admin controller
+      // (`use-site-key.hooks.ts`'s `generate()`) reads only fingerprint/keyFilePath/runtimeMode.
+      // Reveal (above) stays the one, explicit place this route family discloses the value.
+      res.set("Cache-Control", "no-store");
+      res.status(result.status).json({ ...result.body, runtimeMode: resolveRuntimeMode() });
+    } catch (err) {
+      if (err instanceof SiteKeyFileAlreadyExistsError) {
+        res.status(409).json({ error: "ALREADY_EXISTS", detail: err.message });
+        return;
+      }
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
+    }
+  } }));
+}
+
 export function registerAdminSiteKeyRoutes({ app, deps, siteKey }: { app: Express; deps: AdminSiteKeyDeps; siteKey: SiteKeyKeyWriter }, _optional = {}): void {
   app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
@@ -283,25 +304,7 @@ export function registerAdminSiteKeyRoutes({ app, deps, siteKey }: { app: Expres
     res.set("Cache-Control", "no-store");
     res.status(200).json({ ...reveal, runtimeMode: resolveRuntimeMode() });
   } }));
-
-  app.post(`${BASE_PATH}/generate`, asyncRoute({ handler: async (req, res) => {
-    if (await rejectUnlessAuthorized(req, res, deps)) return;
-    try {
-      const result = await generateSiteKey(deps, siteKey);
-      // The raw key is never in this body (sol finding 3-2, 2026-09-16): the admin controller
-      // (`use-site-key.hooks.ts`'s `generate()`) reads only fingerprint/keyFilePath/runtimeMode.
-      // Reveal (above) stays the one, explicit place this route family discloses the value.
-      res.set("Cache-Control", "no-store");
-      res.status(result.status).json({ ...result.body, runtimeMode: resolveRuntimeMode() });
-    } catch (err) {
-      if (err instanceof SiteKeyFileAlreadyExistsError) {
-        res.status(409).json({ error: "ALREADY_EXISTS", detail: err.message });
-        return;
-      }
-
-      sendAdminFailure({ res, error: err }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
-    }
-  } }));
+  registerAdminSiteKeyGenerateRoute({ app, deps, siteKey });
 
   app.post(`${BASE_PATH}/import`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;

@@ -35,7 +35,7 @@ function statusFor({ err }: { err: unknown }, _optional = {}): { status: number;
   return null;
 }
 
-export function registerAdminTaxonomyMergeTermRoutes({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
+function registerAdminTaxonomyMergePlanRoute({ app, deps }: { app: Express; deps: RouteDeps }) {
   app.post("/api/admin/v1/taxonomy/terms/:id/merge/plan", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -79,7 +79,9 @@ export function registerAdminTaxonomyMergeTermRoutes({ app, deps }: { app: Expre
       res.status(failure.status).json({ error: failure.message, code: failure.code });
     }
   });
+}
 
+function registerAdminTaxonomyMergeConfirmRoute({ app, deps }: { app: Express; deps: RouteDeps }) {
   app.post("/api/admin/v1/taxonomy/terms/:id/merge/confirm", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -121,6 +123,11 @@ export function registerAdminTaxonomyMergeTermRoutes({ app, deps }: { app: Expre
       res.status(failure.status).json({ error: failure.message, code: failure.code });
     }
   });
+}
+
+export function registerAdminTaxonomyMergeTermRoutes({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
+  registerAdminTaxonomyMergePlanRoute({ app, deps });
+  registerAdminTaxonomyMergeConfirmRoute({ app, deps });
 
   app.post("/api/admin/v1/taxonomy/terms/:id/merge/execute", async (req, res) => {
     try {

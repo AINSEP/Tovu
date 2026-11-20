@@ -1,12 +1,4 @@
 {
   "version": 2,
-  "violations": [
-    {
-      "file": "apps/website/src/features/source-control/store.ts",
-      "function": "updateSourceControlCredential#1",
-      "line": 445,
-      "rule": "complexity",
-      "value": 11
-    }
-  ]
+  "violations": []
 }
