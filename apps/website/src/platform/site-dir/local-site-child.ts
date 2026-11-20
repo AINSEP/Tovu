@@ -2,6 +2,7 @@
  * The watchdog runs before bundle work too; a killed host cannot strand a Vite build process.
  */
 import { realpathSync } from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { pathToFileURL } from "node:url";
 import { journeyAdminBundle } from "./local-admin-bundle.js";
 import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions, type SupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
@@ -166,7 +167,7 @@ export function isEntrypoint({ moduleUrl, argv }: { moduleUrl: string; argv: rea
   { realpath = realpathSync }: EntrypointOptional = {}): boolean {
   const script = argv[1];
   if (!script) return false;
-  try { return pathToFileURL(realpath(script)).href === moduleUrl; } catch { return false; }
+  return orFallbackSync({ work: () => pathToFileURL(realpath(script)).href === moduleUrl, fallback: false, step: "Recognize local site entrypoint" });
 }
 
 if (isEntrypoint({ moduleUrl: import.meta.url, argv: process.argv })) await runLocalSiteChild({}).catch(failBoot);

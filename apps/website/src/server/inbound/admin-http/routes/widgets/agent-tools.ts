@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { toWhereUsedResponse } from "@jini-ai/cms/widgets";
 import type { Response } from "express";
 
@@ -158,11 +159,9 @@ function resolveWidgetStatus(entry: Awaited<ReturnType<RouteDeps["entryRepo"]["f
   // widget instance (wrong content type, or a widget row with a malformed payload) used to 500 via
   // an uncaught `parseWidgetInstancePayload` throw — `getWidgetInstance` already guards the same
   // case with an `entry.type` check; this mirrors it instead of parsing blind.
-  try {
+  return orFallbackSync({ work: () => {
     return { exists: true, status: parseWidgetInstancePayload({ fieldsJson: entry.fieldsJson }).status };
-  } catch {
-    return { exists: true, status: null };
-  }
+  }, fallback: { exists: true, status: null }, step: "Read saved widget status" });
 }
 
 /** `widgets.place` — reference an EXISTING widget instance into a target. Distinct from

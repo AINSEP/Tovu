@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import fs from "node:fs";
 import { withFileLock, type DirectoryRecord, type DirectoryRunningRecord } from "@jini-ai/platform/fs";
 import path from "node:path";
@@ -131,12 +132,9 @@ function readRootEntries({ root }: { root: string }): fs.Dirent[] {
 }
 
 function readSiteCandidate({ dir }: { dir: string }): ReturnType<typeof readSiteDir> | undefined {
-  try { return readSiteDir({ dir }); }
-  catch {
-    // Not a valid site (missing/corrupt config.json or .site-meta.json) — skip it rather than
-    // fail the whole listing over one stray or half-written directory (see listSites's doc).
-    return undefined;
-  }
+  // Not a valid site (missing/corrupt config.json or .site-meta.json) — skip it rather than
+  // fail the whole listing over one stray or half-written directory (see listSites's doc).
+  return orFallbackSync({ work: () => readSiteDir({ dir }), fallback: undefined, step: "Read site discovery candidate" });
 }
 
 /** The folder name when it is a safe, unused route; otherwise the marker's site id. */

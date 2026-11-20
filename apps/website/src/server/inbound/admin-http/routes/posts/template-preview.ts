@@ -131,12 +131,13 @@ function extractPendingBodyJson({ body }: { body: unknown }, _options: Record<st
   const raw = body.bodyJson;
   if (isJsonObject(raw)) return raw;
   if (typeof raw === "string") {
+    let parsed: unknown;
     try {
-      const parsed: unknown = JSON.parse(raw);
-      return isJsonObject(parsed) ? parsed : undefined;
+      parsed = JSON.parse(raw);
     } catch {
       return undefined;
     }
+    return isJsonObject(parsed) ? parsed : undefined;
   }
   return undefined;
 }

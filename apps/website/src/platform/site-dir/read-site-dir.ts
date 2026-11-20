@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -169,20 +170,12 @@ export function createLiveSiteDisplayName(required: ReadSiteDirRequired, _option
 export function createSiteCreationTimeZone(required: ReadSiteDirRequired, _optional: Record<string, never> = {}): { read(): string | undefined } {
   return {
     read() {
-      try {
-        return readSiteConfig(required).timezone;
-      } catch {
-        return undefined;
-      }
+      return orFallbackSync({ work: () => readSiteConfig(required).timezone, fallback: undefined, step: "Read site time zone" });
     },
   };
 }
 
 /** `config.json`'s current valid name, else `fallback`. Never throws. */
 function readValidName({ required, fallback }: { required: ReadSiteDirRequired; fallback: string | undefined }, _optional = {}): string | undefined {
-  try {
-    return readSiteConfig(required).name;
-  } catch {
-    return fallback;
-  }
+  return orFallbackSync({ work: () => readSiteConfig(required).name, fallback, step: "Read site display name" });
 }

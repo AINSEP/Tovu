@@ -1,3 +1,4 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
@@ -46,7 +47,8 @@ const PATH = "/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/provider-s
  */
 async function hasLegacyCredential({ deps, pluginId, saved }: { deps: ProviderSettingsRouteDeps; pluginId: string; saved: unknown }): Promise<boolean> {
   if (saved || !deps.legacyProviderCredential) return false;
-  return deps.legacyProviderCredential({ pluginId }).catch(() => false);
+  const credentialPromise = deps.legacyProviderCredential({ pluginId });
+  return orFallback({ work: () => credentialPromise, fallback: false, step: "Check legacy provider credential" });
 }
 
 /** A public field's declared choices (`default`, `options`, `allowCustom`), passed to the card as declared. */

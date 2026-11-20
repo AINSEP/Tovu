@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { escapeHtml } from "#src/platform/html/escape";
 
 /** Add the site's one-price purchase form, using its trusted workspace and a catalog price id.
@@ -21,10 +22,10 @@ function appendMarkup({ html, markup }: { html: string; markup: string }): strin
 
 /** A link sink still checks the configured origin even though commerce validates its configuration. */
 function deployedShop({ origin, productSlug }: { origin: string; productSlug: string }): string | null {
-  try {
+  return orFallbackSync({ work: () => {
     const url = new URL(origin);
     return url.protocol === "https:" && url.origin === origin ? `${origin}/products/${encodeURIComponent(productSlug)}` : null;
-  } catch { return null; }
+  }, fallback: null, step: "Resolve hosted checkout link" });
 }
 
 export interface ProductCheckoutReadiness { active: boolean; ready: boolean; checkoutOrigin?: string | null }

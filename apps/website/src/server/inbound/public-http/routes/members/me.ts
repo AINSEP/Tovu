@@ -1,3 +1,4 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { Express } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { createMemberAccessResolver } from "#src/features/members/index";
@@ -36,7 +37,8 @@ async function publicMemberIdentities({ memberId, deps }: { memberId: string; de
   const linked = identities.filter(identity => !identity.unlinkedAt);
   if (!linked.length) return [];
   // Provider availability must not prevent account access/unlink after a plugin is disabled.
-  const providers = await deps.listProviders({ workspaceId: deps.members.workspaceId }).catch(() => []);
+  const providersPromise = deps.listProviders({ workspaceId: deps.members.workspaceId });
+  const providers = await orFallback({ work: () => providersPromise, fallback: [], step: "Read member sign-in provider labels" });
   const labels = new Map(providers.map(provider => [provider.id, provider.label]));
   return linked.map(identity => ({ providerId: identity.providerId, label: labels.get(identity.providerId) ?? identity.providerId }));
 }
