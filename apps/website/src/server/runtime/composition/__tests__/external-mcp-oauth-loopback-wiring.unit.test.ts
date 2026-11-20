@@ -60,8 +60,8 @@ function beginRedirect(
   });
 }
 
-// Why: the daemon server no longer builds its own OAuth ports (it takes `externalMcpOAuthHttpPorts` from deps.ts, already on terra), so only the two composition roots that call the factory remain to pin.
-for (const file of ["../memory-deps/slices/outbound-http.ts", "../site-deps/outbound-connections.ts"]) {
+// Why: the daemon server no longer builds its own OAuth ports (it takes `externalMcpOAuthHttpPorts` from deps.ts, already on terra), so only the one shared composition root that calls the factory remains to pin.
+for (const file of ["../outbound-http.ts"]) {
   test(`${file}: desktop accepts a loopback OAuth callback; hosted requires HTTPS`, async () => {
     for (const electronRunAsNode of ["1", undefined, "true"]) {
       const ports = wiredOAuthPorts({ file, env: { ELECTRON_RUN_AS_NODE: electronRunAsNode } });

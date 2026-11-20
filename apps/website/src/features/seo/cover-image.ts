@@ -1,6 +1,6 @@
 /** @file Read adapter for the shared cover policy; no persisted SEO or post writes. */
 import type { GetEntryMetaDeps, SeoMeta, SeoPostRecord } from "@jini-ai/cms/seo";
-import { collectCoverMediaRefs, resolveCoverImage, type CoverImage, type CoverMedia } from "#src/contracts/core/cover-image";
+import { collectCoverMediaRefs, resolveCoverImage, type CoverImage, type CoverMedia } from "@jini-ai/cms/media/cover-image";
 
 /** Use the existing media/image owners to populate the selector's synchronous metadata port.
  * Unknown MIME follows the featured-image owner's existing acceptance rule; videos/trashed refs
@@ -19,7 +19,7 @@ export async function resolveSeoCoverImage(
     if (!asset || asset.status === "trashed") return;
     media.set(ref, { id: asset.id, width: asset.width, height: asset.height, contentType: null });
   }));
-  return resolveCoverImage({ post }, { mediaLookup: ({ ref }) => media.get(ref) ?? null, allowExternalHttps: true });
+  return resolveCoverImage({ post, mediaLookup: ({ ref }) => media.get(ref) ?? null }, { allowExternalHttps: true });
 }
 
 /** Decode stored overrides for the detached cover projection; reject non-object JSON values.

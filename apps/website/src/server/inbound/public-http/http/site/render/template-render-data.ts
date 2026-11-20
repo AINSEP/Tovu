@@ -4,7 +4,7 @@ import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { shortDate, renderPostBody } from "./post-body.js";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { resolveCoverImage } from "#src/contracts/core/cover-image";
+import { resolveCoverImage } from "@jini-ai/cms/media/cover-image";
 import { mediaUrlKey, mediaPublicPath } from "#src/features/media/public-path";
 
 /** Currency formatting is shared with the catalog; old currency-less theme fixtures mean USD.
@@ -81,7 +81,7 @@ const FEATURED_IMAGE_TRANSFORM = "public";
 export function featuredImageView(
   { ctx, post }: { ctx: Pick<SiteRenderContext, "mediaAssetMetadata" | "mediaTransformVersions">; post: PostRecord }, _optional: Record<string, never> = {}
 ): { url: string; alt: string; width: number | null; height: number | null } | null {
-  const cover = resolveCoverImage({ post }, { mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null });
+  const cover = resolveCoverImage({ post, mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null });
   if (!cover?.mediaId) return null;
   const meta = ctx.mediaAssetMetadata.get(cover.mediaId);
   const version = ctx.mediaTransformVersions.get(FEATURED_IMAGE_TRANSFORM);

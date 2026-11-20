@@ -15,11 +15,11 @@ mock.module("@jini-ai/platform/http/guarded", { namedExports: {
   createHttpClient: (config: Record<string, unknown>, ...rest: never[]) => { captured.push(config); return (guarded.createHttpClient as Function)(config, ...rest); },
 } });
 
-const { composeMemoryOutboundHttp } = await import("../slices/outbound-http.js");
+const { composeOutboundHttp } = await import("../outbound-http.js");
 
 test("the memory root builds ONE guarded client with the exact egress policy: schemes, private addresses denied, no redirects, 10 min / 96 MiB", () => {
   captured.length = 0;
-  const first = composeMemoryOutboundHttp();
+  const first = composeOutboundHttp();
   assert.equal(captured.length, 1);
   assert.equal(captured[0]!.userAgent, "Tovu/0.1.0");
   assert.deepEqual(captured[0]!.policy, {
@@ -29,6 +29,6 @@ test("the memory root builds ONE guarded client with the exact egress policy: sc
   });
   assert.ok(first.guardedOutboundHttpClient);
   assert.ok(first.externalMcpOAuthHttpPorts);
-  composeMemoryOutboundHttp();
+  composeOutboundHttp();
   assert.equal(captured.length, 2, "each call builds its own client; nothing is cached across roots");
 });

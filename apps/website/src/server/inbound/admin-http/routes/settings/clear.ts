@@ -9,7 +9,8 @@ import {
   deriveRequiredPermission,
 } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { resolveTargetWorkspaceId } from "@jini-ai/core/settings";
+import { createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -69,11 +70,11 @@ export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = ({ app, d
         });
       }
       const { namespace, key, scope, bodyWorkspaceId, principalId } = parsed;
-      // See `resolveTargetWorkspaceId` in `shared.ts`. This route previously took the write target
+      // See `resolveTargetWorkspaceId` (`@jini-ai/core/settings`). This route previously took the write target
       // straight from the body while authorizing against `deps.workspaceId` below — a cross-tenant
       // clear. It also never defaulted for non-global scopes, the same masked-500 gap `set.ts` was
       // fixed for on 2026-07-31 and that its comment flagged here as an unfixed follow-up.
-      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
+      const targetWorkspace = resolveTargetWorkspaceId({ workspaceId: deps.workspaceId, input: { bodyWorkspaceId, scope } });
       if (!targetWorkspace.ok) {
         rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }

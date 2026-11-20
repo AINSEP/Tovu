@@ -11,7 +11,8 @@ import {
   deriveRequiredPermission,
 } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { resolveTargetWorkspaceId } from "@jini-ai/core/settings";
+import { createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -84,7 +85,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = ({ app, dep
       }
       const { namespace, key, scope, valueJson, bodyWorkspaceId, principalId } = parsed;
       // The write target is the ambient workspace, never the body's. See
-      // `resolveTargetWorkspaceId`'s doc in `shared.ts` for why a body-named
+      // `resolveTargetWorkspaceId` (`@jini-ai/core/settings`) for why a body-named
       // workspace is REJECTED rather than honored: accepting it authorized
       // against this workspace while writing another tenant's row.
       //
@@ -98,7 +99,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = ({ app, dep
       // other settings route already does (`get-effective.ts`,
       // `list-definitions.ts`), because the `:workspaceId` path param is
       // 404-checked against `deps.workspaceId` above (ADR-007).
-      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
+      const targetWorkspace = resolveTargetWorkspaceId({ workspaceId: deps.workspaceId, input: { bodyWorkspaceId, scope } });
       if (!targetWorkspace.ok) {
         rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }

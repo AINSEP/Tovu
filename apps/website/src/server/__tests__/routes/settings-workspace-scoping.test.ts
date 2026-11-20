@@ -29,7 +29,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * reason this file exists — the owner principal used here holds a wildcard grant, so authorization
  * is never the thing under test; the target-selection logic is.
  *
- * `resolveTargetWorkspaceId` (`routes/admin/settings/shared.ts`) now rejects a mismatch with 400
+ * `resolveTargetWorkspaceId` (`@jini-ai/core/settings`) now rejects a mismatch with 400
  * rather than ignoring it, so a mis-integrated caller fails loudly instead of writing somewhere it
  * did not intend. `write-service`'s `assertTargetWorkspaceMatchesAuth` is the backstop for callers
  * that skip the routes.

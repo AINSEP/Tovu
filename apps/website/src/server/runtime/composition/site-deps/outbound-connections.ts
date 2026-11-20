@@ -13,11 +13,8 @@ import type { SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { SqlSecretsVaultRepo } from "@jini-ai/db/secrets-vault";
 import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
-import { createHttpClient as createGuardedMediaHttpClient } from "@jini-ai/platform/http/guarded";
-import { createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
-import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
-import { resolveApiConnectionRuntime } from "../agent-plugin-connections.js";
+import { composeOutboundHttp } from "../outbound-http.js";
 import { sharedApiConnectionOptions } from "../agent-plugin-connections.js";
 
 interface ComposeOutboundConnectionsRequired {
@@ -43,18 +40,7 @@ interface ComposeOutboundConnectionsRequired {
 export function composeOutboundConnections(required: ComposeOutboundConnectionsRequired, _optional = {}) {
   const { devCapabilityScheme, workspaceId, agentPluginLifecycle, kernel, siteAssistantSecretKeyring, siteAssistantSecretSealer, customCredentialSetRepo, clock, projectStore, projectSiteId, resolvedSiteBinding, identity, siteReferenceRepo, settingsRepo, idGen, settingsPrincipals, formDefinitionRepo } = required;
 
-  // One pinned HTTP capability backs both media and OAuth; each request keeps its own tighter budget.
-  const guardedOutboundHttpClient = createGuardedMediaHttpClient({
-      ...createNodeGuardedHttpPorts({}),
-      userAgent: "Tovu/0.1.0",
-      // Preserve Jini's generation budget (10 minutes, 96 MiB); asset requests may choose less.
-      // Redirects are refused; provider-returned URLs get no private-network exception.
-      policy: { allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [],
-        maxRedirects: 0, connectTimeoutMs: 10 * 60 * 1000,
-        maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
-    });
-  // c266749d0: desktop's loopback callback needs the same exception as plugin API OAuth.
-  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env: process.env }) === "desktop" });
+  const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeOutboundHttp();
   const derivedPublicOrigin = resolveCompositionPublicOrigin({ devCapabilityScheme });
 
   // Plugin API connections, executable plugin-tool ports and admin-surface handlers share one

@@ -1,4 +1,5 @@
-import { createStaticSiteTabTranslator, useCopyLine } from "./StaticSiteTab.hooks";
+import { createStaticSiteTabTranslator } from "./StaticSiteTab.hooks";
+import { useWiredCopyToClipboard } from "@jini-ai/ui";
 import { CredentialHint } from "@/components/CredentialHint";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import type { ReactNode } from "react";
@@ -184,7 +185,7 @@ function CopyLine({
   copiedLabel,
   copyAccessibleName,
   agentHandleId,
-  useCopyLine: useCopyLineHook = useCopyLine,
+  useCopyLine: useCopyLineHook = useWiredCopyToClipboard,
 }: {
   text: string;
   copyLabel: string;
@@ -198,9 +199,9 @@ function CopyLine({
    *  CLI's "ask the assistant" line) — the id is caller-supplied rather than a constant baked into
    *  this component, same reason `copyAccessibleName` is. */
   agentHandleId: string;
-  useCopyLine?: typeof useCopyLine;
+  useCopyLine?: typeof useWiredCopyToClipboard;
 }) {
-  const { copied, copy } = useCopyLineHook({ text });
+  const { copied, copy } = useCopyLineHook();
 
   return (
     <div className="deployment-command">
@@ -210,7 +211,7 @@ function CopyLine({
       <button
         type="button"
         className="btn-secondary"
-        onClick={() => void copy()}
+        onClick={() => void copy(text)}
         aria-label={copyAccessibleName}
         {...agentHandle({ handle: agentHandleId }, { role: "button", label: copyAccessibleName })}
       >

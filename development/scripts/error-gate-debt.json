@@ -155,11 +155,6 @@
     "value": 3
   },
   {
-    "file": "apps/admin/src/features/deployment/StaticSiteTab.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/email/email-tabs-i18n.ts",
     "rule": "no-generic-failure-text",
     "value": 1
@@ -618,11 +613,6 @@
     "file": "apps/desktop/src/renderer/find-target.ts",
     "rule": "catch-reads-error",
     "value": 2
-  },
-  {
-    "file": "apps/desktop/src/renderer/use-import-website.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
   },
   {
     "file": "apps/desktop/src/renderer/use-site-list-prefs.hooks.ts",

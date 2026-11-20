@@ -5,7 +5,7 @@ import type { CreateRouteDepsOptions } from "./memory-deps/create-route-deps-opt
 import { composeMemoryComments } from "./memory-deps/slices/comments.js";
 import { composeMemoryAgentPlugins } from "./memory-deps/slices/agent-plugins.js";
 import { composeMemorySeo } from "./memory-deps/slices/seo-sitemap.js";
-import { composeMemoryOutboundHttp } from "./memory-deps/slices/outbound-http.js";
+import { composeOutboundHttp } from "./outbound-http.js";
 import { composeMemoryTrash } from "./memory-deps/slices/memory-trash.js";
 import { composePublishContentStores } from "./memory-deps/slices/publish-content-stores.js";
 import { composeNavFormContentRepos } from "./memory-deps/slices/nav-form-content-repos.js";
@@ -150,7 +150,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const { mediaContentTypeStore } = publishing;
   // One lazy in-memory `chat.db` behind both the chat store and its run ledger (`store-factory.ts`).
   const inMemoryChatHistory = createInMemoryChatHistory();
-  const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeMemoryOutboundHttp({  });
+  const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeOutboundHttp({  });
   const { seoDeps, sitemapService, transformDefinitionRepo } = composeMemorySeo({ postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, originRegistry, clock });
   const { agentPluginLifecycle, agentPluginLayout, customCredentialSetRepo, siteBinding, federatedMcpPresetRegistry, skillLayout } = composeMemoryAgentPlugins({ routeDeps: () => routeDeps });
   // Hermetic readiness registers definitions without asynchronously publishing CMS default content.

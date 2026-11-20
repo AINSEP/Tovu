@@ -6,7 +6,7 @@ import type { composeMemberSecrets } from "../slices/member-secrets.js";
 import type { composeIdentitySettings } from "../slices/identity-settings.js";
 import type { composeMemorySeo } from "../slices/seo-sitemap.js";
 import type { composeMemoryAgentPlugins } from "../slices/agent-plugins.js";
-import type { composeMemoryOutboundHttp } from "../slices/outbound-http.js";
+import type { composeOutboundHttp } from "../../outbound-http.js";
 import type { composeSiteTitleSettings } from "../slices/site-title-settings.js";
 import type { composePublishContentStores } from "../slices/publish-content-stores.js";
 import type { composeOriginNewsletter } from "../slices/origin-newsletter.js";
@@ -74,7 +74,7 @@ export type MemoryRootContext = {
   & Pick<ReturnType<typeof composeIdentitySettings>, "analyticsSettingsReady" | "assistantSettingsReady" | "commentsSettingsReady" | "executionSettingsReady" | "identity" | "seoReady" | "settingsPrincipals" | "settingsReady" | "settingsUiTabsReady">
   & Pick<ReturnType<typeof composeMemorySeo>, "seoDeps" | "sitemapService" | "transformDefinitionRepo">
   & Pick<ReturnType<typeof composeMemoryAgentPlugins>, "agentPluginLayout" | "agentPluginLifecycle" | "customCredentialSetRepo" | "federatedMcpPresetRegistry" | "siteBinding" | "skillLayout">
-  & Pick<ReturnType<typeof composeMemoryOutboundHttp>, "externalMcpOAuthHttpPorts" | "guardedOutboundHttpClient">
+  & Pick<ReturnType<typeof composeOutboundHttp>, "externalMcpOAuthHttpPorts" | "guardedOutboundHttpClient">
   & Pick<ReturnType<typeof composeSiteTitleSettings>, "siteTitlePreservationStore" | "siteTitleReady">
   & Pick<ReturnType<typeof composePublishContentStores>, "assetBlobRepo" | "blobStore" | "changeSets" | "fileBlobIndex" | "mediaContentTypeStore" | "publishContentBaselineRepo" | "publishContentBundleRepo" | "publishContentPeerRepo" | "publishContentRunRepo">
   & Pick<ReturnType<typeof composeOriginNewsletter>, "newsletterListRepoInMemory" | "originRegistry">

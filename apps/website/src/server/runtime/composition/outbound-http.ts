@@ -1,8 +1,8 @@
 import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
-import { resolveApiConnectionRuntime } from "../../agent-plugin-connections.js";
+import { resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
 
-export function composeMemoryOutboundHttp(_required: Record<string, never> = {}, _optional = {}) {
+export function composeOutboundHttp(_required: Record<string, never> = {}, _optional = {}) {
   // One pinned HTTP capability backs both media and OAuth; each request keeps its own tighter budget.
   const guardedOutboundHttpClient = createGuardedMediaHttpClient({
       ...createNodeGuardedHttpPorts({}),
