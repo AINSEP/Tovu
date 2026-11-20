@@ -36,17 +36,7 @@ async function readDesktopMemory({ app, networkPids }: { app: ElectronApplicatio
   return { networkPids: pids, utilities: metrics, processes, totalRssBytes: processes.reduce((total, row) => total + row.rssBytes, 0) };
 }
 
-test("native capture memory floors after 50 captures", async ({}, info) => {
-  const site = info.config.metadata.isolatedJourneySite as IsolatedJourneySite;
-  const evidence = createMemoryEvidence({ suite: "desktop", warmup: 10, workload: 50 });
-  let launch: Awaited<ReturnType<typeof launchDesktop>> | undefined;
-  let networkPids: number[] | undefined;
-  let phase = "desktop build freshness and isolated launch";
-  try {
-    await desktopGlobalSetup(); // Selected only by the desktop project.
-    // Untracked: capture targets the soak launcher's site directly; the desktop never manages it.
-    launch = await launchDesktop({}, { electronArgs: ["--js-flags=--expose-gc"] });
-    phase = "native capture bridge setup";
+async function setUpDesktopCaptureBridge({ launch, site }: { launch: Awaited<ReturnType<typeof launchDesktop>>; site: IsolatedJourneySite }) {
     const { env, versions } = await launch.app.evaluate(async ({ BrowserWindow }, { adapterURL, siteURL }) => {
       const { startDesktopCaptureBridge } = await import(adapterURL);
       const state = (globalThis as MainState).__memorySoak = { close(_required = {}, _options = {}) {}, created: 0, loaded: 0, destroyed: 0 };
@@ -61,6 +51,21 @@ test("native capture memory floors after 50 captures", async ({}, info) => {
       state.close = bridge.close;
       return { env: bridge.env, versions: { node: process.versions.node, electron: process.versions.electron } };
     }, { adapterURL: pathToFileURL(path.join(REPO_ROOT, "apps/desktop/src/desktop-capture.ts")).href, siteURL: site.apiURL });
+  return { env, versions };
+}
+
+test("native capture memory floors after 50 captures", async ({}, info) => {
+  const site = info.config.metadata.isolatedJourneySite as IsolatedJourneySite;
+  const evidence = createMemoryEvidence({ suite: "desktop", warmup: 10, workload: 50 });
+  let launch: Awaited<ReturnType<typeof launchDesktop>> | undefined;
+  let networkPids: number[] | undefined;
+  let phase = "desktop build freshness and isolated launch";
+  try {
+    await desktopGlobalSetup(); // Selected only by the desktop project.
+    // Untracked: capture targets the soak launcher's site directly; the desktop never manages it.
+    launch = await launchDesktop({}, { electronArgs: ["--js-flags=--expose-gc"] });
+    phase = "native capture bridge setup";
+    const { env, versions } = await setUpDesktopCaptureBridge({ launch, site });
     evidence.metadata.node = versions.node;
     evidence.metadata.electron = versions.electron!;
     const capture = renderBridgeFromEnv({ env });
