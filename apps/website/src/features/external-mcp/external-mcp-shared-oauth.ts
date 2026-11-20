@@ -1,2 +1,0 @@
-// EXTRACT-S5 H3: moved whole to `@jini-ai/integrations/api-connections/hosted-mcp` (shared-sign-in.ts); old names re-exported.
-export { createSharedExternalMcpOAuth, type SharedExternalMcpOwner, type SharedSignInOwner, type SharedSignInBindings, type SharedSignInAttachments, type SharedSignInTransaction, type SharedSignInIssuingContext, type SharedMcpConfiguration } from "@jini-ai/integrations/api-connections/hosted-mcp";

@@ -2,7 +2,7 @@ export type { ExternalMcpAccessSnapshot } from "../../contracts/core/external-mc
 /** External-MCP connection DTOs and ports; no assistant or service initialization. */
 import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { ExternalMcpServerView as CanonicalExternalMcpServerView } from "@jini-ai/core/contracts/hosted-mcp";
-import type { ExternalMcpOAuthDeps as CanonicalExternalMcpOAuthDeps } from "@jini-ai/integrations/api-connections/hosted-mcp";
+import type { ExternalMcpOAuthDeps as CanonicalExternalMcpOAuthDeps, SharedExternalMcpOwner } from "@jini-ai/integrations/api-connections/hosted-mcp";
 
 /** Canonical vocabulary values (EXTRACT-S5 H1a; source blob e2f1d908 at c3801c833). */
 export { SUPPORTED_EXTERNAL_MCP_TRANSPORTS, EXTERNAL_MCP_OAUTH_GRANTS } from "@jini-ai/mcp/federation/hosted";
@@ -20,4 +20,4 @@ export type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "@jini-ai
 /** The admin read model with Tovu's credential-hint shape. */
 export type ExternalMcpServerView = CanonicalExternalMcpServerView<CredentialTokenHint>;
 /** Sign-in dependencies with Tovu's desktop shared-owner storage. */
-export type ExternalMcpOAuthDeps = CanonicalExternalMcpOAuthDeps<import("./external-mcp-shared-oauth.js").SharedExternalMcpOwner>;
+export type ExternalMcpOAuthDeps = CanonicalExternalMcpOAuthDeps<SharedExternalMcpOwner>;

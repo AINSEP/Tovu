@@ -4,6 +4,7 @@
  * See classifyAgentPluginMcpServerTrust for the local-execution and remote-tool admission boundary.
  */
 import { readFile } from "node:fs/promises";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import type { AgentPluginMcpConfig, McpServerConfig } from "./mcp-metadata.js";
 import { parseAgentPluginMcpConfig } from "./mcp-metadata.js";
@@ -67,13 +68,12 @@ export async function readInstalledSkillMarkdown({ packageRoot, skillPath }: { p
  * file read.
  */
 async function readInstalledMcpConfig({ packageRoot }: { packageRoot: string }, _optional: Record<string, never> = {}): Promise<AgentPluginMcpConfig | null> {
-  let raw: string;
-  try {
-    const absolute = await assertContainedOnDisk({ packageRoot, entryPath: "mcp.json" });
-    raw = await readFile(absolute, "utf8");
-  } catch {
-    return null;
-  }
+  const raw = await orFallback({
+    work: async () => readFile(await assertContainedOnDisk({ packageRoot, entryPath: "mcp.json" }), "utf8"),
+    fallback: null,
+    step: "read installed MCP declaration",
+  });
+  if (raw === null) return null;
 
   let parsedJson: unknown;
   try {
@@ -82,13 +82,12 @@ async function readInstalledMcpConfig({ packageRoot }: { packageRoot: string }, 
     return null;
   }
 
-  let manifest: unknown;
-  try {
-    const absolute = await assertContainedOnDisk({ packageRoot, entryPath: "plugin.json" });
-    manifest = JSON.parse(await readFile(absolute, "utf8"));
-  } catch {
-    // Missing/malformed extensions cannot supply read trust; transport discovery still works.
-  }
+  // Missing/malformed extensions cannot supply read trust; transport discovery still works.
+  const manifest: unknown = await orFallback({
+    work: async () => JSON.parse(await readFile(await assertContainedOnDisk({ packageRoot, entryPath: "plugin.json" }), "utf8")),
+    fallback: undefined,
+    step: "read installed MCP plugin manifest",
+  });
   const result = parseAgentPluginMcpConfig({ value: parsedJson }, { pluginManifest: manifest });
   if (!result.ok) return null;
   for (const warning of result.warnings ?? []) console.warn(`[agent-plugins] ${warning}`);

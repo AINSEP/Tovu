@@ -1,4 +1,5 @@
 import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import { agentPluginActivations } from "./activation-effects.js";
 import { readProviderPluginLink } from "@jini-ai/agent-plugins/lifecycle/host-tools";
@@ -113,10 +114,12 @@ export function bindProviderFacePorts({ workspaceRoot }: { workspaceRoot: () => 
       for (const plugin of selected) {
         // The lifecycle refuses ambiguous non-bundled revisions; none may decide a current switch.
         if (counts.get(plugin.pluginId) !== 1) throw new Error(`Agent Plugin '${plugin.pluginId}' matches ${counts.get(plugin.pluginId)} installed packages — refusing to guess which one to use`);
-        try {
-          const provider = readProviderPluginLink({ manifest: JSON.parse(await catalog.read({ plugin, filename: "plugin.json" })) });
-          if (provider !== undefined) links.set(plugin.pluginId, provider);
-        } catch { /* An unreadable manifest links nothing. */ }
+        const provider = await orFallback({
+          work: async () => readProviderPluginLink({ manifest: JSON.parse(await catalog.read({ plugin, filename: "plugin.json" })) }),
+          fallback: undefined,
+          step: "read provider face link",
+        }); // An unreadable manifest links nothing.
+        if (provider !== undefined) links.set(plugin.pluginId, provider);
       }
       return links;
     },

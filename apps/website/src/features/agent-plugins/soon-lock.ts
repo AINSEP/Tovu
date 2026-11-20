@@ -10,6 +10,7 @@
  * `lifecycle.ts` binds it into the enable paths of the activation owner, and boot passes the same ports.
  */
 import { readPluginMaturity, type PluginMaturity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
 
 /** Recorded as `updatedBy` when boot switches a Soon plugin off, so the audit says why. */
@@ -55,8 +56,11 @@ export async function findSoonAgentPlugin<P extends SoonPlugin>(
   const name = revisions.find(plugin => plugin.displayName)?.displayName ?? pluginId;
   if (revisions.length === 0) return readHostPluginMaturity({ manifest: undefined, pluginId }) === "soon" ? { name } : undefined;
   for (const plugin of revisions) {
-    let manifest: unknown;
-    try { manifest = JSON.parse(await catalog.readManifest({ plugin })); } catch { manifest = undefined; }
+    const manifest: unknown = await orFallback({
+      work: async () => JSON.parse(await catalog.readManifest({ plugin })),
+      fallback: undefined,
+      step: "read plugin maturity manifest",
+    });
     if (readHostPluginMaturity({ manifest, pluginId }) === "soon") return { name };
   }
   return undefined;

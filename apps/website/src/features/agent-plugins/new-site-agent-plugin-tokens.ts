@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { parsePluginTokenMap, type TokenMapLimits } from "@jini-ai/agent-plugins/connect";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import type { AgentPluginPathsPort } from "./service-ports.js";
 
@@ -72,12 +73,14 @@ export async function firstNewSiteAgentPluginTokenRefusal({ check, tokens }: { c
 
 /** The plugin's manifest `name`, or `null` when `plugin.json` is missing or unreadable. */
 async function readBundledPluginId({ pluginDir }: { pluginDir: string }, _optional: Record<string, never> = {}): Promise<string | null> {
-  try {
-    const manifest = JSON.parse(await readFile(path.join(pluginDir, "plugin.json"), "utf8")) as { name?: unknown };
-    return typeof manifest.name === "string" && PLUGIN_ID_PATTERN.test(manifest.name) ? manifest.name : null;
-  } catch {
-    return null;
-  }
+  return orFallback({
+    work: async () => {
+      const manifest = JSON.parse(await readFile(path.join(pluginDir, "plugin.json"), "utf8")) as { name?: unknown };
+      return typeof manifest.name === "string" && PLUGIN_ID_PATTERN.test(manifest.name) ? manifest.name : null;
+    },
+    fallback: null,
+    step: "read bundled token plugin ID",
+  });
 }
 
 /**
@@ -93,12 +96,11 @@ export async function listBundledAgentPluginServers(
   { bundledSourceRoot: sourceRoot }: Pick<AgentPluginPathsPort, "bundledSourceRoot">,
   _optional = {},
 ): Promise<readonly InstalledAgentPluginServers[]> {
-  let entries: Dirent[];
-  try {
-    entries = await readdir(sourceRoot, { withFileTypes: true });
-  } catch {
-    return [];
-  }
+  const entries = await orFallback<Dirent[]>({
+    work: () => readdir(sourceRoot, { withFileTypes: true }),
+    fallback: [],
+    step: "list bundled token plugins",
+  });
   const out: InstalledAgentPluginServers[] = [];
   for (const entry of entries) {
     // Same skip as `seed-bundled.ts`: a retired id is never seeded, so it is never offered.

@@ -1,4 +1,5 @@
 import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { AgentPluginPathsPort } from "./service-ports.js";
@@ -35,17 +36,23 @@ interface ReaderPorts {
 export function readBundledHostSignalDeclaration(
   required: { readonly sourceRoot: string }, optional: ReaderPorts = {},
 ): HostSignalDeclaration {
-  let sources: ReturnType<typeof bundledContributionSources>;
   // Preboot readers must not turn a missing bundled payload into a boot failure (phase 2 policy).
-  try { sources = (optional.sources ?? bundledContributionSources)({ ...required, filename: "plugin.json" }); }
-  catch { return { signals: [] }; }
+  const sources = orFallbackSync({
+    work: () => (optional.sources ?? bundledContributionSources)({ ...required, filename: "plugin.json" }),
+    fallback: [],
+    step: "list bundled host signal manifests",
+  });
   const declarations = sources.flatMap(source => {
-    try {
-      const file = path.join(source.packageRoot, "plugin.json");
-      const text = optional.readText === undefined || optional.readText === null ? readManifestText({ file }) : optional.readText(file);
-      const declaration = parseHostSignalDeclaration({ manifest: JSON.parse(text) });
-      return declaration === undefined ? [] : [declaration];
-    } catch { return []; }
+    return orFallbackSync({
+      work: () => {
+        const file = path.join(source.packageRoot, "plugin.json");
+        const text = optional.readText === undefined || optional.readText === null ? readManifestText({ file }) : optional.readText(file);
+        const declaration = parseHostSignalDeclaration({ manifest: JSON.parse(text) });
+        return declaration === undefined ? [] : [declaration];
+      },
+      fallback: [],
+      step: "read bundled host signal manifest",
+    });
   });
   return combineDeclarations({ declarations });
 }
@@ -76,9 +83,13 @@ export function resolveBundledHostSignals(
   required: Pick<AgentPluginPathsPort, "bundledSourceRoot"> & { env: Readonly<Record<string, string | undefined>> },
   optional: { readDeclaration?: typeof readBundledHostSignalDeclaration } = {},
 ): HostSignals {
-  try {
-    const sourceRoot = required.bundledSourceRoot;
-    const declaration = selectCoreHostSignalDeclaration({ declaration: (optional.readDeclaration ?? readBundledHostSignalDeclaration)({ sourceRoot }) });
-    return evaluateHostSignals({ env: required.env, declaration });
-  } catch { return evaluateHostSignals({ env: required.env, declaration: selectCoreHostSignalDeclaration({}) }); }
+  return orFallbackSync({
+    work: () => {
+      const sourceRoot = required.bundledSourceRoot;
+      const declaration = selectCoreHostSignalDeclaration({ declaration: (optional.readDeclaration ?? readBundledHostSignalDeclaration)({ sourceRoot }) });
+      return evaluateHostSignals({ env: required.env, declaration });
+    },
+    fallback: undefined,
+    step: "resolve bundled host signals",
+  }) ?? evaluateHostSignals({ env: required.env, declaration: selectCoreHostSignalDeclaration({}) });
 }
