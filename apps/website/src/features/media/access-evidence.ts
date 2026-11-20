@@ -1,15 +1,15 @@
-import type { PostRecord } from '../post/post.js';
+type AccessEvidencePost = { readonly memberAccessJson?: string | null };
 
 /** Access settings only: never entry bodies or a visitor's entitlement decision. */
 export interface AssetReferenceScan {
-  readonly referencing: Array<Pick<PostRecord, 'memberAccessJson'>>;
-  readonly opaqueGated: Array<Pick<PostRecord, 'memberAccessJson'>>;
+  readonly referencing: Array<AccessEvidencePost>;
+  readonly opaqueGated: Array<AccessEvidencePost>;
 }
 
 /** Derived reverse index: access metadata only, no retained post bodies or visitor decisions. */
 export interface AssetReferenceIndex {
-  readonly byAsset: Map<string, Set<Pick<PostRecord, 'memberAccessJson'>>>;
-  readonly opaqueGated: Set<Pick<PostRecord, 'memberAccessJson'>>;
+  readonly byAsset: Map<string, Set<AccessEvidencePost>>;
+  readonly opaqueGated: Set<AccessEvidencePost>;
 }
 
 type ScanCache = Map<string, { expiresAt: number; value: Promise<AssetReferenceIndex> }>;

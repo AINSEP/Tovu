@@ -24,6 +24,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { membersAgentToolCatalog } from "./agent-tools.js";
+import { buildMembersWriteServiceDeps } from "./ports.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -88,30 +89,6 @@ export interface MembersToolDeps {
   /** The site's system-email From resolver — see `MembersWriteServiceDeps.senderIdentity`. */
   mailSenderIdentity?: MembersWriteServiceDeps["senderIdentity"];
   magicLinkPerEmailLimiter: MagicLinkRateLimiter;
-}
-
-export type MembersWriteServiceSourceDeps = Pick<MembersToolDeps, "clock" | "idGen" | "memberRepo" | "memberTierRepo" | "memberSubscriptionRepo" | "memberSessionRepo" | "magicLinkRepo" | "mailer" | "mailStatus" | "originRegistry" | "principalRepo" | "mailSenderIdentity">;
-
-/** Assembles the write-service bundle in the feature: importing from the HTTP admin layer would
- * invert the codebase's ports/adapters direction. @complexity O(1), object construction only. */
-export function buildMembersWriteServiceDeps(
-  { deps }: { deps: MembersWriteServiceSourceDeps },
-  _optional: Record<string, never> = {},
-): MembersWriteServiceDeps {
-  return {
-    clock: deps.clock,
-    ids: deps.idGen,
-    members: deps.memberRepo,
-    tiers: deps.memberTierRepo,
-    subscriptions: deps.memberSubscriptionRepo,
-    sessions: deps.memberSessionRepo,
-    magicLinks: deps.magicLinkRepo,
-    mailer: deps.mailer,
-    mailStatus: deps.mailStatus,
-    origin: deps.originRegistry,
-    principals: deps.principalRepo,
-    senderIdentity: deps.mailSenderIdentity,
-  };
 }
 
 /**

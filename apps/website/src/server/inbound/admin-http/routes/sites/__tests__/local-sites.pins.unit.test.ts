@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import express from "express";
 import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../local-sites.js";
-import { LocalSiteError, type LocalSiteSupervisorPort, type LocalSiteState } from "#src/platform/site-dir/local-site-supervisor";
+import { LocalSiteError } from "#src/platform/site-dir/index";
+import type { LocalSiteSupervisorPort, LocalSiteState } from "#src/platform/site-dir/local-site-supervisor";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 const ROOT = "/api/admin/v1/workspaces/:workspaceId/system/sites";

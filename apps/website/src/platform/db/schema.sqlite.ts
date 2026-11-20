@@ -1590,7 +1590,7 @@ export const media = sqliteTable(
  * DB constraint. `media_id` is indexed, not unique, because one asset can retire several slugs
  * over its lifetime. Permanent delete (`purgeMedia`/`remove`) deletes that asset's rows here too,
  * which is what frees the name back up. Lives in the host, not `@jini-ai/cms` — same reasoning as
- * this table family's other Tovu-only additions (see `versioned-media-repo.ts`'s file header).
+ * this table family's other Tovu-only additions (see `VersionedMediaRepoPort`).
  */
 export const mediaSlugHistory = sqliteTable(
   "media_slug_history",

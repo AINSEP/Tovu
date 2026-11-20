@@ -9,7 +9,8 @@ import { createRawFileSitePort } from "#src/features/publish-content/publish-bac
 import { BackstopRefusal } from "../backstop-policy.js";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
 import { createFileBlobIndex } from "../file-blob-index.js";
-import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryBlobStore, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";

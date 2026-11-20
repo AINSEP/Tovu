@@ -13,7 +13,7 @@ import type { composeTaxonomyTrashRepos } from "./taxonomy-trash-repos.js";
 import type { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { InMemoryCommentRepo } from "@jini-ai/cms/comments";
-import type { InMemoryVersionedMediaRepo } from "#src/features/media/index";
+import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import type { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import type { TrashDb } from "#src/features/trash/index";

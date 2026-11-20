@@ -118,9 +118,6 @@ export { uploadMedia } from "@jini-ai/cms/media";
 export type { MediaRecord } from "@jini-ai/cms/media";
 export { InMemoryMediaContentTypeStore } from "./content-type-store.js";
 
-export type { VersionedMediaRepoPort } from "./versioned-media-repo.js";
-export { InMemoryVersionedMediaRepo } from "./versioned-media-repo.js";
-
 export type {
   MediaProviderCredentialRepoPort,
   MediaProviderCredentialResolveDeps,
@@ -152,5 +149,4 @@ export { resolveContentTypes, readRecordedContentType, type ContentTypeDeps } fr
 export { readChatAttachmentForOwner, type ChatAttachmentReadResult } from "./read-chat-attachment.js";
 export { captureMediaUploaded } from "./analytics.js";
 export { findMediaWhereUsed } from "./where-used.js";
-export { guardMediaRenditionRepo } from "./guard-rendition-repo.js";
 export type { HydrateBlobStoreFromSeedResult } from "./hydrate-blob-store-from-seed.js";

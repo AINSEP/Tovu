@@ -17,6 +17,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import {
   CORE_PUBLIC_TRANSFORM_NAME,
   computeBlobStorageKey,
@@ -25,7 +26,6 @@ import {
   InMemoryBlobStore,
   InMemoryMediaContentTypeStore,
   InMemoryTransformDefinitionRepo,
-  InMemoryVersionedMediaRepo,
   type MediaRecord,
 } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";

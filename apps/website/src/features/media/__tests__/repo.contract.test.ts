@@ -20,8 +20,8 @@ import {
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
 } from "#src/platform/db/sqlite/media-repo.sqlite";
-import { InMemoryVersionedMediaRepo } from "#src/features/media/index";
 import {
+  InMemoryVersionedMediaRepo,
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
   InMemoryMediaRepo,
@@ -29,6 +29,7 @@ import {
   MediaConflictError,
 } from "@jini-ai/cms/media";
 import type {
+  VersionedMediaRepoPort,
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
   MediaRepoPort,
@@ -38,7 +39,6 @@ import type {
   MediaRecord,
   TransformDefinitionRecord,
 } from "@jini-ai/cms/media";
-import type { VersionedMediaRepoPort } from "#src/features/media/index";
 
 /**
  * @file ADR-046 Phase 1 — shared contract-test suite for the four route-consumed media repo

@@ -4,7 +4,7 @@ import type { SiteBackupInclude } from "./sources.js";
 import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";
 
 import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR } from "./saved-keys-port.js";
-import { isBundledSchemaIdentity } from "#src/platform/site-dir/schema-guard";
+import { isBundledSchemaIdentity } from "#src/platform/site-dir/index";
 
 export const ARCHIVE_MANIFEST_PATH = "manifest.json";
 export const ARCHIVE_DATABASE_PATH = "content.db";

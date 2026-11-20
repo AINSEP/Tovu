@@ -21,11 +21,11 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import {
   computeBlobStorageKey,
   InMemoryAssetBlobRepo,
   InMemoryBlobStore,
-  InMemoryVersionedMediaRepo,
   MediaConflictError,
   type AssetBlobRecord,
   type MediaRecord,

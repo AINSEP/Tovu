@@ -23,7 +23,8 @@ mock.module("@jini-ai/cms/media", { namedExports: { ...real,
   },
 } });
 
-const { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo } = await import("#src/features/media/index");
+const { InMemoryVersionedMediaRepo } = await import("@jini-ai/cms/media");
+const { InMemoryAssetBlobRepo, InMemoryBlobStore } = await import("#src/features/media/index");
 const { importMediaEntity } = await import("../import-media-entity.js");
 
 test("importMediaEntity rethrows an unexpected write-once guard failure unchanged and writes nothing", async () => {

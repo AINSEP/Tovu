@@ -30,16 +30,15 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryVersionedMediaRepo, type VersionedMediaRepoPort } from "@jini-ai/cms/media";
 import {
   computeBlobStorageKey,
   InMemoryAssetBlobRepo,
   InMemoryMediaContentTypeStore,
   InMemoryBlobStore,
-  InMemoryVersionedMediaRepo,
   type AssetBlobRecord,
   type BlobStorePort,
   type MediaRecord,
-  type VersionedMediaRepoPort,
 } from "#src/features/media/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";

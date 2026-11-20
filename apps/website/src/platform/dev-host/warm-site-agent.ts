@@ -1,5 +1,5 @@
 /** Agent tools reach the single dev-host pool without importing process-launch assembly. */
-import { LocalSiteError } from '#src/platform/site-dir/local-site-supervisor';
+import { LocalSiteError } from "#src/platform/site-dir/index";
 import { resolveCheckoutRoot } from '#src/platform/site-dir/product-root';
 import { resolveDevTls, resolveDevTlsCertPaths } from './dev-tls.js';
 import { requestLoopbackHttp } from '@jini-ai/platform/net';

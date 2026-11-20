@@ -3,7 +3,8 @@ import { InMemoryRedirectRepo, RedirectHitSinkImpl } from "@jini-ai/cms/redirect
 import { InMemoryOutbox, InMemoryEventBus } from "#src/contracts/core/events/index";
 import { InMemoryRestorePointsRepo } from "#src/features/database/repo.memory";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
-import { InMemoryAssetRenditionRepo, InMemoryVersionedMediaRepo } from "#src/features/media/index";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryAssetRenditionRepo } from "#src/features/media/index";
 import { InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";

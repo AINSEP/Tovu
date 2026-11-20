@@ -5,7 +5,7 @@ import { sanitizePageHtml, renderMediaRawHtml } from '@jini-ai/cms/widgets/html'
 import { buildPostRecord } from '#src/features/post/__tests__/post-record.fixture';
 import { InMemoryPostRepo } from '#src/features/post/index';
 import { trashAwareEntryRepo } from '#src/features/entries/__tests__/support/trash-aware-entry-repo';
-import { InMemoryVersionedMediaRepo } from '#src/features/media/versioned-media-repo';
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from '#src/features/media/index';
 import { InMemoryPresentationSettingsRepo } from '#src/features/presentation/index';
 import { renderStaticPage } from '#src/features/theme/static-render';

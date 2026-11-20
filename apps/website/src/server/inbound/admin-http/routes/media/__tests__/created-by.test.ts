@@ -8,7 +8,8 @@ import { registerAdminMediaUploadRoute } from "../upload.js";
 import { registerAdminMediaUpdateRoute } from "../update.js";
 import { registerAdminMediaListRoute } from "../list.js";
 import type { MediaRouteDeps } from "../deps.js";
-import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
   InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo,
   InMemoryImageTransformer } from "#src/features/media/index";
 

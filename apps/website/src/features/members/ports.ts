@@ -266,6 +266,43 @@ export interface MembersWriteServiceDeps {
   senderIdentity?: MailSenderIdentityPort;
 }
 
+export type MembersWriteServiceSourceDeps = {
+  clock: MembersWriteServiceDeps["clock"];
+  idGen: MembersWriteServiceDeps["ids"];
+  memberRepo: MembersWriteServiceDeps["members"];
+  memberTierRepo: MembersWriteServiceDeps["tiers"];
+  memberSubscriptionRepo: MembersWriteServiceDeps["subscriptions"];
+  memberSessionRepo: MembersWriteServiceDeps["sessions"];
+  magicLinkRepo: MembersWriteServiceDeps["magicLinks"];
+  mailer: MembersWriteServiceDeps["mailer"];
+  mailStatus?: MembersWriteServiceDeps["mailStatus"];
+  originRegistry?: MembersWriteServiceDeps["origin"];
+  principalRepo: MembersWriteServiceDeps["principals"];
+  mailSenderIdentity?: MembersWriteServiceDeps["senderIdentity"];
+};
+
+/** Assembles the write-service bundle in the feature: importing from the HTTP admin layer would
+ * invert the codebase's ports/adapters direction. @complexity O(1), object construction only. */
+export function buildMembersWriteServiceDeps(
+  { deps }: { deps: MembersWriteServiceSourceDeps },
+  _optional: Record<string, never> = {},
+): MembersWriteServiceDeps {
+  return {
+    clock: deps.clock,
+    ids: deps.idGen,
+    members: deps.memberRepo,
+    tiers: deps.memberTierRepo,
+    subscriptions: deps.memberSubscriptionRepo,
+    sessions: deps.memberSessionRepo,
+    magicLinks: deps.magicLinkRepo,
+    mailer: deps.mailer,
+    mailStatus: deps.mailStatus,
+    origin: deps.originRegistry,
+    principals: deps.principalRepo,
+    senderIdentity: deps.mailSenderIdentity,
+  };
+}
+
 /** Exactly one challenge credential; the link and code spend the same consumption stamp. */
 export type MemberSignInInput = { workspaceId: UUID; userAgent?: string; ip?: string } & (
   | { token: string; challengeId?: never; code?: never }

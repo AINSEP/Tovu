@@ -5,7 +5,8 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemorySettingsRepo } from "#src/features/settings/index";
 import type { composeOriginNewsletter } from "./origin-newsletter.js";
 import type { MemoryClock } from "../ports.js";
-import type { InMemoryVersionedMediaRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
+import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import type { InMemoryMediaContentTypeStore } from "#src/features/media/index";
 
 export interface MemorySeoInput {
   postRepo: InMemoryPostRepo;

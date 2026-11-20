@@ -2,7 +2,8 @@ import type { PostRecord } from "#src/features/post/index";
 import type { InMemoryPostRepo } from "#src/features/post/index";
 import type { RedirectRecord, InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { CommentRecord, InMemoryCommentRepo } from "@jini-ai/cms/comments";
-import type { InMemoryVersionedMediaRepo, MediaRecord } from "#src/features/media/index";
+import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import type { MediaRecord } from "#src/features/media/index";
 import { COMMENT_ENTITY_TYPE, MEDIA_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
 import { createRecordStoreTrashAdapter, type TrashAdapter } from "@jini-ai/cms/trash";
 

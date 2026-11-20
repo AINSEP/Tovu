@@ -17,7 +17,8 @@ import test, { afterEach } from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore, type AssetBlobRecord } from "#src/features/media/index";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryBlobStore, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore, type AssetBlobRecord } from "#src/features/media/index";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";

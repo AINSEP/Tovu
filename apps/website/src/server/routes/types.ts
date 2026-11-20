@@ -1,5 +1,5 @@
 import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult, ProviderConfigSource } from "@jini-ai/plugins/host";
-import type { DocumentTextExtractorPort, ImageCodecPort } from "@jini-ai/cms/media";
+import type { VersionedMediaRepoPort, DocumentTextExtractorPort, ImageCodecPort } from "@jini-ai/cms/media";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
 import type { Express, Request } from "express";
@@ -71,7 +71,6 @@ import type {
   ImageTransformerPort,
   MediaContentTypeStorePort,
   TransformDefinitionRepoPort,
-  VersionedMediaRepoPort,
 } from "../../features/media/index.js";
 // Composition-root-only boot effect, deliberately imported straight from its own file rather than
 // through the `features/media` barrel — same precedent `deps.ts` already follows for

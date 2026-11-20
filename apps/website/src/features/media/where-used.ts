@@ -2,13 +2,23 @@
  * saves do not maintain entry_refs; read those current bodies instead of claiming a stale index
  * is complete. This is a host adapter over Tovu's separate post store, with no new persisted data. */
 import type { EntryRefRow, EntryRefsRepoPort } from '@jini-ai/cms/widgets';
-import type { VersionedMediaRepoPort } from './versioned-media-repo.js';
-import type { PostRepoPort } from '#src/features/post/contracts';
+import type { VersionedMediaRepoPort } from "@jini-ai/cms/media";
 import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
+
+type WhereUsedPostReader = {
+  list(required: { workspaceId: string }): Promise<readonly {
+    readonly id: string;
+    readonly deletedAt?: string | null;
+    readonly bodyJson: unknown;
+    readonly bodyHtml: string | null;
+    readonly seoExtJson?: string | null;
+    readonly bodyFormat: "doc" | "html";
+  }[]>;
+};
 
 /** O(n) in current post body bytes plus indexed alias lookups; read-only and workspace-scoped. */
 export async function findMediaWhereUsed(
-  { deps, input }: { deps: { entryRefsRepo: Pick<EntryRefsRepoPort, 'findByTarget'>; postRepo: Pick<PostRepoPort, 'list'>; mediaRepo: Pick<VersionedMediaRepoPort, 'listRetiredSlugs'> }; input: { workspaceId: string; mediaId: string; slug: string } },
+  { deps, input }: { deps: { entryRefsRepo: Pick<EntryRefsRepoPort, 'findByTarget'>; postRepo: WhereUsedPostReader; mediaRepo: Pick<VersionedMediaRepoPort, 'listRetiredSlugs'> }; input: { workspaceId: string; mediaId: string; slug: string } },
   { includeTrashed = false }: { includeTrashed?: boolean } = {},
 ): Promise<{ count: number; references: readonly EntryRefRow[] }> {
   // Retired slugs still serve this asset. Renaming cannot make a live reference safe to purge.
