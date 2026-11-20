@@ -7,7 +7,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS } from "#src/features/publish-content/blob-staging";
+import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { computeBlobStorageKey, TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { lastRouteHandler } from "../helpers/last-route-handler.js";

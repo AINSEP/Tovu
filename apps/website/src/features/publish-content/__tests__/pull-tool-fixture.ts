@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryTokenStore } from "../../../contracts/core/gated-mutations/token.js";
-import { InMemoryPublishContentBundleRepo } from "../bundle-staging.js";
+import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "../peers.js";
 import { InMemoryPublishContentRunRepo } from "../run-repo.js";

@@ -1,11 +1,11 @@
 import { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
-import type { BackstopPorts } from "#src/features/publish-content/backstop-ports";
+import type { BackstopPorts } from "@jini-ai/cms/publish/transfer";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import type { BlobStorePort } from "#src/features/media/index";
-import type { FileBlobIndexPort } from "#src/features/publish-content/file-blob-index";
+import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
 
 /** Read coverage fresh at request time, like the catalog. The raw policy cannot accidentally

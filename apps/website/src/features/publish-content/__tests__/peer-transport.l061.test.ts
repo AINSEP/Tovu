@@ -5,7 +5,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { callPeer, pullBlobsFromPeer, pushBundleToPeer, PublishContentPeerTransportError } from "../peer-transport.js";
 import type { ResolvedPeerCredential } from "../peers.js";
 import type { PublishContentExportEnvelope } from "../export-bundle.js";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 
 const credential: ResolvedPeerCredential = { id: "peer", label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: ["fixture", "credential"].join("-") };
 

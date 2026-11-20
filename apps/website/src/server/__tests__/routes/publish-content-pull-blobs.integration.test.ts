@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 

@@ -1,7 +1,7 @@
 import { executeCommand } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
-import { PublishContentApplyRowError } from "./apply-errors.js";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash, CONTENT_HASH_VERSION } from "./content-hash.js";
 import { addressHeldByOther, addressHeldInTrash, changedSincePlan, notWired, trashedAtDestination } from "./precheck-reasons.js";
 import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, PublishContentReference, MediaSourceReplacement } from "./type-registry.js";

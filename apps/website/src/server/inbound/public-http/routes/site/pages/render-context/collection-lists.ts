@@ -1,5 +1,9 @@
 // Keep request rendering separate from theme installation, imports, and agent tools.
-import { collectionMarkerKey, splitCollectionMarkerInner } from "#src/features/theme/index";
+// C5 (collections plan, 2026-09-23): the route layer (`pages.ts`'s
+  // `resolveCollectionListsForRender`) needs the same per-marker identity key and inner-content
+  // splitter `injectCollectionEmbeds` uses, so both sides agree on how a `collection` marker is
+  // addressed and how its authored `<template>` is found.
+import { collectionMarkerKey, splitCollectionMarkerInner } from "@jini-ai/cms/listing";
 import { renderEntryList, type EntryListItem, type EntryListFieldValue } from "@jini-ai/cms/listing";
 import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import { markersOfType, COLLECTION_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";

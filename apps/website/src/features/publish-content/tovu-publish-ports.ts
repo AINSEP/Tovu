@@ -24,7 +24,7 @@ import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
 import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
 import type { EntryListExcludingTypesPort } from "@jini-ai/cms/widgets/resolvers";
-import type { FileBlobIndexPort } from "./file-blob-index.js";
+import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";

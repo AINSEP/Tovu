@@ -2,7 +2,7 @@ import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
 
 import type { JsonValue } from "@jini-ai/core/primitives";
 
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";

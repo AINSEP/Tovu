@@ -8,7 +8,7 @@ import { contentHash } from "../content-hash.js";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { BackstopRefusal } from "../backstop-policy.js";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
-import { createFileBlobIndex } from "../file-blob-index.js";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryBlobStore, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";

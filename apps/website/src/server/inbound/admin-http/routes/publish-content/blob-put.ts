@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";

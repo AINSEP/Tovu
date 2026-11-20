@@ -1,4 +1,4 @@
-import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 
 import { MediaConflictError, MediaSourceImmutableError, resolveWriteOnceSource, replaceMediaFile, MediaValidationError, sniffContentType } from "./index.js";
 import type { VersionedMediaRepoPort } from "@jini-ai/cms/media";

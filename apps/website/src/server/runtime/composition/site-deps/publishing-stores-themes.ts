@@ -11,7 +11,7 @@ import { SqlitePublishContentPeerRepo } from "#src/features/publish-content/publ
 import { THEME_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { builtInContentSeedDbPath } from "../site-paths.js";
-import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { createSqlitePublishContentSeedHash } from "../publish-content-seed-hash.js";
 import { bindThemeTrashAdapter } from "#src/features/theme/theme-trash-binding";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";

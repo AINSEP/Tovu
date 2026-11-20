@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-import type { FileBlobIndexPort } from "./file-blob-index.js";
+import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { PeerBlobSource } from "./peer-transport.js";
 
 /**

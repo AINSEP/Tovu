@@ -119,7 +119,7 @@ function productProviderOf({ records, pluginId, contract }: { records: readonly 
 export async function loadProductProviders(required: ProductProviderInput, { resolvePackage = createRequire(import.meta.url).resolve }: {
   resolvePackage?: NodeJS.RequireResolve;
 } = {}): Promise<ProductTelemetry> {
-  const [{ discoverPlugins, loadProviderPluginArtifact, siteEntryPath }, { pluginHostBinding, createPluginModuleImporter }, { PROVIDER_CONTRACTS }] = await Promise.all([
+  const [{ discoverPlugins, loadProviderPluginArtifact, siteEntryPath, createPluginModuleImporter }, { pluginHostBinding }, { PROVIDER_CONTRACTS }] = await Promise.all([
     import('@jini-ai/plugins/host/node'), import('../../../features/plugin-runtime/host-binding.js'), import('./provider-contracts.js'),
   ]);
   // The staged desktop bundle has no node_modules ancestor: resolve from the payload/shell roots too.

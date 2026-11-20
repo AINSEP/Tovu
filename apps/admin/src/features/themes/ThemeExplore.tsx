@@ -1281,7 +1281,7 @@ function ThemeExploreContent({
             redundant wrapping anchor rather than the button; `navigate()` is a real client-side
             route change, same as `ThemeGrid`'s own "Explore" button in `Themes.tsx` right above
             this file. Icon-only since 2026-10-11: `aria-label` names it, `title` is the hover tip
-            (same pair `ThemePreviewReloadButton` uses). */}
+            (same pair `ThemePreviewReloadControl` uses). */}
         <button
           type="button"
           className="theme-explore-back"

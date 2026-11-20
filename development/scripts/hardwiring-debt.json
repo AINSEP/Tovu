@@ -130,7 +130,7 @@
     {
       "rule": "HW2-vendor-adapter",
       "file": "apps/website/src/features/plugin-runtime/host-binding.ts",
-      "line": 7,
+      "line": 5,
       "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
       "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
     },

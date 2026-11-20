@@ -6,7 +6,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
-import type { BackstopAuditRecord } from "#src/features/publish-content/backstop-audit";
+import type { BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 import { createPublishContentPeer, InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "#src/features/publish-content/peers";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";

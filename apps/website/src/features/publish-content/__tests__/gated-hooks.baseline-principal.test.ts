@@ -14,9 +14,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
-import { InMemoryPublishContentBundleRepo } from "../bundle-staging.js";
+import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { buildPublishContentImportHooks } from "../gated-hooks.js";
 import type { PublishContentReport } from "../plan-rows.js";

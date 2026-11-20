@@ -70,11 +70,6 @@ export { isEligibleForTemplateBranch, isBarePageChoice, resolveTemplateBranchCho
 export { resolveStaticTierPageShellFallback } from "./static-page-shell.js";
 export { scanMenuEmbedIds, type StaticMenuItem, type StaticHtmlMenu, type StaticMenuContent } from "./static-render-menus.js";
 export { postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPreviewsPage, type StaticPostPreview, type StaticListingBatch } from "./static-render-previews.js";
-export { // C5 (collections plan, 2026-09-23): the route layer (`pages.ts`'s
-  // `resolveCollectionListsForRender`) needs the same per-marker identity key and inner-content
-  // splitter `injectCollectionEmbeds` uses, so both sides agree on how a `collection` marker is
-  // addressed and how its authored `<template>` is found.
-  collectionMarkerKey, splitCollectionMarkerInner, type StaticCollectionList } from "./static-render-collections.js";
 
 
 // 2026-08-16 (export<->server decoupling follow-up) — "given discovered themes + a candidate id,

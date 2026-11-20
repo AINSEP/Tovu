@@ -79,7 +79,7 @@ export interface PublishContentOutcomeRow {
  * a partial per-entity report.
  */
 export interface PublishContentReport {
-  readonly backstop?: import("./backstop-audit.js").BackstopMetadata;
+  readonly backstop?: import("@jini-ai/cms/publish/transfer").BackstopMetadata;
   readonly refused: boolean;
   readonly refusalReason: string | null;
   /** Entity types in the order Task 8's apply loop must walk them — derived from every currently

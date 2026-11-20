@@ -11,7 +11,7 @@ import { themeTokenAliasDeclarations } from "./token-aliases.js";
 import { type StaticMenuContent, injectMenuEmbeds } from "./static-render-menus.js";
 import { type StaticPostPreview, type StaticListingBatch, type StaticPostPreviewsPage, injectPostPreviewsEmbeds } from "./static-render-previews.js";
 import { type StaticFeaturedImage, injectFeaturedImage, injectPostAuthor } from "./static-render-content.js";
-import { injectCollectionEmbeds } from "./static-render-collections.js";
+import { injectCollectionEmbeds } from "@jini-ai/cms/listing";
 
 /**
  * @file Real (non-spike) request-time rendering for `static`-tier themes.

@@ -16,7 +16,7 @@ import type { ToolContributor } from "@jini-ai/core";
 
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import { plan as gatewayPlan, confirm as gatewayConfirm, execute as gatewayExecute, ForbiddenError, PlanStaleError, type GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
-import { loadActiveBundle } from "./bundle-staging.js";
+import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "./gated-hooks.js";
 import { executePublishContentImport, RestorePointUnavailableError } from "./execute-import.js";
 import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "./run-repo.js";

@@ -21,11 +21,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
-import { InMemoryPublishContentBundleRepo } from "../bundle-staging.js";
-import type { StagedBundleRecord } from "../bundle-staging.js";
+import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
+import type { StagedBundleRecord } from "@jini-ai/cms/publish/transfer";
 import {
   buildPublishContentImportHooks,
   PublishContentBundleNotFoundError,

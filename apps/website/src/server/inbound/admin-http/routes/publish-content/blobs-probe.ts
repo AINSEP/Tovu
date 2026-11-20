@@ -1,7 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
-import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";

@@ -7,13 +7,13 @@ import {
   applyOrdinaryRow, checkAgreement, checkExistence, refreshNonWritingRow,
   type ApplyRowContext, type ApplyRowStep,
 } from "./apply-row.js";
-import type { BackstopAuditRecord, BackstopInverse } from "./backstop-audit.js";
+import type { BackstopAuditRecord, BackstopInverse } from "@jini-ai/cms/publish/transfer";
 import {
   currentChangeSetIds, currentReport, currentRetiredChangeSetIds, runItemStates, saveRunRecord, saveRunSnapshot,
   type ApplyRun, type ApplyRunIdentity, type CreatePublishContentApplyPortInput,
 } from "./apply-run.js";
 import { readBackstopMetadata } from "./backstop-service.js";
-import { loadActiveBundle } from "./bundle-staging.js";
+import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
 import { contentHash } from "./content-hash.js";
 import { PublishContentBundleNotFoundError } from "./gated-hooks.js";
 import type { PublishContentApplyPort } from "./gated-hooks.js";

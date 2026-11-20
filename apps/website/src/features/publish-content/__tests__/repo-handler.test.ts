@@ -8,7 +8,7 @@ import type {
   OutboxPort,
 } from "@jini-ai/core/contracts/events";
 
-import { PublishContentApplyRowError } from "../apply-errors.js";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash } from "../content-hash.js";
 import {
   addressHeldByOther,

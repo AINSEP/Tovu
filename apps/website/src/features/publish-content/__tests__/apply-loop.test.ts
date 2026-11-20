@@ -42,9 +42,9 @@ import { urlFor } from "#src/platform/routing/adapter";
 import { type RouteTarget } from '@jini-ai/cms/routing';
 
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo, type PublishContentBaselineRepoPort } from "../baseline-repo.js";
-import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
+import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
 import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "../run-repo.js";
 import { planImport } from "../planner.js";
 import { entityKey, type PublishContentBundle, type PublishContentReport } from "../plan-rows.js";

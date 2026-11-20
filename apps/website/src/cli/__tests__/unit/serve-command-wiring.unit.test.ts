@@ -260,7 +260,9 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   }) as typeof process.once);
   t.mock.method(process, "exit", ((code: number) => { exitCode = code; }) as typeof process.exit);
   const logged: string[] = [];
-  t.mock.method(console, "info", (...args: unknown[]) => { logged.push(args.map(String).join(" ")); });
+  let sequence = 0;
+  const loggedSequence: number[] = [];
+  t.mock.method(console, "info", (...args: unknown[]) => { logged.push(args.map(String).join(" ")); loggedSequence.push(sequence++); });
   const errors: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { errors.push(args); });
   const stderr: string[] = [];
@@ -269,6 +271,13 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     stderr.push(String(chunk));
     return (writeStderr as (...args: unknown[]) => boolean)(chunk, ...rest);
   }) as typeof process.stderr.write);
+  const stdout: string[] = [];
+  const stdoutSequence: number[] = [];
+  t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => {
+    stdout.push(String(chunk));
+    stdoutSequence.push(sequence++);
+    return true;
+  });
   const readinessFailure = new Error("identity seeding failed");
   const { runServeCommand } = await import("../../commands/serve.js");
   try {
@@ -289,6 +298,10 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       daemonStarts.length = 0;
       errors.length = 0;
       logged.length = 0;
+      loggedSequence.length = 0;
+      stdout.length = 0;
+      stdoutSequence.length = 0;
+      sequence = 0;
       stderr.length = 0;
       if (scenario.identityFails === true) {
         const failing = Promise.reject(readinessFailure);
@@ -311,9 +324,12 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       const startup = `tovu serve: dir=${target} port=4567 schemaVersion=`;
       const startupIndex = logged.findIndex(line => line.startsWith(startup));
       assert.ok(startupIndex >= 0, "the documented startup line is printed once the listener is bound");
-      const tokenIndex = logged.findIndex(line => /^tovu serve: bootToken=\S+$/.test(line));
-      if (scenario.emitBootToken === true) assert.equal(tokenIndex, startupIndex - 1, "the boot token is printed on its own line just before the startup line");
-      else assert.equal(tokenIndex, -1, "no boot token is printed unless asked for");
+      assert.equal(logged.some(line => line.includes("bootToken")), false);
+      if (scenario.emitBootToken === true) {
+        assert.equal(stdout.length, 1);
+        assert.match(stdout[0], /^tovu serve: bootToken=\S+\n$/);
+        assert.ok(stdoutSequence[0] < loggedSequence[startupIndex]);
+      } else assert.deepEqual(stdout, []);
       const widened = stderr.filter(line => line.includes("this site is reachable from other machines"));
       if (scenario.expected === "127.0.0.1") assert.deepEqual(widened, []);
       else assert.deepEqual(widened, [`tovu serve: warning: listening on ${scenario.expected ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`]);
