@@ -1,9 +1,10 @@
 /** Tovu policy over Jini's bounded OS sampler and process-tree owner. Monitor only. */
-import { type ProcessUsage, type ProcessPrivateMemory } from '@jini-ai/platform/process';
+import { sampleProcessPrivateMemory, type ProcessUsage, type ProcessPrivateMemory } from '@jini-ai/platform/process';
+import { orFallback } from '@jini-ai/core/errors/idioms';
 import { collectProcessTreePids } from '@jini-ai/core/contracts/runtime';
 import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
 import type { ResourcesRequest, ResourceMetrics, ResourceProcess, ResourcesSnapshot } from './contracts/resources.ts';
-import { groupMemoryMetric, readDesktopMemory, sampleTopMemory, type MemoryUsage, type PrivateMemorySampler } from './desktop-memory-sampler.ts';
+import { groupMemoryMetric, readDesktopMemory, type MemoryUsage, type PrivateMemorySampler } from './desktop-memory-sampler.ts';
 
 type ResourceGroup = ResourcesSnapshot['app'];
 
@@ -164,12 +165,12 @@ function shouldSample({ cached, inFlight, sitesKey, sampledSitesKey, now, lastAt
  * @example const monitor = createDesktopResources(ports); await monitor.get({ panelOpen: true });
  * @complexity Per sample O((s+1) * (n + tree(n))) time/O(n+s) space (see groupSample);
  * cached reads compare owned site handles in O(s log s) time/O(s) space.
- * macOS adds at most one top read per 60 s (512 owned PIDs, 5 s timeout, 1 MiB output cap);
+ * macOS adds at most one top read per 60 s (512 owned PIDs, 5 s timeout, 8 MiB output cap);
  * ps still supplies ownership/CPU/RSS because top's PID/MEM table cannot replace that inventory.
  */
 export function createDesktopResources(ports: DesktopResourcesPorts, _options = {}) {
   const samplePrivateMemory: PrivateMemorySampler | undefined = ports.samplePrivateMemory ?? (ports.platform === 'darwin'
-    ? input => sampleTopMemory(input) : undefined);
+    ? input => orFallback({ work: () => sampleProcessPrivateMemory({ pids: input.pids, platform: 'darwin' }), fallback: { metric: 'physical-footprint', readings: [...new Set(input.pids)].map(pid => ({ pid, bytes: null })) }, step: 'sample macOS footprint' }) : undefined);
   let lastMemoryAttempt = -Infinity;
   let memory: ProcessPrivateMemory = { metric: 'unavailable', readings: [] };
 
