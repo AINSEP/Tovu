@@ -116,14 +116,16 @@ function AgentPluginRowStateArea({
   if (plugin.maturity === "soon" && !plugin.enabled) {
     return (
       <>
-        {/* The padlock leads the state word so the switch stays in the same column as every other row. */}
-        <span className="agent-plugin-linked-lock">
-          <InfoTip label={t(SOON_PLUGIN_TIP)} icon={<LockIcon />} agentHandle={`${agentHandleBase}-soon`} />
-        </span>
+        {/* Same shape as the linked row: the state word, then the padlock in the switch's column. The
+            disabled switch stays in the DOM (its name and state) but is visually hidden, so the
+            divider, word, eye and trash columns line up down the list. */}
         <span className="agent-plugin-state">{t("Disabled")}</span>
         <button type="button" role="switch" aria-checked={false} aria-label={agentPluginToggleAriaLabel(plugin, locale)} disabled className="agent-plugin-switch agent-plugin-switch--locked">
           <span className="agent-plugin-switch-knob" aria-hidden="true" />
         </button>
+        <span className="agent-plugin-linked-lock">
+          <InfoTip label={t(SOON_PLUGIN_TIP)} icon={<LockIcon />} agentHandle={`${agentHandleBase}-soon`} />
+        </span>
       </>
     );
   }

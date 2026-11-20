@@ -4097,10 +4097,11 @@ details.login-card > form { display: flex; flex-direction: column; gap: 0.9rem; 
    until the server answers, and animating to the requested state first would show a position the
    server may refuse. */
 .agent-plugin-switch:disabled { cursor: progress; opacity: 0.55; }
-/* A locked ("Soon") switch is not in flight: full-strength grey track and a not-allowed cursor, or the
-   dimmed track reads as a white empty switch (owner 2026-10-25). */
-.agent-plugin-switch--locked:disabled { cursor: not-allowed; opacity: 1; background: var(--jini-border); border-color: var(--jini-border-strong); }
-.agent-plugin-switch--locked:disabled .agent-plugin-switch-knob { background: var(--jini-border-strong); box-shadow: none; }
+/* A locked ("Soon") switch is not drawn: its padlock (`.agent-plugin-linked-lock`) takes the switch's
+   column, as on a linked row, so every row's divider, word, eye and trash line up. The disabled switch
+   stays in the DOM for its accessible name and state; hiding it visually leaves no white empty switch
+   (owner 2026-10-25). */
+.agent-plugin-switch--locked:disabled { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); border: 0; opacity: 0; pointer-events: none; }
 /* A provider plugin's assistant face (`AgentPluginLinkedLock`, owner 2026-10-25): a red padlock in
    the switch's column — it is switched on the Plugins page, which the padlock opens — and the row
    reads as disabled. The padlock itself stays at full strength: it is the one live control. */
