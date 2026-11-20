@@ -1,4 +1,5 @@
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 
@@ -33,6 +34,7 @@ function warn({ error }: { error: unknown }, _optional = {}): void {
  * @param optional.intervalMs idle wait (default {@link POST_GO_LIVE_SWEEP_INTERVAL_MS}).
  * @param optional.onError receives a failed pass's error (default `console.error`); its own throw is swallowed.
  * @param optional.timers injectable `setInterval`/`clearInterval` (tests).
+ * @param optional.tracker traces each go-live sweep pass.
  * @returns `{ stop }`.
  * @throws RangeError for a non-positive interval.
  * @complexity O(candidates) per pass.
@@ -41,6 +43,7 @@ export function startPostGoLiveSweep(
   required: { deps: { repo: GoLiveCandidatesPort; outbox: OutboxPort; clock: ClockPort }; workspaceId: string },
   optional: {
     intervalMs?: number;
+    tracker?: Tracker;
     onError?: (required: { error: unknown }, optional?: Record<string, never>) => void;
     timers?: { setInterval: (required: { fn: () => void; ms: number }, optional?: Record<string, never>) => IntervalHandle; clearInterval: (required: { handle: IntervalHandle }, optional?: Record<string, never>) => void };
   } = {}
@@ -55,7 +58,8 @@ export function startPostGoLiveSweep(
   const run = async (): Promise<void> => {
     const nowIso = clockNowIso({ clock: deps.clock });
     try {
-      await announceDueGoLives({ deps, input: { workspaceId, nowIso } }, { afterIso });
+      const announce = () => announceDueGoLives({ deps, input: { workspaceId, nowIso } }, { afterIso });
+      await (optional.tracker ? optional.tracker.trace({ name: "post.go_live.sweep", run: announce }) : announce());
       afterIso = new Date(Date.parse(nowIso) - POST_GO_LIVE_LOOKBACK_MS).toISOString();
     } catch (error) {
       try { onError({ error }); } catch { /* A logging failure cannot reject timer work. */ }

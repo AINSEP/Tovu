@@ -11,6 +11,7 @@ import { SHARE_LIMITS } from "../share-policy.js";
 import type { HttpResponse } from "../../../platform/http/index.js";
 import { importFixture, OWNER_PASSWORD } from "./import.fixture.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { ProductEvent } from "@jini-ai/core/contracts/observability";
 
 const UPLOAD_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
@@ -171,6 +172,43 @@ test("the imported site name comes from the archive unless a display name was gi
 });
 
 // Owner setup ---------------------------------------------------------------------------------
+
+test("import verification and owner restore trace their completed work", async t => {
+  const h = await importFixture(t), outcomes: Array<{ name: string; failed: boolean }> = [];
+  const tracker: Tracker = {
+    ...createTracker({}),
+    async trace({ name, run }) {
+      try { const result = await run({ setOutcome() {} }); outcomes.push({ name, failed: false }); return result; }
+      catch (error) { outcomes.push({ name, failed: true }); throw error; }
+    },
+  };
+  const backend = createSiteImportBackend({ ...h.backendPorts, tracker });
+  const source = await backend.upload({ principalId: "owner", archive: h.archive });
+  const pending = await backend.importBackup({ principalId: "owner", source });
+  assert.deepEqual(outcomes, [{ name: "site.import.verify", failed: false }]);
+  const ready = await backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD });
+  assert.equal(ready.state, "ready");
+  assert.deepEqual(outcomes, [{ name: "site.import.verify", failed: false }, { name: "site.import.restore", failed: false }]);
+});
+
+test("archive rejection fails the verification trace and preserves failure cleanup", async t => {
+  const h = await importFixture(t), outcomes: Array<{ name: string; failed: boolean }> = [];
+  const tracker: Tracker = {
+    ...createTracker({}),
+    async trace({ name, run }) {
+      try { const result = await run({ setOutcome() {} }); outcomes.push({ name, failed: false }); return result; }
+      catch (error) { outcomes.push({ name, failed: true }); throw error; }
+    },
+  };
+  const backend = createSiteImportBackend({ ...h.backendPorts, tracker });
+  const source = await backend.upload({ principalId: "owner", archive: Buffer.from("not a zip") });
+  await assert.rejects(backend.importBackup({ principalId: "owner", source }), { message: /not a zip file/ });
+  assert.deepEqual(outcomes, [{ name: "site.import.verify", failed: true }]);
+  const row = h.registry.list({ principalId: "owner" })[0]!;
+  assert.equal(row.status, "failed");
+  assert.equal(row.error, "Archive verification failed. No site was created.");
+  assert.equal(fs.existsSync(h.registry.stagePath(row)), false);
+});
 
 test("site_imported fires exactly once after owner commit, including a repeated completion", async t => {
   const h = await importFixture(t), events: ProductEvent[] = [];

@@ -85,7 +85,7 @@ export function createServingApp(
   // from a process nobody is watching, on a schedule nobody set.
   const trashSweeper = startTrashSweeper(
     {
-      sweep: routeDeps.sweepTrash, clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) },
+      sweep: (...args) => routeDeps.tracker.trace({ name: "trash.purge", run: () => routeDeps.sweepTrash(...args) }), clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) },
       scheduler: createTrashScheduler({}), leaseOwner: `trash-sweeper-${randomUUID()}`
     },
     {
@@ -95,15 +95,16 @@ export function createServingApp(
   );
   const candidates = routeDeps.postGoLiveCandidates;
   const postGoLiveSweep = candidates
-    ? startPostGoLiveSweep({ deps: { repo: candidates, outbox: routeDeps.outbox, clock: routeDeps.clock }, workspaceId: routeDeps.workspaceId })
+    ? startPostGoLiveSweep({ deps: { repo: candidates, outbox: routeDeps.outbox, clock: routeDeps.clock }, workspaceId: routeDeps.workspaceId }, { tracker: routeDeps.tracker })
     : { stop: async () => {} };
   const themeWatcher = startThemeWatcher({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
   const webhookDeliveryWorker = startServingWebhookDeliveryWorker(
     { deps: routeDeps },
     optional.webhookDeliveryIntervalMs === undefined ? {} : { intervalMs: optional.webhookDeliveryIntervalMs }
   );
+  const verifyDue = routeDeps.verifyDueDomainBindings;
   const domainBindingSweeper = startDomainBindingSweeper(
-    { sweep: routeDeps.verifyDueDomainBindings },
+    { sweep: verifyDue && ((input) => routeDeps.tracker.trace({ name: "domain.bindings.sweep", run: () => verifyDue(input) })) },
     optional.domainBindingSweepIntervalMs === undefined ? {} : { intervalMs: optional.domainBindingSweepIntervalMs }
   );
   // After `createApp`: the pulled submissions' events need their subscribers attached.

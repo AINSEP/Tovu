@@ -146,6 +146,10 @@ async function uploadImportArchive({ ctx, input }: { ctx: ImportBackendContext; 
   } });
 }
 
+function traced<T>({ ctx, name, run }: { ctx: ImportBackendContext; name: string; run: () => Promise<T> }, _optional = {}): Promise<T> {
+  return ctx.required.tracker ? ctx.required.tracker.trace({ name, run }) : run();
+}
+
 async function startImportFromSource({ ctx, input, options }: { ctx: ImportBackendContext; input: { principalId: string; source: SiteImportSource; displayName?: string; requestId?: string }; options: { signal?: AbortSignal } }): Promise<SiteImportView> {
   const parsed = parseSiteImportInput({ input: { ...input.source, displayName: input.displayName, requestId: input.requestId } });
   return ctx.exclusive({ run: async () => {
@@ -161,7 +165,7 @@ async function startImportFromSource({ ctx, input, options }: { ctx: ImportBacke
     if ("url" in parsed.source) requireStagingBudget({ registry: ctx.registry });
     const row: SiteImportRecord = { importId: randomUUID(), principalId: input.principalId, requestId: parsed.requestId, source: parsed.source, sourceDigest: importSourceDigest({ source: parsed.source }), displayName: parsed.displayName ?? "Imported site", newSiteId: null, newSiteName: null, status: "verifying", createdAt: new Date().toISOString(), expiresAt: Date.now() + 3600_000 };
     ctx.put(row);
-    return verifyAndStage({ ctx, input: { row, parsed, signal: deadlineSignal({ timeoutMs: 5 * 60_000 }, options) } });
+    return traced({ ctx, name: "site.import.verify", run: () => verifyAndStage({ ctx, input: { row, parsed, signal: deadlineSignal({ timeoutMs: 5 * 60_000 }, options) } }) });
   } });
 }
 
@@ -185,7 +189,7 @@ async function completeImportOwner({ ctx, input, options }: { ctx: ImportBackend
       throw error;
     }
     const creating: SiteImportRecord = { ...pending, status: "creating" }; ctx.put(creating);
-    const { row: allocated, created } = await createImportedSite({ ctx, input: { row: creating, adminPassword, savedKeysPassword: input.savedKeysPassword as string | undefined, signal } });
+    const { row: allocated, created } = await traced({ ctx, name: "site.import.restore", run: () => createImportedSite({ ctx, input: { row: creating, adminPassword, savedKeysPassword: input.savedKeysPassword as string | undefined, signal } }) });
     // Owner and restore are committed. A supervisor failure must not repeat site creation.
     const ready: SiteImportRecord = { ...allocated, newSiteId: created.siteId, newSiteName: created.name, status: "ready" };
     ctx.put(ready);
