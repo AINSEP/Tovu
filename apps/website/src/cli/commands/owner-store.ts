@@ -7,6 +7,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { readPromptFromFlags } from "@jini-ai/cli";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { ApiConnectionError } from '@jini-ai/integrations/api-connections';
 import { countLegacyOwnerStore, readLegacyOwnerStore } from "@jini-ai/server/owner-store";
 import { OwnerStoreBackupError, OwnerStoreRecoveryError, readLegacyOwnerBackup, type LegacyOwnerSnapshot } from "@jini-ai/platform/secrets/legacy-owner";
@@ -223,7 +224,8 @@ async function legacyStatus({ userDataDir }: { userDataDir: string }, optional: 
   if (counts.entries === 0 && counts.grants === 0) return { legacy: 'empty', ...counts };
   // A store that holds data but cannot be planned (lost key, locked project) still says so: the
   // import then reports the precise refusal. Only a clean "nothing new" plan settles it.
-  const report = await importRequest({ request: { source: 'owner-store', apply: false }, userDataDir }, optional).catch(() => null);
+  const plan = importRequest({ request: { source: 'owner-store', apply: false }, userDataDir }, optional);
+  const report = await orFallback({ work: () => plan, fallback: null, step: "Probe owner store import plan" });
   return { legacy: report === null || report.items.some(item => item.status === 'new') ? 'available' : 'settled', ...counts };
 }
 

@@ -1,4 +1,5 @@
 import nodeFs, { type Dirent, existsSync } from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { join } from "node:path";
 import { isGeneratedThemePath } from "./theme-file-policy.js";
 import { MAX_LISTED_FILES } from "./theme-file-listing.js";
@@ -37,11 +38,10 @@ export function themeContentVersion(
   { fs = nodeFs }: { fs?: ContentWalkFs } = {},
 ): number {
   const walk: ContentWalk = { fs, newest: 0, visited: 0 };
-  try {
+  // A folder missing or removed mid-walk: report what was seen; `0` keeps any capture current.
+  orFallbackSync({ work: () => {
     walkThemeContent({ walk, absolute: dir, relative: "", depth: 0 });
-  } catch {
-    // A folder missing or removed mid-walk: report what was seen; `0` keeps any capture current.
-  }
+  }, fallback: undefined, step: "Inspect theme preview content" });
   return walk.newest;
 }
 

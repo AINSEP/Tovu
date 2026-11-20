@@ -1,4 +1,5 @@
 import type { BackstopAuditPort } from "@jini-ai/cms/publish/transfer";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
 import type { PublishContentReportDto } from "#src/features/publish-content/report-contract";
 import { toPublishContentReportDto } from "./report-dto.js";
@@ -27,13 +28,11 @@ export async function readBackstopApplyReport(required: {
   runId: string;
 }): Promise<{ report?: PublishContentReportDto }> {
   const { audit, workspaceId, runId } = required;
-  try {
+  // The normal run and its persisted audit remain authoritative.
+  return orFallback({ work: async () => {
     if (!audit || !(await audit.ready())) return {};
     const log = await audit.get({ workspaceId, id: runId });
     if (log?.direction !== "destination" || !log.details.report) return {};
     return { report: toPublishContentReportDto(log.details.report as PublishContentReport) };
-  } catch {
-    // The normal run and its persisted audit remain authoritative.
-    return {};
-  }
+  }, fallback: {}, step: "Read advisory publish apply report" });
 }

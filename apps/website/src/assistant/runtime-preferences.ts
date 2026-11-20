@@ -1,5 +1,6 @@
 /** Per-person assistant runtime preferences (`core.interface`), read fresh for every run launch. */
 import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "../features/settings/admin-interface.js";
 
 export interface AssistantRuntimePreferenceDeps {
@@ -33,13 +34,11 @@ async function readPreference(
   { deps, principalId, key }: { deps: AssistantRuntimePreferenceDeps; principalId: string; key: string },
   _options = {},
 ): Promise<unknown> {
-  try {
+  return orFallback({ work: async () => {
     await deps.settingsReady;
     const effective = await deps.getEffective({ deps: { repo: deps.settingsRepo }, namespace: ADMIN_INTERFACE_NAMESPACE, key, scopeContext: { workspaceId: deps.workspaceId, principalId } });
     return effective?.value;
-  } catch {
-    return undefined;
-  }
+  }, fallback: undefined, step: "Read assistant preference" });
 }
 
 /** The launching person's runtime preferences, read fresh so an edit applies to the next run.

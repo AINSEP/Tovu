@@ -1,4 +1,5 @@
 import { buildPublishContentCatalog } from "./type-registry.js";
+import { orFallback, orFallbackSync } from "@jini-ai/core/errors/idioms";
 import type { PublishContentDeps } from "./type-registry.js";
 
 /**
@@ -49,11 +50,7 @@ export function createPublishContentSeedHash(input: CreatePublishContentSeedHash
 
   function resolveSeedDeps(): PublishContentDeps | null {
     if (seedDeps !== undefined) return seedDeps;
-    try {
-      seedDeps = input.loadSeedDeps();
-    } catch {
-      seedDeps = null;
-    }
+    seedDeps = orFallbackSync({ work: () => input.loadSeedDeps(), fallback: null, step: "Read publish seed dependencies" });
     return seedDeps;
   }
 
@@ -64,11 +61,9 @@ export function createPublishContentSeedHash(input: CreatePublishContentSeedHash
     // types exist, and a seed lookup for a type the planner no longer knows must not answer.
     const handler = buildPublishContentCatalog(deps).handlerByType.get(entityType);
     if (!handler) return null;
-    try {
+    return orFallback({ work: async () => {
       const found = await handler.inspect({ id: entityId });
       return found ? found.hash : null;
-    } catch {
-      return null;
-    }
+    }, fallback: null, step: "Inspect publish seed hash" });
   };
 }

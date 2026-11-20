@@ -1,4 +1,5 @@
 import { type Clock } from "@jini-ai/core/primitives";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { buildVaultAad, type SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import {
   VaultError,
@@ -104,8 +105,9 @@ async function openTokenHint({ repo, context, sealer, record }: {
   // This port only serves get's identity read; every other operation remains with the owner.
   const snapshot: VaultRepoPort = Object.create(repo);
   snapshot.find = async () => record;
-  try {
+  /* Site-key rotation must not prevent reading settings. */
+  return orFallback({ work: async () => {
     const opened = await createAssistantVault({ repo: snapshot, context, sealer }).get({ ...context, id: record.id });
     return typeof opened?.payload?.apiKey === "string" ? credentialTokenHint({ token: opened.payload.apiKey }) : null;
-  } catch { /* Site-key rotation must not prevent reading settings. */ return null; }
+  }, fallback: null, step: "Read assistant credential hint" });
 }

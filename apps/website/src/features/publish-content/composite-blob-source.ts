@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { PeerBlobSource } from "./peer-transport.js";
@@ -66,12 +67,8 @@ export interface CompositeBlobStoreRead {
 
 /** @complexity O(bytes) — one file read plus one sha256 digest. */
 async function readAndVerify({ entry, sha256 }: { entry: { absPath: string; size: number }; sha256: string }, _optional = {}): Promise<Uint8Array | null> {
-  let bytes: Buffer;
-  try {
-    bytes = await readFile(entry.absPath);
-  } catch {
-    return null; // moved, deleted, or otherwise unreadable since it was packed.
-  }
+  const bytes = await orFallback({ work: () => readFile(entry.absPath), fallback: null, step: "Read indexed publish blob" });
+  if (bytes === null) return null; // moved, deleted, or otherwise unreadable since it was packed.
   const actual = createHash("sha256").update(bytes).digest("hex");
   return actual === sha256 ? bytes : null;
 }

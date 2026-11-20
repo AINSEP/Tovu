@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { executeCommand } from "@jini-ai/cms/core";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { computeBlobStorageKey, isDocumentOnlyBlob } from "@jini-ai/cms/media";
 import { BackstopRefusal, checkRawFilePath, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
@@ -168,8 +169,7 @@ async function* packRawFiles({ env }: { env: RawFileEnv }, _optional = {}): Asyn
 async function inspectRawFile({ env, id: relPath }: { env: RawFileEnv; id: string }, _optional = {}) {
   const { files, deps } = env;
   if (!files || pathReason({ deps, relPath })) return null;
-  let file: RawFileSnapshot | null;
-  try { file = await files.read({ relPath }); } catch { return null; }
+  const file = await orFallback({ work: () => files.read({ relPath }), fallback: null, step: "Inspect publish file" });
   return file ? { hash: hash({ relPath, file }), hashVersion: CONTENT_HASH_VERSION, version: version({ relPath, file }) } : null;
 }
 
