@@ -17,10 +17,7 @@
 export {
   buildSiteProfile,
   DEFAULT_PAGE_ITEMS,
-  DEFAULT_SECTION_TIMEOUT_MS,
-  INVENTORY_SAFE_SETTINGS,
   MAX_PAGE_ITEMS,
-  MAX_SETTING_VALUE_CHARS,
   SITE_PROFILE_SECTION_NAMES,
   SITE_PROFILE_SECTION_PERMISSIONS,
   type BuildSiteProfileOptions,
@@ -41,11 +38,9 @@ export {
 
 export {
   buildSiteCapabilities,
-  MAX_TOOL_SUMMARY_CHARS,
   SITE_CAPABILITIES_SECTION_NAMES,
   SITE_CAPABILITIES_SECTION_PERMISSIONS,
   summarizeToolDescription,
-  TOOLS_NOT_WIRED_REASON,
   type BuildSiteCapabilitiesOptions,
   type SiteCapabilities,
   type SiteCapabilitiesAdminScreens,

@@ -252,7 +252,8 @@ async function admitFromStores(input: {
   try {
     revocations = await deps.revocations();
     resolution = await deps.grants();
-  } catch {
+  } catch (err) {
+    console.error("[publish-trust] Could not read the publishing trust stores:", describeErrorForLog({ err }));
     return null;
   }
   const admission = admitPublish({
