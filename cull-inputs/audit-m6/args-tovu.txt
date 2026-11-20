@@ -1,0 +1,11 @@
+# tovu-m6: functions 21995 — ok 18108, unsure 1795, VIOLATION 2092 (9.5%)
+  exported: 6469 — ok 5948, unsure 466, VIOLATION 55 (0.9%)
+  >2 params: 207
+  apps/website                        1401 violations / 13785 fns (exported 42)
+  apps/admin                           547 violations / 5665 fns (exported 13)
+  apps/desktop                         130 violations / 2296 fns (exported 0)
+  apps/site-chat                        14 violations / 152 fns (exported 0)
+  packages/contracts                     0 violations / 25 fns (exported 0)
+  packages/sdk                           0 violations / 1 fns (exported 0)
+  content                                0 violations / 68 fns (exported 0)
+  scripts                                0 violations / 3 fns (exported 0)

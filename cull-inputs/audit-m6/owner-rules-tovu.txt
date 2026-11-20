@@ -1,0 +1,32 @@
+owner-rules-audit tovu-m6 (tovu mode): 3742 code, 4645 test, 299 md/json files in 8.8s
+rule                                count  top area
+swallowed-error                        40  apps/website 27, apps/admin 12
+generic-error-catch                    33  apps/website 30, apps/admin 2
+component-second-param                 21  apps/desktop 14, apps/admin 7
+process-exit-in-runtime                 8  apps/website 8
+lint-disable                            5  apps/desktop 3, apps/admin 1
+bare-toThrow                            5  apps/website 4, apps/admin 1
+per-cli-code-in-shared-file             4  apps/website 3, apps/desktop 1
+lazy-bare-import                        3  apps/admin 1, apps/desktop 1
+logic-in-component                      3  apps/admin 3
+permanent-delete-tool                   3  apps/website 3
+vendor-named-file-outside-plugin        2  apps/website 2
+vendor-step-in-core-workflow            2  .github/workflows 2
+runtime-import-of-devdep                2  apps/website 2
+base-type-redeclared                    1  apps/website 1
+plugin-imports-plugin                   0  
+vendor-import-outside-plugin            0  
+vendor-named-tool                       0  
+jini-plugin-package-name                0  
+undeclared-dependency                   0  
+complexity-over-10                      0  
+as-any                                  0  
+ts-suppress                             0  
+coverage-ignore                         0  
+oauth-lib-outside-facade                0  
+hardcoded-model-id                      0  
+site-name-in-core                       0  
+ownership-gate-text                     0  
+large-data-file                         0  
+drizzle-frozen                          0  
+wrote 132 violations to SCR/audit-m6/owner-rules-tovu.json

@@ -1,0 +1,39 @@
+owner-rules-audit jini-m6 (jini mode): 4299 code, 4367 test, 771 md/json files in 11.0s
+rule                                count  top area
+jini-unprefixed-classname            1236  packages/ui 654, packages/admin 337
+tovu-id-in-jini                       613  packages/cms 313, packages/db 121
+tovu-in-jini                          542  packages/agent-plugins 344, packages/plugin-catalog 56
+jini-cross-package-import             234  packages/daemon 71, packages/server 36
+core-contracts-runtime-code           215  packages/core 215
+swallowed-error                       184  packages/platform 28, packages/chat 22
+component-second-param                123  packages/admin 89, packages/user-management 16
+generic-error-catch                   106  packages/agent-plugins 21, packages/admin 11
+hardcoded-model-id                     72  packages/agent-runtime 66, packages/integrations 6
+server-framework-in-jini               26  packages/http-kit 15, packages/cms 6
+lint-disable                           22  packages/ui 11, packages/core 2
+per-cli-code-in-shared-file            22  packages/agent-runtime 10, packages/daemon 5
+lazy-bare-import                       11  packages/cms 4, packages/agent-runtime 1
+bare-toThrow                           10  packages/http-kit 2, packages/agentic 1
+vendor-named-file-outside-plugin        8  packages/registry 3, packages/agentic 2
+base-type-redeclared                    3  packages/protocol 2, packages/agent-plugins 1
+coverage-ignore                         3  packages/agentic 2, packages/cli 1
+logic-in-component                      2  packages/admin 1, packages/ui 1
+ownership-gate-text                     2  packages/agent-runtime 2
+large-data-file                         2  packages/daemon 2
+jini-plugin-package-name                1  packages/plugin-fixture-provider 1
+ts-suppress                             1  packages/oauth 1
+jini-core-not-leaf                      0  
+plugin-imports-plugin                   0  
+vendor-import-outside-plugin            0  
+vendor-named-tool                       0  
+vendor-step-in-core-workflow            0  
+react-outside-react-subfolder           0  
+undeclared-dependency                   0  
+runtime-import-of-devdep                0  
+complexity-over-10                      0  
+as-any                                  0  
+oauth-lib-outside-facade                0  
+permanent-delete-tool                   0  
+process-exit-in-runtime                 0  
+site-name-in-core                       0  
+wrote 3438 violations to SCR/audit-m6/owner-rules-jini.json

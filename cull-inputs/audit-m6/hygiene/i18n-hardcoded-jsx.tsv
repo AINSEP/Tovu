@@ -1,0 +1,280 @@
+repo	file	line	kind	tag	text	file_uses_t
+tovu	apps/admin/src/App.chrome.tsx	152	text	span	Tovu	no
+tovu	apps/admin/src/components/DevicePreview/DevicePreviewToggle.tsx	49	text	span	px	yes
+tovu	apps/admin/src/components/MediaPickerDialog/MediaPickerDialog.tsx	151	text	button	Cancel	yes
+tovu	apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx	326	prop:placeholder	textarea	<img data-media-slug="…" alt="…">	yes
+tovu	apps/admin/src/features/ai-assistant/VisitorAssistantPanel.tsx	93	text	option	React (~210 KB)	yes
+tovu	apps/admin/src/features/ai-assistant/VisitorAssistantPanel.tsx	94	text	option	(~35 KB)	yes
+tovu	apps/admin/src/features/auth/Login.tsx	36	text	h1	Tovu	yes
+tovu	apps/admin/src/features/authentication/Authentication.tsx	90	prop:aria-label	section	… authentication setup	yes
+tovu	apps/admin/src/features/collections/ContentTypeFieldsSection.tsx	48	prop:placeholder	input	e.g. prep_time	yes
+tovu	apps/admin/src/features/collections/NewContentTypeDialog.tsx	48	prop:placeholder	input	e.g. recipe	yes
+tovu	apps/admin/src/features/menus/MenuEditor.tsx	102	text	span	URL	yes
+tovu	apps/admin/src/features/redirects/redirects-i18n.tsx	741	prop:label	InfoTip	…: matchType, fromPattern, toTarget, statusCode. …: override, priority.	yes
+tovu	apps/admin/src/features/security/AccessTokensTab.tsx	800	prop:aria-label	button	… adding this … token	yes
+tovu	apps/admin/src/features/security/AccessTokensTab.tsx	885	prop:aria-label	span	required	yes
+tovu	apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx	357	prop:aria-label	button	Open tool permissions for … — … enabled	yes
+tovu	apps/admin/src/features/settings/SettingsUi.tsx	210	expr	strong	Tovu Admin …	yes
+tovu	apps/admin/src/features/sites/CreateSiteOnboarding.tsx	320	text	strong	admin	yes
+tovu	apps/admin/src/features/taxonomy/Taxonomy.tsx	830	prop:aria-label	li	…, subcategory of …	yes
+tovu	apps/admin/src/lib/media-embed-extension.tsx	115	expr	video	Your browser does not support the video tag.	yes
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginFileTree.tsx	5	prop:aria-label	div	Package files	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginListPanel.tsx	11	text	Button	Reload packages	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginListPanel.tsx	12	text	p	Package format:	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginListPanel.tsx	12	text	a	Agent Plugins open standard	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	11	text	Button	Details	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	11	text	IconButton	Inspect	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	12	text	IconButton	Uninstall	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	23	prop:aria-label	section	Portable components	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	23	text	h4	Portable components	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	24	prop:aria-label	section	MCP servers	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	24	text	h4	MCP servers	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	25	prop:aria-label	section	Keywords	no
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	25	text	h4	Keywords	no
+jini	packages/admin/src/agent-plugins/react/pages/AgentPluginsPage.tsx	13	prop:label	Tabs	Agent Plugin views	no
+jini	packages/admin/src/agent-plugins/react/tabs/MarketplaceTab.tsx	7	prop:aria-label	section	Agent Plugin Marketplace	no
+jini	packages/admin/src/agent-plugins/react/tabs/MarketplaceTab.tsx	7	text	a	Read the package format	no
+jini	packages/admin/src/forms/react/components/FieldAttributesStyling.tsx	33	prop:placeholder	input	e.g. aria-label	yes
+jini	packages/admin/src/forms/react/components/FieldAttributesStyling.tsx	92	prop:placeholder	input	e.g. md:col-span-2 w-1/2 focus:ring-2	yes
+jini	packages/admin/src/forms/react/components/FormFieldRow.tsx	12	prop:aria-label	input	Field … id	yes
+jini	packages/admin/src/forms/react/components/FormFieldRow.tsx	30	prop:aria-label	input	Field … label	yes
+jini	packages/admin/src/forms/react/components/FormFieldRow.tsx	44	prop:aria-label	select	Field … type	yes
+jini	packages/admin/src/forms/react/components/FormFieldRow.tsx	72	prop:aria-label	input	Field … required	yes
+jini	packages/admin/src/forms/react/components/FormFieldRow.tsx	93	prop:aria-label	input	Field … max length	yes
+jini	packages/admin/src/media/react/components/EditMediaPanel.tsx	20	prop:label	UploadButton	Replace file	no
+jini	packages/admin/src/media/react/components/EditMediaPanel.tsx	23	text	Button	Save	no
+jini	packages/admin/src/media/react/components/EditMediaPanel.tsx	24	text	Button	Cancel	no
+jini	packages/admin/src/media/react/components/MediaCard.tsx	14	text	p	Preview not available	no
+jini	packages/admin/src/media/react/components/MediaCard.tsx	14	text	a	Download original	no
+jini	packages/admin/src/media/react/components/MediaCard.tsx	19	text	span	Edit metadata	no
+jini	packages/admin/src/media/react/components/MediaCard.tsx	20	text	span	View larger	no
+jini	packages/admin/src/media/react/components/MediaCard.tsx	39	text	Button	Choose	no
+jini	packages/admin/src/media/react/components/MediaGrid.tsx	8	prop:aria-label	div	Media library	no
+jini	packages/admin/src/media/react/components/MediaGrid.tsx	19	expr	p	No media found	no
+jini	packages/admin/src/media/react/components/MediaPicker.tsx	11	prop:title	MediaDialog	Choose media	no
+jini	packages/admin/src/media/react/components/MediaPicker.tsx	17	prop:label	TextField	Search media	no
+jini	packages/admin/src/media/react/components/MediaPicker.tsx	21	text	Button	Retry	no
+jini	packages/admin/src/media/react/components/MediaPicker.tsx	23	text	p	Loading media…	no
+jini	packages/admin/src/media/react/components/MediaPicker.tsx	32	prop:label	IconButton	Back	no
+jini	packages/admin/src/media/react/components/MediaPicker.tsx	42	text	Button	Cancel	no
+jini	packages/admin/src/media/react/components/MediaPurgeDialog.tsx	7	prop:title	ConfirmDialog	Delete permanently?	no
+jini	packages/admin/src/media/react/components/UploadButton.tsx	13	prop:placeholder	TextField	Alt text (optional)	no
+jini	packages/admin/src/media/react/components/UploadButton.tsx	24	prop:aria-label	input	File to upload	no
+jini	packages/admin/src/media/react/pages/MediaPage.tsx	10	text	p	Content	no
+jini	packages/admin/src/media/react/pages/MediaPage.tsx	12	text	p	Upload and manage image and video assets used across the site.	no
+jini	packages/admin/src/media/react/pages/MediaPage.tsx	17	text	p	Permission denied	no
+jini	packages/admin/src/media/react/pages/MediaPage.tsx	20	prop:aria-label	nav	Media	no
+jini	packages/admin/src/media/react/pages/MediaPage.tsx	38	text	p	Loading media…	no
+jini	packages/admin/src/media/react/tabs/LibraryTab.tsx	15	prop:label	Select	Order by	no
+jini	packages/admin/src/media/react/tabs/LibraryTab.tsx	21	prop:label	TextField	Search media	no
+jini	packages/admin/src/media/react/tabs/LibraryTab.tsx	22	prop:label	Select	Status	no
+jini	packages/admin/src/media/react/tabs/LibraryTab.tsx	26	text	Button	Retry	no
+jini	packages/admin/src/media/react/tabs/ProvidersTab.tsx	8	text	h4	Media providers	no
+jini	packages/admin/src/media/react/tabs/ProvidersTab.tsx	8	text	p	Credentials this host uses to generate images and video.	no
+jini	packages/admin/src/media/react/tabs/ProvidersTab.tsx	11	text	p	Could not reach the server. Showing local changes only.	no
+jini	packages/admin/src/media/react/tabs/ProvidersTab.tsx	12	text	p	No media providers configured yet.	no
+jini	packages/admin/src/media/react/tabs/ProvidersTab.tsx	18	text	span	credential	no
+jini	packages/admin/src/media/react/tabs/ProvidersTab.tsx	26	prop:placeholder	input	Default model	no
+jini	packages/admin/src/media/react/tabs/ProvidersTab.tsx	29	text	button	Clear	no
+jini	packages/admin/src/media/react/tabs/ProvidersTab.tsx	37	text	span	Could not save media providers.	no
+jini	packages/admin/src/playground/react/pages/PlaygroundPage.tsx	11	prop:label	Spinner	Loading canvas…	no
+jini	packages/admin/src/react/components/ConfirmButton/ConfirmButton.tsx	95	expr	span	Press "…" to confirm, or press Escape to cancel.	no
+jini	packages/admin/src/react/components/Sidebar.tsx	355	prop:aria-label	nav	Admin	no
+jini	packages/admin/src/react/components/Sidebar.tsx	393	expr	span	Navigation	no
+jini	packages/admin/src/react/components/Sidebar.tsx	399	prop:aria-label	button	Close navigation	no
+jini	packages/admin/src/react/testing-kit.tsx	19	expr	button	Close	no
+jini	packages/admin/src/react/testing-kit.tsx	22	expr	button	Cancel	no
+jini	packages/admin/src/react/testing-kit.tsx	37	text	button	Close	no
+jini	packages/admin/src/redirects/react/components/CreateRedirectForm.tsx	77	prop:placeholder	input	/new-path or https://example.com/...	yes
+jini	packages/admin/src/security/react/components/CredentialEditor.tsx	6	prop:label	TextField	Name	no
+jini	packages/admin/src/security/react/components/CredentialEditor.tsx	9	prop:label	Select	Category	no
+jini	packages/admin/src/security/react/components/CredentialEditor.tsx	9	prop:label	TextField	Base URL	no
+jini	packages/admin/src/security/react/components/CredentialEditor.tsx	9	prop:label	TextField	Username	no
+jini	packages/admin/src/security/react/components/CredentialEditor.tsx	9	prop:label	TextArea	Additional hosts	no
+jini	packages/admin/src/security/react/components/CredentialEditor.tsx	10	text	Button	Save	no
+jini	packages/admin/src/security/react/components/CredentialEditor.tsx	10	text	Button	Cancel	no
+jini	packages/admin/src/security/react/pages/SecurityPage.tsx	10	text	Notice	Permission denied	no
+jini	packages/admin/src/security/react/pages/SecurityPage.tsx	10	prop:label	Tabs	Security views	no
+jini	packages/admin/src/security/react/pages/SecurityPage.tsx	10	prop:label	Spinner	Loading credentials…	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	7	text	Notice	Permission denied	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	7	prop:aria-label	section	Access tokens	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	8	prop:label	TextField	Search tokens	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	8	prop:label	Select	Category	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	9	text	p	of	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	9	text	p	tokens saved	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	9	text	Button	Reload	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	10	prop:label	Spinner	Loading credentials…	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	11	text	a	Manage tokens at	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	11	text	Button	Add	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	11	text	Button	token	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	12	expr	p	Default	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	12	expr	p	Saved	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	12	text	Button	Edit	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	12	text	Button	Make default	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	12	text	Button	Remove	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	13	text	p	Configured	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	13	text		environment variables set	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	13	prop:label	TextField	New key for …	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	13	text	Button	Replace	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	13	text	Button	Remove	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	14	text	Button	Add custom provider	no
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	16	prop:title	ConfirmDialog	Remove credential	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	6	prop:label	Spinner	Loading root key status…	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	9	prop:label	TextField	Old root key	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	9	text	Button	Unlock saved credentials	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	9	text	Button	Start fresh	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	12	text	p	credentials will be removed.	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	12	prop:label	TextField	Type START FRESH	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	16	text	Notice	Permission denied	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	16	prop:aria-label	section	Root key	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	17	text	Button	Create root key	no
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	19	prop:title	ConfirmDialog	Start fresh	no
+jini	packages/admin/src/seo/react/components/MediaPickerBridge.tsx	6	text	button	Cancel	no
+jini	packages/admin/src/seo/react/components/MediaRefField.tsx	132	prop:alt	img	… preview	yes
+jini	packages/admin/src/seo/react/pages/SeoPage.tsx	122	text	h1	SEO	yes
+jini	packages/admin/src/source-control/react/components/SourceControlCredentialFields.tsx	6	text	summary	Which token do I need?	no
+jini	packages/admin/src/source-control/react/components/SourceControlCredentialFields.tsx	6	text	a	Create a token	no
+jini	packages/admin/src/source-control/react/components/SourceControlCredentialFields.tsx	6	text	Button	Save	no
+jini	packages/admin/src/source-control/react/components/SourceControlCredentialFields.tsx	6	text	Button	token	no
+jini	packages/admin/src/source-control/react/components/SourceControlProviderRow.tsx	5	text	Notice	Its plugin is off or missing. Manage this token on the Access tokens page.	no
+jini	packages/admin/src/source-control/react/components/SourceControlProviderRow.tsx	6	text	Notice	Read-only connection	no
+jini	packages/admin/src/source-control/react/components/SourceControlProviderRow.tsx	9	text	span	Token saved	no
+jini	packages/admin/src/source-control/react/components/SourceControlProviderRow.tsx	9	text	span	Saved	no
+jini	packages/admin/src/source-control/react/components/SourceControlProviderRow.tsx	9	text	span	Replace token ▾	no
+jini	packages/admin/src/source-control/react/components/SourceControlProviderRow.tsx	9	text	span	Expand ▾	no
+jini	packages/admin/src/source-control/react/pages/SourceControlPage.tsx	11	text	p	Operations	no
+jini	packages/admin/src/source-control/react/pages/SourceControlPage.tsx	11	prop:label	Tabs	Source control views	no
+jini	packages/admin/src/source-control/react/tabs/ProvidersTab.tsx	7	text	Notice	Permission denied	no
+jini	packages/admin/src/source-control/react/tabs/ProvidersTab.tsx	7	prop:label	Spinner	Loading connections…	no
+jini	packages/admin/src/source-control/react/tabs/ProvidersTab.tsx	7	text	Button	Reload connections	no
+jini	packages/admin/src/source-control/react/tabs/ProvidersTab.tsx	7	text	p	Need a second named token or want to rename one?	no
+jini	packages/admin/src/source-control/react/tabs/ProvidersTab.tsx	7	text	Button	Create access token	no
+jini	packages/admin/src/widgets/react/components/WidgetPageHeaders.tsx	59	prop:placeholder	input	e.g. footer	yes
+jini	packages/chat/src/react/components/A2uiSurfaceCard.tsx	53	text	span	⟲ circular reference at “	yes
+jini	packages/chat/src/react/components/A2uiSurfaceCard.tsx	62	text	span	⚠ missing component “	yes
+jini	packages/chat/src/react/components/A2uiSurfaceCard.tsx	130	text	span	⚠ no renderer yet for component type “	yes
+jini	packages/chat/src/react/components/ChatFab.tsx	45	prop:aria-label	button	Hide …	no
+jini	packages/chat/src/react/components/ChatFab.tsx	45	prop:aria-label	button	Show …	no
+jini	packages/chat/src/react/components/ConversationList.tsx	217	expr	span	… msg ·	yes
+jini	packages/chat/src/react/components/ExtEventErrorBoundary.tsx	54	expr	div	"…" could not be rendered (…).	no
+jini	packages/chat/src/react/components/Markdown.tsx	523	text	button	Expand table	yes
+jini	packages/chat/src/react/components/Markdown.tsx	537	prop:aria-label	button	Close	yes
+jini	packages/chat/src/react/components/QuestionFormField.tsx	241	text	span	Aa	yes
+jini	packages/chat/src/react/components/ToolCard.tsx	362	expr	span	in …	yes
+jini	packages/chat/src/react/components/ToolCard.tsx	372	expr	span	in …	yes
+jini	packages/provider-plugins/src/charts-recharts/chart.tsx	90	prop:aria-label	ul	Chart legend	no
+jini	packages/provider-plugins/src/charts-recharts/pie-chart.tsx	34	text	tspan	Total	no
+jini	packages/ui/src/features/a2ui/renderer.tsx	46	text	span	⚠ no renderer yet for component type "	no
+jini	packages/ui/src/features/a2ui/renderer.tsx	76	text	span	⟲ circular reference at "	no
+jini	packages/ui/src/features/a2ui/renderer.tsx	85	text	span	⚠ missing component "	no
+jini	packages/ui/src/features/file-dropzone/react/components/FileDropzoneLightbox.tsx	66	text	div	Bb Cc	yes
+jini	packages/ui/src/features/interactive-ui/providers/native/data-table.tsx	30	text	td	No results.	no
+jini	packages/ui/src/features/interactive-ui/providers/shadcn/data-table.tsx	75	text	TableCell	No results.	no
+jini	packages/ui/src/features/interactive-ui/providers/shadcn/data-table.tsx	90	text	span	of	no
+jini	packages/ui/src/features/interactive-ui/providers/shadcn/data-table.tsx	90	text	span	rows	no
+jini	packages/ui/src/features/interactive-ui/providers/shadcn/data-table.tsx	92	prop:aria-label	button	Previous page	no
+jini	packages/ui/src/features/interactive-ui/providers/shadcn/data-table.tsx	92	text	button	Previous	no
+jini	packages/ui/src/features/interactive-ui/providers/shadcn/data-table.tsx	93	prop:aria-label	button	Next page	no
+jini	packages/ui/src/features/interactive-ui/providers/shadcn/data-table.tsx	93	text	button	Next	no
+jini	packages/ui/src/features/sketch-editor/react/dependencies-fake.tsx	47	text	button	Menu	no
+jini	packages/ui/src/features/sketch-editor/react/dependencies-fake.tsx	50	text	button	Selection	no
+jini	packages/ui/src/features/sketch-editor/react/dependencies-fake.tsx	53	text	button	Rectangle	no
+jini	packages/ui/src/features/sketch-editor/react/dependencies-fake.tsx	56	text	button	Draw	no
+jini	packages/ui/src/react/components/ComponentKitPreview.tsx	118	text	strong	Aa	yes
+jini	packages/ui/src/react/components/ComponentKitPreview.tsx	119	text	span	Aa	yes
+jini	packages/ui/src/react/components/ComponentKitPreview.tsx	120	text	small	Aa	yes
+jini	packages/ui/src/react/components/PaletteTweaks.tsx	173	prop:aria-label	div	Themes	no
+jini	packages/ui/src/react/components/PaletteTweaks.tsx	175	text	span	Themes	no
+jini	packages/ui/src/react/components/PaletteTweaks.tsx	176	text	span	5 curated theme palettes	no
+jini	packages/ui/src/react/components/PaletteTweaks.tsx	190	text	span	Original	no
+jini	packages/ui/src/react/components/Toast.tsx	234	prop:aria-label	button	Dismiss	no
+jini	packages/ui/src/react/components/Toast.tsx	236	text	button	Dismiss	no
+jini	packages/ui/src/react/components/Toast.tsx	243	prop:aria-label	button	Dismiss	no
+jini	packages/user-management/src/admin/react/components/MemberRow.tsx	6	prop:label	Spinner	Loading detail…	no
+jini	packages/user-management/src/admin/react/components/MemberRow.tsx	9	text	dt	ID	no
+jini	packages/user-management/src/admin/react/components/MemberRow.tsx	9	text	dt	Email verified	no
+jini	packages/user-management/src/admin/react/components/MemberRow.tsx	9	text	dt	Updated	no
+jini	packages/user-management/src/admin/react/components/MemberRow.tsx	9	text	dt	Version	no
+jini	packages/user-management/src/admin/react/components/PermissionPanel.tsx	9	text	p	No permissions yet.	no
+jini	packages/user-management/src/admin/react/components/PermissionPanel.tsx	11	text	Button	Remove	no
+jini	packages/user-management/src/admin/react/components/PermissionPanel.tsx	12	text	h3	Current permissions	no
+jini	packages/user-management/src/admin/react/components/PermissionPanel.tsx	13	prop:label	Spinner	Loading permissions…	no
+jini	packages/user-management/src/admin/react/components/PermissionPanel.tsx	14	prop:label	TextField	Permission	no
+jini	packages/user-management/src/admin/react/components/PermissionPanel.tsx	14	prop:placeholder	TextField	e.g. content.write	no
+jini	packages/user-management/src/admin/react/components/PermissionPanel.tsx	15	prop:label	TextField	Resource type (optional)	no
+jini	packages/user-management/src/admin/react/components/PermissionPanel.tsx	16	text	Button	Add	no
+jini	packages/user-management/src/admin/react/components/PolicyRow.tsx	10	text	Button	Save	no
+jini	packages/user-management/src/admin/react/components/PolicyRow.tsx	10	text	Button	Cancel	no
+jini	packages/user-management/src/admin/react/components/PolicyRow.tsx	12	prop:label	TextField	Policy new name	no
+jini	packages/user-management/src/admin/react/components/PolicyRow.tsx	13	prop:label	TextField	Policy new description	no
+jini	packages/user-management/src/admin/react/components/RoleRow.tsx	9	text	Button	Save	no
+jini	packages/user-management/src/admin/react/components/RoleRow.tsx	9	text	Button	Cancel	no
+jini	packages/user-management/src/admin/react/components/RoleRow.tsx	11	prop:label	TextField	Role new name	no
+jini	packages/user-management/src/admin/react/components/UserRow.tsx	10	prop:label	TextField	Email	no
+jini	packages/user-management/src/admin/react/components/UserRow.tsx	10	text	Button	Save email	no
+jini	packages/user-management/src/admin/react/components/UserRow.tsx	11	prop:label	Select	Assign role	no
+jini	packages/user-management/src/admin/react/components/UserRow.tsx	11	text	Button	Assign	no
+jini	packages/user-management/src/admin/react/components/UserRow.tsx	12	prop:label	Select	Attach policy	no
+jini	packages/user-management/src/admin/react/components/UserRow.tsx	12	text	Button	Attach	no
+jini	packages/user-management/src/admin/react/components/UsersConfirmation.tsx	9	text	label	New password	no
+jini	packages/user-management/src/admin/react/components/UsersConfirmation.tsx	10	prop:label	SecretInput	New password	no
+jini	packages/user-management/src/admin/react/components/UsersConfirmation.tsx	13	text	label	Confirm new password	no
+jini	packages/user-management/src/admin/react/components/UsersConfirmation.tsx	14	prop:label	SecretInput	Confirm new password	no
+jini	packages/user-management/src/admin/react/pages/LoginPage.tsx	7	text	Notice	Login is unavailable.	no
+jini	packages/user-management/src/admin/react/pages/LoginPage.tsx	8	prop:label	Spinner	Loading login…	no
+jini	packages/user-management/src/admin/react/pages/LoginPage.tsx	9	prop:label	Spinner	Loading login…	no
+jini	packages/user-management/src/admin/react/pages/MembersPage.tsx	9	text	Notice	Members administration is unavailable.	no
+jini	packages/user-management/src/admin/react/pages/MembersPage.tsx	11	text	Button	Retry	no
+jini	packages/user-management/src/admin/react/pages/MembersPage.tsx	13	text	p	People	no
+jini	packages/user-management/src/admin/react/pages/RolesPage.tsx	15	text	Notice	No roles tabs are enabled.	no
+jini	packages/user-management/src/admin/react/pages/RolesPage.tsx	25	text	Notice	Roles administration is unavailable.	no
+jini	packages/user-management/src/admin/react/pages/RolesPage.tsx	29	text	Button	Retry	no
+jini	packages/user-management/src/admin/react/pages/UsersPage.tsx	11	text	p	People	no
+jini	packages/user-management/src/admin/react/pages/UsersPage.tsx	21	text	Notice	Users administration is unavailable.	no
+jini	packages/user-management/src/admin/react/pages/UsersPage.tsx	23	text	Button	Retry	no
+jini	packages/user-management/src/admin/react/tabs/AuthTab.tsx	5	prop:label	TextField	Username	no
+jini	packages/user-management/src/admin/react/tabs/AuthTab.tsx	6	prop:label	TextField	Password	no
+jini	packages/user-management/src/admin/react/tabs/MembersTab.tsx	6	prop:aria-label	section	Members	no
+jini	packages/user-management/src/admin/react/tabs/MembersTab.tsx	6	text	Notice	No members yet. Registered members will show up here.	no
+jini	packages/user-management/src/admin/react/tabs/MembersTab.tsx	6	text	th	Email	no
+jini	packages/user-management/src/admin/react/tabs/MembersTab.tsx	6	text	th	Name	no
+jini	packages/user-management/src/admin/react/tabs/MembersTab.tsx	6	text	th	Status	no
+jini	packages/user-management/src/admin/react/tabs/MembersTab.tsx	6	text	th	Created	no
+jini	packages/user-management/src/admin/react/tabs/MembersTab.tsx	6	text	th	Actions	no
+jini	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	9	text	h2	Policies	no
+jini	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	11	prop:label	TextField	Policy name	no
+jini	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	12	prop:label	TextField	Description (optional)	no
+jini	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	13	text	Button	Create policy	no
+jini	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	15	text	th	Name	no
+jini	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	15	text	th	Description	no
+jini	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	15	text	th	Type	no
+jini	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	15	text	th	More	no
+jini	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	16	text	p	No policies yet.	no
+jini	packages/user-management/src/admin/react/tabs/RolesTab.tsx	9	text	h2	Roles	no
+jini	packages/user-management/src/admin/react/tabs/RolesTab.tsx	11	prop:label	TextField	Role name	no
+jini	packages/user-management/src/admin/react/tabs/RolesTab.tsx	12	text	Button	Create role	no
+jini	packages/user-management/src/admin/react/tabs/RolesTab.tsx	14	text	th	Name	no
+jini	packages/user-management/src/admin/react/tabs/RolesTab.tsx	14	text	th	Type	no
+jini	packages/user-management/src/admin/react/tabs/RolesTab.tsx	14	text	th	More	no
+jini	packages/user-management/src/admin/react/tabs/RolesTab.tsx	15	text	p	No roles yet.	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	6	prop:aria-label	section	Users	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	7	text	Button	New user	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	9	prop:label	TextField	Username	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	10	prop:label	TextField	Email (optional)	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	11	prop:label	TextField	Password	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	13	text	Button	Create user	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	13	text	Button	Cancel	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	15	text	Notice	No users yet. Create your first operator account to get started.	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	15	text	th	Username	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	15	text	th	Email	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	15	text	th	Status	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	15	text	th	Roles	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	15	text	th	Policies	no
+jini	packages/user-management/src/admin/react/tabs/UsersTab.tsx	15	text	th	Actions	no
+jini	packages/vibecoding/src/react/components/DocumentPreview.tsx	70	prop:title	iframe	Live preview	no
+jini	packages/vibecoding/src/react/components/PartsViewer.tsx	107	text	p	Select a part to inspect its content.	no
+jini	packages/vibecoding/src/react/components/PartsViewer.tsx	109	text	p	Loading…	no
+jini	packages/vibecoding/src/react/components/PartsViewer.tsx	116	prop:aria-label	ul	Artifact parts	no
+jini	packages/vibecoding/src/react/components/PartsViewer.tsx	118	text	li	No parts yet.	no
+jini	packages/vibecoding/src/react/components/VibecodingWorkbench.tsx	121	text	button	Undo	no
+jini	packages/vibecoding/src/react/components/VibecodingWorkbench.tsx	124	text	button	Redo	no

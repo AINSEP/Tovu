@@ -1,0 +1,2 @@
+repo	file	line	symbol	detail
+tovu	apps/website/src/server/inbound/admin-http/routes/posts/delete.ts	161	DELETE /api/admin/v1/workspaces/:workspaceId/posts/:postId	async handler, 1 await/throw outside try/catch (first line 164)

@@ -1,0 +1,47 @@
+repo	file	line	symbol	detail
+jini	packages/agent-plugins/src/lifecycle/automatic-use.ts	269	offPluginNote	limit: 10
+jini	packages/chat/src/store/sql/cursor.ts	11	pageLimit	limit=50
+jini	packages/chat/src/store/sql/maintenance.ts	14	sweepExpired	limit=500
+jini	packages/cms/src/forms/attachment-purge.ts	32	beforePurge	limit: 100
+jini	packages/cms/src/forms/attachment-purge.ts	75	protectFormAttachments	limit: 100
+jini	packages/cms/src/forms/sql/submission-ip-retention-repo.ts	15	clearExpiredIps	limit=500
+jini	packages/cms/src/redirects/resolver.ts	102	resolveWithRefusals	limit: DYNAMIC_SET_LIMIT=500
+jini	packages/commerce/src/catalog-tools.ts	51	storefrontWarnings	limit: 25
+jini	packages/commerce/src/catalog/repo.storefront.ts	26	listProducts	.limit(STOREFRONT_PRODUCT_LIMIT=24)
+jini	packages/commerce/src/catalog/repo.ts	92	listActive	limit=100
+jini	packages/core/src/batch-tool-inputs.ts	328	withBatchInput	maxItems=DEFAULT_MAX_BATCH_ITEMS=25
+jini	packages/daemon/src/core/read-only-tools.ts	112	search	limit=10
+jini	packages/daemon/src/http/research-tavily.adapter.ts	134	tavilySearch	maxResults=DEFAULT_MAX_SOURCES=5
+jini	packages/devops/src/deploy/ops-runner.ts	159	runDeployOps	limit: 100
+jini	packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts	270	createAsyncOperationPollingTransactions	limit=10
+jini	packages/integrations/src/media-providers/staging.ts	170	createFsAttachmentStaging	maxItems=DEFAULT_MAX_ITEMS=50
+jini	packages/integrations/src/webhooks/tools/tool-handlers.ts	75	<anonymous>	limit: LAST_DELIVERY_LOOKUP_LIMIT=50
+jini	packages/oauth/src/pending-authorizations.ts	103	createPendingAuthorizationStore	maxEntries=DEFAULT_MAX_ENTRIES=256
+jini	packages/registry/src/tool-catalog-builder/query.ts	59	search	limit=10
+jini	packages/registry/src/tool-catalog/sqlite.ts	119	searchToolCatalog	limit=10
+jini	packages/search/src/indexer.ts	475	operation	limit=50
+tovu	apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.tsx	349	RecentEntriesConfigFields	maxItems=5
+tovu	apps/admin/src/features/observability/hooks/use-recent-server-errors.hooks.ts	77	useRecentServerErrors	limit: RECENT_ERRORS_LIMIT=50
+tovu	apps/admin/src/features/taxonomy/rules.ts	284	termListView	take=TERM_PICKER_MAX_SHOWN=100
+tovu	apps/admin/src/features/themes/hooks/use-theme-explore-file-groups.hooks.ts	94	themeExploreVisibleGroupFiles	limit=THEME_EXPLORE_COLLAPSED_FILE_LIMIT=10
+tovu	apps/desktop/src/site-dir-store.ts	122	rememberSiteDir	maxEntries: MAX_RECENT_SITE_DIRS=10
+tovu	apps/desktop/src/workspace-conversation-store.ts	103	listToolGaps	limit=100
+tovu	apps/website/src/assistant/byok-tool-surface.ts	304	runSearchTools	limit=SEARCH_LIMIT_MAX=25
+tovu	apps/website/src/assistant/component-catalog-query.ts	99	search	limit=10
+tovu	apps/website/src/assistant/component-catalog-tool.ts	135	SEARCH_COMPONENTS_TOOL_ID	limit=SEARCH_LIMIT_DEFAULT=10
+tovu	apps/website/src/assistant/permanent-delete-tool-gate.ts	16	search	limit=10
+tovu	apps/website/src/assistant/site/tools.ts	172	createSiteAssistantTools	limit=DEFAULT_MAX_RESULTS=20
+tovu	apps/website/src/assistant/tool-catalog-query.ts	142	search	limit=10
+tovu	apps/website/src/features/analytics/tool-registrations.ts	54	analytics_list_recent_hits	limit: 500
+tovu	apps/website/src/features/entries/public-list.ts	294	parseCollectionListConfig	limit=DEFAULT_COLLECTION_LIST_LIMIT=6
+tovu	apps/website/src/features/identity/passkeys.repo.ts	12	execute	.limit(6)
+tovu	apps/website/src/features/newsletter/repo.memory.ts	233	listByCampaign	limit=DEFAULT_LIST_LIMIT=100
+tovu	apps/website/src/features/newsletter/send-pipeline.ts	400	requeuePendingSends	limit: 1000
+tovu	apps/website/src/features/post/search.ts	264	searchAdminPosts	limit=DEFAULT_POST_SEARCH_LIMIT=8; limit: DEFAULT_POST_SEARCH_LIMIT=8
+tovu	apps/website/src/features/tool-audit/tool-gaps.repo.ts	11	list	limit=100
+tovu	apps/website/src/platform/db/vault-credential-inventory.ts	197	snapshotVaultCredentials	maxEntries=10000
+tovu	apps/website/src/platform/server-logs/log-buffer.ts	91	createLogBuffer	maxEntries=DEFAULT_MAX_ENTRIES=2000
+tovu	apps/website/src/server/inbound/admin-http/routes/integrations/list.ts	42	registerAdminIntegrationsListRoute	limit: LAST_DELIVERY_LOOKUP_LIMIT=50
+tovu	apps/website/src/server/runtime/composition/commerce.ts	380	fn	limit: 10
+tovu	apps/website/src/server/runtime/composition/domain-dns-adapters.ts	135	listSavedHostingHosts	limit: 100
+tovu	apps/website/src/server/runtime/composition/other-site-keys.ts	142	readSource	SQL LIMIT MAX_ROWS_PER_SITE=50

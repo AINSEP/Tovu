@@ -1,0 +1,241 @@
+var	repo	file_count	sources	files
+TOVU_PUBLIC_URL	tovu	12	env-param,process.env,name-literal	apps/desktop/src/tovu-server.ts ; apps/website/src/assistant/admin-screen-link-tool.ts ; apps/website/src/features/agent-plugins/connect-tool.ts ; apps/website/src/features/external-mcp/tool-registrations.ts ; apps/website/src/features/origin/configured-origin.ts ; apps/website/src/features/publish-
+TOVU_SITE_DIR	tovu	10	env-param,name-literal,process.env	apps/desktop/src/desktop-agent-service.ts ; apps/desktop/src/tovu-server.ts ; apps/website/src/cli/commands/serve.ts ; apps/website/src/platform/site-dir/site-registry.ts ; apps/website/src/platform/site-dir/site-root.ts ; apps/website/src/server/inbound/assistant/agent-daemon-scope-control.ts ; app
+TOVU_ADMIN_PASSWORD	tovu	9	name-literal,env-param	apps/admin/src/features/deployment/rules.ts ; apps/desktop/src/move-site-home.ts ; apps/desktop/src/site-archive-import.ts ; apps/desktop/src/tovu-server.ts ; apps/website/src/features/deployments/deploy-config.ts ; apps/website/src/features/identity/wiring.ts ; apps/website/src/server/inbound/admin
+NODE_ENV	tovu	7	env-param,process.env	apps/website/src/features/plugin-runtime/install.ts ; apps/website/src/platform/site-dir/site-registry.ts ; apps/website/src/platform/site-dir/site-switcher-enabled.ts ; apps/website/src/server/inbound/public-http/routes/site/chat-comparison.ts ; apps/website/src/server/runtime/boot/boot-readiness-w
+PORT	tovu	7	env-param,process.env	apps/desktop/src/tovu-server.ts ; apps/website/src/cli/commands/serve.ts ; apps/website/src/index.ts ; apps/website/src/server/runtime/boot/site-listener-origin.ts ; apps/website/src/server/runtime/composition/app.ts ; apps/website/src/server/runtime/composition/site-deps/outbound-connections.ts ; a
+TOVU_DESKTOP_USER_DATA_DIR	tovu	7	env-param,name-literal	apps/desktop/src/desktop-user-data-dir.ts ; apps/desktop/src/main/boot/boot-steps.ts ; apps/desktop/src/shared-sites.ts ; apps/website/src/platform/site-dir/sites-project-references.ts ; apps/website/src/platform/site-dir/sites-workspace-options.ts ; apps/website/src/server/runtime/composition/proje
+JINI_AGENT_DAEMON_PORT	tovu	6	name-literal,process.env,env-param	apps/desktop/src/smoke-packaged-chat.ts ; apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts ; apps/website/src/server/inbound/assistant/agent-daemon-server.ts ; apps/website/src/server/runtime/lifecycle/agent-daemon-port.ts ; apps/website/src/server/runtime/lifecycle/da
+TOVU_DEV_WARM_SITES	tovu	6	env-param,process.env,name-literal	apps/website/src/platform/dev-host/warm-site-agent.ts ; apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts ; apps/website/src/server/inbound/admin-http/routes/system/sites.ts ; apps/website/src/server/runtime/lifecycle/local-site-host.ts ; apps/website/src/server/runtime/li
+TOVU_SITE_LISTENER_ORIGIN	tovu	6	env-param,process.env	apps/website/src/server/inbound/assistant/agent-daemon-scope-control.ts ; apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts ; apps/website/src/server/runtime/boot/site-listener-origin.ts ; apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts ; apps/website/src/se
+DEV	tovu	5	import.meta.env	apps/admin/src/features/observability/hooks/use-queries-tab.hooks.ts ; apps/admin/src/features/pages/PageEditor.tsx ; apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts ; apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts ; apps/admin/src/lib/site-url.ts
+ELECTRON_RUN_AS_NODE	tovu	5	env-param	apps/desktop/src/smoke-bridge.ts ; apps/desktop/src/tovu-server.ts ; apps/website/src/assistant/mcp-injection.ts ; apps/website/src/contracts/core/runtime-mode.ts ; apps/website/src/features/plugin-runtime/install.ts
+TOVU_ADMIN_DEV_PROXY_URL	tovu	5	env-param,name-literal,process.env	apps/desktop/src/admin-dev-proxy.ts ; apps/desktop/src/smoke-packaged-chat.ts ; apps/desktop/src/tovu-server.ts ; apps/website/src/server/inbound/admin-http/admin-dev-proxy.ts ; apps/website/src/server/inbound/admin-http/admin-static.ts
+TOVU_AGENT_DAEMON_TOKEN	tovu	5	name-literal,env-param,process.env[],env-param[]	apps/desktop/src/smoke-packaged-chat.ts ; apps/desktop/src/tovu-server.ts ; apps/website/src/assistant/daemon-access.ts ; apps/website/src/server/inbound/assistant/agent-daemon-scope-control.ts ; packages/contracts/src/startup-secret-keys.ts
+TOVU_DB	tovu	5	env-param,process.env	apps/desktop/src/tovu-server.ts ; apps/website/src/cli/commands/serve.ts ; apps/website/src/index.ts ; apps/website/src/platform/db/client/open-site-db-client.ts ; apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts
+TOVU_PLUGINS_DIR	tovu	5	name-literal,env-param,process.env	apps/desktop/src/tovu-server.ts ; apps/website/src/cli/commands/plugin/install.ts ; apps/website/src/index.ts ; apps/website/src/server/runtime/composition/site-paths.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_SITE_KEY	tovu	5	name-literal,env-param[]	apps/admin/src/features/security/hooks/site-key-status.rules.ts ; apps/website/src/features/deployments/deploy-config.ts ; apps/website/src/features/webhooks/site-key-sources.ts ; apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts ; apps/website/src/server/runtime/boot/s
+TOVU_SITE_ROOTS	tovu	5	name-literal,env-param	apps/admin/src/features/sites/SitesHomeSetting.tsx ; apps/desktop/src/shared-sites.ts ; apps/website/src/platform/site-dir/sites-home.ts ; apps/website/src/platform/site-dir/sites-workspace-options.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_SITES_HOME	tovu	5	name-literal,env-param	apps/admin/src/features/sites/SitesHomeSetting.tsx ; apps/desktop/src/shared-sites.ts ; apps/website/src/platform/site-dir/sites-home.ts ; apps/website/src/platform/site-dir/sites-workspace-options.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+JINI_AGENT_DAEMON_URL	tovu	4	name-literal,env-param,process.env	apps/desktop/src/smoke-packaged-chat.ts ; apps/website/src/server/inbound/assistant/agent-daemon-scope.ts ; apps/website/src/server/runtime/lifecycle/agent-daemon-port.ts ; apps/website/src/server/runtime/lifecycle/local-site-host.ts
+TOVU_ADMIN_DIST	tovu	4	env-param,process.env	apps/desktop/src/tovu-server.ts ; apps/website/src/platform/site-dir/local-site-child.ts ; apps/website/src/server/runtime/composition/http-app/public-middleware.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_ADMIN_USER	tovu	4	env-param,name-literal	apps/desktop/src/site-archive-import.ts ; apps/desktop/src/tovu-server.ts ; apps/website/src/features/identity/wiring.ts ; apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts
+TOVU_CHAT_DB	tovu	4	env-param,process.env	apps/desktop/src/tovu-server.ts ; apps/website/src/cli/commands/serve.ts ; apps/website/src/server/runtime/composition/database-transfer-adapters.ts ; apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_DEV_SUPERVISOR_PID	tovu	4	env-param,process.env	apps/website/src/server/runtime/boot/local-owner-signin.ts ; apps/website/src/server/runtime/boot/parent-watchdog.ts ; apps/website/src/server/runtime/composition/observability-export.ts ; apps/website/src/server/runtime/lifecycle/local-site-host.ts
+TOVU_HOST	tovu	4	env-param,process.env	apps/desktop/src/tovu-server.ts ; apps/website/src/cli/commands/serve.ts ; apps/website/src/index.ts ; apps/website/src/server/runtime/boot/local-owner-signin.ts
+TOVU_ADMIN_DEV_PORT	tovu	3	process.env,env-param	apps/admin/vite.config.ts ; apps/admin/vitest.config.ts ; apps/desktop/src/admin-dev-proxy.ts
+TOVU_AGENT_PLUGINS_DIR	tovu	3	name-literal,env-param	apps/desktop/src/tovu-server.ts ; apps/website/src/features/agent-plugins/layout.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_BUNDLED_NPM_ROOT	tovu	3	name-literal,env-param	apps/desktop/src/node-toolchain.ts ; apps/desktop/src/tovu-server.ts ; apps/website/src/assistant/mcp-federation/bootstrap.ts
+TOVU_CONTENT_DB	tovu	3	env-param,process.env	apps/desktop/src/tovu-server.ts ; apps/website/src/cli/commands/serve.ts ; apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_DESKTOP_MCP_HANDOFF_TOKEN	tovu	3	name-literal	apps/desktop/src/sites-mcp-identity.ts ; apps/website/src/assistant/desktop-mcp-runtime.ts ; packages/contracts/src/startup-secret-keys.ts
+TOVU_DESKTOP_MCP_TOKEN	tovu	3	name-literal	apps/desktop/src/sites-mcp-identity.ts ; apps/website/src/assistant/desktop-mcp-runtime.ts ; packages/contracts/src/startup-secret-keys.ts
+TOVU_DESKTOP_OWNER_PID	tovu	3	env-param	apps/desktop/src/tovu-server.ts ; apps/website/src/features/plugin-runtime/install.ts ; apps/website/src/server/runtime/boot/local-owner-signin.ts
+TOVU_DESKTOP_URL	tovu	3	env-param,process.env	apps/desktop/src/main/boot/boot-steps.ts ; apps/desktop/src/main/index.ts ; apps/desktop/src/startup-env.ts
+TOVU_DEV_WARM_CONTROL_TOKEN	tovu	3	env-param,process.env,name-literal	apps/website/src/platform/dev-host/warm-site-agent.ts ; apps/website/src/server/inbound/admin-http/routes/system/sites.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_DEV_WARM_CONTROL_URL	tovu	3	env-param,process.env,name-literal	apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts ; apps/website/src/server/runtime/lifecycle/local-site-host.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_DISABLE_DEV_TLS	tovu	3	process.env,env-param	apps/admin/vite.config.ts ; apps/website/src/cli/commands/serve.ts ; apps/website/src/platform/dev-host/dev-tls.ts
+TOVU_LOCAL_SITE_OWNER_PID	tovu	3	env-param,process.env	apps/website/src/platform/site-dir/local-site-child.ts ; apps/website/src/server/runtime/boot/local-owner-signin.ts ; apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts
+TOVU_NODE_TOOLCHAIN_DIR	tovu	3	name-literal,env-param	apps/desktop/src/node-toolchain.ts ; apps/desktop/src/tovu-server.ts ; apps/website/src/assistant/mcp-federation/bootstrap.ts
+TOVU_PRODUCT_TELEMETRY_CONFIG	tovu	3	env-param	apps/desktop/src/product-telemetry.ts ; apps/desktop/src/tovu-server.ts ; apps/website/src/server/runtime/composition/product-telemetry.ts
+TOVU_REPO_ROOT	tovu	3	env-param	apps/desktop/src/tovu-server.ts ; apps/website/src/features/publish-trust/provisioning.node-io.ts ; apps/website/src/platform/site-dir/local-site-child.ts
+TOVU_SITE_CALLBACK_ORIGIN	tovu	3	env-param	apps/website/src/server/inbound/assistant/agent-daemon-scope-control.ts ; apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts ; apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts
+TOVU_SITE_CHAT_DIST	tovu	3	env-param,process.env	apps/desktop/src/tovu-server.ts ; apps/website/src/server/inbound/public-http/http/site/render/site-assistant-mount.ts ; apps/website/src/server/runtime/composition/http-app/public-middleware.ts
+TOVU_SKILLS_DIR	tovu	3	name-literal,env-param	apps/desktop/src/tovu-server.ts ; apps/website/src/features/skills/layout.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+ANALYTICS_ROOT_KEY_SEED	tovu	2	env-param,process.env	apps/website/src/server/runtime/boot/boot-readiness-gate.ts ; apps/website/src/server/runtime/composition/http-app/visitor-submit.ts
+HOME	tovu	2	env-param	apps/website/src/server/inbound/assistant/agent-daemon-run-launch.ts ; apps/website/src/server/runtime/composition/storage-secret.ts
+JINI_ALLOWED_ORIGINS	tovu	2	name-literal	apps/desktop/src/desktop-agent.ts ; apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts
+JINI_BIND_HOST	tovu	2	name-literal	apps/desktop/src/desktop-agent.ts ; apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts
+JINI_DESKTOP_RENDER_TOKEN	tovu	2	name-literal	apps/desktop/src/tovu-server.ts ; packages/contracts/src/startup-secret-keys.ts
+JINI_WEB_PORT	tovu	2	name-literal	apps/desktop/src/desktop-agent.ts ; apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts
+MODE	tovu	2	import.meta.env	apps/admin/src/lib/browser-telemetry.ts ; apps/admin/src/lib/server-reconnect.ts
+NODE_TEST_CONTEXT	tovu	2	process.env,env-param	apps/website/src/platform/test-home-isolation.ts ; apps/website/src/server/runtime/composition/observability-export.ts
+PATH	tovu	2	env-param,process.env	apps/desktop/scripts/smoke-native.ts ; apps/website/src/features/site-backup/import-database.ts
+SystemRoot	tovu	2	process.env	apps/website/src/features/site-backup/import-database.ts ; apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts
+TMPDIR	tovu	2	process.env	apps/desktop/scripts/verify-find-in-page.ts ; apps/desktop/scripts/verify-site-power.ts
+TOVU_ADMIN_RESET_PASSWORD	tovu	2	name-literal,process.env	apps/website/src/cli/commands/reset-owner.ts ; apps/website/src/server/runtime/composition/site-deps/identity-settings.ts
+TOVU_ADMIN_RESET_USERNAME	tovu	2	env-param,process.env	apps/website/src/cli/commands/reset-owner.ts ; apps/website/src/server/runtime/composition/site-deps/identity-settings.ts
+TOVU_AGENT_DAEMON_IDLE_MINUTES	tovu	2	name-literal,env-param	apps/desktop/src/desktop-agent-service.ts ; apps/website/src/server/inbound/assistant/agent-daemon-idle-park.ts
+TOVU_AGENT_FORBID_BASH	tovu	2	env-param,name-literal	apps/website/src/server/inbound/assistant/assistant-system-overlay.ts ; packages/contracts/src/assistant-native-fallbacks.ts
+TOVU_AGENT_PERMISSION_MODE	tovu	2	env-param,name-literal	apps/website/src/contracts/core/agent-permission-mode.ts ; packages/contracts/src/assistant-native-fallbacks.ts
+TOVU_API_URL	tovu	2	process.env	apps/admin/vite.config.ts ; apps/site-chat/vite.config.ts
+TOVU_BUILT_IN_MCP_SERVER_IDS	tovu	2	env-param	apps/desktop/src/tovu-server.ts ; apps/website/src/features/external-mcp/built-in-connections.ts
+TOVU_CONSENT_REGION_HEADER	tovu	2	env-param	apps/website/src/server/runtime/composition/site-cookie-consent.ts ; apps/website/src/server/runtime/composition/site-deps/assembly-phases.ts
+TOVU_DAEMON_LIFECYCLE_LOG	tovu	2	name-literal,env-param	apps/desktop/src/desktop-agent-service.ts ; apps/website/src/server/runtime/lifecycle/daemon-lifecycle-log.ts
+TOVU_DESKTOP_MCP_URL	tovu	2	name-literal,process.env	apps/desktop/src/sites-mcp-identity.ts ; apps/website/src/assistant/desktop-mcp-runtime.ts
+TOVU_DESKTOP_OWNER_SIGNIN	tovu	2	env-param,name-literal	apps/desktop/src/tovu-server.ts ; apps/website/src/server/runtime/boot/local-owner-signin.ts
+TOVU_DESKTOP_SITE_DIR	tovu	2	env-param	apps/desktop/src/main/boot/own-server-boot.ts ; apps/desktop/src/startup-env.ts
+TOVU_DEV_WARM_CONTROL_WORKSPACE	tovu	2	env-param,name-literal	apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_DEV_WARM_HOST_URL	tovu	2	env-param,name-literal	apps/website/src/platform/dev-host/warm-site-agent.ts ; apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_PACKAGED_DESKTOP	tovu	2	name-literal,env-param	apps/desktop/src/tovu-server.ts ; apps/website/src/server/runtime/composition/observability-export.ts
+TOVU_PG_SOCKET	tovu	2	name-literal,env-param[]	apps/website/src/platform/db/client/open-site-db-client.ts ; apps/website/src/server/runtime/composition/open-site-store.ts
+TOVU_PRODUCT_RELEASE	tovu	2	env-param	apps/desktop/src/tovu-server.ts ; apps/website/src/server/runtime/composition/product-telemetry.ts
+TOVU_PRODUCT_TELEMETRY_PREFS	tovu	2	env-param	apps/desktop/src/tovu-server.ts ; apps/website/src/server/runtime/composition/product-telemetry.ts
+TOVU_RUNTIME_MODE	tovu	2	env-param	apps/website/src/contracts/core/runtime-mode.ts ; packages/contracts/src/assistant-native-fallbacks.ts
+TOVU_SITE	tovu	2	name-literal,env-param	apps/website/src/platform/site-dir/active-site.ts ; apps/website/src/platform/site-dir/site-root.ts
+TOVU_SITE_CHAT_DEV_PROXY_URL	tovu	2	process.env	apps/website/src/server/inbound/public-http/http/site/render/site-assistant-mount.ts ; apps/website/src/server/inbound/public-http/middleware/site-chat-static.ts
+TOVU_SITE_PROCESS_CWD	tovu	2	process.env,env-param	apps/website/src/server/inbound/assistant/agent-daemon-server.ts ; apps/website/src/server/runtime/composition/storage-secret.ts
+TOVU_STOCK_THEMES_DIR	tovu	2	process.env	apps/website/src/platform/site-dir/product-root.ts ; apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_TOOL_EXEC_TOKEN	tovu	2	name-literal,env-param[]	apps/website/src/assistant/daemon-access.ts ; packages/contracts/src/startup-secret-keys.ts
+TOVU_VISITOR_TOOLS_POLICY	tovu	2	process.env,env-param	apps/website/src/server/runtime/composition/http-app/public-middleware.ts ; apps/website/src/server/runtime/composition/modules/site-assistant.ts
+TOVU_WORKSPACE	tovu	2	env-param	apps/website/src/server/inbound/assistant/agent-daemon-server.ts ; apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts
+USERPROFILE	tovu	2	env-param	apps/website/src/server/inbound/assistant/agent-daemon-run-launch.ts ; apps/website/src/server/runtime/composition/storage-secret.ts
+VITE_TOVU_SITE_URL	tovu	2	import.meta.env,env-param	apps/admin/src/lib/site-url.ts ; apps/website/src/platform/site-dir/local-admin-bundle.ts
+COMMENTS_IP_SALT	tovu	1	env-param[]	apps/website/src/features/comments/ip-hash-salt.ts
+DISPLAY	tovu	1	env-param	apps/website/src/features/fs-files/native-folder-picker.ts
+FIND_SHOT_DIR	tovu	1	process.env	apps/desktop/scripts/verify-find-in-page.ts
+FIND_VERIFY_NATIVE_KEYS	tovu	1	process.env	apps/desktop/scripts/verify-find-in-page.ts
+FIND_VERIFY_SKIP_GUEST	tovu	1	process.env	apps/desktop/scripts/verify-find-in-page.ts
+FIND_VERIFY_USERDATA	tovu	1	process.env	apps/desktop/scripts/verify-find-in-page.ts
+GEMINI_API_KEY	tovu	1	env-param	apps/website/src/server/runtime/composition/modules/site-assistant.ts
+JINI_DESKTOP_RENDER_URL	tovu	1	name-literal	apps/desktop/src/tovu-server.ts
+JINI_RUN_ID	tovu	1	env-param	apps/desktop/src/smoke-bridge.ts
+JINI_STOP_ON_STDIN_EOF	tovu	1	process.env	apps/website/src/server/inbound/assistant/agent-daemon-server.ts
+KUBERNETES_SERVICE_HOST	tovu	1	env-param	apps/website/src/server/runtime/boot/boot-readiness-warnings.ts
+NODE_V8_COVERAGE	tovu	1	env-param	apps/website/src/server/inbound/public-http/http/site/worker-sandbox.ts
+SITE_POWER_SHOT_DIR	tovu	1	process.env	apps/desktop/scripts/verify-site-power.ts
+SITE_POWER_SITE_DIR	tovu	1	process.env	apps/desktop/scripts/verify-site-power.ts
+SITE_POWER_USERDATA	tovu	1	process.env	apps/desktop/scripts/verify-site-power.ts
+TOVU_ADMIN_ASSISTANT	tovu	1	env-param	apps/website/src/server/runtime/composition/admin-assistant-enabled.ts
+TOVU_AGENT_CWD	tovu	1	name-literal,env-param	apps/desktop/src/tovu-server.ts
+TOVU_AGENT_DAEMON_REGISTRY_PATH	tovu	1	process.env	apps/website/src/server/inbound/assistant/agent-daemon-server.ts
+TOVU_AGENT_DAEMON_STANDALONE	tovu	1	process.env	apps/website/src/server/inbound/assistant/agent-daemon-server.ts
+TOVU_AGENT_FULL_CLI_ACCESS	tovu	1	name-literal	packages/contracts/src/assistant-native-fallbacks.ts
+TOVU_AGENT_NATIVE_FALLBACKS	tovu	1	name-literal	packages/contracts/src/assistant-native-fallbacks.ts
+TOVU_AGENT_PLUGIN_DELIVERY	tovu	1	env-param	apps/website/src/features/agent-plugins/lifecycle.ts
+TOVU_ALLOWED_ORIGINS	tovu	1	name-literal	apps/website/src/assistant/site/visitor-frontend-control.ts
+TOVU_API_CONNECTION_CALLBACK_ORIGINS	tovu	1	name-literal	apps/website/src/features/api-connections/host-bindings.ts
+TOVU_BUNDLED_AGENT_PLUGINS_DIR	tovu	1	name-literal	apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_CAPABILITY_MANIFEST_ARM	tovu	1	env-param	apps/website/src/server/inbound/assistant/capability-manifest-prefix.ts
+TOVU_CHAT_ATTACHMENTS_DIR	tovu	1	env-param	apps/website/src/server/inbound/assistant/chat-attachment-directory.ts
+TOVU_CONSENT_INGRESS	tovu	1	env-param	apps/website/src/server/runtime/composition/site-cookie-consent.ts
+TOVU_DATABASE_JOURNAL_DB	tovu	1	process.env	apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_DESKTOP_AGENT_SERVICE	tovu	1	name-literal	packages/contracts/src/startup-secret-keys.ts
+TOVU_DESKTOP_CLI_MODE	tovu	1	env-param	apps/desktop/src/startup-env.ts
+TOVU_DESKTOP_DISABLE_UPDATER	tovu	1	env-param	apps/desktop/src/main/updates/desktop-updater.ts
+TOVU_DESKTOP_PORT	tovu	1	env-param	apps/desktop/src/main/boot/own-server-boot.ts
+TOVU_DESKTOP_SELFTEST	tovu	1	process.env	apps/desktop/src/main/index.ts
+TOVU_DESKTOP_SITE_DIRS	tovu	1	env-param	apps/desktop/src/startup-env.ts
+TOVU_DESKTOP_UI	tovu	1	env-param	apps/desktop/src/startup-env.ts
+TOVU_DEV_OWNER_SIGNIN	tovu	1	env-param,name-literal	apps/website/src/server/runtime/boot/local-owner-signin.ts
+TOVU_DEV_RESTART_REQUEST_FILE	tovu	1	name-literal,env-param[]	apps/website/src/platform/dev-supervisor/dev-restart.ts
+TOVU_DEV_RETIRE_TOKEN	tovu	1	env-param	apps/website/src/server/runtime/lifecycle/warm-site-retirement.ts
+TOVU_DEV_SITE_PINNED	tovu	1	env-param	apps/website/src/platform/dev-supervisor/dev-restart.ts
+TOVU_DEV_TSX_CLI	tovu	1	env-param	apps/website/src/server/runtime/lifecycle/local-site-process.ts
+TOVU_DISABLE_PARENT_WATCHDOG	tovu	1	env-param	apps/website/src/server/runtime/boot/parent-watchdog.ts
+TOVU_ENABLE_SITE_SWITCHER	tovu	1	env-param	apps/website/src/platform/site-dir/site-switcher-enabled.ts
+TOVU_EXECUTION_MODE	tovu	1	name-literal,env-param[]	apps/website/src/features/deployments/publish-credentials/execution-mode.ts
+TOVU_EXPORT_DIR	tovu	1	env-param	apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_HOSTED	tovu	1	env-param	packages/contracts/src/assistant-native-fallbacks.ts
+TOVU_LOCAL_ADMIN_BUILD_ROOT	tovu	1	env-param	apps/website/src/platform/site-dir/local-site-child.ts
+TOVU_LOCAL_SITE_LIMIT	tovu	1	env-param	apps/website/src/server/runtime/lifecycle/local-site-host.ts
+TOVU_LOCAL_SITE_WATCH	tovu	1	env-param	apps/website/src/platform/site-dir/local-site-child.ts
+TOVU_LOG_REQUESTS	tovu	1	name-literal,env-param	apps/website/src/server/inbound/shared/observability-middleware.ts
+TOVU_LOG_SLOW_REQUESTS	tovu	1	name-literal,env-param	apps/website/src/server/inbound/shared/observability-middleware.ts
+TOVU_MEDIA_BLOB_STORE	tovu	1	name-literal	apps/website/src/features/object-storage/media-store.ts
+TOVU_MEDIA_UPLOADS_DIR	tovu	1	env-param	apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_PARENT_PID	tovu	1	process.env	apps/website/src/server/inbound/assistant/agent-daemon-server.ts
+TOVU_PLUGIN_LOCAL_INSTALL	tovu	1	env-param	apps/website/src/features/plugin-runtime/install.ts
+TOVU_PLUGIN_TIER2_TIMEOUT_MS	tovu	1	env-param	apps/website/src/server/runtime/plugin-tier2/run-in-worker.ts
+TOVU_PUBLISH_CONTENT_DEV_HOSTS	tovu	1	env-param	apps/website/src/server/runtime/composition/publish-content-http.ts
+TOVU_PUBLISH_DIR	tovu	1	env-param	apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_PUBLISH_TRUST	tovu	1	name-literal	apps/website/src/features/publish-trust/provisioning.ts
+TOVU_RUNNING_APP	tovu	1	process.env	apps/website/src/cli/commands/serve.ts
+TOVU_SHARE_PERSISTENT_STORAGE	tovu	1	process.env	apps/website/src/server/runtime/composition/site-deps/site-sharing.ts
+TOVU_SHARE_PUBLIC_ORIGIN	tovu	1	process.env	apps/website/src/server/runtime/composition/site-deps/site-sharing.ts
+TOVU_SITE_ASSISTANT_BASE_URL	tovu	1	env-param	apps/website/src/server/runtime/composition/modules/site-assistant.ts
+TOVU_SITE_ASSISTANT_MODE	tovu	1	env-param	apps/website/src/assistant/site/mode.ts
+TOVU_SITE_ASSISTANT_MODEL	tovu	1	env-param	apps/website/src/server/runtime/composition/modules/site-assistant.ts
+TOVU_SITE_BINDING_NOT_SWITCHABLE	tovu	1	name-literal,env-param[]	apps/website/src/platform/site-dir/site-registry.ts
+TOVU_SITE_ID	tovu	1	env-param,name-literal	apps/website/src/server/runtime/composition/site-deps/provider-identity.ts
+TOVU_SITE_KEY_NOTICE	tovu	1	env-param	apps/website/src/server/runtime/boot/site-key-boot-notice.ts
+TOVU_SITE_SELECTION_PINNED	tovu	1	name-literal,env-param[]	apps/website/src/platform/site-dir/site-root.ts
+TOVU_SOURCE_CONTROL_EXPORT_DIR	tovu	1	env-param	apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_START_AUTO_PORT	tovu	1	process.env	apps/website/src/index.ts
+TOVU_STOCK_CONTENT_SEED_DIR	tovu	1	process.env	apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_STOP_ON_STDIN_EOF	tovu	1	process.env	apps/website/src/cli/commands/serve-listen.ts
+TOVU_TARGET_ARCH	tovu	1	env-param	apps/desktop/src/stage-payload-lib.ts
+TOVU_TARGET_PLATFORM	tovu	1	env-param	apps/desktop/src/stage-payload-lib.ts
+TOVU_TELEMETRY_FORCE_ENABLE	tovu	1	env-param	apps/website/src/server/runtime/composition/observability-export.ts
+TOVU_THEME_RENDER_TIMEOUT_MS	tovu	1	process.env	apps/website/src/server/inbound/public-http/http/site/worker-sandbox.ts
+TOVU_THEMES_DIR	tovu	1	env-param	apps/website/src/server/runtime/composition/site-paths.ts
+TOVU_TRUST_PROXY	tovu	1	env-param,name-literal	apps/website/src/server/inbound/shared/trust-proxy.ts
+VITEST	tovu	1	env-param	apps/website/src/server/runtime/composition/observability-export.ts
+WAYLAND_DISPLAY	tovu	1	env-param	apps/website/src/features/fs-files/native-folder-picker.ts
+WINDIR	tovu	1	env-param	apps/desktop/scripts/smoke-native.ts
+XDG_CONFIG_HOME	tovu	1	env-param	apps/website/src/platform/site-dir/sites-project-references.ts
+HOME	jini	9	env-param	packages/agent-runtime/src/claude-code-models.ts ; packages/agent-runtime/src/env.ts ; packages/agent-runtime/src/executables.ts ; packages/agent-runtime/src/model-discovery-adapters.ts ; packages/agent-runtime/src/model-discovery-config.ts ; packages/agent-runtime/src/opencode-log.ts ; packages/dae
+APPDATA	jini	6	process.env,env-param	packages/agent-runtime/src/defs/reasonix.ts ; packages/mcp/src/agent-install/install.ts ; packages/platform/src/fs/app-data-root.ts ; packages/platform/src/fs/directory-sync.ts ; packages/platform/src/fs/user-data-directories.ts ; packages/platform/src/toolchain.ts
+CLAUDE_CONFIG_DIR	jini	4	env-param	packages/agent-runtime/src/claude-code-models.ts ; packages/agent-runtime/src/defs/claude/model-discovery.ts ; packages/agent-runtime/src/model-discovery-adapters.ts ; packages/platform/src/sandbox-env.ts
+PATH	jini	4	env-param,env-param[],process.env	packages/agent-runtime/src/executables.ts ; packages/cms/src/media/video-frames.ffmpeg.ts ; packages/daemon/src/http/host-tools.ts ; packages/platform/src/shell.ts
+XDG_CONFIG_HOME	jini	4	env-param	packages/agent-runtime/src/model-discovery-config.ts ; packages/platform/src/fs/app-data-root.ts ; packages/platform/src/fs/user-data-directories.ts ; packages/platform/src/sandbox-env.ts
+CODEX_HOME	jini	3	env-param	packages/agent-runtime/src/defs/codex/model-discovery.ts ; packages/agent-runtime/src/model-discovery-adapters.ts ; packages/platform/src/sandbox-env.ts
+PGHOST	jini	3	env-param	packages/db/src/testing/pg-fixture.ts ; packages/db/src/testing/postgres-database.ts ; packages/db/src/testing/transfer-pg-test-db.ts
+PGPORT	jini	3	env-param	packages/db/src/testing/pg-fixture.ts ; packages/db/src/testing/postgres-database.ts ; packages/db/src/testing/transfer-pg-test-db.ts
+PGUSER	jini	3	env-param	packages/db/src/testing/pg-fixture.ts ; packages/db/src/testing/postgres-database.ts ; packages/db/src/testing/transfer-pg-test-db.ts
+USERPROFILE	jini	3	env-param	packages/agent-runtime/src/executables.ts ; packages/platform/src/child-environment.ts ; packages/platform/src/sandbox-env.ts
+XDG_DATA_HOME	jini	3	env-param	packages/agent-runtime/src/opencode-log.ts ; packages/platform/src/fs/user-data-directories.ts ; packages/platform/src/sandbox-env.ts
+ANTHROPIC_API_KEY	jini	2	env-param	packages/agent-runtime/src/anthropic-live-models.ts ; packages/agent-runtime/src/model-discovery-adapters.ts
+ANTHROPIC_BASE_URL	jini	2	env-param	packages/agent-runtime/src/anthropic-live-models.ts ; packages/agent-runtime/src/model-discovery-adapters.ts
+CODEX_DISABLE_PLUGINS	jini	2	env-param	packages/agent-runtime/src/defs/codex/options.ts ; packages/daemon/src/agent-executor/codex/home-staging.ts
+JINI_ALLOWED_ORIGINS	jini	2	name-literal	packages/server/src/compose-jini-kernel.ts ; packages/server/src/create-local-node-daemon.ts
+JINI_API_TOKEN	jini	2	name-literal	packages/server/src/compose-jini-kernel.ts ; packages/server/src/create-local-node-daemon.ts
+JINI_BIND_HOST	jini	2	name-literal	packages/server/src/compose-jini-kernel.ts ; packages/server/src/create-local-node-daemon.ts
+JINI_DAEMON_TOKEN	jini	2	env-param,name-literal,env-param[]	packages/daemon/src/agent-executor/mcp-bridge-probe.ts ; packages/mcp/src/bin/serve.ts
+JINI_DAEMON_URL	jini	2	name-literal	packages/cli/src/main.ts ; packages/mcp/src/bin/serve.ts
+JINI_DISABLE_API_AUTH	jini	2	name-literal	packages/server/src/compose-jini-kernel.ts ; packages/server/src/create-local-node-daemon.ts
+JINI_WEB_PORT	jini	2	name-literal	packages/server/src/compose-jini-kernel.ts ; packages/server/src/create-local-node-daemon.ts
+LOCALAPPDATA	jini	2	env-param	packages/platform/src/fs/directory-sync.ts ; packages/platform/src/toolchain.ts
+NODE_ENV	jini	2	process.env	packages/ui-kit/src/react/context.ts ; packages/ui/src/features/html-editor/editor-serialization.ts
+PI_GRACEFUL_SHUTDOWN_MS	jini	2	env-param	packages/agent-runtime/src/defs/pi/options.ts ; packages/daemon/src/agent-executor/pi/options.ts
+SHELL	jini	2	process.env,env-param	packages/platform/src/shell.ts ; packages/platform/src/terminal.ts
+VELA_OPENCODE_BIN	jini	2	env-param	packages/agent-runtime/src/defs/amr/executable-resolution.ts ; packages/agent-runtime/src/env.ts
+XDG_CACHE_HOME	jini	2	env-param	packages/agent-runtime/src/model-discovery-adapters.ts ; packages/platform/src/sandbox-env.ts
+XDG_STATE_HOME	jini	2	env-param	packages/agent-runtime/src/defs/opencode/model-discovery.ts ; packages/platform/src/sandbox-env.ts
+AGENT_PLAYWRIGHT_PATH	jini	1	env-param	packages/agent-runtime/src/skills/web-clone/scripts/lib/playwright-loader.mjs
+AIDER_MODEL	jini	1	env-param	packages/agent-runtime/src/model-discovery-adapters.ts
+CODEX_SANDBOX_MODE	jini	1	env-param	packages/agent-runtime/src/defs/codex.ts
+ELECTRON_RUN_AS_NODE	jini	1	env-param	packages/mcp/src/core/install-info.ts
+FFMPEG_PATH	jini	1	env-param[]	packages/cms/src/media/video-frames.ffmpeg.ts
+FFPROBE_PATH	jini	1	env-param[]	packages/cms/src/media/video-frames.ffmpeg.ts
+FNM_DIR	jini	1	env-param	packages/platform/src/toolchain.ts
+JINI_DELEGATED_RESULT_MARKERS	jini	1	env-param	packages/mcp/src/bin/serve.ts
+JINI_DELEGATED_TOOL_TIMEOUT_MS	jini	1	name-literal,env-param[]	packages/mcp/src/bin/serve.ts
+JINI_DESKTOP_RENDER_TOKEN	jini	1	name-literal,env-param[]	packages/desktop-host/src/render-bridge.ts
+JINI_DESKTOP_RENDER_URL	jini	1	name-literal,env-param[]	packages/desktop-host/src/render-bridge.ts
+JINI_DIAGNOSTIC_TOOL_IDS	jini	1	name-literal	packages/mcp/src/bin/serve.ts
+JINI_JSON_IPC_TRACE	jini	1	process.env	packages/sidecar/src/json-ipc.ts
+JINI_MESSAGE_RELAY	jini	1	env-param	packages/mcp/src/bin/serve.ts
+JINI_MESSAGE_RELAY_NONCE	jini	1	env-param	packages/mcp/src/bin/serve.ts
+JINI_PG_PORT	jini	1	env-param	packages/server/src/storage/backend-config.ts
+JINI_PG_SSL_MODE	jini	1	env-param	packages/server/src/storage/backend-config.ts
+JINI_PROTOCOL_PROXY_FAILED	jini	1	name-literal	packages/desktop-host/src/protocol.ts
+JINI_REMOTE_TOOL_BRIDGE_TOKEN	jini	1	name-literal	packages/daemon/src/http/remote-run-events.ts
+JINI_RUN_ID	jini	1	name-literal,env-param[]	packages/mcp/src/bin/serve.ts
+JINI_STARTUP_SECRETS_IPC	jini	1	name-literal	packages/sidecar/src/supervision/supervisor-node.ts
+JINI_STARTUP_TOOL_IDS	jini	1	name-literal	packages/mcp/src/bin/serve.ts
+JINI_TOOL_EXEC_TOKEN	jini	1	name-literal	packages/daemon/src/http/tool-execution-caller.ts
+LOGNAME	jini	1	process.env	packages/platform/src/resource-paths.ts
+MISE_DATA_DIR	jini	1	env-param	packages/platform/src/toolchain.ts
+NODE_USE_ENV_PROXY	jini	1	env-param	packages/platform/src/proxy-env.ts
+NPM_CONFIG_PREFIX	jini	1	env-param	packages/platform/src/toolchain.ts
+NPM_CONFIG_USERCONFIG	jini	1	env-param	packages/platform/src/sandbox-env.ts
+OPENAI_API_BASE	jini	1	env-param	packages/agent-runtime/src/model-discovery-adapters.ts
+OPENAI_BASE_URL	jini	1	env-param	packages/agent-runtime/src/model-discovery-adapters.ts
+OPENAI_MODEL	jini	1	env-param	packages/agent-runtime/src/model-discovery-adapters.ts
+OPENCODE_TEST_HOME	jini	1	env-param	packages/platform/src/sandbox-env.ts
+OPENROUTER_API_BASE	jini	1	env-param	packages/agent-runtime/src/model-discovery-adapters.ts
+PATHEXT	jini	1	env-param	packages/agent-runtime/src/executables.ts
+PGPASSWORD	jini	1	env-param	packages/db/src/transfer/postgres-target.ts
+PGSSLMODE	jini	1	env-param	packages/db/src/transfer/postgres-target.ts
+PI_CODING_AGENT_DIR	jini	1	env-param	packages/agent-runtime/src/defs/pi/model-discovery.ts
+QODER_CONFIG_DIR	jini	1	env-param	packages/agent-runtime/src/defs/qoder/model-discovery.ts
+QWEN_MODEL	jini	1	env-param	packages/agent-runtime/src/model-discovery-adapters.ts
+REASONIX_HOME	jini	1	process.env	packages/agent-runtime/src/defs/reasonix.ts
+TAVILY_API_KEY	jini	1	env-param	packages/daemon/src/http/research.ts
+TEMP	jini	1	env-param	packages/platform/src/sandbox-env.ts
+TMP	jini	1	env-param	packages/platform/src/sandbox-env.ts
+TMPDIR	jini	1	env-param	packages/platform/src/sandbox-env.ts
+USER	jini	1	process.env	packages/platform/src/resource-paths.ts
+VELA_DEFAULT_MODEL	jini	1	env-param	packages/agent-runtime/src/model-discovery-adapters.ts
+VP_HOME	jini	1	env-param	packages/platform/src/toolchain.ts
+WSL_DISTRO_NAME	jini	1	env-param	packages/agent-runtime/src/defs/codex.ts

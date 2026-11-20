@@ -1,0 +1,85 @@
+repo	file	line	symbol	detail
+jini	packages/chat/src/store/legacy/sqlite/messages.ts	171	updateMessageRow	SQL UPDATE of 14 columns, no revision in statement
+jini	packages/chat/src/store/runtime/durable-run-store.ts	392	writeAttemptMetadata	upsert doUpdateSet(updates) no revision in where
+jini	packages/chat/src/store/runtime/durable-run-store.ts	503	writeToolEvent	updateTable.set({ recovery_count: 0, recovery_deadline: ) "assistant_run_attempts" no revision in where
+jini	packages/chat/src/store/runtime/run-ledger.ts	151	recordProgress	updateTable.set({ recovery_count: 0, recovery_deadline: ) "assistant_run_attempts" no revision in where
+jini	packages/chat/src/store/runtime/run-ledger.ts	258	settle	updateTable.set({ content, events_json: JSON.stringify(e) "ai_chat_messages" no revision in where
+jini	packages/cms/src/comments/tool-registrations.ts	420	comments_update_settings	write tool: handler and same-file helpers never name a revision/version/etag
+jini	packages/cms/src/content-types/sql/repo.ts	46	save	upsert doUpdateSet(this.rows.updatableColumns(row)) no revision in where
+jini	packages/cms/src/entries/sql/repo.ts	136	save	upsert doUpdateSet(values) no revision in where
+jini	packages/cms/src/forms/sql/repo.ts	133	update	updateTable.set({ ...set, version: record.version }) this.tables.definitions no revision in where
+jini	packages/cms/src/redirects/sql/repo.ts	169	insertRedirect	upsert doUpdateSet(updatableColumns({ row }, {})) no revision in where
+jini	packages/cms/src/seo/tool-registrations.ts	234	seo_set_settings	write tool: handler and same-file helpers never name a revision/version/etag
+jini	packages/cms/src/taxonomy/sql/term-repo.ts	40	update	updateTable.set({ taxonomy_id: row.taxonomyId, parent_id) this.tables.terms no revision in where
+jini	packages/commerce/src/catalog/repo.price-refs.ts	27	save	upsert doUpdateSet(row) no revision in where
+jini	packages/commerce/src/catalog/repo.ts	131	save	upsert doUpdateSet(row) no revision in where
+jini	packages/commerce/src/catalog/repo.ts	163	save	upsert doUpdateSet(row) no revision in where
+jini	packages/commerce/src/catalog/repo.ts	212	save	upsert doUpdateSet(row) no revision in where
+jini	packages/commerce/src/payments/ledger/repo.sql.ts	96	fn	updateTable.set(set) table no revision in where
+jini	packages/db/src/gated-mutations/repo.sql.ts	58	save	upsert doUpdateSet(row) no revision in where
+jini	packages/db/src/settings/repo.sql.ts	123	saveDefinition	upsert doUpdateSet(updatable) no revision in where
+jini	packages/db/src/settings/repo.sql.ts	171	saveGlobalValue	upsert doUpdateSet(columns) no revision in where
+jini	packages/db/src/settings/repo.sql.ts	185	saveWorkspaceValue	upsert doUpdateSet(columns) no revision in where
+jini	packages/db/src/settings/repo.sql.ts	201	saveUserValue	upsert doUpdateSet(columns) no revision in where
+jini	packages/db/src/verified-origin/register.ts	68	registerConfiguredOrigin	updateTable.set(originColumns({ origin: verified })) tables.origins no revision in where
+jini	packages/plugins/src/host/sql/repo.ts	49	save	upsert doUpdateSet(set) no revision in where
+tovu	apps/website/src/features/external-mcp/external-mcp-repo.ts	144	upsert	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/identity/mfa.repo.ts	31	execute	upsert doUpdateSet(values) no revision in where
+tovu	apps/website/src/features/identity/mfa.repo.ts	46	execute	upsert doUpdateSet(values) no revision in where
+tovu	apps/website/src/features/identity/repo.assignments.ts	52	execute	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/identity/repo.assignments.ts	101	execute	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/identity/repo.assignments.ts	156	execute	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/identity/repo.authentication.ts	73	execute	upsert doUpdateSet({ ...row, revoked_at: keepStoredRevocati) no revision in where
+tovu	apps/website/src/features/identity/repo.authentication.ts	185	execute	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/identity/repo.authorization.ts	61	execute	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/identity/repo.authorization.ts	134	execute	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/identity/repo.authorization.ts	189	execute	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/identity/repo.ts	94	execute	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/identity/repo.ts	164	execute	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/features/mail-status/provider-tool-registrations.ts	113	mail_configure_provider	write tool: handler and same-file helpers never name a revision/version/etag
+tovu	apps/website/src/features/mail/retention.ts	22	purgeExpiredMail	SQL UPDATE of 3 columns, no revision in statement
+tovu	apps/website/src/features/mail/retention.ts	25	purgeExpiredMail	SQL UPDATE of 3 columns, no revision in statement
+tovu	apps/website/src/features/members/repo.ts	100	save	upsert doUpdateSet(withoutId(row)) no revision in where
+tovu	apps/website/src/features/members/repo.ts	279	save	upsert doUpdateSet(withoutId(row)) no revision in where
+tovu	apps/website/src/features/members/repo.ts	344	save	upsert doUpdateSet(withoutId(row)) no revision in where
+tovu	apps/website/src/features/members/repo.ts	402	save	upsert doUpdateSet({ ...withoutId(row), revoked_at: keepSto) no revision in where
+tovu	apps/website/src/features/members/repo.ts	479	save	upsert doUpdateSet(withoutId(row)) no revision in where
+tovu	apps/website/src/features/members/repo.ts	572	save	upsert doUpdateSet(withoutId(row)) no revision in where
+tovu	apps/website/src/features/newsletter/repo-sends.ts	148	save	upsert doUpdateSet(updatableSendColumns(values)) no revision in where
+tovu	apps/website/src/features/newsletter/repo-subscribers.ts	66	save	upsert doUpdateSet(updatableListColumns(values)) no revision in where
+tovu	apps/website/src/features/newsletter/repo-subscribers.ts	159	save	upsert doUpdateSet(updatableSubscriptionColumns(values)) no revision in where
+tovu	apps/website/src/features/newsletter/repo.ts	88	saveCampaignRow	upsert doUpdateSet(updatableCampaignColumns(row)) no revision in where
+tovu	apps/website/src/features/post/repo.ts	160	save	upsert doUpdateSet(updatableColumns(row)) no revision in where
+tovu	apps/website/src/features/post/search-index.postgres.ts	67	upsert	SQL upsert of 4 columns, no revision in statement
+tovu	apps/website/src/features/post/search-index.ts	244	writeProjectionVersion	upsert doUpdateSet(columns) no revision in where
+tovu	apps/website/src/features/site-search/index-state-store.ts	93	putWatermark	upsert doUpdateSet(changes) no revision in where
+tovu	apps/website/src/features/site-search/index-state-store.ts	133	put	upsert doUpdateSet(updatable) no revision in where
+tovu	apps/website/src/features/site-search/index-state-store.ts	220	setBuilding	upsert doUpdateSet(building) no revision in where
+tovu	apps/website/src/features/theme/page-publish-tool.ts	37	theme_set_page_published	write tool: handler and same-file helpers never name a revision/version/etag
+tovu	apps/website/src/features/trash/adapters/marker-sql.ts	84	flipMarker	updateTable.set({ ...spec.set, version: sql`${sql.ref("v) spec.table no revision in where
+tovu	apps/website/src/platform/db/repos/external-mcp-tool-approval-repo.ts	51	upsert	upsert doUpdateSet(grant) no revision in where
+tovu	apps/website/src/platform/db/repos/form-delivery-repo.ts	159	scrubPurged	updateTable.set(purgedJobColumns(job)) "outbox_events" no revision in where
+tovu	apps/website/src/platform/db/repos/form-delivery-repo.ts	255	claim	upsert doUpdateSet(lease) no revision in where
+tovu	apps/website/src/platform/db/repos/media-repo.ts	285	save	updateTable.set(values) "media" no revision in where
+tovu	apps/website/src/platform/db/repos/media-repo.ts	521	save	updateTable.set({ ...values, document_owned: existing.do) "asset_blobs" no revision in where
+tovu	apps/website/src/platform/db/repos/media-repo.ts	641	save	upsert doUpdateSet(updates) no revision in where
+tovu	apps/website/src/platform/db/repos/oauth-pending-store.ts	123	put	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/platform/db/repos/publish-content-baseline-repo.ts	68	upsert	upsert doUpdateSet(columns) no revision in where
+tovu	apps/website/src/platform/db/repos/publish-content-run-repo.ts	73	save	upsert doUpdateSet(progress) no revision in where
+tovu	apps/website/src/platform/db/repos/webhook-repo.ts	134	save	upsert doUpdateSet(row) no revision in where
+tovu	apps/website/src/platform/db/repos/webhook-repo.ts	255	claimPending	updateTable.set({ status: "delivering", attempts: row.at) "webhook_deliveries" no revision in where
+tovu	apps/website/src/platform/db/repos/webhook-repo.ts	294	markDelivered	updateTable.set({ status: "delivered", last_response_sta) "webhook_deliveries" no revision in where
+tovu	apps/website/src/platform/db/repos/webhook-repo.ts	323	markFailed	updateTable.set({ // "failed" re-enters "pending" immedi) "webhook_deliveries" no revision in where
+tovu	apps/website/src/platform/db/sqlite/database-journal-repo.ts	258	updateState	updateTable.set(set) "migration_runs" no revision in where
+tovu	apps/website/src/platform/db/sqlite/publish-backstop-audit.sqlite.ts	11	save	SQL upsert of 5 columns, no revision in statement
+tovu	apps/website/src/server/inbound/admin-http/routes/assistant/put-execution-credential.ts	71	PUT /api/admin/v1/workspaces/:workspaceId/assistant/execution-credential	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/inbound/admin-http/routes/assistant/put-settings.ts	21	PUT /api/admin/v1/workspaces/:workspaceId/assistant/settings	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/inbound/admin-http/routes/assistant/put-site-credential.ts	61	PUT /api/admin/v1/workspaces/:workspaceId/assistant/site-credential	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/inbound/admin-http/routes/comments/put-settings.ts	17	PUT /api/admin/v1/workspaces/:workspaceId/comments/settings	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/inbound/admin-http/routes/forms/update.ts	75	PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/inbound/admin-http/routes/media/put-providers.ts	32	PUT /api/admin/v1/workspaces/:workspaceId/media/providers	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts	132	PUT /api/admin/v1/workspaces/:workspaceId/project-keys/:keyId/use	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/inbound/admin-http/routes/publish-content/blob-put.ts	47	PUT /api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/inbound/admin-http/routes/seo/put-settings.ts	11	PUT /api/admin/v1/workspaces/:workspaceId/seo/settings	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/inbound/admin-http/routes/sites/sites-home.ts	47	PUT /api/admin/v1/workspaces/:workspaceId/system/sites/home	PUT route handler never names a revision/version/etag/If-Match
+tovu	apps/website/src/server/runtime/composition/modules/assistant-chats.ts	332	PUT /api/assistant/chats/:id/messages/:messageId	PUT route handler never names a revision/version/etag/If-Match

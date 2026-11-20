@@ -1,0 +1,2 @@
+repo	file	line	symbol	detail
+jini	packages/admin/src/security/controllers/other-credentials.controller.ts	31	write	replace({ store: row.store, id: row.id, token }, <expression> { signal: store.signal })

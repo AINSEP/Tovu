@@ -1,0 +1,8 @@
+bug-class audit → SCR/audit-m6/bug-classes
+silent-truncation	tovu=25	jini=21
+lost-update	tovu=60	jini=24
+abort-not-reaching-writes	tovu=15	jini=6
+unenforced-permission	tovu=4	jini=1
+hung-express-handler	tovu=1	jini=0
+replace-dollar-expansion	tovu=0	jini=1
+secrets-in-logs	tovu=1	jini=0

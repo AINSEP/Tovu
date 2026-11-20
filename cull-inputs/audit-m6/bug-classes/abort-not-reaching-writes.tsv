@@ -1,0 +1,22 @@
+repo	file	line	symbol	detail
+jini	packages/cms/src/content-types/tool-registrations.ts	219	collections_content_type_update_fields	never reads signal; writes: updateContentTypeFields
+jini	packages/cms/src/entries/tool-registrations.ts	181	collections_entry_update	never reads signal; writes: updateEntry
+jini	packages/db/src/tools/read-tools.ts	75	backup_create_restore_point	awaits (line 62) after last signal read (line 61) before write save
+jini	packages/devops/src/deploy/tool.ts	139	handler	never reads signal; writes: publishDeploy
+jini	packages/plugins/src/host/tools/install.ts	65	deps.toolId	awaits (line 61) after last signal read (line 59) before write installFailed
+jini	packages/user-management/src/server/agent-tool-registrations.ts	355	identity_user_create	never reads signal; writes: createUser
+tovu	apps/website/src/assistant/render-ui-tool.ts	168	RENDER_UI_TOOL_ID	never reads signal; writes: createLabCatalog
+tovu	apps/website/src/features/consent/tool-registrations.ts	47	consent_update_settings	never reads signal; writes: saveDraft
+tovu	apps/website/src/features/consent/tool-registrations.ts	56	consent_publish_settings	never reads signal; writes: publish
+tovu	apps/website/src/features/database/tool-registrations.ts	249	MIGRATE_TOOL_ID	never reads signal; writes: executeMigrateForward
+tovu	apps/website/src/features/deployments/publish-agent-tools.ts	1051	deployment_get_static_publish_status	never reads signal; writes: publishJobRecoveryMessage, publishConfirmationUri
+tovu	apps/website/src/features/external-mcp/tool-registrations.ts	693	external_mcp_test_connection	never reads signal; writes: issueCredentialSetup
+tovu	apps/website/src/features/fs-files/tool-registrations.ts	196	FS_WRITE_FILES_TOOL_ID	never reads signal; writes: writePreparedFiles
+tovu	apps/website/src/features/mail-status/provider-tool-registrations.ts	113	mail_configure_provider	never reads signal; writes: issueCredentialSetup
+tovu	apps/website/src/features/pages/tool-registrations.ts	717	pages_write_html	never reads signal; writes: writePageHtml, write
+tovu	apps/website/src/features/post/tool-registrations.ts	282	content_post_update	awaits (line 275) after last signal read (line 261) before write mergeUpdatePatch
+tovu	apps/website/src/features/publish-content/tool-registrations.ts	368	PUBLISH_CONTENT_PLAN_PULL_TOOL_ID	never reads signal; writes: save
+tovu	apps/website/src/features/publish-content/tool-registrations.ts	369	PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID	never reads signal; writes: executePublishContentImport
+tovu	apps/website/src/features/recovery/tool-registrations.ts	425	RESTORE_TOOL_ID	never reads signal; writes: createRecoveryRestoreRun, createRecoveryConfirmationGateway, executeRestore
+tovu	apps/website/src/features/theme/import-theme-file-tool.ts	139	theme_import_file_from_url	awaits (line 135) after last signal read (line 133) before write importThemeFileFromUrl
+tovu	apps/website/src/server/runtime/composition/site-guide-tools.ts	110	site_guide	never reads signal; writes: createTovuSiteGuide

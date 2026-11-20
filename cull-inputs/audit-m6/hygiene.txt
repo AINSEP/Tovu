@@ -1,0 +1,24 @@
+# Hygiene audit — 2026-11-20
+
+Repos: tovu=SCR/c-r62t-perfobs, jini=SCR/ro-m6-jini. Script: development/scripts/hygiene-audit.mjs (read-only). One TSV per check in this folder.
+
+## Counts
+
+| check | tovu | jini |
+|---|---|---|
+| i18n dictionaries found | 138 | 5 |
+| i18n-missing-keys rows (missing / empty / locale-block-missing / array-short) | 1005 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| i18n-missing-keys high-confidence rows | 962 | 0 |
+| i18n-hardcoded-jsx hits (files) | 19 (17) | 260 (68) |
+| version-pin-drift rows | 260 (dep-not-installed 259, code-pin 1) | 466 (dep-not-installed 466) |
+| env vars read (dynamic reads) | 164 (5) | 76 (1) |
+| env read-not-in-schema / schema-not-read | 94 / 6 | 64 / 0 |
+| stale-comments (missing / line-beyond-eof; historic=yes) | 675 / 3; 81 | 606 / 2; 152 |
+
+## npm audit
+
+
+## Notes
+
+
+wrote SCR/audit-m6/hygiene

@@ -1,0 +1,981 @@
+{
+ "repo": "SCR/c-r62t-perfobs",
+ "label": "tovu-m6",
+ "mode": "tovu",
+ "generatedAt": "2026-11-20T18:48:52.497Z",
+ "rules": {
+  "jini-cross-package-import": {
+   "title": "Jini pkg imports another Jini pkg (only core allowed)",
+   "source": "owner_decisions_2026_11_07.md"
+  },
+  "jini-core-not-leaf": {
+   "title": "@jini-ai/core imports a Jini pkg",
+   "source": "owner_decisions_2026_11_07.md"
+  },
+  "core-contracts-runtime-code": {
+   "title": "runtime code in core/contracts",
+   "source": "owner_decisions_2026_11_07.md"
+  },
+  "plugin-imports-plugin": {
+   "title": "plugin imports another plugin",
+   "source": "owner_decisions_2026_10_09.md"
+  },
+  "vendor-import-outside-plugin": {
+   "title": "vendor SDK/plugin imported outside plugins",
+   "source": "no_vendor_code_in_core.md"
+  },
+  "vendor-named-file-outside-plugin": {
+   "title": "vendor-named file outside plugins",
+   "source": "no_vendor_code_in_core.md"
+  },
+  "vendor-named-tool": {
+   "title": "vendor-named tool id outside plugins",
+   "source": "tools_generic_by_category_not_vendor.md"
+  },
+  "vendor-step-in-core-workflow": {
+   "title": "vendor deploy step in core CI",
+   "source": "no_vendor_code_in_core.md"
+  },
+  "jini-plugin-package-name": {
+   "title": "@jini-ai/plugin-<id> or vendor package",
+   "source": "owner_decisions_2026_11_02.md"
+  },
+  "server-framework-in-jini": {
+   "title": "Express/Fastify/... in Jini",
+   "source": "no_specific_server_framework_in_jini.md"
+  },
+  "react-outside-react-subfolder": {
+   "title": "React in non-UI Jini pkg outside react/",
+   "source": "owner_decisions_2026_11_07.md"
+  },
+  "jini-unprefixed-classname": {
+   "title": "Jini className not jini- prefixed",
+   "source": "jini_styling_prefixed_classes_host_css.md"
+  },
+  "tovu-in-jini": {
+   "title": "\"Tovu\" in Jini",
+   "source": "preserve_why_comments_on_refactor.md"
+  },
+  "tovu-id-in-jini": {
+   "title": "Tovu IDs (SPEC/ADR/U/D) in Jini",
+   "source": "preserve_why_comments_on_refactor.md"
+  },
+  "base-type-redeclared": {
+   "title": "core base type redeclared",
+   "source": "api_args_required_then_optional_objects.md"
+  },
+  "lazy-bare-import": {
+   "title": "lazy import()/require of a package",
+   "source": "missing_module_means_declare_never_lazy.md"
+  },
+  "undeclared-dependency": {
+   "title": "import of undeclared package",
+   "source": "missing_module_means_declare_never_lazy.md"
+  },
+  "runtime-import-of-devdep": {
+   "title": "node-runtime import of a devDependency",
+   "source": "missing_module_means_declare_never_lazy.md"
+  },
+  "complexity-over-10": {
+   "title": "function CCN > 10",
+   "source": "complexity_must_be_under_11.md"
+  },
+  "logic-in-component": {
+   "title": "function inside a .tsx component",
+   "source": "component_logic_belongs_hooks.md"
+  },
+  "component-second-param": {
+   "title": "React component with 2+ params",
+   "source": "api_args_required_then_optional_objects.md"
+  },
+  "as-any": {
+   "title": "as any",
+   "source": "lint_jobs_check_added_disables.md"
+  },
+  "ts-suppress": {
+   "title": "@ts-ignore/expect-error/nocheck",
+   "source": "lint_jobs_check_added_disables.md"
+  },
+  "lint-disable": {
+   "title": "eslint-disable / biome-ignore",
+   "source": "lint_jobs_check_added_disables.md"
+  },
+  "coverage-ignore": {
+   "title": "c8/istanbul/v8 ignore",
+   "source": "coverage_floor_99_all_metrics.md"
+  },
+  "generic-error-catch": {
+   "title": "catch drops the error, fixed message",
+   "source": "no_generic_error_messages.md"
+  },
+  "swallowed-error": {
+   "title": "empty catch / .catch(() => {})",
+   "source": "no_generic_error_messages.md"
+  },
+  "oauth-lib-outside-facade": {
+   "title": "openid-client/oauth4webapi outside @jini-ai/oauth",
+   "source": "owner_decisions_2026_10_20.md"
+  },
+  "permanent-delete-tool": {
+   "title": "chat tool that purges / hard-deletes",
+   "source": "owner_decisions_2026_10_09.md"
+  },
+  "process-exit-in-runtime": {
+   "title": "process.exit in runtime code",
+   "source": "no_boot_refusals_no_auto_password_change.md"
+  },
+  "per-cli-code-in-shared-file": {
+   "title": "per-CLI code in a shared file",
+   "source": "per_cli_code_in_own_folder.md"
+  },
+  "hardcoded-model-id": {
+   "title": "hard-coded model id",
+   "source": "agent_models_must_be_dynamic.md"
+  },
+  "site-name-in-core": {
+   "title": "customer site name in core",
+   "source": "abstract_first_site_specific_in_sites.md"
+  },
+  "ownership-gate-text": {
+   "title": "ownership/rights gate text",
+   "source": "no_ownership_gates_in_import_tools.md"
+  },
+  "large-data-file": {
+   "title": "data file > 1 MB",
+   "source": "no_vendor_code_in_core.md"
+  },
+  "drizzle-frozen": {
+   "title": "Drizzle SQL migration >= 0078",
+   "source": "schema_changes_use_adr066_ts_migrations.md"
+  },
+  "bare-toThrow": {
+   "title": "test asserts a throw without its text",
+   "source": "assert_exact_error_text.md"
+  }
+ },
+ "totals": {
+  "plugin-imports-plugin": 0,
+  "vendor-import-outside-plugin": 0,
+  "vendor-named-file-outside-plugin": 2,
+  "vendor-named-tool": 0,
+  "vendor-step-in-core-workflow": 2,
+  "jini-plugin-package-name": 0,
+  "base-type-redeclared": 1,
+  "lazy-bare-import": 3,
+  "undeclared-dependency": 0,
+  "runtime-import-of-devdep": 2,
+  "complexity-over-10": 0,
+  "logic-in-component": 3,
+  "component-second-param": 21,
+  "as-any": 0,
+  "ts-suppress": 0,
+  "lint-disable": 5,
+  "coverage-ignore": 0,
+  "generic-error-catch": 33,
+  "swallowed-error": 40,
+  "oauth-lib-outside-facade": 0,
+  "permanent-delete-tool": 3,
+  "process-exit-in-runtime": 8,
+  "per-cli-code-in-shared-file": 4,
+  "hardcoded-model-id": 0,
+  "site-name-in-core": 0,
+  "ownership-gate-text": 0,
+  "large-data-file": 0,
+  "drizzle-frozen": 0,
+  "bare-toThrow": 5
+ },
+ "violations": [
+  {
+   "rule": "logic-in-component",
+   "file": "apps/admin/src/components/AssistantDock/DockHeader.tsx",
+   "line": 53,
+   "snippet": "DockHeader: const onSelect = useCallback((id: string) => chats.select({ id }), [chats.select]);"
+  },
+  {
+   "rule": "logic-in-component",
+   "file": "apps/admin/src/components/AssistantDock/DockHeader.tsx",
+   "line": 54,
+   "snippet": "DockHeader: const onDelete = useCallback((id: string) => chats.remove({ id }), [chats.remove]);"
+  },
+  {
+   "rule": "logic-in-component",
+   "file": "apps/admin/src/components/AssistantDock/DockHeader.tsx",
+   "line": 55,
+   "snippet": "DockHeader: const onRename = useCallback((id: string, title: string) => chats.rename({ id, title }), [chats.rename]);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/components/AssistantDock/hooks/agents-inventory.hooks.ts",
+   "line": 170,
+   "snippet": "const rescanned = inventory === null ? null : await readAgentsResponse({ inventory, label: `POST ${AGENTS_URL}/rescan` }"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/admin/src/components/AssistantDock/hooks/assistant-mcp-ui.ts",
+   "line": 67,
+   "snippet": "\"This link is not a valid https:// address, so it was not opened.\""
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx",
+   "line": 300,
+   "snippet": "WidgetSelectionDialog({ useAddControl = useWiredWidgetAddControl, agentHandle: base, onCancel, ...props }, _optional)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/admin/src/features/collections/EditFieldsDialog.tsx",
+   "line": 23,
+   "snippet": "EditFieldsDialog({ contentType, onSaved, onCancel, useEditFieldsDialogHook = useWiredEditFieldsDialog, t, }, _optional)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/admin/src/features/collections/LifecycleConfirmDialog.tsx",
+   "line": 23,
+   "snippet": "LifecycleConfirmDialog({ op, contentType, onConfirm, onCancel, useLifecycleConfirmDialogHook = useLifecycleConfirmDialog"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/admin/src/features/collections/NewContentTypeDialog.tsx",
+   "line": 74,
+   "snippet": "NewContentTypeDialog({ onCreated, onCancel, useNewContentTypeDialogHook = useWiredNewContentTypeDialog, t, }, _optional)"
+  },
+  {
+   "rule": "lazy-bare-import",
+   "file": "apps/admin/src/features/observability/queries-panel.tsx",
+   "line": 8,
+   "snippet": "const QueryDevtoolsPanel = lazy(() => import(\"@tanstack/react-query-devtools/production\")"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts",
+   "line": 325,
+   "snippet": "port.warmStylesheet({ url: themeStylesheetUrl({ themeId, apiVersion }) }).catch(() => undefined),"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts",
+   "line": 201,
+   "snippet": "await loader.load().catch(() => {}); // Join invalidation before unlocking; query.error owns a failed read."
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts",
+   "line": 222,
+   "snippet": "await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes."
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts",
+   "line": 260,
+   "snippet": "await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes."
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/admin/src/features/posts/hooks/use-post-url-dialog.hooks.ts",
+   "line": 36,
+   "snippet": "\"Enter an HTTP or HTTPS URL.\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts",
+   "line": 124,
+   "snippet": "await loader.load().catch(() => {}); // Await settlement; query.error owns read failures, never retry an accepted captur"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/admin/src/features/security/AccessTokensTab.tsx",
+   "line": 671,
+   "snippet": "WorksForField({ value = [], options = [], onChange, t }, _options)"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts",
+   "line": 99,
+   "snippet": "const head = await fetch(href, { method: \"HEAD\", credentials: \"same-origin\" }).catch(() => null);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts",
+   "line": 102,
+   "snippet": "const response = await fetch(href, { method: \"GET\", credentials: \"same-origin\" }).catch(() => null);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts",
+   "line": 106,
+   "snippet": "const body = (await response?.json().catch(() => null) ?? {}) as { code?: unknown; message?: unknown; credentialWarnings"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/skills/use-skills.hooks.ts",
+   "line": 108,
+   "snippet": "await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes."
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/features/skills/use-skills.hooks.ts",
+   "line": 166,
+   "snippet": "await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes."
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/admin/src/integrations/jini-admin/AdminModulesProvider.tsx",
+   "line": 3,
+   "snippet": "AdminModulesProvider({ useAdminModulesHook = useAdminModules, useModuleProviderContentHook = useModuleProviderContent, ."
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/admin/src/integrations/jini-admin/ModulePanel.tsx",
+   "line": 2,
+   "snippet": "ModulePanel({ useModulePanelHook = useModulePanel, ...props }, _optional)"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/admin/src/lib/queued-daemon-start.ts",
+   "line": 16,
+   "snippet": "const payload = await response.clone().json().catch(() => null) as { code?: string } | null;"
+  },
+  {
+   "rule": "lint-disable",
+   "file": "apps/admin/src/lib/widget-embed-extension.hooks.ts",
+   "line": 222,
+   "snippet": "// eslint-disable-next-line no-alert -- this controller has no other error surface for the failed create."
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/ResourcesPanel.tsx",
+   "line": 74,
+   "snippet": "Unknown(_input, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/ResourcesPanel.tsx",
+   "line": 79,
+   "snippet": "MetricCells({ rssBytes, cpuPercent, memoryMetric }, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/ResourcesPanel.tsx",
+   "line": 88,
+   "snippet": "ResourceGroupRows({ group, onStop }, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/ResourcesPanel.tsx",
+   "line": 107,
+   "snippet": "ResourcesTable({ groups, onStop }, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/ResourcesPanel.tsx",
+   "line": 123,
+   "snippet": "ResourcesMonitor({ projects, onSiteUpdated, children, useReadings = useResources, Panel = ResourcesPanel }, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/ResourcesPanel.tsx",
+   "line": 153,
+   "snippet": "ResourcesChip(_input, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/ResourcesPanel.tsx",
+   "line": 166,
+   "snippet": "ResourceSiteFigure({ project }, _options)"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/desktop/src/renderer/SharedKeys.hooks.ts",
+   "line": 137,
+   "snippet": "\"Enter a JSON object with secret field names and their new text values.\""
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/SharedKeys.tsx",
+   "line": 13,
+   "snippet": "SharedKeysLauncher(_input, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/SharedKeys.tsx",
+   "line": 29,
+   "snippet": "SharedKeys({ onClose, bridge = ownerStoreBridge({}), useSharedKeysHook = useSharedKeys }, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/SiteGrid.tsx",
+   "line": 328,
+   "snippet": "CardOverlays({ project, overlay, rename, copy, deleting, deleteError, power, onCancelDelete, onConfirmDelete }, _options"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/SitesFolders.tsx",
+   "line": 113,
+   "snippet": "SitesFoldersWarning({ settings, view }, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/app/LoadedSitesStepper.tsx",
+   "line": 55,
+   "snippet": "LoadedSitesRow({ setting }, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/app/SiteWorkspace.tsx",
+   "line": 249,
+   "snippet": "WorkspaceGuest({ workspace, project, guestRef, onSiteUpdated }, _options)"
+  },
+  {
+   "rule": "component-second-param",
+   "file": "apps/desktop/src/renderer/app/SiteWorkspace.tsx",
+   "line": 297,
+   "snippet": "WorkspaceLoadingOverlay({ workspace, project }, _options)"
+  },
+  {
+   "rule": "lazy-bare-import",
+   "file": "apps/desktop/src/renderer/app-render-harness.ts",
+   "line": 45,
+   "snippet": "export const { createRoot } = await import('react-dom/client');"
+  },
+  {
+   "rule": "lint-disable",
+   "file": "apps/desktop/src/renderer/use-find-bar-effects.hooks.ts",
+   "line": 54,
+   "snippet": "// biome-ignore lint/correctness/useExhaustiveDependencies: depends on target's stable inputs (activeGuestId, bridge), n"
+  },
+  {
+   "rule": "lint-disable",
+   "file": "apps/desktop/src/renderer/use-find-bar-effects.hooks.ts",
+   "line": 74,
+   "snippet": "// biome-ignore lint/correctness/useExhaustiveDependencies: keys on activeGuestId's stable identity only, matching this "
+  },
+  {
+   "rule": "lint-disable",
+   "file": "apps/desktop/src/renderer/use-find-bar-effects.hooks.ts",
+   "line": 102,
+   "snippet": "// biome-ignore lint/correctness/useExhaustiveDependencies: depends on target's stable inputs (activeGuestId), not the f"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/desktop/src/renderer/workspace-chat-transport.ts",
+   "line": 409,
+   "snippet": "if (alreadyDetached) void bridge.chatDetach({ subscriptionId }).catch(() => {});"
+  },
+  {
+   "rule": "per-cli-code-in-shared-file",
+   "file": "apps/desktop/src/smoke-packaged-chat.ts",
+   "line": 30,
+   "snippet": "claude x14"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/assistant/byok-meta-tool-result.ts",
+   "line": 95,
+   "snippet": "\"'input' must be a JSON object of the tool's input fields, not a plain string.\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/assistant/credential-chat-intake.ts",
+   "line": 7,
+   "snippet": "\"The run context must be a JSON object.\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/assistant/site/visitor-tool-budgets.ts",
+   "line": 52,
+   "snippet": "pending = result.catch(() => undefined);"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/cli/commands/agent-plugin-tokens.ts",
+   "line": 44,
+   "snippet": "\"init: --agent-plugin-tokens-stdin expects a JSON object on stdin\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/cli/commands/import-local.ts",
+   "line": 116,
+   "snippet": "\"import-local: stdin must contain one JSON request object.\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/cli/commands/import-site.ts",
+   "line": 32,
+   "snippet": "\"import: --server must be an admin server origin.\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/cli/commands/import-site.ts",
+   "line": 51,
+   "snippet": "\"import: stdin must contain one JSON request object.\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/cli/commands/init.ts",
+   "line": 128,
+   "snippet": "\"init: --create-input-stdin expects a JSON object on stdin\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/cli/commands/owner-store.ts",
+   "line": 226,
+   "snippet": "const report = await importRequest({ request: { source: 'owner-store', apply: false }, userDataDir }, optional).catch(()"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/agent-plugins/analytics-provider-registry.ts",
+   "line": 68,
+   "snippet": "\"not valid JSON\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/features/comments/provider-selection.ts",
+   "line": 83,
+   "snippet": "ready.catch(() => undefined);"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/consent/config.ts",
+   "line": 79,
+   "snippet": "\"Use a page on this site, like /privacy, or an https:// address.\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/consent/readiness.ts",
+   "line": 16,
+   "snippet": "\"[invalid resource URL]\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/consent/request.ts",
+   "line": 25,
+   "snippet": "\"Choose a local public page path without traversal, API paths, or an external URL.\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/features/consent/settings.ts",
+   "line": 42,
+   "snippet": "void ready.catch(() => undefined);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/features/identity/delete-user-service.ts",
+   "line": 361,
+   "snippet": "tail = result.catch(() => undefined);"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/media-generation/media-provider-registry.ts",
+   "line": 125,
+   "snippet": "\"not valid JSON\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/features/members/repo.memory.ts",
+   "line": 62,
+   "snippet": "tail = run.catch(() => undefined);"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/newsletter/unsubscribe.ts",
+   "line": 78,
+   "snippet": "\"malformed unsubscribe token\""
+  },
+  {
+   "rule": "permanent-delete-tool",
+   "file": "apps/website/src/features/permanent-delete/agent-tools.ts",
+   "line": 7,
+   "snippet": "trash_purge_item"
+  },
+  {
+   "rule": "permanent-delete-tool",
+   "file": "apps/website/src/features/permanent-delete/agent-tools.ts",
+   "line": 8,
+   "snippet": "media_purge_asset"
+  },
+  {
+   "rule": "permanent-delete-tool",
+   "file": "apps/website/src/features/permanent-delete/agent-tools.ts",
+   "line": 9,
+   "snippet": "comments_purge_comment"
+  },
+  {
+   "rule": "vendor-named-file-outside-plugin",
+   "file": "apps/website/src/features/plugins/lipay/manifest.ts",
+   "line": 0,
+   "snippet": "lipay: apps/website/src/features/plugins/lipay/manifest.ts"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/publish-content/backstop-service.ts",
+   "line": 116,
+   "snippet": "\"This send has an invalid destination address.\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/publish-content/peer-url.ts",
+   "line": 97,
+   "snippet": "\"baseUrl is not a parseable URL\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/publish-trust/session.ts",
+   "line": 149,
+   "snippet": "\"session token payload is not JSON\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/site-backup/import-backend-steps.ts",
+   "line": 59,
+   "snippet": "\"url must be an HTTPS share URL.\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/site-inspection/live-url.ts",
+   "line": 38,
+   "snippet": "\"fetch_live_url: a saved live address is invalid. Correct the publishing address and retry.\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/site-inspection/live-url.ts",
+   "line": 100,
+   "snippet": "\"fetch_live_url: the live site returned an invalid redirect address. Check the hosting service before retrying.\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/theme/theme-tool-editing.ts",
+   "line": 16,
+   "snippet": "\"a compiled release's write boundary is read-only and requires a valid theme.json\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
+   "line": 140,
+   "snippet": "work.catch(() => {});"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/features/web-screenshot/web-screenshot.ts",
+   "line": 150,
+   "snippet": "\"url must be an absolute http(s) URL, e.g. https://example.com/about.\""
+  },
+  {
+   "rule": "process-exit-in-runtime",
+   "file": "apps/website/src/features/webhooks/seal-aad-invariant.ts",
+   "line": 237,
+   "snippet": "process.exit(1);"
+  },
+  {
+   "rule": "process-exit-in-runtime",
+   "file": "apps/website/src/features/webhooks/secret-scan-guard.ts",
+   "line": 442,
+   "snippet": "process.exit(1);"
+  },
+  {
+   "rule": "process-exit-in-runtime",
+   "file": "apps/website/src/index.ts",
+   "line": 106,
+   "snippet": "process.exit(1);"
+  },
+  {
+   "rule": "process-exit-in-runtime",
+   "file": "apps/website/src/index.ts",
+   "line": 222,
+   "snippet": "process.exit(1);"
+  },
+  {
+   "rule": "process-exit-in-runtime",
+   "file": "apps/website/src/index.ts",
+   "line": 264,
+   "snippet": "process.exit(1);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/platform/db/journal-kernel.ts",
+   "line": 86,
+   "snippet": "ready.catch(() => {});"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/platform/db/journal-kernel.ts",
+   "line": 112,
+   "snippet": "await ready.catch(() => {});"
+  },
+  {
+   "rule": "base-type-redeclared",
+   "file": "apps/website/src/platform/http/ports.ts",
+   "line": 11,
+   "snippet": "InterfaceDeclaration HttpClientPort"
+  },
+  {
+   "rule": "process-exit-in-runtime",
+   "file": "apps/website/src/platform/site-dir/local-site-child.ts",
+   "line": 155,
+   "snippet": "process.exit(1);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/platform/site-dir/local-site-supervisor.ts",
+   "line": 141,
+   "snippet": "supervisorState.lane = next.catch(() => {});"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts",
+   "line": 41,
+   "snippet": "\"tovu dev: warm site management host is unavailable.\""
+  },
+  {
+   "rule": "lint-disable",
+   "file": "apps/website/src/server/inbound/admin-http/sea-runtime.ts",
+   "line": 26,
+   "snippet": "// eslint-disable-next-line @typescript-eslint/no-require-imports -- the optional SEA probe must stay synchronous and ca"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+   "line": 47,
+   "snippet": "await registryPublication.catch(() => undefined);"
+  },
+  {
+   "rule": "per-cli-code-in-shared-file",
+   "file": "apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts",
+   "line": 39,
+   "snippet": "claude x8"
+  },
+  {
+   "rule": "per-cli-code-in-shared-file",
+   "file": "apps/website/src/server/inbound/assistant/assistant-system-overlay.ts",
+   "line": 104,
+   "snippet": "claude x8"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/server/inbound/assistant/durable-run-routes.ts",
+   "line": 19,
+   "snippet": "\"The run context must be a JSON object.\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts",
+   "line": 248,
+   "snippet": "void state.refresh?.().catch(() => undefined);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts",
+   "line": 259,
+   "snippet": "try { await Promise.race([state.pending?.catch(() => undefined), new Promise(resolve => { timer = setTimeout(resolve, 25"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts",
+   "line": 331,
+   "snippet": "\"[consent] public context unavailable\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts",
+   "line": 369,
+   "snippet": "\"[consent] static loader unavailable\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts",
+   "line": 413,
+   "snippet": "void refresh().catch(() => undefined);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts",
+   "line": 418,
+   "snippet": "void refresh().catch(() => undefined);"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/server/runtime/boot/local-owner-signin.ts",
+   "line": 75,
+   "snippet": "\"deployment status could not be verified\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/server/runtime/boot/local-owner-signin.ts",
+   "line": 87,
+   "snippet": "\"listener address is invalid\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/server/runtime/boot/local-owner-signin.ts",
+   "line": 96,
+   "snippet": "\"public origin is invalid\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/boot/process-error-guards.ts",
+   "line": 131,
+   "snippet": "void Promise.resolve().then(() => optional.flush?.()).catch(() => {}).finally(finish);"
+  },
+  {
+   "rule": "vendor-named-file-outside-plugin",
+   "file": "apps/website/src/server/runtime/composition/charts-recharts-source.ts",
+   "line": 0,
+   "snippet": "recharts: apps/website/src/server/runtime/composition/charts-recharts-source.ts"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/commerce.ts",
+   "line": 109,
+   "snippet": "close: async () => { storage.closed = true; await warming; await worker.close(); await storage.schema?.catch(() => {}); "
+  },
+  {
+   "rule": "process-exit-in-runtime",
+   "file": "apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts",
+   "line": 188,
+   "snippet": "if (root === undefined) { console.error(\"import database helper has no root directory\"); process.exit(1); }"
+  },
+  {
+   "rule": "process-exit-in-runtime",
+   "file": "apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts",
+   "line": 190,
+   "snippet": "if (!(error instanceof SiteShareRefusal)) process.exit(1);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/memory-deps/slices/site-title-settings.ts",
+   "line": 44,
+   "snippet": "void siteTitleReady.catch(() => undefined);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts",
+   "line": 355,
+   "snippet": "reader?.cancel().catch(() => undefined);"
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
+   "line": 425,
+   "snippet": "\"Invalid picked folders\""
+  },
+  {
+   "rule": "generic-error-catch",
+   "file": "apps/website/src/server/runtime/composition/modules/assistant-chats.ts",
+   "line": 263,
+   "snippet": "\"Invalid picked folders\""
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/modules/assistant.ts",
+   "line": 125,
+   "snippet": "reader.cancel().catch(() => undefined);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/modules/assistant.ts",
+   "line": 216,
+   "snippet": "const body: unknown = await response.json().catch(() => undefined);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/modules/core.ts",
+   "line": 47,
+   "snippet": "targetInstallationId.catch(() => undefined);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/modules/run-finalizer/bounded-follow.ts",
+   "line": 69,
+   "snippet": "timers, work: client.runStatus(run, { signal: abort.signal }).catch(() => null), timeoutMs: statusTimeoutMs,"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/modules/run-finalizer/release-body.ts",
+   "line": 6,
+   "snippet": "void response.body?.cancel().catch(() => undefined);"
+  },
+  {
+   "rule": "per-cli-code-in-shared-file",
+   "file": "apps/website/src/server/runtime/composition/modules/site-assistant.ts",
+   "line": 102,
+   "snippet": "gemini x12"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/modules/site-search.ts",
+   "line": 236,
+   "snippet": "await Promise.resolve(settingsReady).catch(() => undefined);"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/peer-site-reads.ts",
+   "line": 479,
+   "snippet": "state.pending = work.catch(() => {});"
+  },
+  {
+   "rule": "lazy-bare-import",
+   "file": "apps/website/src/server/runtime/composition/product-telemetry.ts",
+   "line": 123,
+   "snippet": "import('@jini-ai/plugins/host/node'), import('../../../features/plugin-runtime/host-binding.js'), import('./provider-con"
+  },
+  {
+   "rule": "swallowed-error",
+   "file": "apps/website/src/server/runtime/composition/site-deps/identity-settings.ts",
+   "line": 121,
+   "snippet": "siteTitleReady.catch(() => undefined);"
+  },
+  {
+   "rule": "runtime-import-of-devdep",
+   "file": "apps/website/src/server/runtime/plugin-tier2/typescript-bootstrap.cjs",
+   "line": 16,
+   "snippet": "tsx (devDependencies only) — require(\"tsx/cjs/api\").register();"
+  },
+  {
+   "rule": "runtime-import-of-devdep",
+   "file": "apps/website/src/server/runtime/plugin-tier2/typescript-bootstrap.cjs",
+   "line": 17,
+   "snippet": "tsx (devDependencies only) — require(\"tsx/esm/api\").register();"
+  },
+  {
+   "rule": "bare-toThrow",
+   "file": "apps/admin/src/hooks/__tests__/use-admin-locale.hooks.test.ts",
+   "line": 61,
+   "snippet": "// Replaces a deleted vacuous test that asserted only `not.toThrow()` on the publish call, which"
+  },
+  {
+   "rule": "bare-toThrow",
+   "file": "apps/website/src/assistant/__tests__/execution-credential-store.test.ts",
+   "line": 358,
+   "snippet": "await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));"
+  },
+  {
+   "rule": "bare-toThrow",
+   "file": "apps/website/src/assistant/__tests__/site-credential-store.test.ts",
+   "line": 362,
+   "snippet": "await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));"
+  },
+  {
+   "rule": "bare-toThrow",
+   "file": "apps/website/src/features/media/__tests__/provider-credential-store.test.ts",
+   "line": 653,
+   "snippet": "await assert.rejects(() => deps.sealer.open({ sealed: row!.sealed! }));"
+  },
+  {
+   "rule": "bare-toThrow",
+   "file": "apps/website/src/features/webhooks/__tests__/secret-sealer.aesgcm.test.ts",
+   "line": 121,
+   "snippet": "await assert.rejects(() => sealer.open({ sealed }));"
+  },
+  {
+   "rule": "vendor-step-in-core-workflow",
+   "file": ".github/workflows/fly-deploy.yml",
+   "line": 223,
+   "snippet": "- uses: superfly/flyctl-actions/setup-flyctl@v1"
+  },
+  {
+   "rule": "vendor-step-in-core-workflow",
+   "file": ".github/workflows/fly-deploy.yml",
+   "line": 287,
+   "snippet": "- run: flyctl deploy --remote-only --config fly.toml --build-arg TOVU_BUILD_SHA=${{ github.sha }}"
+  }
+ ]
+}

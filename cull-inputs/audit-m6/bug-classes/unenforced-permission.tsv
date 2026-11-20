@@ -1,0 +1,6 @@
+repo	file	line	symbol	detail
+jini	packages/agent-plugins/src/lifecycle/host-tools/search-tool.ts	281	search_agent_plugin_local	declares required.permission (packages/agent-plugins/src/lifecycle/host-tools/search-tool.ts); policy allow; handler never names authorize/permission/principal
+tovu	apps/website/src/assistant/admin-screen-link-tool.ts	198	assistant_admin_screen_link	declares admin.assistant.use (apps/website/src/assistant/admin-screen-link-tool.ts); policy allow; handler never names authorize/permission/principal
+tovu	apps/website/src/assistant/component-catalog-tool.ts	128	search_components	declares admin.assistant.use (apps/website/src/assistant/component-catalog-tool.ts); policy allow; handler never names authorize/permission/principal
+tovu	apps/website/src/assistant/component-catalog-tool.ts	138	describe_component	declares admin.assistant.use (apps/website/src/assistant/component-catalog-tool.ts); policy allow; handler never names authorize/permission/principal
+tovu	apps/website/src/assistant/demo-image-tool.ts	72	assistant_demo_image	declares admin.assistant.use (apps/website/src/assistant/demo-image-tool.ts); policy allow; handler never names authorize/permission/principal

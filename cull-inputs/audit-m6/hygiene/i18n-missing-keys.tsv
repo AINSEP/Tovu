@@ -1,0 +1,1006 @@
+repo	file	dict	dict_line	locale	key	problem	detail	confidence
+tovu	apps/admin/src/features/auth/auth-i18n.ts	AUTH_DICT	7	es	Password	missing		low
+tovu	apps/admin/src/features/auth/auth-i18n.ts	AUTH_DICT	7	bn	Password	missing		low
+tovu	apps/admin/src/features/dashboard/dashboard-i18n.ts	DASHBOARD_DICT	16	zh-CN	It is recommended to change your password before deploying	missing		low
+tovu	apps/admin/src/features/dashboard/dashboard-i18n.ts	DASHBOARD_DICT	16	zh-TW	It is recommended to change your password before deploying	missing		low
+tovu	apps/admin/src/features/dashboard/dashboard-i18n.ts	DASHBOARD_DICT	16	ja	It is recommended to change your password before deploying	missing		low
+tovu	apps/admin/src/features/dashboard/dashboard-i18n.ts	DASHBOARD_DICT	16	th	It is recommended to change your password before deploying	missing		low
+tovu	apps/admin/src/features/dashboard/dashboard-i18n.ts	DASHBOARD_DICT	16	th	Change password	missing		low
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_TRANSLATIONS	17	de	Owner password	missing		low
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_TRANSLATIONS	17	th	Owner password	missing		low
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	en	entries	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	es	entries	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	id	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	de	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fr	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	it	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pt-BR	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-CN	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	zh-TW	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ja	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ko	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ru	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	fa	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ar	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	pl	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hu	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	uk	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	tr	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	th	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	hi	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	ur	Published:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	{count} lines	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Not supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Supported	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	No Dockerfile yet	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Its current contents on the server are:	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	It was deleted on the server.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Load the current version	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Runs on any static host, including free ones. Nothing dynamic survives the export.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	View Static Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Needs a host to run on — provider setup is planned, not wired up yet.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	View Full Site details	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	succeeded	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	failed	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Written to	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Failed routes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Failed assets	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Tovu writes every published post, the home page, products and theme pages into the folder you name.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Copy the export command	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Replace <dir> with the folder to write into. It is a required argument — there is no default.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Overwrite existing files in the output folder	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Exporting…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Checking…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Getting it online	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	The export is just a folder of files. Pick where it goes, then publish straight from here.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Publish target	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Connected	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Need to save more than one token, rename one, or manage every saved credential in one place?	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Create access token	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Loading credentials…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Account ID	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Verify	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Verifying…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Which saved token publishes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	This workspace has more than one saved	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	token. Pick which one Tovu publishes with.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Repository	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Publishing…	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	This is immediately live on the public internet once it finishes — there is no draft or review step.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Where this publish goes	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	The account above only proves you're allowed to publish — this says exactly where this one goes.	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Base path	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	None — serves from the domain root	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Credential	missing		high
+tovu	apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_TRANSLATIONS	1767	bn	Published:	missing		high
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	bn	Password	missing		low
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	es	Password	missing		low
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	ja	The passwords don't match.	missing		low
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	th	Confirm password	missing		low
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	th	Needs a password	missing		low
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	th	The passwords don't match.	missing		low
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	zh-CN	The site opens once it has an owner password. Username: admin	missing		low
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	zh-CN	The passwords don't match.	missing		low
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	zh-TW	The site opens once it has an owner password. Username: admin	missing		low
+tovu	apps/admin/src/features/sites/site-transfer-i18n.ts	SITE_TRANSFER_DICT	12	zh-TW	The passwords don't match.	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	es	Password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	zh-CN	Set a new password for	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	zh-CN	Password changed. Sign in again with your new password.	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	zh-TW	Set a new password for	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	zh-TW	Password changed. Sign in again with your new password.	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	ja	Reset password?	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	ja	Set a new password for	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	ja	Reset password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	ja	failed to reset password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	ja	Password changed. Sign in again with your new password.	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	th	Reset password?	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	th	Set a new password for	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	th	New password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	th	Reset password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	th	failed to reset password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	USERS_TRANSLATIONS	12	bn	Password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	PASSWORD_FIELD_TRANSLATIONS	1404	ja	Confirm new password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	PASSWORD_FIELD_TRANSLATIONS	1404	ja	Passwords do not match.	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	PASSWORD_FIELD_TRANSLATIONS	1404	th	Confirm new password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	PASSWORD_FIELD_TRANSLATIONS	1404	th	Show password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	PASSWORD_FIELD_TRANSLATIONS	1404	th	Hide password	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	PASSWORD_FIELD_TRANSLATIONS	1404	th	Passwords do not match.	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	RESET_PASSWORD_INFO_TRANSLATIONS	1432	zh-TW	No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.	missing		low
+tovu	apps/admin/src/features/users/users-i18n.ts	RESET_PASSWORD_INFO_TRANSLATIONS	1432	ja	No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.	missing		low

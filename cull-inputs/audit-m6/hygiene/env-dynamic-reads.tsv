@@ -1,0 +1,7 @@
+repo	file	line	key_expr
+tovu	apps/website/src/platform/secrets/startup-secrets.ts	18	<dynamic:key>
+tovu	apps/website/src/platform/secrets/startup-secrets.ts	21	<dynamic:STARTUP_SECRETS_ENV>
+tovu	apps/website/src/platform/secrets/startup-secrets.ts	22	<dynamic:STARTUP_SECRETS_ENV>
+tovu	apps/website/src/platform/site-dir/init-site.ts	422	<dynamic:env>
+tovu	apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts	660	<dynamic:DESKTOP_AGENT_SERVICE_ENV>
+jini	packages/platform/src/resource-paths.ts	116	<dynamic>
