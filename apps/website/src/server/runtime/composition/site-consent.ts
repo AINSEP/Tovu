@@ -12,7 +12,7 @@ import { resolveSitePath } from '#src/features/site-inspection/site-path-policy'
 import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
 import { findPublishedPostBySlug } from "#src/features/post/post-read";
-import { isBarePageChoice } from '#src/features/theme/static-template-choice';
+import { isBarePageChoice } from '#src/features/theme/index';
 import { isFullHtmlDocument } from '../../inbound/public-http/http/site/bare-page.js';
 import type { ConsentProblem } from '#src/contracts/core/consent-refusal';
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";

@@ -78,6 +78,8 @@ const BASELINE_PATH = path.join(import.meta.dirname, "check-architecture.baselin
  * known-broken register documents this as `check-architecture.ts` measuring an empty graph. One
  * constant so every check moves together if the tree moves again. */
 const SRC_ROOT = "apps/website/src";
+/** The one module whose files count as public by design; see `apiSurfaceFiles` in `main()`. */
+const API_SURFACE_EXEMPT_MODULE = "contracts";
 
 const INCLUDE_TESTS = process.argv.includes("--include-tests");
 const UPDATE = process.argv.includes("--update");
@@ -751,7 +753,12 @@ function main(): void {
   const backEdges = backEdgesIntoServer(forwardAll);
   const backEdgesRuntime = backEdgesIntoServer(forwardRuntime);
   const deep = deepImports(forwardAll);
-  const apiSurfaceFiles = [...deep.byModule.values()].reduce((sum, e) => sum + e.files.size, 0);
+  // `contracts/` is exempt (owner, combine-6): it is the shared vocabulary every module is meant to
+  // import file by file, so its files are public by design and counting them would fail the
+  // ratchet each time a type moves into it (arch-120 moved 12 files there in combine-5).
+  const apiSurfaceFiles = [...deep.byModule.entries()]
+    .filter(([module]) => module !== API_SURFACE_EXEMPT_MODULE)
+    .reduce((sum, [, e]) => sum + e.files.size, 0);
   // Module cycles / SCC: runtime-only graph (2026-08-17) — see `Baseline.moduleCycles`'s doc comment.
   const moduleAdjacency = buildModuleAdjacency(forwardRuntime);
   const pairs = mutualPairs(moduleAdjacency);

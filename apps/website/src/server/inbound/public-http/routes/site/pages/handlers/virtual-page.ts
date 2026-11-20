@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { resolveRenderThemeId } from "../../../../middleware/render-theme-override.js";
 // Keep request rendering separate from theme installation, imports, and agent tools.
-import { resolveTemplateBranchChoice } from "#src/features/theme/static-template-choice";
+import { resolveTemplateBranchChoice } from "#src/features/theme/index";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import type { RouteDeps } from "#src/server/routes/types";

@@ -1,5 +1,5 @@
 // Keep request rendering separate from theme installation, imports, and agent tools.
-import { collectionMarkerKey, splitCollectionMarkerInner } from "#src/features/theme/static-render-collections";
+import { collectionMarkerKey, splitCollectionMarkerInner } from "#src/features/theme/index";
 import { renderEntryList, type EntryListItem, type EntryListFieldValue } from "#src/features/theme/entry-list-render";
 import { markersOfType, COLLECTION_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { listingBatchPath, listingKeyOfAttributes, readListingBatch, renderListingMore } from "@jini-ai/cms/listing";

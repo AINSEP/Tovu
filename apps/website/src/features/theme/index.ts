@@ -68,7 +68,7 @@ export {
 } from "./code-tier-asset-normalizer.js";
 
 export { renderStaticPage, renderStaticPartial } from "./static-render.js";
-export { injectCurrentEntityContentId, injectPageTitle, postAuthorForContentHeader, type StaticFeaturedImage } from "./static-render-content.js";
+export { injectCurrentEntityContentId, injectPageTitle, injectPostAuthor, postAuthorForContentHeader, renderCoverImageTag, type StaticFeaturedImage } from "./static-render-content.js";
 export { resolveTemplate, type PostTemplateResolution } from "./static-template-resolution.js";
 export { isEligibleForTemplateBranch, isBarePageChoice, resolveTemplateBranchChoice, type TemplateBranchChoice } from "./static-template-choice.js";
 export { resolveStaticTierPageShellFallback } from "./static-page-shell.js";

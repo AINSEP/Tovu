@@ -1,7 +1,6 @@
 import type { Request } from "express";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import type { StaticPostPreview } from "#src/features/theme/static-render-previews";
-import type { StaticFeaturedImage } from "#src/features/theme/static-render-content";
+import type { StaticFeaturedImage, StaticPostPreview } from "#src/features/theme/index";
 import { extractListingBatch, renderListingBatchDocument, type ListingBatchRequest, type ListingPageRequest, type ListingJsonPage } from "@jini-ai/cms/listing";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import { deriveExcerpt, extractPlainTextFromHtml } from "@jini-ai/cms/seo";
