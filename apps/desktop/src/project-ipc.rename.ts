@@ -1,10 +1,11 @@
 import { duplicateSiteNameError } from "./site-name-policy.ts";
 import { siteNameError } from "./contracts/site-name.ts";
 import { readTrackedSites } from "./tracked-sites.ts";
-import { readSiteIdentity } from "./project-delete-guard.ts";
+import { readDirectoryIdentity } from "@jini-ai/platform/fs";
 import { type SiteRow, type ProjectIpcDeps, type RenameSiteInput } from "./project-ipc.types.ts";
 import { otherSiteNames, rememberSiteAlias, rememberSiteName } from "./project-ipc.catalog.ts";
 import { buildSiteRecord } from "./project-ipc.records.ts";
+import { SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 
 
 /**
@@ -19,11 +20,11 @@ import { buildSiteRecord } from "./project-ipc.records.ts";
  * Its own function so the three clauses read as one question at the call site, and so the
  * "recorded nothing" and "recorded something that changed" cases are visibly different answers.
  *
- * @complexity O(1) beyond `readSiteIdentity`'s single file read.
+ * @complexity O(1) beyond `readDirectoryIdentity`'s single file read.
  */
 function identityHasChanged(row: SiteRow): boolean {
   if (typeof row.siteId !== "string" || row.siteId === "") return false;
-  return readSiteIdentity({ siteDir: row.siteDir }) !== row.siteId;
+  return readDirectoryIdentity({ directory: row.siteDir, ...SITE_IDENTITY_MARKER }) !== row.siteId;
 }
 
 /**

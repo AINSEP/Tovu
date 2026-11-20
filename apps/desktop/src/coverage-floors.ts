@@ -46,7 +46,7 @@
  * ## Node's line% is not comparable to anyone else's
  *
  * Node's lcov sets `LF` to EVERY line in the file, comments and blanks included (verified:
- * `keyed-serializer.ts` LF:51 / `wc -l` 51; `App.hooks.ts` 1272/1272). This codebase is unusually
+ * `@jini-ai/sidecar/supervisor` LF:51 / `wc -l` 51; `App.hooks.ts` 1272/1272). This codebase is unusually
  * comment-dense, so these line percentages read HIGHER than a statement-based tool's and must never
  * be compared with a c8, vitest or istanbul number — including `apps/admin`'s vitest coverage.
  * That is also why the per-file floor ({@link evaluatePerFileBranch}) is on BRANCH %, not line %:

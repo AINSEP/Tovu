@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `site-relocation.ts` — a tracked project whose folder was renamed or moved
+ * @file Coverage for `tracked-site-relocation.ts` — a tracked project whose folder was renamed or moved
  * (`sites/tovu-com` → `sites/tovu-dev`, commit bc015d6c5) heals itself instead of leaving a card
  * for a folder that no longer exists. Temp dirs only; nothing here touches the real userData files.
  */
@@ -10,7 +10,8 @@ import os from "node:os";
 import path from "node:path";
 
 import { classifySiteDirSafely } from "./site-dir-store.ts";
-import { createRelocationGate, readRelocationId, relocateMovedSites, repointTrackedSite } from "./site-relocation.ts";
+import { readRelocationId, relocateMovedSites, repointTrackedSite } from "./tracked-site-relocation.ts";
+import { createDirectoryRelocationGate } from "@jini-ai/platform/fs";
 import { sitesFilePath, readTrackedSites, readDismissedSites, writeTrackedSites, trackSite } from "./tracked-sites.ts";
 
 function tempDir(): string {
@@ -145,6 +146,7 @@ test("relocateMovedSites downgrades a moved `created` row to `adopted` and drops
 
   relocateMovedSites({ projectsPath: file });
 
+  assert.equal(Object.hasOwn(readTrackedSites({ projectsPath: file })[0]!, "siteId"), false, "a move discards erase authority");
   // The app created the folder at the OLD path; the operator moved it. Delete must not erase it now.
   assert.deepEqual(readTrackedSites({ projectsPath: file }), [{ siteDir: newDir, createdAt: CREATED, origin: "adopted", relocationId: "site-1" }]);
 });
@@ -217,7 +219,7 @@ test("createRelocationGate runs on the first poll, then only when the rows, thei
   const here = makeSite(path.join(root, "here"), { siteId: "id-here" });
   const gone = path.join(root, "gone");
   let clock = 0;
-  const gate = createRelocationGate({}, { maxIdleMs: 60_000, now: () => clock });
+  const gate = createDirectoryRelocationGate<{ siteDir: string }>({ directoryOf: ({ row }) => row.siteDir, classifyDirectory: ({ directory }) => classifySiteDirSafely({ dir: directory }) }, { maxIdleMs: 60_000, now: () => clock });
   const file = { rows: [{ siteDir: here }, { siteDir: gone }], dismissed: [] as string[] } as never;
 
   assert.equal(gate.shouldRun({ file }), true, "the first poll always runs");
@@ -238,7 +240,7 @@ test("createRelocationGate runs on the first poll, then only when the rows, thei
 
 test("createRelocationGate still runs at the slow cadence while nothing changes, so a folder that turns up elsewhere is found", () => {
   let clock = 0;
-  const gate = createRelocationGate({}, { maxIdleMs: 60_000, now: () => clock });
+  const gate = createDirectoryRelocationGate<{ siteDir: string }>({ directoryOf: ({ row }) => row.siteDir, classifyDirectory: ({ directory }) => classifySiteDirSafely({ dir: directory }) }, { maxIdleMs: 60_000, now: () => clock });
   const file = { rows: [{ siteDir: path.join(tempDir(), "missing") }], dismissed: [] } as never;
 
   assert.equal(gate.shouldRun({ file }), true);
@@ -303,7 +305,7 @@ test("stalecard: gate notices invalidated markers even if the folder still exist
   const root = tempDir();
   const dir = makeSite(path.join(root, "site"), { siteId: "same" });
   const file = { rows: [{ siteDir: dir, createdAt: CREATED, origin: "adopted" as const }], dismissed: [] };
-  const gate = createRelocationGate({}, { now: () => 0 });
+  const gate = createDirectoryRelocationGate<{ siteDir: string }>({ directoryOf: ({ row }) => row.siteDir, classifyDirectory: ({ directory }) => classifySiteDirSafely({ dir: directory }) }, { now: () => 0 });
   assert.equal(gate.shouldRun({ file }), true);
   assert.equal(gate.shouldRun({ file }), false);
   fs.unlinkSync(path.join(dir, "config.json"));
@@ -328,6 +330,7 @@ test("stalecard: recomputing inside the registry lock preserves a twin adopted a
   };
   assert.deepEqual(relocateMovedSites({ projectsPath: file }, { classifySiteDir }), { moved: [], merged: [stale] });
   assert.deepEqual(readTrackedSites({ projectsPath: file }).map((row) => row.siteDir), [target, unrelated]);
+  assert.equal(readTrackedSites({ projectsPath: file }).find(row => row.siteDir === target)?.origin, "adopted", "the locked twin retains the concurrent adoption");
 });
 
 test("relocateMovedSites writes nothing when another instance healed the file between its unlocked look and the lock", () => {
@@ -356,7 +359,7 @@ test("relocateMovedSites writes nothing when another instance healed the file be
 });
 
 test("createRelocationGate with no injected clock uses the wall clock: the first poll runs, an immediate repeat does not", () => {
-  const gate = createRelocationGate({}, { maxIdleMs: 60_000 });
+  const gate = createDirectoryRelocationGate<{ siteDir: string }>({ directoryOf: ({ row }) => row.siteDir, classifyDirectory: ({ directory }) => classifySiteDirSafely({ dir: directory }) }, { maxIdleMs: 60_000 });
   const file = { rows: [{ siteDir: path.join(tempDir(), "missing") }], dismissed: [] } as never;
   assert.equal(gate.shouldRun({ file }), true);
   assert.equal(gate.shouldRun({ file }), false, "well inside one idle minute of real time");

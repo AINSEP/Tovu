@@ -1,7 +1,7 @@
 /** Local lifecycle writes and confirmation live in the controller, never in card markup. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
-import { startVisibleInterval, type VisibilitySource, type IntervalTimers } from "@/lib/visible-interval";
+import { startVisibleInterval, type VisibilitySource, type IntervalTimers } from "@jini-ai/ui/visible-interval";
 import type { AdminLocalSiteAction, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 

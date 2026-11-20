@@ -5,7 +5,6 @@ import type { removeSiteTree } from "./remove-site-tree.ts";
 import type { OpenSiteEntry, ServerExitLike, SiteRuntime } from "./project-ipc.site-lifecycle.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
 import type { ExternalSiteStopper } from "./external-site-stop.ts";
-import type { mayEraseSiteDirectory } from "./project-delete-guard.ts";
 import type { TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
 import type { SitePresence, PresenceSender } from "./project-ipc.presence.ts";
 
@@ -13,14 +12,12 @@ import type { SitePresence, PresenceSender } from "./project-ipc.presence.ts";
 /**
  * A tracked-project row as {@link buildSiteRecord} and its siblings need it — loosened from
  * `tracked-sites.ts`'s own `TrackedSiteRow` (not exported) in exactly the two fields a caller here
- * can hand in without one: `origin` and `siteId` are optional, because {@link mayEraseSiteDirectory}
+ * can hand in without one: `origin` and `siteId` are optional, because {@link mayEraseDirectory}
  * already treats an absent `origin` as "not created" (refuse) and {@link identityHasChanged} already
  * treats an absent `siteId` as "nothing recorded" — this type describes that existing tolerance
- * rather than inventing it. Deliberately no index signature, unlike `project-delete-guard.ts`'s own
- * `RowLike`: a real `TrackedSiteRow` (also no index signature) must flow into this type at every
- * real call site, and TypeScript does not consider a plain interface assignable to one that HAS an
- * index signature. See the `as MayEraseRowLike` casts where a `SiteRow` is handed to
- * {@link mayEraseSiteDirectory} instead.
+ * rather than inventing it. Deliberately no index signature: a real `TrackedSiteRow` (also no index
+ * signature) must flow into this type at every real call site. The erase guard receives a projection
+ * of the row's directory, provenance and identity instead of a cast to an indexed type.
  */
 export interface SiteRow {
   siteDir: string;
@@ -30,10 +27,6 @@ export interface SiteRow {
   displayName?: string;
   displayNameAlias?: string;
 }
-
-/** {@link mayEraseSiteDirectory}'s own (unexported) first-parameter type, extracted structurally
- *  rather than by name — see {@link SiteRow}'s own doc on why a `SiteRow` needs a cast to reach it. */
-export type MayEraseRowLike = Parameters<typeof mayEraseSiteDirectory>[0]["row"];
 
 export interface ProjectSiteLifecycle extends SitePresence<PresenceSender & { getURL(): string }> {
   onServerExit(input: { siteDir: string; exit: ServerExitLike; server: OpenSiteEntry["server"] }, options?: {}): void;
@@ -46,7 +39,7 @@ export interface ProjectSiteLifecycle extends SitePresence<PresenceSender & { ge
 }
 
 /** `deps.openSites` — `Map`-compatible, per {@link registerSiteIpcHandlers}'s own doc; in production
- *  it is `site-supervisor.ts`'s supervisor, which adds {@link OpenSites.lastExitOf}. This file's own
+ *  it is `@jini-ai/sidecar/supervisor`'s supervisor, which adds {@link OpenSites.lastExitOf}. This file's own
  *  handlers only ever call `get`/`delete`, but `set`/`has` are part of the type because the
  *  documented "Map-compatible" contract is what callers (this file's own tests, and `main.ts`) build
  *  entries with before a handler ever sees them. */
@@ -55,19 +48,19 @@ export interface OpenSites {
   set(siteDir: string, entry: OpenSiteEntry): unknown;
   has(siteDir: string): boolean;
   delete(siteDir: string): boolean;
-  lastExitOf?({ siteDir }: { siteDir: string }, optional?: {}): ServerExitLike | null;
+  lastExitOf?({ key }: { key: string }, optional?: {}): ServerExitLike | null;
 }
 
-/** `deps.transitions` — `site-transitions.ts`'s store, as the two readers here need it. Structural
+/** `deps.transitions` — `@jini-ai/sidecar/supervisor`'s store, as the two readers here need it. Structural
  *  rather than an import of its own type, for the same reason {@link OpenSites} is a duck type:
  *  this file's handlers stay callable from plain `node --test` against a two-line fake. */
 export interface SiteTransitionsLike {
-  get({ siteDir }: { siteDir: string }, optional?: {}): "starting" | "stopping" | null;
-  during<T>({ siteDir, transition, body }: { siteDir: string; transition: "starting" | "stopping"; body: () => Promise<T> }, optional?: {}): Promise<T>;
+  get({ key }: { key: string }, optional?: {}): "starting" | "stopping" | null;
+  during<T>({ key, transition, body }: { key: string; transition: "starting" | "stopping"; body: () => Promise<T> }, optional?: {}): Promise<T>;
 }
 
 /** A crash-safety registry row, as {@link liveForeignServers} needs it — mirrors
- *  `site-process-registry.ts`'s own `SiteProcessRow`, duplicated rather than imported for the same
+ *  `site-child-registry.ts`'s own `SiteProcessRow`, duplicated rather than imported for the same
  *  reason `readRegistry`/`isLiveServeRow` arrive on `deps` rather than as a direct import: every
  *  handler here stays callable from plain `node --test` against fakes. */
 export interface RegistryRow {
@@ -118,10 +111,10 @@ interface IpcMainLike {
   removeHandler?(channel: string): void;
 }
 
-/** `deps.serializer` — `keyed-serializer.ts`'s per-key promise chain, loosened from that file's own
+/** `deps.serializer` — `@jini-ai/sidecar/supervisor`'s per-key promise chain, loosened from that file's own
  *  exported `KeyedSerializer` type (`run<T>(...): Promise<T>`) to `T | PromiseLike<T>`: this file
  *  only ever `await`s the result, and the plain synchronous fakes several tests use return `fn()`'s
- *  own value rather than a wrapped `Promise`. The real `createKeyedSerializer()` still satisfies
+ *  own value rather than a wrapped `Promise`. The real `createKeyedSerializer({})` still satisfies
  *  this — `Promise<T>` is one of the two arms. */
 interface Serializer {
   run<T>(required: { key: string; fn: () => T | PromiseLike<T> }, optional?: {}): T | PromiseLike<T>;
@@ -201,7 +194,7 @@ export interface ProjectIpcDeps<TCtx = unknown> {
   readPreviewVersion: (required: { siteDir: string }) => number | null;
   readPreviewDataUrl: (required: { id: string }) => string | null;
   deletePreview: (required: { id: string }) => void;
-  removeSiteTree?: typeof removeSiteTree;
+  removeSiteTree?: typeof removeDirectoryTree;
   /** Stop/Restart must withdraw pending hidden-window work before the server drains. */
   cancelPreviewCapture?: (required: { siteDir: string }, optional: {}) => void;
   /** Jini's existing shutdown tracker: Quit must also await Stops removed from openSites. */
@@ -218,7 +211,7 @@ export interface ProjectIpcDeps<TCtx = unknown> {
   classifySiteDir: (input: { dir: string }) => "site" | "incomplete" | "empty" | "occupied" | "unreadable";
   openSiteServer: (required: { siteDir: string; ctx: TCtx }) => Promise<unknown>;
   /**
-   * `site-transitions.ts`'s store — which sites are mid-start or mid-stop right now, the fact
+   * `@jini-ai/sidecar/supervisor`'s store — which sites are mid-start or mid-stop right now, the fact
    * `openSites` cannot express. `main.ts` wires the real one (`main-project-wiring.test.ts` holds
    * it there); `buildSiteRecord` and the two lifecycle handlers are its only readers.
    *

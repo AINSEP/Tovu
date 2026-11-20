@@ -1,4 +1,4 @@
-import type { FindQueryClock } from './find-query-scheduler.js';
+import type { FindQueryClock } from '@jini-ai/ui/core';
 
 /**
  * The timing slice `useFindInPage` drives: the clock its focus-reclaim window is measured on, the

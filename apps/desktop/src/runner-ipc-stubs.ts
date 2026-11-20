@@ -17,7 +17,7 @@
  * The push channels — `workspace:chat:event`, `workspace:chat:navigate` and `runner:sites:history` —
  * are deliberately absent. They are main→renderer sends, not `invoke` targets, so there is no
  * handler to register and no stub to write. The two chat channels have no sender until phase 2;
- * `runner:sites:history` is sent by the app menu (`site-history-menu.ts`).
+ * `runner:sites:history` is sent by the app menu (`main/boot/boot-sequence.ts`).
  *
  * **The channel literals below are INLINED rather than read from `src/contracts/*.ts`.** This is
  * CommonJS main-process code and those are TypeScript; the compiled `dist/contracts/*.js` exists

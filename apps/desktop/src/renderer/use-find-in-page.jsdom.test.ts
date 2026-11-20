@@ -13,7 +13,7 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 import { act, createElement } from 'react';
 
-import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from './find-query-scheduler.js';
+import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from '@jini-ai/ui/core';
 import { FIND_FOCUS_RECLAIM_MS } from './find-input-focus.js';
 import { liveAnchorSelection, type FindBridge, type FindableGuest } from './find-target.js';
 import { liveFindClock, type FindFocusClock } from './find-focus-clock.js';
@@ -429,7 +429,7 @@ test('the live ports read the real window: selection, clock, frames and timers',
 
 test('the query scheduler\'s default clock is the real timer: cancel drops, settle runs', async () => {
   const runs: string[] = [];
-  const scheduler = createFindQueryScheduler();
+  const scheduler = createFindQueryScheduler({});
   scheduler.schedule({ run: () => runs.push('cancelled') });
   scheduler.cancel();
   await new Promise<void>((resolve) => {

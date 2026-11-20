@@ -1,6 +1,6 @@
 import { shareSiteDirectories } from "./shared-sites.ts";
 import { ensureIndependentSiteIdentity } from "./site-directory-identity.ts";
-import { classifySiteDirSafely } from "./site-dir-store.ts";
+import { classifySiteDirSafely, SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 
 import fsp from "node:fs/promises";
 import { PROJECT_NOT_OPEN_MESSAGE } from "./contracts/project.ts";
@@ -51,7 +51,7 @@ export function handleGetPreview({ id, deps }: { id: string; deps: Pick<ProjectI
  * Reuses `openSiteServer` — `main.ts`'s spawn-only counterpart to the `openSiteWindow` "Open
  * Site…"/"Open Recent"/startup already use — through `serializer.run`, so opening the same tab twice
  * fast cannot double-spawn its server (see `main.ts`'s own doc on `openSiteServer`/
- * `keyed-serializer.ts`).
+ * `@jini-ai/sidecar/supervisor`).
  *
  * Returns the project's fresh record rather than nothing: the renderer's `<webview>` needs the
  * `port` this call just produced, and re-deriving it would mean a second `list` round trip for
@@ -63,7 +63,7 @@ export function handleGetPreview({ id, deps }: { id: string; deps: Pick<ProjectI
  * would then start a `tovu serve` on a path that no longer exists. Inside, "is this project still
  * tracked" is asked at the only instant its answer is still true when acted on.
  *
- * The boot is marked `starting` for its whole duration (`site-transitions.ts`) — seconds, during
+ * The boot is marked `starting` for its whole duration (`@jini-ai/sidecar/supervisor`) — seconds, during
  * which `openSites` still says "not running" and a card left to that alone shows the operator a
  * Start button that appears to have done nothing. The mark is released before the record below is
  * built, so what this RESOLVES with is the settled answer, never `starting`.
@@ -120,7 +120,7 @@ async function explainMissingSiteDir({ siteDir, starting }: { siteDir: string; s
  * really gone.
  *
  * **The entry is dropped BEFORE the stop is awaited, deliberately** — the window-`closed` path in
- * `main.ts` does the identical thing for the identical reason. `site-supervisor.ts` watches each
+ * `main.ts` does the identical thing for the identical reason. `@jini-ai/sidecar/supervisor` watches each
  * entry's child and reports an exit it did not expect through `onUnexpectedExit`, which logs a
  * crash and records a `lastExitOf` the card then shows as "the site's server was stopped by
  * SIGTERM". For a stop the operator ASKED for, that is a lie in the one place they can read it.
@@ -224,5 +224,5 @@ async function stopSiteServer({ id, deps }: { id: string; deps: Pick<ProjectIpcD
  */
 function markTransition<T>({ transitions, siteDir, transition, body }: { transitions: SiteTransitionsLike | undefined; siteDir: string; transition: "starting" | "stopping"; body: () => Promise<T> }, _options = {}
 ): Promise<T> {
-  return transitions === undefined ? body() : transitions.during({ siteDir, transition, body });
+  return transitions === undefined ? body() : transitions.during({ key: siteDir, transition, body });
 }

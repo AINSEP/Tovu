@@ -30,6 +30,7 @@ test('useSitesPolling: loads, re-polls on each tick, reports a failed poll, and 
   responses.push(Promise.resolve([site('a')]));
   const hook = renderHook(t, () => useSitesPolling({}, { getBridge, startInterval }));
   assert.equal(hook.current().projectsLoading, true);
+  assert.equal(ticks.length, 1);
   await settle();
   assert.deepEqual(hook.current().projects.map((p) => p.id), ['a']);
   assert.equal(hook.current().projectsLoading, false);

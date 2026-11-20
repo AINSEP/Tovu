@@ -2,7 +2,7 @@
  * Shared keys are project references: nothing here copies a key into a site or opens an owner store.
  */
 import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
-import { createKeyedSerializer } from './keyed-serializer.ts';
+import { createKeyedSerializer } from '@jini-ai/sidecar/supervisor';
 import { ownerStoreFailure } from './owner-store-cli.ts';
 import { OWNER_STORE_CHANNELS, type LegacyImportReport, type LegacyImportSource, type OwnerStoreAction,
   type OwnerStoreCliFields, type OwnerStoreReply, type SharedOAuthDisconnectReport } from './contracts/owner-store.ts';
@@ -129,7 +129,7 @@ async function executeRequest({ action, input, ports, serialize }: {
  * @example const store = createOwnerStoreController({ run, pickBackup, confirmImport });
  */
 export function createOwnerStoreController(ports: OwnerStorePorts, _options = {}): OwnerStoreController {
-  const queue = createKeyedSerializer();
+  const queue = createKeyedSerializer({});
   const serialize: Serialize = ({ work }, _options = {}) => queue.run({ key: 'owner-store', fn: work });
   return {
     execute: async ({ action, input }, _options = {}) => {

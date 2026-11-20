@@ -27,7 +27,7 @@ test("the theme stream fetches through the site's own partition, sending its adm
 test("a card's Stop cancels both the preview capture and the theme stream", () => {
   assert.match(
     source,
-    /cancelPreviewCapture: \([^)]*\) => \{\s*sitePreviewScheduler\.cancel\(\{ siteDir \}, \{\}\);\s*siteThemePreviews\.stop\(\{ siteDir \}, \{\}\);\s*\}/,
+    /cancelPreviewCapture: \([^)]*\) => \{\s*sitePreviewScheduler\.cancel\(\{ key: siteDir \}, \{\}\);\s*siteThemePreviews\.stop\(\{ siteDir \}, \{\}\);\s*\}/,
   );
 });
 

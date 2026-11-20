@@ -8,7 +8,7 @@ import {
 import type { FileLockOptions, JsonFileRead, QuarantineNotice } from "@jini-ai/platform/fs/durable-json";
 
 /** Bind native effects and Tovu notices to one file. @complexity O(1). */
-function fileAt({ filePath }: { filePath: string }, _optional = {}) {
+function desktopJsonFile({ filePath }: { filePath: string }, _optional = {}) {
   return createDurableJsonFile({
     filePath,
     ...createNodeDurableJsonPorts({}),
@@ -21,22 +21,22 @@ function fileAt({ filePath }: { filePath: string }, _optional = {}) {
 
 /** Read without folding corrupt content into missing state. @complexity O(n) file bytes. */
 function readJsonFile({ filePath }: { filePath: string }, _optional = {}): JsonFileRead {
-  return fileAt({ filePath }).read({});
+  return desktopJsonFile({ filePath }).read({});
 }
 
 /** Preserve the stores' per-process temporary path contract. @complexity O(n) path length. */
 function tempPathFor({ filePath }: { filePath: string }, { pid = process.pid }: { pid?: number } = {}): string {
-  return fileAt({ filePath }).tempPath({}, { pid });
+  return desktopJsonFile({ filePath }).tempPath({}, { pid });
 }
 
 /** Fsync then replace; filesystem failures propagate. @complexity O(n) serialized bytes. */
 function writeJsonFileAtomic({ filePath, value }: { filePath: string; value: unknown }, _optional = {}): void {
-  fileAt({ filePath }).write({ value });
+  desktopJsonFile({ filePath }).write({ value });
 }
 
 /** Preserve damaged bytes and report using Tovu wording. @complexity O(n) path length. */
 function quarantineUnreadableFile({ filePath, notice }: { filePath: string; notice: QuarantineNotice }, _optional = {}): boolean {
-  return fileAt({ filePath }).quarantine({ notice });
+  return desktopJsonFile({ filePath }).quarantine({ notice });
 }
 
 /** Keep synchronous store writes inside Jini's token-owned lock. @complexity O(waitMs / 10) lock attempts. */
@@ -44,7 +44,7 @@ function quarantineUnreadableFile({ filePath, notice }: { filePath: string; noti
 // requestSingleInstanceLock would defeat that use. Lock shared read-modify-writes; instance-owned
 // crash-recovery rows can use separate files, while atomic replacement alone suffices for readers.
 function withFileLock<T>({ filePath, critical }: { filePath: string; critical: () => T }, options: FileLockOptions = {}): T {
-  return fileAt({ filePath }).withLock({ critical }, options);
+  return desktopJsonFile({ filePath }).withLock({ critical }, options);
 }
 
 /** Preserve existing recovery call sites with the host's 1,000-attempt budget. @complexity O(n) scan plus bounded parses. */
@@ -52,5 +52,5 @@ function salvageJsonPrefix({ text }: { text: string }, _optional = {}): unknown 
   return recoverJsonPrefix({ text }, { maxAttempts: 1_000 });
 }
 
-export { readJsonFile, tempPathFor, writeJsonFileAtomic, quarantineUnreadableFile, withFileLock, salvageJsonPrefix };
+export { desktopJsonFile, readJsonFile, tempPathFor, writeJsonFileAtomic, quarantineUnreadableFile, withFileLock, salvageJsonPrefix };
 export type { FileLockOptions, JsonFileRead, QuarantineNotice };

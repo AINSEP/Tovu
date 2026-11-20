@@ -1,7 +1,6 @@
 /**
- * @file Coverage for `site-history-menu.ts`, plus the wiring that only source text can show: that
- * the preload subscribes to the same channel, and that the inlined channel literal still matches
- * `contracts/project.ts`. That sites home installs this menu (with Settings) before its window opens
+ * @file Coverage for the History binding in `main/boot/boot-sequence.ts`, plus the wiring that only
+ * source text can show: that the preload subscribes to the same channel. That sites home installs this menu (with Settings) before its window opens
  * is behaviour now, in `main/boot/boot-sequence.test.ts`.
  */
 import test from "node:test";
@@ -10,7 +9,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { SITE_HISTORY_CHANNEL, sendSiteHistoryCommand, siteHistoryMenu, sitesHomeMenuTemplate } from "./site-history-menu.ts";
+import { SITE_HISTORY_CHANNEL } from "./contracts/project.ts";
+import { appWideMenuTemplate } from "./main/boot/boot-sequence.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
@@ -26,10 +26,12 @@ function fakeWindow({ destroyed = false }: { destroyed?: boolean } = {}) {
 }
 
 test("History has Back on CmdOrCtrl+[ and Forward on CmdOrCtrl+]", () => {
-  const menu = siteHistoryMenu({});
+  const menu = appWideMenuTemplate({ platform: "darwin", settings: () => ({ label: "Settings" }) })
+    .find((entry) => "label" in entry && entry.label === "History");
+  assert.ok(menu && "submenu" in menu);
   assert.equal(menu.label, "History");
   assert.deepEqual(
-    menu.submenu.map(({ label, accelerator }) => [label, accelerator]),
+    menu.submenu.map((entry) => "label" in entry ? [entry.label, entry.accelerator] : []),
     [
       ["Back", "CmdOrCtrl+["],
       ["Forward", "CmdOrCtrl+]"],
@@ -38,7 +40,12 @@ test("History has Back on CmdOrCtrl+[ and Forward on CmdOrCtrl+]", () => {
 });
 
 test("clicking Back and Forward sends the command to the focused window's renderer", () => {
-  const [back, forward] = siteHistoryMenu({}).submenu;
+  const menu = appWideMenuTemplate({ platform: "darwin", settings: () => ({ label: "Settings" }) })
+    .find((entry) => "label" in entry && entry.label === "History");
+  assert.ok(menu && "submenu" in menu);
+  const [back, forward] = menu.submenu;
+  assert.ok(back && "click" in back);
+  assert.ok(forward && "click" in forward);
   const window = fakeWindow();
   back.click(undefined, window);
   forward.click(undefined, window);
@@ -49,24 +56,26 @@ test("clicking Back and Forward sends the command to the focused window's render
 });
 
 test("with no focused window, a destroyed one, or one without webContents, nothing is sent", () => {
-  assert.equal(sendSiteHistoryCommand({ window: undefined, command: "back" }), false);
+  const menu = appWideMenuTemplate({ platform: "darwin", settings: () => ({ label: "Settings" }) })
+    .find((entry) => "label" in entry && entry.label === "History");
+  assert.ok(menu && "submenu" in menu);
+  const [back, forward] = menu.submenu;
+  assert.ok(back && "click" in back);
+  assert.ok(forward && "click" in forward);
+  back.click(undefined, undefined);
   const destroyed = fakeWindow({ destroyed: true });
-  assert.equal(sendSiteHistoryCommand({ window: destroyed, command: "back" }), false);
+  back.click(undefined, destroyed);
   assert.deepEqual(destroyed.sent, []);
-  assert.equal(sendSiteHistoryCommand({ window: { isDestroyed: () => false }, command: "forward" }), false);
-  assert.equal(sendSiteHistoryCommand({ window: fakeWindow(), command: "forward" }), true);
+  forward.click(undefined, { isDestroyed: () => false });
+  const window = fakeWindow();
+  forward.click(undefined, window);
+  assert.deepEqual(window.sent, [[SITE_HISTORY_CHANNEL, "forward"]]);
 });
 
 test("the sites-home menu keeps Electron's default menus and adds History and Find before Window", () => {
   const roles = (template: { role?: string; label?: string }[]) => template.map((entry) => entry.role ?? entry.label);
-  assert.deepEqual(roles(sitesHomeMenuTemplate({ platform: "darwin" })), ["appMenu", "fileMenu", "editMenu", "View", "History", "Find", "windowMenu", "help"]);
-  assert.deepEqual(roles(sitesHomeMenuTemplate({ platform: "linux" })), ["fileMenu", "editMenu", "View", "History", "Find", "windowMenu", "help"]);
-});
-
-test("the inlined channel literal matches contracts/project.ts", () => {
-  const match = read("contracts", "project.ts").match(/export const SITE_HISTORY_CHANNEL\s*=\s*'([^']+)'/);
-  assert.ok(match, "contracts/project.ts must declare SITE_HISTORY_CHANNEL");
-  assert.equal(match[1], SITE_HISTORY_CHANNEL);
+  assert.deepEqual(roles(appWideMenuTemplate({ platform: "darwin", settings: () => ({ label: "Settings" }) })), ["appMenu", "fileMenu", "editMenu", "View", "History", "Find", "windowMenu", "help", "Settings"]);
+  assert.deepEqual(roles(appWideMenuTemplate({ platform: "linux", settings: () => ({ label: "Settings" }) })), ["fileMenu", "editMenu", "View", "History", "Find", "windowMenu", "help", "Settings"]);
 });
 
 test("the preload subscribes to that channel", () => {

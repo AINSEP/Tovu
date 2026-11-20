@@ -20,7 +20,7 @@ import { handleCreate, planNewSiteDir, handleTokenSignInPlugins } from "./projec
 import { handleDelete } from "./project-ipc.delete.ts";
 import { handleOpenExternal, handleStart, handleStop, handleGetPreview } from "./project-ipc.server.ts";
 import { handleRename } from "./project-ipc.rename.ts";
-import { createSiteTransitions } from "./site-transitions.ts";
+import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
 import type { ProjectIpcDeps } from "./project-ipc.types.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.ts";
@@ -28,12 +28,12 @@ import { createSitesWorkspace } from "./shared-sites.ts";
 import { createSiteFolders } from "./site-folders.ts";
 import { writeSiteName } from "./site-config.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
-import { createKeyedSerializer } from "./keyed-serializer.ts";
+import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
 import { sourceFunction } from "./renderer/source-test-harness.ts";
 import { sitePortPresentation } from "./renderer/site-port.rules.ts";
-import { createSiteSupervisor } from "./site-supervisor.ts";
-import type { SupervisedServer } from "./site-supervisor.ts";
-import { readRegistry, writeRegistry, isLiveServeRow, instanceFilePath } from "./site-process-registry.ts";
+import { createChildEntries } from "@jini-ai/sidecar/supervisor";
+import type { ObservedServer } from "@jini-ai/sidecar/supervisor";
+import { readRegistry, writeRegistry, isLiveServeRow, instanceFilePath } from "./site-child-registry.ts";
 import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
 import { createSitePresence } from "./project-ipc.presence.ts";
@@ -111,10 +111,10 @@ function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-project-ipc-"));
 }
 
-/** What these tests store per site through `createSiteSupervisor` — mirrors
- *  `site-supervisor.test.ts`'s own `TestEntry`, its established precedent for this exact generic. */
+/** What these tests store per site through `createChildEntries` — mirrors
+ *  `@jini-ai/sidecar/supervisor` tests's own `TestEntry`, its established precedent for this exact generic. */
 interface SupervisorEntry {
-  server: SupervisedServer & { port: number };
+  server: ObservedServer & { port: number };
 }
 
 /**
@@ -270,7 +270,7 @@ test("a crashed project is reported stopped, with a statusDetail saying why", as
   // D-06 end to end at the sink the renderer actually reads. Before the supervisor owned the
   // `running -> exited` transition this record kept saying `running` with the dead child's port
   // forever, and `useSitesPolling`'s 4s re-poll re-read the same unchanged answer.
-  const deps = baseDeps({ openSites: createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
+  const deps = baseDeps({ openSites: createChildEntries<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
   const row = { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z" };
 
   let died: ((exit: { code: number | null; signal: string | null }) => void) | undefined;
@@ -286,14 +286,14 @@ test("a crashed project is reported stopped, with a statusDetail saying why", as
 });
 
 test("a project that was simply never started has no statusDetail to report", () => {
-  const deps = baseDeps({ openSites: createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
+  const deps = baseDeps({ openSites: createChildEntries<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
   const record = buildSiteRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps);
   assert.equal(record.status, "stopped");
   assert.equal(record.statusDetail, null);
 });
 
 test("a killed project reports its signal rather than an exit code", () => {
-  const deps = baseDeps({ openSites: createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
+  const deps = baseDeps({ openSites: createChildEntries<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
   let died: ((exit: { code: number | null; signal: string | null }) => void) | undefined;
   deps.openSites.set("/sites/a", { server: { port: 4321, onExit: ({ listener }) => { died = listener; } } });
   died!({ code: null, signal: "SIGKILL" });
@@ -335,6 +335,7 @@ test("handleList heals a renamed folder when its relocation gate allows a pass, 
   trackSite({ projectsPath: skipped.projectsPath, siteDir: before2 });
   const closed = { shouldRun: () => false };
   handleList({ ...skipped, relocationGate: closed });
+  assert.equal(readTrackedSites({ projectsPath: skipped.projectsPath })[0]?.relocationId, undefined, "a closed gate skips identity stamping too");
   fs.renameSync(before2, path.join(root2, "after"));
   assert.deepEqual(handleList({ ...skipped, relocationGate: closed }).map((record) => [record.id, record.folderMissing]), [[before2, true]], "no pass: the card shows the folder missing");
 });
@@ -797,15 +798,15 @@ test("handleStop drains the server, drops the entry, and returns a stopped recor
 });
 
 test("the entry is dropped BEFORE the stop is awaited, so a deliberate stop is never reported as a crash", async () => {
-  // `site-supervisor.ts` watches each entry's child and calls `onUnexpectedExit` for an exit it did
+  // `@jini-ai/sidecar/supervisor` watches each entry's child and calls `onUnexpectedExit` for an exit it did
   // not expect — which drops the crash-safety row and makes `lastExitOf` answer, so the card would
   // then read "the site's server was stopped by SIGTERM" about a stop the operator ASKED for.
   // Removing the entry first is what makes the supervisor's identity check ignore this exit.
   const unexpected: string[] = [];
   // `pid`/`stop` on top of `SupervisorEntry`'s own shape: `handleStop` reads both, and the
   // supervisor's generic is what carries them through to `onUnexpectedExit`.
-  const openSites = createSiteSupervisor<SupervisorEntry & { server: { pid: number; stop: () => Promise<void> } }>({
-    onUnexpectedExit: ({ siteDir }) => unexpected.push(siteDir),
+  const openSites = createChildEntries<SupervisorEntry & { server: { pid: number; stop: () => Promise<void> } }>({
+    onUnexpectedExit: ({ key: siteDir }) => unexpected.push(siteDir),
   });
   const listeners: Array<(exit: { code: number | null; signal: string | null }) => void> = [];
   const deps = baseDeps({ openSites });
@@ -870,7 +871,7 @@ test("a rejected card Stop keeps the crash-recovery row and reports failure", as
     throw new Error("forced Stop did not observe exit");
   } } });
   await assert.rejects(handleStop({ id: "/sites/a", deps }), /forced Stop did not observe exit/);
-  assert.equal(closedRows, 0);
+  assert.equal(closedRows, 0, "failed Stop cannot clear the only crash-recovery row");
 });
 
 test("handleStop runs inside the per-site serializer, so a delete cannot erase under a running stop", async () => {
@@ -887,14 +888,14 @@ test("handleStop runs inside the per-site serializer, so a delete cannot erase u
 test("a site reads `stopping` for the whole drain: a live lease poll cannot restart alpha or stop beta", async (t) => {
   // The defect this closes: `openSites` answers "is it alive", so a stop read `running` until the
   // child was gone — and a Stop button that leaves the card saying Running looks like a dead button.
-  const transitions = createSiteTransitions();
+  const transitions = createChildTransitions({});
   const root = fs.realpathSync(tempDir());
   const alpha = writeSite(path.join(root, "alpha"), "alpha-id");
   const beta = writeSite(path.join(root, "beta"), "beta-id");
   const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [] });
   const alphaLease = sharedSites.claim({ path: alpha, app: "Tovu", port: 4321 });
   const betaLease = sharedSites.claim({ path: beta, app: "Tovu", port: 4322 });
-  const deps = baseDeps({ transitions, sharedSites, serializer: createKeyedSerializer(), projectsPath: sitesFilePath({ userDataDir: root }) });
+  const deps = baseDeps({ transitions, sharedSites, serializer: createKeyedSerializer({}), projectsPath: sitesFilePath({ userDataDir: root }) });
   t.after(() => {
     sharedSites.running({ path: alpha }).release({ token: alphaLease.record.token });
     sharedSites.running({ path: beta }).release({ token: betaLease.record.token });
@@ -956,7 +957,7 @@ test("a site reads `stopping` for the whole drain: a live lease poll cannot rest
 // `externalSites` port (`external-site-stop.ts`), which these tests fake: no real process is signalled.
 
 function externalLeaseFixture(t: { after: (fn: () => void) => void }) {
-  const transitions = createSiteTransitions();
+  const transitions = createChildTransitions({});
   const root = fs.realpathSync(tempDir());
   const site = writeSite(path.join(root, "dev-site"), "dev-site-id");
   const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [] });
@@ -967,11 +968,11 @@ function externalLeaseFixture(t: { after: (fn: () => void) => void }) {
   const externalSites: NonNullable<ProjectIpcDeps["externalSites"]> = {
     launcherOf: ({ lease: seen }) => { calls.push(`launcherOf:${seen.token === lease.record.token}`); return "npm-run-dev"; },
     stop: async ({ lease: seen, readLease }) => {
-      calls.push(`stop:${seen.token === lease.record.token}:${readLease()?.token === lease.record.token}:${transitions.get({ siteDir: site })}`);
+      calls.push(`stop:${seen.token === lease.record.token}:${readLease()?.token === lease.record.token}:${transitions.get({ key: site })}`);
       release();
     },
   };
-  const deps = baseDeps({ transitions, sharedSites, externalSites: externalSites as ProjectIpcDeps["externalSites"], serializer: createKeyedSerializer(), projectsPath: sitesFilePath({ userDataDir: root }) });
+  const deps = baseDeps({ transitions, sharedSites, externalSites: externalSites as ProjectIpcDeps["externalSites"], serializer: createKeyedSerializer({}), projectsPath: sitesFilePath({ userDataDir: root }) });
   trackSite({ projectsPath: deps.projectsPath, siteDir: site });
   return { site, deps, calls, lease };
 }
@@ -1030,7 +1031,7 @@ test("without a proved launcher the record offers no external Stop", (t) => {
 });
 
 test("a site reads `starting` for its whole boot, not `stopped` until the port opens", async () => {
-  const transitions = createSiteTransitions();
+  const transitions = createChildTransitions({});
   const deps = baseDeps({ transitions });
   let release = () => {};
   const booting = new Promise<void>((resolve) => { release = resolve; });
@@ -1038,6 +1039,7 @@ test("a site reads `starting` for its whole boot, not `stopped` until the port o
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   const starting = handleStart({ id: "/sites/a", deps: deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer"> }); // assigned just above
+  assert.equal(transitions.get({ key: "/sites/a" }), "starting", "the explicit transition owns the boot status");
   assert.equal(first(handleList(deps)).status, "starting");
   assert.equal(first(handleList(deps)).desiredState, "running");
   // Never a stale port: the record carries one only once a live entry publishes it.
@@ -1048,7 +1050,7 @@ test("a site reads `starting` for its whole boot, not `stopped` until the port o
 });
 
 test("a start that FAILS leaves the card stopped, not starting forever", async () => {
-  const transitions = createSiteTransitions();
+  const transitions = createChildTransitions({});
   const deps = baseDeps({ transitions });
   deps.openSiteServer = async () => { throw new Error("tovu serve failed: PORT_IN_USE"); };
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
@@ -1060,8 +1062,8 @@ test("a start that FAILS leaves the card stopped, not starting forever", async (
 test("a mid-transition card shows no stale crash reason from a previous exit", async () => {
   // Two different moments reported as one: "Starting" and "the server exited (code 1)" in the same
   // breath is a card describing the boot it is watching AND the death that preceded it.
-  const transitions = createSiteTransitions();
-  const openSites = createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} });
+  const transitions = createChildTransitions({});
+  const openSites = createChildEntries<SupervisorEntry>({ onUnexpectedExit: () => {} });
   const listeners: Array<(exit: { code: number | null; signal: string | null }) => void> = [];
   const deps = baseDeps({ openSites, transitions });
   openSites.set("/sites/a", { server: { port: 4321, onExit: ({ listener }) => listeners.push(listener) } });
@@ -1138,7 +1140,7 @@ test("handleDelete waits for an in-flight handleStart on the same site instead o
   // so a delete that does not queue behind the start sees no entry, skips the stop, and erases the
   // directory the `tovu serve` is booting in.
   const siteDir = writeSite(path.join(tempDir(), "started-then-deleted"), "site-a");
-  const deps = baseDeps({ serializer: createKeyedSerializer() });
+  const deps = baseDeps({ serializer: createKeyedSerializer({}) });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-a" });
 
   const order: string[] = [];
@@ -1153,6 +1155,8 @@ test("handleDelete waits for an in-flight handleStart on the same site instead o
 
   const starting = handleStart({ id: siteDir, deps: deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer"> }); // assigned just above
   const deleting = handleDelete({ id: siteDir, deps });
+  await Promise.resolve();
+  assert.equal(fs.existsSync(siteDir), true, "a queued delete cannot erase a booting site");
   releaseBoot();
   await Promise.all([starting, deleting]);
 
@@ -1166,7 +1170,7 @@ test("handleStart refuses a project that was deleted while its start was queued 
   // function, so a delete landing between the check and the spawn started a `tovu serve` for a
   // directory that had just been erased.
   const siteDir = writeSite(path.join(tempDir(), "deleted-then-started"), "site-a");
-  const deps = baseDeps({ serializer: createKeyedSerializer() });
+  const deps = baseDeps({ serializer: createKeyedSerializer({}) });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-a" });
 
   let spawned = false;
@@ -1188,7 +1192,7 @@ test("handleDelete does NOT erase a created project's path once a DIFFERENT site
   const siteDir = path.join(tempDir(), "my-site");
   writeSite(siteDir, "site-a");
 
-  const deps = baseDeps();
+  const deps = baseDeps({ removeSiteTree: async () => assert.fail("a replacement site's directory must not be erased") });
   await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
 
   writeSite(siteDir, "site-b-someone-elses", { "content.db": "someone else's real database" });
@@ -1206,6 +1210,7 @@ test("handleCreate stamps the new site's own identity on its created row", async
   const record = await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
   assert.ok(record);
 
+  assert.equal(JSON.parse(fs.readFileSync(path.join(siteDir, ".site-meta.json"), "utf8")).siteId, "site-a");
   assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]!.siteId, "site-a");
   assert.equal(record.deleteErasesFiles, true, "the site it just made is still the site at that path");
 });
@@ -1236,7 +1241,7 @@ test("handleDelete does NOT erase the directory of a project the app only adopte
   fs.mkdirSync(siteDir);
   fs.writeFileSync(path.join(siteDir, "content.db"), "a real site's real database");
 
-  const deps = baseDeps();
+  const deps = baseDeps({ removeSiteTree: async () => assert.fail("an adopted project's directory must not be erased") });
   // No origin argument: the legacy/unknown-provenance row shape, which must fail CLOSED.
   trackSite({ projectsPath: deps.projectsPath, siteDir });
 
@@ -1251,7 +1256,7 @@ test("handleDelete refuses to erase anything under the repo root, even a row cla
   const siteDir = path.join(repoRoot, "sites", "tovu-com");
   writeSite(siteDir, "repo-site", { "content.db": "leona's 44 MB production database" });
 
-  const deps = baseDeps({ repoRoot });
+  const deps = baseDeps({ repoRoot, removeSiteTree: async () => assert.fail("a checkout directory must not be erased") });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "repo-site" });
 
   await handleDelete({ id: siteDir, deps });
@@ -1482,7 +1487,7 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
 });
 
 // D-08. `handleDelete`'s stop-then-erase sequence was safe against THIS process (the serializer) and
-// against nothing else. `main.ts` calls no `requestSingleInstanceLock`, and `site-process-registry.ts` is
+// against nothing else. `main.ts` calls no `requestSingleInstanceLock`, and `site-child-registry.ts` is
 // written throughout on the premise that two instances can run at once — each records only into its
 // own file, so a sibling's row for the same site survives. Instance A deleting a site instance B has
 // open recursively erased the directory out from under B's live `tovu serve`.
@@ -1497,7 +1502,7 @@ function seedForeignRegistryRow(deps: Pick<ProjectIpcDeps, "registryPath">, site
 
 test("handleDelete refuses to erase a directory a SECOND app instance still has open", async () => {
   const siteDir = writeSite(path.join(tempDir(), "site-shared"), "site-shared", { "content.db": "real bytes" });
-  const deps = baseDeps({ isLiveServeRow: () => true });
+  const deps = baseDeps({ isLiveServeRow: () => true, removeSiteTree: async () => assert.fail("a foreign live server's directory must not be erased") });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-shared" });
   seedForeignRegistryRow(deps, siteDir);
 
@@ -1564,6 +1569,7 @@ test("handleDelete refuses to erase while a registry file is unreadable — its 
   fs.mkdirSync(deps.registryPath, { recursive: true });
   fs.writeFileSync(torn, '{\n  "sites": [\n    { "siteDir": ');
 
+  assert.deepEqual(readRegistry({ registryDir: deps.registryPath }).unreadable, [torn], "host projection retains unknown registry paths");
   await assert.rejects(
     () => handleDelete({ id: siteDir, deps }),
     (error: Error) => error.message === `Could not read ${torn}, so Tovu cannot tell whether another copy of Tovu still has this site open. Nothing was deleted. Restart Tovu and try again.`,
@@ -2043,14 +2049,14 @@ test("card lifecycle combines local liveness with absent, starting and running s
 });
 
 test("explicit card transitions override shared startup and current local liveness for the same site", async () => {
-  const transitions = createSiteTransitions();
+  const transitions = createChildTransitions({});
   const input = { siteDir: "/alpha", openEntry: { server: { port: 3456 } }, transitions,
     sharedRunning: { pid: 10, token: "shared", started: "2026-10-17T00:00:00.000Z", app: "Web", scheme: "http" as const, port: 0 } };
-  await transitions.during({ siteDir: "/alpha", transition: "stopping", body: async () => {
+  await transitions.during({ key: "/alpha", transition: "stopping", body: async () => {
     assert.deepEqual(siteRecordLifecycle(input), { sharedPort: 0, lifecycle: { status: "stopping", desiredState: "stopped" } });
     assert.equal(siteRecordLifecycle({ ...input, siteDir: "/beta" }).lifecycle.status, "starting");
   } });
-  await transitions.during({ siteDir: "/alpha", transition: "starting", body: async () => {
+  await transitions.during({ key: "/alpha", transition: "starting", body: async () => {
     assert.deepEqual(siteRecordLifecycle({ ...input, sharedRunning: null }), { sharedPort: 0, lifecycle: { status: "starting", desiredState: "running" } });
   } });
 });
@@ -2291,8 +2297,8 @@ function b2LifecycleHarness(t: { after(fn: () => void): void }) {
   const siteDir = '/sites/b2';
   type Child = ReturnType<typeof child>;
   let lifecycle: ReturnType<typeof registerSiteIpcHandlers>;
-  const openSites = createSiteSupervisor<{ server: Child; window?: {} }>({
-    onUnexpectedExit: ({ siteDir, exit, entry }) => lifecycle.onServerExit({ siteDir, exit, server: entry.server }, {}),
+  const openSites = createChildEntries<{ server: Child; window?: {} }>({
+    onUnexpectedExit: ({ key: siteDir, exit, entry }) => lifecycle.onServerExit({ siteDir, exit, server: entry.server }, {}),
   });
   function child() {
     const listeners: ((exit: { code: number | null; signal: string | null }) => void)[] = [];
@@ -2307,7 +2313,7 @@ function b2LifecycleHarness(t: { after(fn: () => void): void }) {
     };
     return server;
   }
-  const deps = baseDeps({ openSites, transitions: createSiteTransitions(), serializer: createKeyedSerializer(),
+  const deps = baseDeps({ openSites, transitions: createChildTransitions({}), serializer: createKeyedSerializer({}),
     openSiteServer: async () => { if (openSites.has(siteDir)) return; boots++; if (bootError) throw bootError; openSites.set(siteDir, { server: child() }); },
     ipcMain: { handle: (channel, handler) => { registered.set(channel, handler); }, removeHandler: channel => { registered.delete(channel); } },
   });
@@ -2503,7 +2509,7 @@ test('B2 Quit tracks a pending automatic boot and stops a child adopted after ca
   let entered!: () => void, release!: () => void, run!: () => void, stops = 0;
   const started = new Promise<void>(resolve => { entered = resolve; });
   const boot = new Promise<void>(resolve => { release = resolve; });
-  const deps = baseDeps({ serializer: createKeyedSerializer(), pendingTeardowns: pending,
+  const deps = baseDeps({ serializer: createKeyedSerializer({}), pendingTeardowns: pending,
     ipcMain: { handle() {} },
     openSiteServer: async () => {
       entered(); await boot;

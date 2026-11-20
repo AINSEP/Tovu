@@ -5,7 +5,7 @@ import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observabili
 import type { ProductTelemetry, ProductConsent, bootProductTelemetry } from '../../website/src/server/runtime/composition/product-telemetry.ts';
 import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcessGone, reportDesktopServerExit } from './product-telemetry.ts';
 import { buildServeEnv } from './tovu-server.ts';
-import { createSiteSupervisor } from './site-supervisor.ts';
+import { createChildEntries } from '@jini-ai/sidecar/supervisor';
 
 const launch = { configPath: '/fake/product.json', preferencePath: '/fake/preferences.json', release: 'tovu-desktop@0.0.0-test' };
 const off: ProductConsent = { crashes: false, usage: false, installationId: null };
@@ -90,9 +90,11 @@ test('non-clean renderer/GPU/utility exits and one unexpected supervisor exit ca
   assert.equal(reports.length, 3);
   assert.deepEqual(reports[0]!.context, { operation: 'desktop.process_gone', attributes: { process: 'renderer', code: 'crashed' } });
   let exit!: (value: { code: number | null; signal: string | null }) => void;
-  const supervisor = createSiteSupervisor({ onUnexpectedExit: ({ exit }) => reportDesktopServerExit({ tracker, ...exit }) });
+  const supervisor = createChildEntries({ onUnexpectedExit: ({ exit }) => reportDesktopServerExit({ tracker, ...exit }) });
   supervisor.set('/fake/private-site', { server: { onExit: ({ listener }) => { exit = listener; } } });
+  assert.equal(typeof exit, 'function', 'the object-shaped observer must subscribe');
   exit({ code: 7, signal: null }); exit({ code: 7, signal: null });
+  assert.equal(supervisor.has('/fake/private-site'), false);
   assert.equal(reports.length, 4);
   assert.equal(reports[3]!.error.message, 'site server exited');
   assert.deepEqual(reports[3]!.context, { operation: 'desktop.server_exit', attributes: { code: 7 } });

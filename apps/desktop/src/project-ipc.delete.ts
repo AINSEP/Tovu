@@ -2,11 +2,12 @@ import { type SitesWorkspace } from "./shared-sites.ts";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
-import { removeSiteTree } from "./remove-site-tree.ts";
+import { removeDirectoryTree } from "@jini-ai/platform/fs";
 import { type OpenSiteEntry } from "./project-ipc.site-lifecycle.ts";
-import { readTrackedSites, untrackSite } from "./tracked-sites.ts";
-import { mayEraseSiteDirectory } from "./project-delete-guard.ts";
-import { type ProjectIpcDeps, type RegistryRow, type MayEraseRowLike } from "./project-ipc.types.ts";
+import { SITE_ORIGIN, readTrackedSites, untrackSite } from "./tracked-sites.ts";
+import { mayEraseDirectory } from "@jini-ai/platform/fs";
+import { type ProjectIpcDeps, type RegistryRow } from "./project-ipc.types.ts";
+import { SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 
 
 /**
@@ -49,7 +50,7 @@ export function unreadableRegistryMessage({ unreadable }: { unreadable: string[]
  * An UNREADABLE registry file throws instead: its rows are unknown, and reading it as "no rows" is
  * exactly how this guard used to wave an erase through a torn sibling file. It does not wedge for
  * long — the next boot moves a dead instance's unreadable file aside, and a live one's own next
- * write does the same (`site-process-registry.ts`'s `quarantineUnreadableFile`).
+ * write does the same (`site-child-registry.ts`'s `quarantineUnreadableFile`).
  *
  * @param required.ownPid this instance's own child's pid, excluded — its row is not foreign.
  * @complexity O(n) in registry rows, times one `ps` call per row matching `siteDir` (in practice
@@ -112,12 +113,12 @@ async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDe
   if (row === undefined) return;
 
   const openEntry = deps.openSites.get(id);
-  const erasesFiles = mayEraseSiteDirectory({ row: row as unknown as MayEraseRowLike, options: { repoRoot: deps.repoRoot } });
+  const erasesFiles = mayEraseDirectory({ row: { directory: row.siteDir, origin: row.origin, identity: row.siteId }, createdOrigin: SITE_ORIGIN.created, protectedRoot: deps.repoRoot, ...SITE_IDENTITY_MARKER });
 
   // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
   // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
   // of the app, and nothing prevents one — `main.ts` calls no `requestSingleInstanceLock`, and
-  // `site-process-registry.ts` is written throughout on the premise that two instances can run at once.
+  // `site-child-registry.ts` is written throughout on the premise that two instances can run at once.
   // Instance A deleting a site instance B has open recursively erased the directory out from under
   // B's live `tovu serve`, which went on writing into unlinked files.
   //
@@ -196,13 +197,13 @@ function closeStoppedProject(
 
 /** Erase the folder; translate failures while leaving untracking to the caller.
  * @throws {Error} with the existing retry instruction on a partial erase.
- * @complexity O(n) in filesystem entries, delegated to removeSiteTree.
+ * @complexity O(n) in filesystem entries, delegated to removeDirectoryTree.
  */
 async function eraseProjectDirectory(
   { id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "removeSiteTree"> }, _options = {},
 ): Promise<void> {
   // The row is the recovery handle for a partial erase: keep it until removal succeeds.
-  try { await (deps.removeSiteTree ?? removeSiteTree)({ root: id }, {}); }
+  try { await (deps.removeSiteTree ?? removeDirectoryTree)({ root: id }, {}); }
   catch (error) {
     const reason = (error as NodeJS.ErrnoException).code === 'EACCES'
       ? 'Permission was denied.' : 'The folder could not be removed.';

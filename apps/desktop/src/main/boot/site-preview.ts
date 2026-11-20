@@ -1,6 +1,6 @@
 /** Live PUBLIC guest thumbnails. The scheduler owns timing and the preview store owns files.
  * No view is created or navigated for decoration; failed eligibility retains the previous image. */
-import type { PreviewTarget } from '../../site-preview-scheduler.ts';
+export interface PreviewTarget { readonly port: number; readonly partition: string; readonly scheme?: "http" | "https" }
 import { withRenderTimeout } from '@jini-ai/desktop-host';
 
 export const PREVIEW_WIDTH_PX = 640;

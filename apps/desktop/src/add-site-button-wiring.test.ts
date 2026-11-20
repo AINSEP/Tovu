@@ -32,7 +32,7 @@ import type { ProjectIpcDeps } from "./project-ipc.types.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
 import { SITE_ORIGIN, sitesFilePath, readTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
-import { readRegistry, isLiveServeRow, registryDirPath } from "./site-process-registry.ts";
+import { readRegistry, isLiveServeRow, registryDirPath } from "./site-child-registry.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 

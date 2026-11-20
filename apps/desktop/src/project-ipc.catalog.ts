@@ -5,7 +5,8 @@ import fs from "node:fs";
 
 import { uniqueSiteName } from "./site-name-policy.ts";
 import { readProjectsFile, readTrackedSites, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
-import { relocateMovedSites, repointTrackedSite, type RelocationGate } from "./site-relocation.ts";
+import { relocateMovedSites, repointTrackedSite } from "./tracked-site-relocation.ts";
+import type { DirectoryRelocationGate } from "@jini-ai/platform/fs";
 import { type ProjectIpcDeps, type SiteRow } from "./project-ipc.types.ts";
 import { buildSiteRecord } from "./project-ipc.records.ts";
 
@@ -25,7 +26,7 @@ export function importSharedSiteDiscovery(
 
 /**
  * Every tracked project's record, after healing any whose folder was renamed or moved
- * (`site-relocation.ts`). The heal is best-effort: a list that cannot be SAVED still has to render,
+ * (`tracked-site-relocation.ts`). The heal is best-effort: a list that cannot be SAVED still has to render,
  * so a failed write is logged and the rows are shown as they stand.
  *
  * With `relocationGate` (production: {@link registerSiteIpcHandlers}), the heal runs only when the
@@ -36,7 +37,7 @@ export function importSharedSiteDiscovery(
  */
 export function handleList(
   deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> &
-    Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: RelocationGate },
+    Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: DirectoryRelocationGate<SiteRow> },
 ) {
   importSharedSiteDiscovery({ projectsPath: deps.projectsPath, sharedSites: deps.sharedSites, readSiteName: deps.readSiteName });
   const file = readProjectsFile({ projectsPath: deps.projectsPath });

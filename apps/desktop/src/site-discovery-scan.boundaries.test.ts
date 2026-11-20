@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { runDesktopDiscovery } from './site-discovery-scan.ts';
-import { removeSiteTree } from './remove-site-tree.ts';
+import { removeDirectoryTree } from '@jini-ai/platform/fs';
 
 function tempRoot(t: { after: (fn: () => void) => void }, prefix: string): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -35,7 +35,7 @@ test('the real discovery scan refuses a broad root with the policy message inste
 });
 
 // POSIX modes and an unprivileged symlink: not meaningful on Windows.
-test('removeSiteTree with the real fs defaults removes a read-only tree, and never chmods through a symlink', { skip: process.platform === 'win32' }, async t => {
+test('removeDirectoryTree with the real fs defaults removes a read-only tree, and never chmods through a symlink', { skip: process.platform === 'win32' }, async t => {
   const base = tempRoot(t, 'tovu-remove-tree-');
   const outside = path.join(base, 'outside.txt');
   fs.writeFileSync(outside, 'keep');
@@ -46,14 +46,14 @@ test('removeSiteTree with the real fs defaults removes a read-only tree, and nev
   fs.symlinkSync(outside, path.join(root, 'package', 'link'));
   fs.chmodSync(path.join(root, 'package', 'mcp.json'), 0o444);
   fs.chmodSync(path.join(root, 'package'), 0o555);
-  await removeSiteTree({ root });
+  await removeDirectoryTree({ root });
   assert.equal(fs.existsSync(root), false);
   assert.equal(fs.readFileSync(outside, 'utf8'), 'keep');
   assert.equal(fs.statSync(outside).mode & 0o777, 0o444, 'the symlink target keeps its mode');
 });
 
-test('removeSiteTree of an absent tree is a no-op with the real defaults', async t => {
+test('removeDirectoryTree of an absent tree is a no-op with the real defaults', async t => {
   const base = tempRoot(t, 'tovu-remove-tree-');
-  await removeSiteTree({ root: path.join(base, 'never-created') });
+  await removeDirectoryTree({ root: path.join(base, 'never-created') });
   assert.deepEqual(fs.readdirSync(base), []);
 });

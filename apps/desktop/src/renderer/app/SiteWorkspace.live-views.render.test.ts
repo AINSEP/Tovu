@@ -118,7 +118,7 @@ test('live views: focusing a released tab brings it back on its last route, then
   const restores = view.scripts.filter(([id, code]) => id === 'a' && code !== RELEASE_PROBE).map(([, code]) => code);
   assert.equal(restores.length, 1, 'once per restored guest: a later reload is the operator\'s own');
   assert.match(restores[0]!, /window\.scrollTo\(0, 40\)/);
-  assert.match(restores[0]!, /\.admin-content/);
+  assert.match(restores[0]!, /document\.querySelector\("\.admin-content"\)/);
   assert.match(restores[0]!, /scrollTop = 640/);
 });
 
@@ -151,6 +151,7 @@ test('live views: closing a tab forgets its released route', async (t) => {
   view.replies.a = { release: true, url: 'http://127.0.0.1:4101/admin/posts' };
   await view.visit('b');
   await view.visit('c');
+  assert.equal(view.guestOf('a'), null);
   const reopened = SITES.slice(0, 3);
   view.render({ next: createElement(SiteWorkspaces, {
     openSites: SITES.slice(1, 3), inSites: true, visibleWorkspaceId: 'c', expanded: false, adminPages: {},
@@ -175,10 +176,14 @@ function runProbe(t: TestContext, listeners: Record<string, (event: Event) => vo
 }
 
 test('release probe: an editor\'s beforeunload guard says no', (t) => {
+  dom.window.history.replaceState(null, '', '/admin/');
+  t.after(() => dom.window.history.replaceState(null, '', '/'));
   assert.equal(runProbe(t, { beforeunload: (event) => { event.preventDefault(); } }).release, false);
 });
 
 test('release probe: a jini:release-check veto says no', (t) => {
+  dom.window.history.replaceState(null, '', '/admin/');
+  t.after(() => dom.window.history.replaceState(null, '', '/'));
   assert.equal(runProbe(t, { 'jini:release-check': (event) => { event.preventDefault(); } }).release, false);
 });
 
@@ -192,6 +197,7 @@ test('release probe: with no guard objecting it says yes, with the page url and 
 });
 
 test('release probe: an unsent public comment survives switching sites without a release listener', t => {
+  dom.window.history.replaceState(null, '', '/');
   const form = dom.window.document.createElement('form');
   form.action = '/api/site/comments';
   form.innerHTML = '<textarea name="body" required maxlength="10000"></textarea>';

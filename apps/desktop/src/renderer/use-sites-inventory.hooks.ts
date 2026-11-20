@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
-import { startVisibleInterval } from './visible-interval.js';
+import { startVisibleInterval } from '@jini-ai/ui/visible-interval';
 import type { SiteRecord } from '../contracts/project.js';
 
 /**

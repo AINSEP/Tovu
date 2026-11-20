@@ -8,7 +8,7 @@ import { useLocalSites } from "../hooks/use-local-sites.hooks";
 import { resolveLocalSiteCard, resolveTrashDeleteDisabled } from "../Sites.hooks";
 import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { ApiError } from "@/lib/admin-http/request";
-import type { IntervalTimers, VisibilitySource } from "@/lib/visible-interval";
+import type { IntervalTimers, VisibilitySource } from "@jini-ai/ui/visible-interval";
 import { KEYS } from "../rules";
 
 function fixture(): AdminSitesSnapshot {
@@ -138,6 +138,7 @@ describe("local site card controller", () => {
   });
 
   it("polls an unfinished start only while visible and releases timers and listeners", () => {
+    const browserVisibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
     const snapshot = fixture();
     snapshot.localSites = [{ name: "child", status: "starting", pid: null, port: null, daemonPort: null, adminUrl: null }];
     const listeners = new Set<() => void>();
@@ -175,6 +176,7 @@ describe("local site card controller", () => {
     unmount();
     expect(active.size).toBe(0);
     expect(listeners.size).toBe(0);
+    browserVisibility.mockRestore();
   });
   it("confirms Trash, guards simultaneous clicks, honors cancellation and routes exact actions", async () => {
     const snapshot = fixture();

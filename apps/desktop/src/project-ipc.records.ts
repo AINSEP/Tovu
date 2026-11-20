@@ -1,10 +1,11 @@
 import { type SitesWorkspace } from "./shared-sites.ts";
-import { classifySiteDirSafely } from "./site-dir-store.ts";
+import { classifySiteDirSafely, SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 import path from "node:path";
 import { type OpenSiteEntry } from "./project-ipc.site-lifecycle.ts";
-import { mayEraseSiteDirectory } from "./project-delete-guard.ts";
+import { mayEraseDirectory } from "@jini-ai/platform/fs";
 import { sitePartition } from "./desktop-auth.ts";
-import { type OpenSites, type ProjectIpcDeps, type SiteRow, type MayEraseRowLike } from "./project-ipc.types.ts";
+import { type OpenSites, type ProjectIpcDeps, type SiteRow } from "./project-ipc.types.ts";
+import { SITE_ORIGIN } from "./tracked-sites.ts";
 
 
 /**
@@ -18,7 +19,7 @@ import { type OpenSites, type ProjectIpcDeps, type SiteRow, type MayEraseRowLike
  * @complexity O(1).
  */
 function describeLastExit({ openSites, siteDir }: { openSites: OpenSites; siteDir: string }, _options = {}): string | null {
-  const exit = typeof openSites.lastExitOf === "function" ? openSites.lastExitOf({ siteDir }) : null;
+  const exit = typeof openSites.lastExitOf === "function" ? openSites.lastExitOf({ key: siteDir }) : null;
   if (exit === null) return null;
   if (exit.signal !== null && exit.signal !== undefined) return `The site's server was stopped by ${exit.signal}.`;
   return `The site's server exited (code ${exit.code}).`;
@@ -99,10 +100,10 @@ export function siteRecordLifecycle(
   // both transitions take real wall-clock time, and during either one the two-valued answer is
   // wrong in the direction the operator can SEE — a Start they just pressed reads `stopped` for the
   // whole boot, a Stop reads `running` until the child is gone, and both look like a dead button.
-  // `site-transitions.ts` is what makes the other two answers producible; absent (every test that
+  // `@jini-ai/sidecar/supervisor` is what makes the other two answers producible; absent (every test that
   // is not exercising them) it reads `null` and nothing here changes.
   const sharedStarting = sharedRunning && !sharedPort ? "starting" : null;
-  const lifecycle = siteLifecycle({ running, transition: transitions?.get({ siteDir }) ?? sharedStarting });
+  const lifecycle = siteLifecycle({ running, transition: transitions?.get({ key: siteDir }) ?? sharedStarting });
   return { sharedPort, lifecycle };
 }
 
@@ -143,7 +144,7 @@ export function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     desiredState: presentation.desiredState,
     status: presentation.status,
     // Not always `null` any more: a site that DIED is `stopped` exactly like one that was never
-    // started, and before `site-supervisor.ts` owned that transition the two were indistinguishable
+    // started, and before `@jini-ai/sidecar/supervisor` owned that transition the two were indistinguishable
     // to the renderer (D-06). This is the one place the difference can be told.
     //
     // Only for a settled `stopped`. Mid-transition the prior crash is not what the operator is
@@ -154,8 +155,8 @@ export function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     updatedAt: row.createdAt,
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
     // renderer — a UI that decided this for itself could drift from the rule main actually enforces
-    // and label a button with a consequence that will not happen. See `project-delete-guard.ts`.
-    deleteErasesFiles: mayEraseSiteDirectory({ row: row as unknown as MayEraseRowLike, options: { repoRoot: deps.repoRoot } }),
+    // and label a button with a consequence that will not happen. See Jini's directory-delete-guard.ts.
+    deleteErasesFiles: mayEraseDirectory({ row: { directory: row.siteDir, origin: row.origin, identity: row.siteId }, createdOrigin: SITE_ORIGIN.created, protectedRoot: deps.repoRoot, ...SITE_IDENTITY_MARKER }),
     // A version token, never the image — see `SiteRecord.previewVersion`'s own doc on why this
     // record (polled every 4s) must never carry a payload. `null` for a site with no capture yet,
     // which is every site's ordinary state until it has been opened once.

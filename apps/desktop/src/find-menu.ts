@@ -2,7 +2,7 @@
  * @file The sites-home window's Find menu item: Cmd+F opens the find bar the renderer owns
  * (`renderer/use-find-in-page.hooks.ts`).
  *
- * Same reason `site-history-menu.ts` exists for Back/Forward: a menu accelerator is the one key
+ * Same reason Jini desktop-host/electron/usability supplies Back/Forward: a menu accelerator is the one key
  * binding that still fires while focus is inside a project tab's `<webview>` guest, which a key
  * listener in the sites-home page never sees (`renderer/App.hooks.ts`'s `useExpandedMode` documents
  * the identical gap for Escape). Everything AFTER the bar opens — typing, Enter, Shift+Enter,

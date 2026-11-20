@@ -366,7 +366,7 @@ function CardOverlays({ project, overlay, rename, copy, deleting, deleteError, p
 
 /**
  * The body lines of a card whose folder is gone. Only for a folder main could not find on its own —
- * every rename it can prove it has already healed (`site-relocation.ts`). Locate / Remove sit in the
+ * every rename it can prove it has already healed (`tracked-site-relocation.ts`). Locate / Remove sit in the
  * action column; a refused Locate's reason, main's own sentence, shows here.
  */
 function MissingFolderNotice({ project, locate }: { project: SiteRecord; locate: SiteLocate }) {

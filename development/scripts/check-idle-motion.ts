@@ -14,7 +14,7 @@
  *   something is actually happening. A file with an allowed one must also handle
  *   `prefers-reduced-motion`.
  * - `bare-interval` — a `setInterval(` in UI or Electron-main code not in {@link INTERVAL_ALLOWLIST}.
- *   New polling goes through a visibility-aware helper (`apps/desktop/src/renderer/visible-interval.ts`)
+ *   New polling goes through a visibility-aware helper (`@jini-ai/ui/visible-interval`)
  *   or gets an entry here saying why it is cheap.
  *
  * An allowlist entry that no longer matches anything is reported too, so the list stays true.
@@ -51,8 +51,6 @@ export const INFINITE_ANIMATION_ALLOWLIST: Record<string, string> = {
 /** Files allowed to call `setInterval(` → why. */
 export const INTERVAL_ALLOWLIST: Record<string, string> = {
   // 8ac88814c moved the main-process, unref'd 15-minute update tick into @jini-ai/desktop-host.
-  "apps/desktop/src/renderer/visible-interval.ts": "the visibility-aware helper itself: stops while the window is hidden",
-  "apps/admin/src/lib/visible-interval.ts": "the admin's copy of the same visibility-aware helper: stops while the window is hidden",
   // 79de6eff7: an attached external server has no owned ChildProcess exit event to subscribe to.
   "apps/desktop/src/shared-sites.ts": "main-process lease liveness check only while attached to an external server; unref'd 2s timer, removed on exit or detach; no renderer/GPU work",
 };

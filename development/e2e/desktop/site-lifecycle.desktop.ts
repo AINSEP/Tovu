@@ -16,7 +16,7 @@ import { closeDesktop, removeScratchTree, emptyFolder, launchDesktop, listSites,
  * - Remove: an ADOPTED card offers `Remove from Projects…`, which never touches disk. Cancel keeps
  *   the card; Remove drops it, leaves the folder, and the tombstone keeps it gone after a relaunch.
  *   This is the only confirm this file presses, and only on a scratch adopted site.
- * - Locate: a folder moved BEFORE the first launch has no `relocationId` yet, so `site-relocation.ts`
+ * - Locate: a folder moved BEFORE the first launch has no `relocationId` yet, so `@jini-ai/platform/fs/directory-relocation`
  *   cannot heal it and the card shows `Folder moved or not a site` with Locate instead of Start.
  */
 const POWER = "journey-power";

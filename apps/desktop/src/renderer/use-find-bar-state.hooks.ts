@@ -1,5 +1,5 @@
 import { useCallback, useReducer, useRef } from 'react';
-import { createFindQueryScheduler } from './find-query-scheduler.js';
+import { createFindQueryScheduler } from '@jini-ai/ui/core';
 import { findBarReducer, initialFindBarState } from './find-bar-state.js';
 import { resolveFindTarget, type FindableGuest, type FindBridge } from './find-target.js';
 import type { liveFindClock } from './find-focus-clock.js';

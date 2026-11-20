@@ -11,7 +11,7 @@ import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import type { ResourcesSnapshot } from "./contracts/resources.ts";
 import { readTrackedSites } from "./tracked-sites.ts";
 
-/** How a site's server exited. Mirrors `site-supervisor.ts`'s own `ServerExit` structurally rather
+/** How a site's server exited. Mirrors `@jini-ai/sidecar/supervisor`'s own `ServerExit` structurally rather
  *  than importing it — this file's `openSites` contract is a plain duck type on purpose, never
  *  coupled to the concrete supervisor. */
 interface ServerExitLike {

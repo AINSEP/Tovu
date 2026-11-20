@@ -9,7 +9,7 @@ import { addSitePointer } from "./add-site-pointer.ts";
 import { createSitesWorkspace, shareSiteDirectories } from "./shared-sites.ts";
 import { handleAddSite } from "./project-ipc.import.ts";
 import { handleStart } from "./project-ipc.server.ts";
-import { createKeyedSerializer } from "./keyed-serializer.ts";
+import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
 import { readTrackedSites, trackSite } from "./tracked-sites.ts";
 
 const ORIGINAL_ID = "11111111-1111-4111-8111-111111111111";
@@ -135,7 +135,7 @@ test("Start automatically re-identifies a copy already tracked by an older deskt
   const started: string[] = [];
   const deps = {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
-    openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
+    openSites: new Map(), serializer: createKeyedSerializer({}), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
     openSiteServer: async ({ siteDir }: { siteDir: string }) => {
       const id = readMeta({ siteDir }).siteId;
@@ -159,7 +159,7 @@ test("Start keeps a moved folder's identity and relocates its existing reservati
   trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
   await handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
-    openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
+    openSites: new Map(), serializer: createKeyedSerializer({}), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
     openSiteServer: async ({ siteDir }) => {
       assert.equal(readMeta({ siteDir }).siteId, ORIGINAL_ID);
@@ -178,7 +178,7 @@ test("Start reports a plain sentence when a linked marker cannot safely be re-id
   let spawned = false;
   await assert.rejects(handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
-    openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
+    openSites: new Map(), serializer: createKeyedSerializer({}), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
     openSiteServer: async () => { spawned = true; },
   } }), { message: "This copied website could not start because Tovu could not give its folder a separate identity." });

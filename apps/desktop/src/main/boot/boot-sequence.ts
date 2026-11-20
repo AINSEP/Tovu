@@ -5,7 +5,10 @@
  * it runs against fakes instead of being pinned by reading `index.ts` as text.
  */
 import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
-import { sitesHomeMenuTemplate, type SitesHomeMenuEntry } from "../../site-history-menu.ts";
+import { workspaceMenuTemplate, viewMenu, historyMenu, type WorkspaceMenuEntry } from "@jini-ai/desktop-host/electron/usability";
+import { SITE_HISTORY_CHANNEL } from "../../contracts/project.ts";
+import { findMenu, type FindMenu } from "../../find-menu.ts";
+import { zoomMenuItems, type ZoomMenuItem } from "../../zoom-menu.ts";
 import type { BootMode } from "./boot-steps.ts";
 import { shouldReopenOnActivate } from "./own-server-boot.ts";
 
@@ -93,12 +96,17 @@ export async function bootInMode({ mode, ports }: { mode: BootMode; ports: BootM
 /**
  * Electron's default menu, rebuilt, plus History: Back (Cmd+[) and Forward (Cmd+]) for the visible
  * project tab, then Settings. A menu accelerator still fires with focus inside a tab's guest. See
- * `site-history-menu.ts`. `settings` is a thunk so it is read after the home menus, as the inline
+ * Jini desktop-host/electron/usability. `settings` is a thunk so it is read after the home menus, as the inline
  * template always did.
  * @complexity O(1).
  */
-export function appWideMenuTemplate<Settings>({ platform, settings }: { platform: NodeJS.Platform; settings: () => Settings }, _optional = {}): (SitesHomeMenuEntry | Settings)[] {
-  return [...sitesHomeMenuTemplate({ platform }), settings()];
+export function appWideMenuTemplate<Settings>({ platform, settings }: { platform: NodeJS.Platform; settings: () => Settings }, _optional = {}): (WorkspaceMenuEntry<FindMenu, ZoomMenuItem> | Settings)[] {
+  return [...workspaceMenuTemplate({
+    platform,
+    view: viewMenu({ label: "View", zoomItems: zoomMenuItems({}) }),
+    history: historyMenu({ channel: SITE_HISTORY_CHANNEL, labels: { menu: "History", back: "Back", forward: "Forward" } }),
+    find: findMenu({}),
+  }), settings()];
 }
 
 /** Opening a single-window mode's window, and reopening it from the Dock. */

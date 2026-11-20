@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { type ComposerDiscoveryOutcome, type ComposerDiscoverySelection } from "@jini-ai/chat/react";
 
 import { navigate } from "@/lib/router";
-import { startVisibleInterval } from "@/lib/visible-interval";
+import { startVisibleInterval } from "@jini-ai/ui/visible-interval";
 import { useAdminBootScope } from "@/lib/admin-boot-scope";
 import { createBundledComposerCapabilitySource, emptyComposerCapabilityProjection, projectComposerCapabilities, type ComposerCapabilityProjection } from "@/features/plugins/composer-capabilities";
 

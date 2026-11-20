@@ -7,12 +7,13 @@ import path from "node:path";
 import { uniqueSiteName } from "./site-name-policy.ts";
 import { siteNameError } from "./contracts/site-name.ts";
 import { SITE_ORIGIN, readTrackedSites, trackSite } from "./tracked-sites.ts";
-import { readSiteIdentity } from "./project-delete-guard.ts";
+import { readDirectoryIdentity } from "@jini-ai/platform/fs";
 import { assertTokensCanReachFolder, cleanCreateTokens, initTokenOptions, listTokenSignInPlugins as listTokenSignInPluginsReal, withCreatedTokens } from "./agent-plugin-tokens.ts";
 import type { TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
 import { type CreateSiteInput, type ProjectIpcDeps } from "./project-ipc.types.ts";
 import { otherSiteNames, rememberSiteName, rememberSiteAlias } from "./project-ipc.catalog.ts";
 import { buildSiteRecord } from "./project-ipc.records.ts";
+import { SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 
 
 /** Plan a new Tovu site without creating folders or reserving the destination.
@@ -106,9 +107,9 @@ export function recordCreatedSite(
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
-  // at a path, and a path is not an identity. See `project-delete-guard.ts`'s test 3.
+  // at a path, and a path is not an identity. See Jini's directory-delete-guard.ts's test 3.
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
-  const siteId = readSiteIdentity({ siteDir });
+  const siteId = readDirectoryIdentity({ directory: siteDir, ...SITE_IDENTITY_MARKER });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop" });
   // Remember the created site's parent beyond MRU eviction/card

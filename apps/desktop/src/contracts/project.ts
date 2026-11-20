@@ -79,7 +79,7 @@ export interface SiteRecord {
   previewVersion: number | null;
   /**
    * The project's folder is not on disk any more — renamed, moved or deleted — and main could not
-   * find where it went (`site-relocation.ts` heals every rename it CAN prove before this is ever
+   * find where it went (`tracked-site-relocation.ts` heals every rename it CAN prove before this is ever
    * sent). The card says so and offers Locate (`SITE_IPC_CHANNELS.locate`) and Remove instead of
    * Start, which could only fail.
    */
@@ -312,8 +312,8 @@ export type SiteHistoryCommand = 'back' | 'forward';
 /**
  * push (main → renderer): the app menu's History > Back or Forward (Cmd+[ / Cmd+]), carrying a
  * {@link SiteHistoryCommand}. Main does not know which tab is on screen; the visible project tab is
- * the only subscriber. A push, not an `invoke` target, so it has no handler or stub. Inlined in
- * `site-history-menu.ts`, which tests that the two match.
+ * the only subscriber. A push, not an `invoke` target, so it has no handler or stub. Bound in
+ * `main/boot/boot-sequence.ts`.
  */
 export const SITE_HISTORY_CHANNEL = 'runner:sites:history';
 

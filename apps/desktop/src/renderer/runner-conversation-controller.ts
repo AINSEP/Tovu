@@ -22,7 +22,7 @@
  * it protects is published, so no subscriber ever observes new state alongside a stale guard.
  */
 import type { ChatMessage } from '@jini-ai/chat/core';
-import { persistableMessages } from './persistable-messages.js';
+import { persistableMessages } from '@jini-ai/chat/core';
 import type { RunnerInventoryBridge } from './runner-api.js';
 import type { WorkspaceConversationSummary } from '../contracts/workspace-conversations.js';
 
@@ -291,7 +291,7 @@ function flush(
   // deleted, which the guard above returns on first. (This used to fall back to a fresh set,
   // which no path could reach.)
   const written = core.written.get(conversationId) as Set<string>;
-  const pending = persistableMessages({ messages }).filter((m) => !written.has(m.id));
+  const pending = persistableMessages({ messages }, { includePendingUser: true }).filter((m) => !written.has(m.id));
   if (pending.length === 0) return;
   // Marked before the request resolves so a second `onMessagesChange` arriving mid-flight —
   // which it will, since deltas keep coming — does not queue the same message twice.
@@ -338,7 +338,7 @@ function onMessagesChange({ core, messages }: { core: ControllerCore; messages: 
   // picking from history) lands here. Adopt one lazily, at the first moment there is actually
   // something worth saving, rather than littering the switcher with an empty row per app open.
   const bridge = core.bridge;
-  if (bridge === undefined || persistableMessages({ messages }).length === 0) return;
+  if (bridge === undefined || persistableMessages({ messages }, { includePendingUser: true }).length === 0) return;
 
   const adoption = claimAdoption({ core, bridge });
   void adoption.then((id) => afterAdoption({ core, adoption, id, messages }));

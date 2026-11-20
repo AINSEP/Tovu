@@ -12,10 +12,10 @@ import { createSiteFolders } from "./site-folders.ts";
 import { SITE_IPC_CHANNELS, registerSiteIpcHandlers } from "./project-ipc.ts";
 import type { ProjectIpcDeps } from "./project-ipc.types.ts";
 import { sitesFilePath, trackSite, readTrackedSites, readProjectsFile } from "./tracked-sites.ts";
-import { classifySiteDirSafely } from "./site-dir-store.ts";
+import { classifySiteDirSafely, SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 import { writeSiteName } from "./site-config.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
-import { createKeyedSerializer } from "./keyed-serializer.ts";
+import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
 
 function fixture({ t }: { t: TestContext }) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-ipc-dispatch-")));
@@ -47,7 +47,7 @@ function fixture({ t }: { t: TestContext }) {
     } },
     shell: { openExternal: async (url) => { opened.push(url); } },
     openSites,
-    serializer: createKeyedSerializer(),
+    serializer: createKeyedSerializer({}),
     projectsPath: sitesFilePath({ userDataDir: path.join(root, "state") }),
     registryPath: path.join(root, "processes"),
     repoRoot: path.join(root, "repo"),

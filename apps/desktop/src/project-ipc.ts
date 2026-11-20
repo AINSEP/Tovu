@@ -5,8 +5,8 @@ import os from "node:os";
 import { cancel, createLifecycleApi, createSiteLifecycleCtx, manualStart, notePresence, startSite, stateFor, type SiteLifecycleCtx, type SiteLifecycleOptions } from "./project-ipc.site-lifecycle.ts";
 import { registerIdleSiteSleepIpc } from "./site-view-preference.ts";
 import { readTrackedSites } from "./tracked-sites.ts";
-import { createRelocationGate } from "./site-relocation.ts";
-import { type ProjectIpcDeps, type ProjectSiteLifecycle } from "./project-ipc.types.ts";
+import { createDirectoryRelocationGate } from "@jini-ai/platform/fs";
+import { type ProjectIpcDeps, type ProjectSiteLifecycle, type SiteRow } from "./project-ipc.types.ts";
 import { handleStart, handleStop, handleOpenExternal, handleGetPreview } from "./project-ipc.server.ts";
 import { createSitePresence, type PresenceSender } from "./project-ipc.presence.ts";
 import { handleList, rescanSites, handleAddSiteFolder, handleLocate } from "./project-ipc.catalog.ts";
@@ -69,12 +69,12 @@ const SITE_PRESENCE_CHANNEL = "runner:sites:presence";
  * @param deps
  * @param deps.openSites live open sites, keyed by site dir — `main.ts`'s own module-level
  *   store, passed in rather than imported. `Map`-compatible; in production it is
- *   `site-supervisor.ts`'s supervisor, which additionally drops an entry whose child has died and
+ *   `@jini-ai/sidecar/supervisor`'s supervisor, which additionally drops an entry whose child has died and
  *   answers `lastExitOf` about it. A sites-home-opened (embedded-tab) entry carries no `window`; only
  *   own-server-mode entries do.
- * @param deps.serializer per-site-dir operation serializer (`keyed-serializer.ts`).
+ * @param deps.serializer per-site-dir operation serializer (`@jini-ai/sidecar/supervisor`).
  * @param deps.projectsPath `tracked-sites.ts`'s tracked-project JSON file.
- * @param deps.registryPath crash-safety registry directory (`site-process-registry.ts`), for
+ * @param deps.registryPath crash-safety registry directory (`site-child-registry.ts`), for
  *   `recordSiteClosed` on a delete of a running project and `readRegistry` in its guard.
  * @param deps.repoRoot Tovu repo root.
  * @param deps.statePath `site-dir-store.ts`'s MRU file, for `adoptSiteDir`.
@@ -100,11 +100,11 @@ const SITE_PRESENCE_CHANNEL = "runner:sites:presence";
  *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.ts`.
  * @param deps.openSiteServer `main.ts`'s spawn-or-reuse-a-site's-backend function
  *   (no `BrowserWindow` — see that function's own doc).
- * @param deps.recordSiteClosed `site-process-registry.ts`'s crash-safety row remover.
- * @param deps.readRegistry `site-process-registry.ts`'s crash-safety registry reader, used by
+ * @param deps.recordSiteClosed `site-child-registry.ts`'s crash-safety row remover.
+ * @param deps.readRegistry `site-child-registry.ts`'s crash-safety registry reader, used by
  *   {@link liveForeignServers} to see a SIBLING app instance's open sites — which `openSites`, being
  *   this process's own memory, cannot.
- * @param deps.isLiveServeRow `site-process-registry.ts`'s "is this row's pid still its own live
+ * @param deps.isLiveServeRow `site-child-registry.ts`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param deps.ctx `{cliMode, registryPath}` — passed to `openSiteServer` with the site dir.
  * @param options Injected clock/scheduler and preference reader for deterministic lifecycle tests.
@@ -150,7 +150,11 @@ export function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, option
  */
 function registerSiteCrudHandlers<TCtx>({ deps, ctx }: { deps: ProjectIpcDeps<TCtx>; ctx: SiteLifecycleCtx<ProjectIpcDeps<TCtx>> }, _optional = {}): void {
   const states = ctx.states;
-  const relocationGate = createRelocationGate({}, { classifySiteDir: deps.classifySiteDir });
+  const classifySiteDir = deps.classifySiteDir ?? classifySiteDirSafely;
+  const relocationGate = createDirectoryRelocationGate<SiteRow>({
+    directoryOf: ({ row }) => row.siteDir,
+    classifyDirectory: ({ directory }) => classifySiteDir({ dir: directory }),
+  });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList({ ...deps, siteRuntime: states, relocationGate }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.planNewDir, (_event, input) => ({
     path: planNewSiteDir({ name: input?.name }, { workspace: deps.sharedSites }), homeDir: os.homedir(),

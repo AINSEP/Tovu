@@ -4,8 +4,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { copySqliteInto } from "@jini-ai/db/kernel/sqlite";
-import { createNodeAtomicFilesystem, writeJsonFileAtomic, type AtomicFilesystemPort } from "@jini-ai/platform/fs";
-import { readSiteIdentity } from "./project-delete-guard.ts";
+import { createNodeAtomicFilesystem, readDirectoryIdentity, writeJsonFileAtomic, type AtomicFilesystemPort } from "@jini-ai/platform/fs";
+import { SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 import { withFileLock } from "./durable-json-file.ts";
 import { createSitesWorkspace, type SitesWorkspace } from "./shared-sites.ts";
 
@@ -22,7 +22,7 @@ export interface SiteIdentityOptions {
  * @complexity O(r + m + database bytes) time, O(r + m) JS space for r catalog rows and m marker bytes.
  */
 export function ensureIndependentSiteIdentity({ siteDir }: { siteDir: string }, options: SiteIdentityOptions = {}): void {
-  const id = readSiteIdentity({ siteDir });
+  const id = readDirectoryIdentity({ directory: siteDir, ...SITE_IDENTITY_MARKER });
   // Legacy markerless identities belong to the existing admission/boot owner.
   if (id === null) return;
   const workspace = options.workspace ?? createSitesWorkspace({});

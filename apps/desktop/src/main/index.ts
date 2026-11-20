@@ -50,11 +50,11 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  *   The sites home UI's own switcher is its tab strip instead (`renderer/app/TabStrip.tsx`) — one window, N tabs.
  * - "Open Site…" (File menu) runs the folder picker for a NEW site, independent of whichever sites
  *   are already open. "Open Recent" lists `site-dir-store.ts`'s existing MRU.
- * - `keyed-serializer.ts` serializes opens PER SITE DIR, so a fast double-click on the same recent-
+ * - `@jini-ai/sidecar/supervisor` serializes opens PER SITE DIR, so a fast double-click on the same recent-
  *   site menu entry cannot double-spawn a `tovu serve` for it (Tovu-Runner's `serializeByProject`
  *   pattern, generalized).
  *
- * **Crash-safety**, now in scope (`site-process-registry.ts`): every open site's `{siteDir, port,
+ * **Crash-safety**, now in scope (`site-child-registry.ts`): every open site's `{siteDir, port,
  * workspaceId, pid}` is persisted to a small JSON registry the moment its `tovu serve` reports ready,
  * and removed the moment it is stopped deliberately (a window closed on Windows/Linux, or the app
  * quit cleanly). macOS window close retains the server and registry until an explicit stop/quit. If
@@ -122,15 +122,15 @@ import { isSupervisedSiteUrl } from "../supervised-site-url.ts";
 import { readSiteName as readSiteNameIn } from "../site-name.ts";
 import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, type CliMode, type RejectedDefault } from "../startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";
-import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "../site-process-registry.ts";
+import { registryDirPath, siteChildRegistry, readRegistry, isLiveServeRow } from "../site-child-registry.ts";
 import { createExternalSiteStopper } from "../external-site-stop.ts";
-import { createKeyedSerializer } from "../keyed-serializer.ts";
-import { createSiteSupervisor } from "../site-supervisor.ts";
-import { createSiteTransitions } from "../site-transitions.ts";
+import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
+import { createChildEntries } from "@jini-ai/sidecar/supervisor";
+import { createChildTransitions } from "@jini-ai/sidecar/supervisor";
 // Shared shutdown rules and their rationale now live in Jini's desktop-host/shutdown modules.
 // Teardown rationale: Jini packages/desktop-host/src/shutdown/shutdown-tracker.ts.
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
-import { createShutdownTracker, routeQuitSignals, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
+import { createShutdownTracker, routeQuitSignals, decideBeforeQuit, createLastWindowQuitPrompt, type QuitPhase } from "@jini-ai/desktop-host/shutdown";
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
 import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "../window-navigation-policy.ts";
 import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
@@ -153,9 +153,10 @@ import { writeSiteName } from "../site-config.ts";
 import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "../site-preview-store.ts";
 import { createSiteThemePreviewSubscriptions, openSiteThemePreviewStream } from "../site-theme-preview.ts";
 import { registerSiteThemePreviewIpc } from "../site-theme-preview-ipc.ts";
-import { createSitePreviewScheduler } from "../site-preview-scheduler.ts";
+import { createPreviewScheduler } from "@jini-ai/desktop-host";
 import { registerSiteIpcHandlers } from "../project-ipc.ts";
 import { rescanSites } from "../project-ipc.catalog.ts";
+import type { ProjectSiteLifecycle } from "../project-ipc.types.ts";
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
 import { addSitePointer } from "../add-site-pointer.ts";
@@ -172,13 +173,12 @@ import { presenceDirPath } from "../instance-presence.ts";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
 import type { MenuItemConstructorOptions, WebContents } from "electron";
-import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
 import type { SelftestTracker } from "../selftest-tracker.ts";
 // The decisions this file wires live beside it in src/main/: windows/ (window and navigation policy), boot/
 // (site spawn, previews, boot steps and failures), updates/ (updater, Settings menu, notices, telemetry).
 import { promptForSiteDir as promptForSiteFolder } from "./windows/site-folder-prompt.ts";
 import { createAppWindow } from "./windows/app-window.ts";
-import { createLastWindowQuitPrompt } from "./windows/last-window-quit.ts";
+import { desktopCopy } from "../desktop-i18n.ts";
 import { openSitesHomeWindow as openSitesHomeWindowWith } from "./windows/sites-home-window.ts";
 import { openSiteWindow as openSiteWindowWith } from "./windows/site-window.ts";
 import { installWebviewGuestPolicy } from "./windows/guest-navigation.ts";
@@ -190,8 +190,8 @@ import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownSe
 import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
 import { createSiteBackend } from "./boot/site-backend.ts";
 import { createDesktopAgentService } from "../desktop-agent-service.ts";
-import { agentServiceRegistryPath } from "../site-process-registry.ts";
-import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS } from "./boot/site-preview.ts";
+import { agentServiceRegistryPath } from "../site-child-registry.ts";
+import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS, type PreviewTarget } from "./boot/site-preview.ts";
 import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
 import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
 import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
@@ -376,22 +376,22 @@ const recoveringSiteWindows = new Map<string, BrowserWindow>();
  * `siteDir -> { server, window }` for every site this process currently has open. Replaces the
  * single-site `tovuServer` variable the shell used before multi-site.
  *
- * A `site-supervisor.ts` supervisor rather than a bare `Map` since D-06. The `Map` surface is
+ * A `@jini-ai/sidecar/supervisor` supervisor rather than a bare `Map` since D-06. The `Map` surface is
  * unchanged — every `get`/`set`/`has`/`delete`/`values`/`size` below and in `project-ipc.ts` means
  * exactly what it did — but it now also watches each entry's child and REMOVES an entry whose
  * `tovu serve` has died. Without that this map answered "was started", never "is alive": a crashed
  * site stayed `running` for the rest of the session, `openSiteServer` handed its dead handle back
  * to "Start site", and the 4 s renderer poll re-read an answer that could not change.
  */
-const openSites = createSiteSupervisor<OpenSite>({
-  onUnexpectedExit: ({ siteDir, exit, entry }) => {
-    sitePreviewScheduler.cancel({ siteDir }, {});
+const openSites = createChildEntries<OpenSite>({
+  onUnexpectedExit: ({ key: siteDir, exit, entry }) => {
+    sitePreviewScheduler.cancel({ key: siteDir }, {});
     siteThemePreviews.stop({ siteDir }, {});
     // The row exists to let the NEXT launch reap a child this process left running. This one is
     // already gone, so the row is now a lie that `reconcileOrphans` would spend a `ps` call on.
     // Narrowed by pid: this instance's own file can also hold a still-draining earlier child's row
     // for this same site (D-07).
-    recordSiteClosed({ registryDir: registryDirPath({ userDataDir: app.getPath("userData") }), siteDir }, { pid: entry.server.pid });
+    siteChildRegistry.recordClosed({ registryDir: registryDirPath({ userDataDir: app.getPath("userData") }), key: siteDir }, { pid: entry.server.pid });
     if (quitPhase !== "idle") return;
     if (entry.window) recoveringSiteWindows.set(siteDir, entry.window);
     siteLifecycle?.onServerExit({ siteDir, exit, server: entry.server }, {});
@@ -434,13 +434,13 @@ const siteThemePreviews = createSiteThemePreviewSubscriptions({ ports: {
 } });
 
 /** Serializes site opens PER SITE DIR — see this file's own header on why. */
-const serializer = createKeyedSerializer();
+const serializer = createKeyedSerializer({});
 
 /** Which sites are mid-start or mid-stop right now — the fact {@link openSites} cannot express,
  *  since its answer is two-valued and both transitions take seconds of wall clock. Read by
  *  `project-ipc.ts`'s `buildSiteRecord`, written by its `handleStart`/`handleStop`; see
- *  `site-transitions.ts` for why it is not folded into the supervisor. */
-const siteTransitions = createSiteTransitions();
+ *  `@jini-ai/sidecar/supervisor` for why it is not folded into the supervisor. */
+const siteTransitions = createChildTransitions({});
 
 /** Teardowns a window's `closed` handler or a card Stop has STARTED but not finished, so `before-quit` below can
  *  wait for them — see `shutdown-tracker.ts`'s own header for the leak this closes (D-09). */
@@ -502,15 +502,15 @@ function resolveCliMode(): CliMode { return resolveCliModeIn({ env: process.env,
 function isUnattendedSiteLaunch(): boolean { return isUnattendedSiteLaunchIn({ env: process.env }); }
 function readSiteName({ siteDir }: { siteDir: string }, _optional = {}): string { return readSiteNameIn({ siteDir }); }
 
-/** The ask before the last app window closes with sites running — see `last-window-quit.ts`. */
+/** The ask before the last app window closes with sites running — see Jini desktop-host/shutdown. */
 const lastWindowQuit = createLastWindowQuitPrompt<BrowserWindow>({ ports: {
-  openServers: () => [...openSites.values()].map((entry) => entry.server),
+  openChildren: () => [...openSites.values()].map((entry) => entry.server),
   platform: process.platform,
-  locale: () => app.getLocale(),
+  dialogCopy: () => ({ title: "Tovu", labels: desktopCopy({ locale: app.getLocale() }).lastWindowQuit }),
   showMessageBox: ({ window, options }) => dialog.showMessageBox(window, options),
   quit: () => app.quit(),
-  keepSitesRunning: () => siteLifecycle?.keepAwake(),
-  logError: ({ message }) => console.error(message),
+  keepChildrenRunning: () => siteLifecycle?.keepAwake(),
+  reportError: ({ error }) => console.error(`[tovu-desktop] could not ask before quitting: ${(error as Error).message}`),
 } });
 
 /** Every app window, as it is created. Capture windows do not come through here. */
@@ -570,7 +570,7 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   startServer: (input) => startTovuServer({ ...input,
     isPackaged: app.isPackaged, productTelemetry: productState.product.launch, repoRoot: PAYLOAD_ROOT }),
   baseToolchainEnv: NODE_TOOLCHAIN_ENV,
-  recordSiteOpened: ({ registryPath, row }) => recordSiteOpened({ registryDir: registryPath, row }),
+  recordSiteOpened: ({ registryPath, row }) => siteChildRegistry.recordOpened({ registryDir: registryPath, row }),
   now: Date.now,
   armOwnerSignIn: ({ partition, adminUrl, capability }) => armDesktopOwnerSignIn({ session: session.fromPartition(partition), adminUrl, capability }),
   ensureSession: ({ partition, adminUrl, redeem }) => ensureSiteSession({ net, session: session.fromPartition(partition), adminUrl, redeem }),
@@ -597,16 +597,16 @@ const livePreviewGuests = createLivePreviewGuests<BrowserWindow, WebContents>({
   },
   allowed: ({ owner, guest, target }) => isLivePreviewGuestAllowed({ owner, guest,
     shellUrl: pathToFileURL(SITES_RENDERER_PATH).href, partitionSession: session.fromPartition(target.partition) }),
-  schedule: input => sitePreviewScheduler.schedule(input),
-  cancel: input => sitePreviewScheduler.cancel(input),
+  schedule: ({ siteDir }) => sitePreviewScheduler.schedule({ key: siteDir }, {}),
+  cancel: ({ siteDir }) => sitePreviewScheduler.cancel({ key: siteDir }, {}),
 });
 const captureSitePreview = createSitePreviewCapture({ ports: {
   liveGuest: input => livePreviewGuests.liveGuest(input),
   writePreview: ({ siteDir, png }) => writePreview({ userDataDir: app.getPath("userData"), siteDir, bytes: png }),
   warn: ({ message }) => console.warn(message),
 } });
-const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTimeout>>({ ports: {
-  current: currentPreviewTarget, capture: captureSitePreview,
+const sitePreviewScheduler = createPreviewScheduler<ReturnType<typeof setTimeout>, PreviewTarget & { siteDir: string }>({ ports: {
+  current: ({ key }) => { const target = currentPreviewTarget({ siteDir: key }); return target ? { siteDir: key, ...target } : undefined; }, capture: captureSitePreview,
   schedule: ({ work, delayMs }) => setTimeout(work, delayMs), cancel: ({ timer }) => clearTimeout(timer),
 } }, { debounceMs: PREVIEW_CAPTURE_DEBOUNCE_MS });
 
@@ -619,8 +619,8 @@ async function openSiteWindow({ siteDir, ctx }: { siteDir: string; ctx: SiteOpen
     startSiteBackend: ({ siteDir: dir, ctx: openCtx }, openOptions = {}) => siteBackend.startSiteBackend({ siteDir: dir, ctx: openCtx }, openOptions),
     sitePartition, readSiteName,
     createWindow: ({ url, title, partition }) => createWindow({ url }, { title, partition }),
-    recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => recordSiteClosed({ registryDir: registryPath, siteDir: dir }, { pid }),
-    siteThemePreviews, sitePreviewScheduler,
+    recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => siteChildRegistry.recordClosed({ registryDir: registryPath, key: dir }, { pid }),
+    siteThemePreviews, sitePreviewScheduler: { cancel: ({ siteDir }) => sitePreviewScheduler.cancel({ key: siteDir }, {}) },
     endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: session.fromPartition(partition), adminUrl }),
     trackTeardown: ({ promise }) => pendingTeardowns.track({ promise }),
     cancelRestart: ({ siteDir: dir }) => { siteLifecycle?.cancel({ siteDir: dir }); recoveringSiteWindows.delete(dir); },
@@ -748,7 +748,7 @@ function reconcileOrphansOnBoot(): Promise<void> {
   // Not awaited: a killed import's leftovers are no reason to hold up the launch.
   void Promise.resolve().then(() => tidyInterruptedImports({ appData: sharedSites.config({}).appData, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode() }))
     .catch((error: unknown) => console.warn("tovu desktop: could not check for interrupted imports:", error));
-  return reconcileOrphansOnBootIn({ registryPath: registryDirPath({ userDataDir: app.getPath("userData") }), reconcileOrphans: ({ registryPath }) => reconcileOrphans({ registryDir: registryPath }), log: ({ message }) => console.log(message) });
+  return reconcileOrphansOnBootIn({ registryPath: registryDirPath({ userDataDir: app.getPath("userData") }), reconcileOrphans: ({ registryPath }) => siteChildRegistry.reconcileOrphans({ registryDir: registryPath }), log: ({ message }) => console.log(message) });
 }
 
 /** Boot mode 2 — own server — see `own-server-boot.ts`. */
@@ -931,7 +931,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     readPreviewDataUrl: ({ id }: { id: string }) => readPreviewDataUrl({ userDataDir: app.getPath("userData"), siteDir: id }),
     deletePreview: ({ id }: { id: string }) => deletePreview({ userDataDir: app.getPath("userData"), siteDir: id }),
     cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
-      sitePreviewScheduler.cancel({ siteDir }, {});
+      sitePreviewScheduler.cancel({ key: siteDir }, {});
       siteThemePreviews.stop({ siteDir }, {});
     },
     sharedSites,
@@ -954,7 +954,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     importSiteArchive,
     stopRunningImports,
     openSiteServer: ({ siteDir, ctx }: { siteDir: string; ctx: SitesHomeCtx }) => siteBackend.openSiteServer({ siteDir, ctx }),
-    recordSiteClosed,
+    recordSiteClosed: ({ registryDir, siteDir }, options) => siteChildRegistry.recordClosed({ registryDir, key: siteDir }, options),
     // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —
     // `openSites` above is this process's own memory and cannot (D-08). See
     // `project-ipc.ts`'s `liveForeignServers`.
@@ -1090,7 +1090,7 @@ app.whenReady().then(bootDesktop).catch((error: Error) => reportBootFailure({ er
  * ordinary exit.
  *
  * A hard kill of Electron itself (SIGKILL, a crash, a logout) still bypasses this and can strand
- * every open site's child at once. `site-process-registry.ts`'s `reconcileOrphans()` — run before any
+ * every open site's child at once. `site-child-registry.ts`'s `reconcileOrphans()` — run before any
  * window opens on the NEXT launch — is what answers that now (see this file's own header).
  */
 app.on("before-quit", (event) => {
