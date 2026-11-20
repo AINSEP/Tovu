@@ -86,19 +86,7 @@ function publishContentApplyDeps(required: Pick<ComposePublishContentApplyPortRe
     authorize: identity.authorize,
     // F2 — one ports bag keyed by entityType (`type-registry.ts`'s `PublishContentPorts`).
     ports: {
-      post: {
-        repo: postRepo,
-        forgetRemoved: bindForgetRemovedEntity({
-          repo: trashRepo,
-          entityType: POST_ENTITY_TYPE
-        }),
-        // S4 (publish-overwrite-live-plan-2026-09-24) — same binding `routeDeps.removePost` below
-        // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
-        remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
-          trash: trash,
-          entityType: POST_ENTITY_TYPE
-        }) }),
-      },
+      post: postPublishPorts({ postRepo, trashRepo, trash }),
       media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: mediaContentTypeStore },
       redirect: redirectsWriteDeps,
       menu: { repo: menuRepo, bindingRepo: navLocationBindingRepo },
@@ -132,4 +120,20 @@ function publishContentApplyDeps(required: Pick<ComposePublishContentApplyPortRe
       },
     },
   });
+}
+
+function postPublishPorts({ postRepo, trashRepo, trash }: Pick<ComposePublishContentApplyPortRequired, "postRepo" | "trashRepo" | "trash">) {
+  return {
+        repo: postRepo,
+        forgetRemoved: bindForgetRemovedEntity({
+          repo: trashRepo,
+          entityType: POST_ENTITY_TYPE
+        }),
+        // S4 (publish-overwrite-live-plan-2026-09-24) — same binding `routeDeps.removePost` below
+        // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
+        remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
+          trash: trash,
+          entityType: POST_ENTITY_TYPE
+        }) }),
+      };
 }

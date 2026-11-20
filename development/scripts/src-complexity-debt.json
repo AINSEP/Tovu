@@ -2,27 +2,6 @@
   "version": 2,
   "violations": [
     {
-      "file": "apps/website/src/features/deployments/publish-credentials/store.ts",
-      "function": "isPublishLabelConflict#1",
-      "line": 410,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/deployments/publish-credentials/store.ts",
-      "function": "resolveFromInventory#1",
-      "line": 630,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/deployments/static-publish/verify.ts",
-      "function": "computeVerificationResult#1",
-      "line": 203,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/features/source-control/store.ts",
       "function": "updateSourceControlCredential#1",
       "line": 445,

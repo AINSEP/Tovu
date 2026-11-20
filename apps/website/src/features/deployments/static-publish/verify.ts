@@ -222,6 +222,12 @@ async function computeVerificationResult(
   } catch {
     check = { ok: false, reason: "unreachable" };
   }
+  return checkedVerificationResult({ context, loaded, check });
+}
+
+function checkedVerificationResult({ context, loaded, check }: {
+  context: VerificationContext; loaded: NonNullable<ReturnType<DeployTargetRegistry["get"]>>; check: DeployCredentialCheck;
+}): PublishCredentialVerificationResult {
   const status = verificationStatus({ check });
   return {
     status,

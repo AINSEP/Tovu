@@ -174,8 +174,6 @@ function notUpdatedOutcome({ err, menu }: { err: unknown; menu: NavMenuEntry }):
   throw err; // a genuine fault — never swallowed
 }
 
-/** R3 (`plan-publish-repoint-menus-2026-09-24.md`): find and repoint menu links to retired rows. */
-function menuReferenceMethods(deps: PublishContentDeps) {
   /**
    * R3 (`plan-publish-repoint-menus-2026-09-24.md` §2.1/§2.2) — read-only: every live menu with at
    * least one item, at any depth, whose `entryRef.entryId` is one of `ids`. Delegates the tree walk
@@ -185,7 +183,7 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * @complexity O(n) over every item across every live menu (n = total item count including
    * descendants) via {@link menuHoldersReferencing}, plus one repo list call.
    */
-  async function referencesTo({ ids }: { ids: readonly string[] }, _optional = {}): Promise<readonly ReferenceHolder[]> {
+  async function referencesTo({ deps, ids }: { deps: PublishContentDeps; ids: readonly string[] }): Promise<readonly ReferenceHolder[]> {
     const menuRepo = deps.ports.menu?.repo;
     if (!menuRepo) return [];
     const menus = await menuRepo.list({ workspaceId: deps.workspaceId });
@@ -213,12 +211,12 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * item count across live menus), plus up to 2 repo round-trips and one `executeCommand` per menu
    * that actually needs a write.
    */
-  async function repointReferences(input: {
+  async function repointReferences({ deps, input }: { deps: PublishContentDeps; input: {
     replacements: readonly EntityReplacement[];
     skipIds: ReadonlySet<string>;
     principalId: string;
     runId: string;
-  }): Promise<RepointResult> {
+  } }): Promise<RepointResult> {
     const ports = requireRepointPorts(deps);
     const replacementByOldId = new Map<string, MenuRepointReplacement>(
       input.replacements.map((replacement) => [replacement.oldId, { newId: replacement.newId, entityType: replacement.entityType }] as const)
@@ -232,13 +230,13 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     for (const menu of menus) {
       if (input.skipIds.has(menu.id) || repointMenuItems({ items: menu.doc.items, replacements: replacementByOldId }).count === 0) continue;
 
-      const outcome = await repointOneMenu({
+      const outcome = await repointOneMenu({ deps, input: {
         ...ports,
         menuId: menu.id,
         replacementByOldId,
         principalId: input.principalId,
         runId: input.runId,
-      });
+      } });
       if (outcome.kind === "written") {
         changeSetIds.push(outcome.changeSetId);
         linksUpdated += outcome.count;
@@ -267,8 +265,7 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * tree walk (n = this one menu's item count) and `executeCommand`'s own cost.
    */
   async function repointOneMenu(
-    input: RepointMenuInput,
-    { attemptsLeft = MAX_REPOINT_ATTEMPTS }: { attemptsLeft?: number } = {},
+    { deps, input, attemptsLeft = MAX_REPOINT_ATTEMPTS }: { deps: PublishContentDeps; input: RepointMenuInput; attemptsLeft?: number },
   ): Promise<RepointOutcome> {
     const menu = await input.menuRepo.findById({ workspaceId: deps.workspaceId, id: input.menuId });
     if (!menu) return { kind: "no-op" }; // vanished since the snapshot — nothing left to repoint
@@ -277,11 +274,11 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     if (repointed.count === 0) return { kind: "no-op" }; // already resolved (this attempt or a peer)
 
     try {
-      const changeSetId = await writeRepointedMenu({ input, menu, items: repointed.items });
+      const changeSetId = await writeRepointedMenu({ deps, input, menu, items: repointed.items });
       return { kind: "written", changeSetId, count: repointed.count };
     } catch (err) {
       if (err instanceof MenuConflictError && attemptsLeft > 1) {
-        return repointOneMenu(input, { attemptsLeft: attemptsLeft - 1 }); // one retry, against a fresh read
+        return repointOneMenu({ deps, input, attemptsLeft: attemptsLeft - 1 }); // one retry, against a fresh read
       }
       return notUpdatedOutcome({ err, menu });
     }
@@ -292,7 +289,8 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * revertible, audited change set; resolves to that change set's id.
    * @complexity O(1) repo calls plus `executeCommand`'s own cost.
    */
-  async function writeRepointedMenu({ input, menu, items }: {
+  async function writeRepointedMenu({ deps, input, menu, items }: {
+    deps: PublishContentDeps;
     input: RepointMenuInput;
     menu: NavMenuEntry;
     items: NavMenuDoc["items"];
@@ -340,5 +338,10 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     return changeSetId;
   }
 
-  return { referencesTo, repointReferences };
+/** R3 (`plan-publish-repoint-menus-2026-09-24.md`): find and repoint menu links to retired rows. */
+function menuReferenceMethods(deps: PublishContentDeps) {
+  return {
+    referencesTo: ({ ids }: { ids: readonly string[] }, _optional = {}) => referencesTo({ deps, ids }),
+    repointReferences: (input: Parameters<typeof repointReferences>[0]["input"]) => repointReferences({ deps, input }),
+  };
 }

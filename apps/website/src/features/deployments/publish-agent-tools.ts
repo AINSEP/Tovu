@@ -634,13 +634,7 @@ function mapPublishOutcomeToToolResult(
       },
     };
   }
-  const published = {
-    published: true, target: outcome.targetId, url: outcome.url, status: outcome.status,
-    ...(outcome.providerMetadata ? { providerMetadata: outcome.providerMetadata } : {}),
-    ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-    ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
-    ...(outcome.consentWarning ? { consentWarning: outcome.consentWarning } : {}),
-  };
+  const published = publishedOutcomeFields({ outcome });
   if (outcome.ok === "partial") {
     return {
       result: { ...published, reachable: false, message: outcome.message },
@@ -665,6 +659,17 @@ function mapPublishOutcomeToToolResult(
       },
     },
   };
+}
+
+function publishedOutcomeFields({ outcome }: { outcome: Exclude<StaticPublishOutcome, { ok: false }> }) {
+  const published = {
+    published: true, target: outcome.targetId, url: outcome.url, status: outcome.status,
+    ...(outcome.providerMetadata ? { providerMetadata: outcome.providerMetadata } : {}),
+    ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
+    ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+    ...(outcome.consentWarning ? { consentWarning: outcome.consentWarning } : {}),
+  };
+  return published;
 }
 
 /** The host whose credential the propose-credential tool saves: it must be loaded and declare one.
@@ -975,20 +980,7 @@ function hostsMissingSavedKey({ providers, installed }: {
   });
 }
 
-// Cross-site discovery used to offer another site's key for a missing host. That reveals private
-// inventory to a site agent. Offer the owner picker instead; the model never receives its choices.
-export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
-  const credentialSource =
-    deps.credentialSource ??
-    composePublishCredentialSource({
-      workspaceId: deps.workspaceId,
-      executionMode: deps.publishExecutionMode,
-      dbDeps: { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deployTargetsLoader(deps) },
-    });
-  const historyStore = deps.historyStore ?? deps.publishHistoryStore;
-
-  const handlers: Record<string, ToolHandler> = {
-    deployment_preview_static_publish: async (ctx) => {
+async function previewStaticPublish({ deps, credentialSource, ctx }: { deps: StaticPublishToolDeps; credentialSource: PublishCredentialSource; ctx: Parameters<ToolHandler>[0] }) {
       const raw = requireInputRecord({ input: ctx.input });
       const registry = await deployTargetsLoader(deps)({ workspaceId: deps.workspaceId });
       const loaded = requireStaticPublishTarget(raw, registry);
@@ -1010,7 +1002,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       }) : {};
       return { ...buildStaticPublishPreviewResult({ target, validationError, basePath, credential }),
         ...(inspected.inspection ? { providerInspection: inspected.inspection } : {}) };
-    },
+}
 
     /**
      * Never decrypts — reads through `listPublishCredentials` (a pure DB read of
@@ -1020,7 +1012,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      * hands them a `SecretSealerPort`. `tokenTail` is the stored last 4 characters, never derived by
      * decrypting.
      */
-    deployment_get_static_publish_capabilities: async (ctx) => {
+async function getStaticPublishCapabilities({ deps, credentialSource, historyStore, ctx }: { deps: StaticPublishToolDeps; credentialSource: PublishCredentialSource; historyStore: PublishHistoryStore; ctx: Parameters<ToolHandler>[0] }) {
       requireNoInput({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
 
@@ -1045,25 +1037,40 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
           ? { toolId: "credential_copy_from_project", message: "Use a saved key to choose from Shared Keys, or enter a new key in the secure card." }
           : { toolId: "credential_save", kind: "publish-host", message: "Open the secure key card to save a publishing key for this site." } };
       return { executionMode: deps.publishExecutionMode, providers, refusals };
-    },
+}
 
-    /** Permission-checked job reads; no credentials or provider requests on the polling path. */
-    deployment_get_static_publish_status: async (ctx) => {
-      const raw = requireInputRecord({ input: ctx.input ?? {} });
-      for (const key of Object.keys(raw)) if (key !== "jobId" && key !== "executionId") throw new ToolInputError({ message: `Unknown publish-status field '${key}'. Pass jobId or executionId, or {} for this site's latest publish.` });
-      const jobId = raw.jobId === undefined ? undefined : requireString({ input: raw, key: "jobId" });
-      const requestId = raw.executionId === undefined ? undefined : requireString({ input: raw, key: "executionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
-      const snapshot = getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId, requestId });
-      if (!snapshot) return { code: "PUBLISH_JOB_NOT_FOUND", message: "No retained publish job was found for this site. A restart clears job snapshots. Check the hosting dashboard before starting another publish." };
-      const mapped = snapshot.result ? mapPublishOutcomeToToolResult({ outcome: snapshot.result, exchange: { id: snapshot.jobId }, config: { target: snapshot.target }, detailRows: [], projectName: "" }) : undefined;
-      return { ...snapshot, ...(mapped ? { result: mapped.result } : {}),
-        message: publishJobRecoveryMessage({ job: snapshot, statusToolId: "deployment_get_static_publish_status" }) };
-    },
+async function startApprovedStaticPublish({ deps, approvedCtx, target, credentialSource, config, projectName, raw, historyStore, onSettled }: {
+  deps: StaticPublishToolDeps; approvedCtx: Parameters<ToolHandler>[0]; target: StaticPublishTargetId;
+  credentialSource: PublishCredentialSource; config: StaticPublishConfig; projectName: string; raw: Record<string, unknown>;
+  historyStore: PublishHistoryStore; onSettled: () => void;
+}) {
+          await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: approvedCtx.principal.id, permission: "deployments.publish" }, { entityType: SITE_PUBLISH_ENTITY });
+          const currentConsent = await checkToolPublishConsent({ deps, principalId: approvedCtx.principal.id });
+          if (currentConsent) {
+            trackBlockedToolPublish({ deps, principalId: approvedCtx.principal.id, target, reasonClass: "consent" });
+            return { published: false, cancelled: false, ...currentConsent };
+          }
+          if (approvedCtx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
+          const active = getPublishRunSnapshot();
+          if (active.status === "running") {
+            trackBlockedToolPublish({ deps, principalId: approvedCtx.principal.id, target, reasonClass: "busy" });
+            if (active.jobId === undefined) throw new Error("Running static publish has no job ID");
+            return { published: false, cancelled: false, code: "ALREADY_RUNNING", jobId: getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId: active.jobId })?.jobId, message: "A publish is already running. Call deployment_get_static_publish_status with this jobId (or {} for the latest job on this site). Do not start another publish." };
+          }
+          const job = startPublishRun({
+            deps: { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },
+            input: { requestId: approvedCtx.executionId, productEvent: { userId: approvedCtx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
+              ...toolCredentialChoice({ raw }) },
+            clock: { nowIso: () => clockNowIso({ clock: deps.clock }) },
+            historyStore,
+          }, { triggeredBy: "agent_tool", onSettled });
+          return { published: false, accepted: true, jobId: job.jobId, status: job.status, progress: job.progress,
+            message: "Publish started in the background. Call deployment_get_static_publish_status with this jobId in 5 seconds for progress and the final result. Do not publish again while it is running." };
+}
 
     /** Validates and starts the existing background publish path after approval. The job owns
      * its lifetime; the initiating delegated call can finish or be cancelled independently. */
-    deployment_execute_static_publish: async (inputCtx, optional = {}) => {
+async function executeStaticPublish({ deps, surfaces, credentialSource, historyStore, inputCtx, optional }: { deps: StaticPublishToolDeps; surfaces: AssistantSurfaceDeps; credentialSource: PublishCredentialSource; historyStore: PublishHistoryStore; inputCtx: Parameters<ToolHandler>[0]; optional: NonNullable<Parameters<ToolHandler>[1]> }) {
       // Keep the same detached proposal/actor snapshot the former policy wrapper supplied before
       // any asynchronous registry or permission read; later cards and effects use only this call.
       const ctx = { ...inputCtx, input: structuredClone(inputCtx.input), principal: { ...inputCtx.principal }, run: { ...inputCtx.run } };
@@ -1121,32 +1128,43 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         prepare: async () => toolApprovalConfirmation({ descriptor: { id: 'deployment_execute_static_publish', metadata: toolMetadata.deployment_execute_static_publish, inputSchema: EXECUTE_STATIC_PUBLISH_SCHEMA },
           input: raw, locale: await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id }) }),
         describe: ({ prepared }, _options = {}) => ({ ...prepared, toolId: 'deployment_execute_static_publish' }),
-        run: async ({ ctx: approvedCtx }, _options = {}) => {
-          await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: approvedCtx.principal.id, permission: "deployments.publish" }, { entityType: SITE_PUBLISH_ENTITY });
-          const currentConsent = await checkToolPublishConsent({ deps, principalId: approvedCtx.principal.id });
-          if (currentConsent) {
-            trackBlockedToolPublish({ deps, principalId: approvedCtx.principal.id, target, reasonClass: "consent" });
-            return { published: false, cancelled: false, ...currentConsent };
-          }
-          if (approvedCtx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
-          const active = getPublishRunSnapshot();
-          if (active.status === "running") {
-            trackBlockedToolPublish({ deps, principalId: approvedCtx.principal.id, target, reasonClass: "busy" });
-            if (active.jobId === undefined) throw new Error("Running static publish has no job ID");
-            return { published: false, cancelled: false, code: "ALREADY_RUNNING", jobId: getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId: active.jobId })?.jobId, message: "A publish is already running. Call deployment_get_static_publish_status with this jobId (or {} for the latest job on this site). Do not start another publish." };
-          }
-          const job = startPublishRun({
-            deps: { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },
-            input: { requestId: approvedCtx.executionId, productEvent: { userId: approvedCtx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
-              ...toolCredentialChoice({ raw }) },
-            clock: { nowIso: () => clockNowIso({ clock: deps.clock }) },
-            historyStore,
-          }, { triggeredBy: "agent_tool", onSettled });
-          return { published: false, accepted: true, jobId: job.jobId, status: job.status, progress: job.progress,
-            message: "Publish started in the background. Call deployment_get_static_publish_status with this jobId in 5 seconds for progress and the final result. Do not publish again while it is running." };
-        },
+        run: async ({ ctx: approvedCtx }, _options = {}) =>
+          startApprovedStaticPublish({ deps, approvedCtx, target, credentialSource, config, projectName, raw, historyStore, onSettled }),
       }, { flag: 'published' })(ctx, optional);
+}
+
+// Cross-site discovery used to offer another site's key for a missing host. That reveals private
+// inventory to a site agent. Offer the owner picker instead; the model never receives its choices.
+export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+  const credentialSource =
+    deps.credentialSource ??
+    composePublishCredentialSource({
+      workspaceId: deps.workspaceId,
+      executionMode: deps.publishExecutionMode,
+      dbDeps: { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deployTargetsLoader(deps) },
+    });
+  const historyStore = deps.historyStore ?? deps.publishHistoryStore;
+
+  const handlers: Record<string, ToolHandler> = {
+    deployment_preview_static_publish: async (ctx) => previewStaticPublish({ deps, credentialSource, ctx }),
+
+    deployment_get_static_publish_capabilities: async (ctx) => getStaticPublishCapabilities({ deps, credentialSource, historyStore, ctx }),
+
+    /** Permission-checked job reads; no credentials or provider requests on the polling path. */
+    deployment_get_static_publish_status: async (ctx) => {
+      const raw = requireInputRecord({ input: ctx.input ?? {} });
+      for (const key of Object.keys(raw)) if (key !== "jobId" && key !== "executionId") throw new ToolInputError({ message: `Unknown publish-status field '${key}'. Pass jobId or executionId, or {} for this site's latest publish.` });
+      const jobId = raw.jobId === undefined ? undefined : requireString({ input: raw, key: "jobId" });
+      const requestId = raw.executionId === undefined ? undefined : requireString({ input: raw, key: "executionId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
+      const snapshot = getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId, requestId });
+      if (!snapshot) return { code: "PUBLISH_JOB_NOT_FOUND", message: "No retained publish job was found for this site. A restart clears job snapshots. Check the hosting dashboard before starting another publish." };
+      const mapped = snapshot.result ? mapPublishOutcomeToToolResult({ outcome: snapshot.result, exchange: { id: snapshot.jobId }, config: { target: snapshot.target }, detailRows: [], projectName: "" }) : undefined;
+      return { ...snapshot, ...(mapped ? { result: mapped.result } : {}),
+        message: publishJobRecoveryMessage({ job: snapshot, statusToolId: "deployment_get_static_publish_status" }) };
     },
+
+    deployment_execute_static_publish: async (inputCtx, optional = {}) => executeStaticPublish({ deps, surfaces, credentialSource, historyStore, inputCtx, optional }),
 
     /**
      * The MCP-UI form-gated credential save for any host whose plugin declares a credential. Same

@@ -591,14 +591,7 @@ function swapPaths({ themesDir, address, keyHash }: { themesDir: string; address
   };
 }
 
-function buildHandler(deps: PublishContentDeps): PublishContentHandler {
-  const entityType = THEME_FILES_KIND;
-  const schemaVersion = 1;
-  // F2 — `theme-files`' own port. `blobStore` is deliberately NOT part of it: it reuses the SAME
-  // ADR-027 store instance `ports.media` carries (one composition-root singleton, threaded to both).
-  const themePort = deps.ports[THEME_FILES_KIND];
-
-  async function* pack(): AsyncIterable<PackedEntity> {
+  async function* pack({ themePort }: { themePort: PublishContentDeps["ports"][typeof THEME_FILES_KIND] }): AsyncIterable<PackedEntity> {
     // Absent the port degrades to "nothing to export" — the same convention every other optional
     // port already follows (`tovu-publish-ports.ts`'s own header).
     if (!themePort) return;
@@ -619,7 +612,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
    *
    * @complexity O(trees) — see {@link packThemeFilesEntities}'s own doc.
    */
-  async function listSkipped(): Promise<readonly SkippedPackEntity[]> {
+  async function listSkipped({ themePort, entityType }: { themePort: PublishContentDeps["ports"][typeof THEME_FILES_KIND]; entityType: typeof THEME_FILES_KIND }): Promise<readonly SkippedPackEntity[]> {
     if (!themePort) return [];
     const { skipped } = await packThemeFilesEntities({ themesDir: themePort.themesDir });
     return skipped.map((tree) => ({ entityType, id: tree.treeKey, label: tree.label ?? treeTitle({ treeKey: tree.treeKey }), reason: tree.reason }));
@@ -627,7 +620,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
 
   /** The destination's tree, hashed like `pack()` hashes it. `version` is always 0 (plan §3): the
    *  apply loop re-inspects and compares hashes before every write. */
-  async function inspect({ id }: { id: string }, _optional = {}): Promise<{ version: number; hash: string } | null> {
+  async function inspect({ themePort, id }: { themePort: PublishContentDeps["ports"][typeof THEME_FILES_KIND]; id: string }): Promise<{ version: number; hash: string } | null> {
     const address = parseTreeAddress({ id });
     if (!themePort || !address) return null;
     const hash = await hashTreeAt({ absDir: path.join(themePort.themesDir, address.tier, address.themeId), treeKey: address.treeKey });
@@ -635,7 +628,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
   }
 
   /** What this destination was seeded with: its own `__original-themes__/<tier>/<id>` copy (plan §4). */
-  async function seedHash({ id }: { id: string }, _optional = {}): Promise<string | null> {
+  async function seedHash({ themePort, id }: { themePort: PublishContentDeps["ports"][typeof THEME_FILES_KIND]; id: string }): Promise<string | null> {
     const address = parseTreeAddress({ id });
     if (!themePort || !address) return null;
     return hashTreeAt({ absDir: path.join(themePort.themesDir, THEME_CATALOG_DIR, address.tier, address.themeId), treeKey: address.treeKey });
@@ -648,14 +641,14 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
    *
    * @complexity O(files) plus O(bytes) for the text files small enough to scan.
    */
-  async function precheck({ entity }: { entity: PackedEntity }, _optional = {}): Promise<string | null> {
-    const checked = await precheckIncoming(entity);
+  async function precheck({ deps, themePort, entity }: { deps: PublishContentDeps; themePort: PublishContentDeps["ports"][typeof THEME_FILES_KIND]; entity: PackedEntity }): Promise<string | null> {
+    const checked = await precheckIncoming({ deps, themePort, entity });
     return "reason" in checked ? checked.reason : null;
   }
 
   /** {@link precheck}'s whole pass, returning the validated files on success so `apply()` stages
    *  exactly what was checked. */
-  async function precheckIncoming(entity: PackedEntity): Promise<{ reason: string } | { files: readonly IncomingThemeFile[] }> {
+  async function precheckIncoming({ deps, themePort, entity }: { deps: PublishContentDeps; themePort: PublishContentDeps["ports"][typeof THEME_FILES_KIND]; entity: PackedEntity }): Promise<{ reason: string } | { files: readonly IncomingThemeFile[] }> {
     const title = treeTitle({ treeKey: entity.id });
     const address = parseTreeAddress({ id: entity.id });
     if (!address) return { reason: `${title} was not published: '${entity.id}' is not a valid theme tree address` };
@@ -672,7 +665,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     return policyReason ? { reason: wrapTreePolicyReason({ title, reason: policyReason }) } : incoming;
   }
 
-  async function stageFiles(files: readonly IncomingThemeFile[], { stagingRoot, stagingDir, title, entity }: { stagingRoot: string; stagingDir: string; title: string; entity: PackedEntity }): Promise<void> {
+  async function stageFiles({ deps, files, stagingRoot, stagingDir, title, entity }: { deps: PublishContentDeps; files: readonly IncomingThemeFile[]; stagingRoot: string; stagingDir: string; title: string; entity: PackedEntity }): Promise<void> {
       await mkdir(stagingRoot, { recursive: true });
       await rm(stagingDir, { recursive: true, force: true }); // a crashed earlier attempt under this same key.
       await mkdir(stagingDir);
@@ -695,7 +688,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
       }
     }
 
-async function swapIntoPlace(target: string, previousPath: string, stagingDir: string): Promise<{ previous: string | null }> {
+async function swapIntoPlace({ target, previousPath, stagingDir }: { target: string; previousPath: string; stagingDir: string }): Promise<{ previous: string | null }> {
       await mkdir(path.dirname(target), { recursive: true });
       const hadTarget = (await lstatIfPresent({ absPath: target })) !== null;
       if (hadTarget) {
@@ -712,7 +705,7 @@ async function swapIntoPlace(target: string, previousPath: string, stagingDir: s
       return { previous: hadTarget ? previousPath : null };
     }
 
-  function createThemePublishMutation({ input, entity, themesDir, title, address, stagingRoot, stagingDir, target, previousPath }: { input: Parameters<typeof apply>[0]; entity: PackedEntity; themesDir: string; title: string; address: ThemeTreeAddress | null; stagingRoot: string; stagingDir: string; target: string; previousPath: string }) {
+  function createThemePublishMutation({ deps, themePort, entityType, input, entity, themesDir, title, address, stagingRoot, stagingDir, target, previousPath }: { deps: PublishContentDeps; themePort: PublishContentDeps["ports"][typeof THEME_FILES_KIND]; entityType: typeof THEME_FILES_KIND; input: Parameters<PublishContentHandler["apply"]>[0]; entity: PackedEntity; themesDir: string; title: string; address: ThemeTreeAddress | null; stagingRoot: string; stagingDir: string; target: string; previousPath: string }) {
     let swapped: { previous: string | null } | null = null;
     return {
         entityType,
@@ -722,12 +715,12 @@ async function swapIntoPlace(target: string, previousPath: string, stagingDir: s
         captureInverse: async () => ({ treeKey: entity.id, previousPath: previousPath || null }),
         execute: async (): Promise<{ previous: string | null }> => {
           // Authoritative re-check inside the gateway, after `authorize` (same order as media).
-          const incoming = await precheckIncoming(entity);
+          const incoming = await precheckIncoming({ deps, themePort, entity });
           if ("reason" in incoming) return blockThemePublish({ reason: incoming.reason });
           if (!address) return blockThemePublish({ reason: `${title} was not published: '${entity.id}' is not a valid theme tree address` });
           try {
-            await stageFiles(incoming.files, { stagingRoot, stagingDir, title, entity });
-            swapped = await swapIntoPlace(target, previousPath, stagingDir);
+            await stageFiles({ deps, files: incoming.files, stagingRoot, stagingDir, title, entity });
+            swapped = await swapIntoPlace({ target, previousPath, stagingDir });
           } catch (err) {
             await rm(stagingDir, { recursive: true, force: true });
             throw err;
@@ -763,12 +756,7 @@ async function swapIntoPlace(target: string, previousPath: string, stagingDir: s
    *
    * @complexity O(files) blob reads + writes, one staged-tree hash pass, O(previous copies) pruning.
    */
-  async function apply(input: {
-    entity: PackedEntity;
-    expectedVersion: number | undefined;
-    principalId: string;
-    idempotencyKey: string;
-  }): Promise<{ changeSetId: string }> {
+  async function apply({ deps, themePort, entityType, input }: { deps: PublishContentDeps; themePort: PublishContentDeps["ports"][typeof THEME_FILES_KIND]; entityType: typeof THEME_FILES_KIND; input: Parameters<PublishContentHandler["apply"]>[0] }): Promise<{ changeSetId: string }> {
     const { changeSets, authorize, outbox, themesDir } = requireApplyWiring({ deps });
     const { entity } = input;
     const title = treeTitle({ treeKey: entity.id });
@@ -787,10 +775,16 @@ async function swapIntoPlace(target: string, previousPath: string, stagingDir: s
         permission: "theme.set",
         idempotencyKey: input.idempotencyKey,
       },
-      mutation: createThemePublishMutation({ input, entity, themesDir, title, address, stagingRoot, stagingDir, target, previousPath }),
+      mutation: createThemePublishMutation({ deps, themePort, entityType, input, entity, themesDir, title, address, stagingRoot, stagingDir, target, previousPath }),
     });
     return { changeSetId };
   }
+function buildHandler(deps: PublishContentDeps): PublishContentHandler {
+  const entityType = THEME_FILES_KIND;
+  const schemaVersion = 1;
+  // F2 — `theme-files`' own port. `blobStore` is deliberately NOT part of it: it reuses the SAME
+  // ADR-027 store instance `ports.media` carries (one composition-root singleton, threaded to both).
+  const themePort = deps.ports[THEME_FILES_KIND];
 
   return {
     entityType,
@@ -800,12 +794,12 @@ async function swapIntoPlace(target: string, previousPath: string, stagingDir: s
     // `PublishContentHandler.permission`'s own contract.
     permission: "theme.set",
     dependsOn: THEME_FILES_DEPENDS_ON,
-    pack,
-    inspect,
-    precheck,
-    apply,
-    seedHash,
-    listSkipped,
+    pack: () => pack({ themePort }),
+    inspect: ({ id }, _optional = {}) => inspect({ themePort, id }),
+    precheck: ({ entity }, _optional = {}) => precheck({ deps, themePort, entity }),
+    apply: (input) => apply({ deps, themePort, entityType, input }),
+    seedHash: ({ id }, _optional = {}) => seedHash({ themePort, id }),
+    listSkipped: () => listSkipped({ themePort, entityType }),
   };
 }
 
