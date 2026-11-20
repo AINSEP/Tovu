@@ -15,10 +15,10 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo } from "#src/features/media/index";
 
-import { PublishContentApplyRowError } from "../apply-errors.js";
-import type { RawFilePort, RawFileSnapshot } from "../backstop-ports.js";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
+import type { RawFilePort, RawFileSnapshot } from "@jini-ai/cms/publish/transfer";
 import { contentHash } from "../content-hash.js";
-import { createFileBlobIndex } from "../file-blob-index.js";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
 

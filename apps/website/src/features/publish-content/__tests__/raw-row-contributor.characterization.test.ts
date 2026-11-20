@@ -11,9 +11,9 @@ import test from "node:test";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
-import { PublishContentApplyRowError } from "../apply-errors.js";
-import type { BackstopInverse } from "../backstop-audit.js";
-import type { BackstopSelection, RawColumn, RawRowPort, RawRowSnapshot, RawValue } from "../backstop-ports.js";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
+import type { BackstopInverse } from "@jini-ai/cms/publish/transfer";
+import type { BackstopSelection, RawColumn, RawRowPort, RawRowSnapshot, RawValue } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "../content-hash.js";
 import { contributeRawRowPublish, rawRowId } from "../raw-row-contributor.js";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";

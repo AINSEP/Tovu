@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
-import { InMemoryPublishContentBundleRepo, type StagedBundleRecord } from "#src/features/publish-content/bundle-staging";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
+import { InMemoryPublishContentBundleRepo, type StagedBundleRecord } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";

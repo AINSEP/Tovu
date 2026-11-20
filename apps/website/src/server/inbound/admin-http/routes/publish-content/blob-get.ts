@@ -2,7 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { isDocumentOnlyBlob } from "@jini-ai/cms/media";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
-import { isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";

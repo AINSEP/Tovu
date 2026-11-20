@@ -56,8 +56,9 @@ function announceStartup({ input, target, workspaceId, host, port }: { input: Ru
       // documented contract (api.spec.md §5) other readers parse, and widening it would put a
       // secret in front of every consumer of it. Emitted only when explicitly asked for, and only
       // once the listener is bound, so a token can never outlive a boot that failed.
+      // Written straight to stdout so the console log tee never stores the token.
       if (input.emitBootToken === true) {
-    consoleLogger.info({ message: `tovu serve: bootToken=${mintBootSessionToken()}` });
+    process.stdout.write(`tovu serve: bootToken=${mintBootSessionToken()}\n`);
   }
   // api.spec.md §5: "one startup line including: dir, resolved port, schemaVersion, workspace id".
   consoleLogger.info({ message: `tovu serve: dir=${target} port=${port} schemaVersion=${runtime.index} workspaceId=${workspaceId}` });

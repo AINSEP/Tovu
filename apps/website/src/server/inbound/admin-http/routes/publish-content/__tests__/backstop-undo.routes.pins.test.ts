@@ -6,7 +6,7 @@ import path from "node:path";
 import test, { mock, type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
-import type { BackstopAuditRecord, BackstopInverse } from "#src/features/publish-content/backstop-audit";
+import type { BackstopAuditRecord, BackstopInverse } from "@jini-ai/cms/publish/transfer";
 import * as rawFileContributor from "#src/features/publish-content/raw-file-contributor";
 import * as rawRowContributor from "#src/features/publish-content/raw-row-contributor";
 import { contentKernel } from "#src/platform/db/content-kernel";

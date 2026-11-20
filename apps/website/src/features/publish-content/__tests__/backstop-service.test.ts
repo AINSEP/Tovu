@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { validateBackstopRequest, runAuditedBackstop, mayUseBackstop } from "../backstop-service.js";
-import type { BackstopAuditRecord, BackstopAuditPort } from "../backstop-audit.js";
+import type { BackstopAuditRecord, BackstopAuditPort } from "@jini-ai/cms/publish/transfer";
 
 test("wrong typed host and a short reason are rejected with plain exact text", () => {
   const body = { reason: "Emergency footer fix", typedHost: "wrong.example", rows: [{ table: "p_widgets", pk: { id: "x" } }], files: [] };

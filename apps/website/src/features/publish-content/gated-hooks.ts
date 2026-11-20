@@ -4,8 +4,8 @@ import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import type { GatedMutationHooks } from "../../contracts/core/gated-mutations/gateway.js";
 import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
-import { loadActiveBundle } from "./bundle-staging.js";
-import type { PublishContentBundleRepoPort } from "./bundle-staging.js";
+import { loadActiveBundle } from "@jini-ai/cms/publish/transfer";
+import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
 import { planImport } from "./planner.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";

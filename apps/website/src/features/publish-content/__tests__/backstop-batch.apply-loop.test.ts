@@ -9,13 +9,13 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { contributeRawRowPublish } from "../raw-row-contributor.js";
 import { createPublishContentApplyPort } from "../apply-port.js";
-import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
+import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import { InMemoryPublishContentRunRepo, getPublishContentRunStatus } from "../run-repo.js";
 import { planImport } from "../planner.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
-import type { BackstopAuditPort, BackstopAuditRecord } from "../backstop-audit.js";
+import type { BackstopAuditPort, BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 
 test("the real apply loop joins every raw write in one FK-checked transaction and reports rollback honestly", async (t) => {
   const db = new Database(":memory:");

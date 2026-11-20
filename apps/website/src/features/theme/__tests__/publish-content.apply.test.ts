@@ -18,12 +18,12 @@ import test, { afterEach } from "node:test";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore, type AssetBlobRecord } from "#src/features/media/index";
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
-import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
 import { planImport } from "#src/features/publish-content/planner";
 import { entityKey } from "#src/features/publish-content/plan-rows";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import {
   registerPublishContentContributor,
   resetPublishContentContributorsForTests,

@@ -9,7 +9,7 @@ import test from "node:test";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { contentHash } from "../content-hash.js";
-import { createFileBlobIndex } from "../file-blob-index.js";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { planPublishToPeer } from "../push-plan.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PackedEntity } from "../type-registry.js";
 

@@ -1,5 +1,5 @@
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
-import { stageBundle, type StageBundleDeps } from "./bundle-staging.js";
+import { stageBundle, type StageBundleDeps } from "@jini-ai/cms/publish/transfer";
 import { resolvePublishDestinationCredential, type PublishDestinationCredentialDeps } from "./destination-credential.js";
 import { pullBlobsFromPeer, pullBundleFromPeer } from "./peer-transport.js";
 

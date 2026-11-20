@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { BackstopAuditPort, BackstopAuditRecord } from "#src/features/publish-content/backstop-audit";
+import type { BackstopAuditPort, BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 import { readBackstopApplyReport } from "../apply-report.js";
 
 const report = {

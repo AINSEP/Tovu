@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createFileBlobIndex } from "../file-blob-index.js";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { createCompositePeerBlobSource, FileBlobUnavailableError } from "../composite-blob-source.js";
 
 function sha256Hex(bytes: string): string {

@@ -132,12 +132,12 @@ import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
 import type { RemovePluginFn } from "@jini-ai/plugins/host";
 import type { ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
-import type { PublishContentBundleRepoPort } from "../../features/publish-content/bundle-staging.js";
+import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "../../features/publish-content/baseline-repo.js";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
 import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
-import type { FileBlobIndexPort } from "../../features/publish-content/file-blob-index.js";
+import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { CredentialsDeps } from "./route-deps/credentials-deps.js";
 
 /**

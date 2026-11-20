@@ -1,11 +1,11 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { stageBundle, PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "#src/features/publish-content/bundle-staging";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { stageBundle, PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "@jini-ai/cms/publish/transfer";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { backstopGrantAllows, isBackstopEntityType } from "#src/features/publish-trust/grant";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
-import type { BackstopMetadata } from "#src/features/publish-content/backstop-audit";
+import type { BackstopMetadata } from "@jini-ai/cms/publish/transfer";
 import { getPublishTrustContext, type PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { buildPublishBackstopPorts } from "#src/server/runtime/composition/publish-backstop-ports";

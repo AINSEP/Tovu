@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildBackstopPreview } from "../backstop-preview.js";
-import type { BackstopPorts, RawRowSnapshot } from "../backstop-ports.js";
+import type { BackstopPorts, RawRowSnapshot } from "@jini-ai/cms/publish/transfer";
 import type { PackedEntity } from "../type-registry.js";
 
 const row: RawRowSnapshot = { table: "p_banner", pk: { id: "one" }, columns: [{ name: "id", type: "TEXT", pk: 1, notnull: 1 }, { name: "title", type: "TEXT", pk: 0, notnull: 1 }], values: { id: "one", title: "Old footer" } };

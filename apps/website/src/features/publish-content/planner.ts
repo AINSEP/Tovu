@@ -1,5 +1,5 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { entityKey, packedEntityLabel } from "./plan-rows.js";
 import type {
   BaselineRecord, PublishContentBundle, PublishContentOutcomeRow, PublishContentReport,

@@ -1,7 +1,7 @@
 import fs, { constants } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import type { RawFilePort, RawFileSnapshot } from "#src/features/publish-content/backstop-ports";
+import type { RawFilePort, RawFileSnapshot } from "@jini-ai/cms/publish/transfer";
 import { BackstopRefusal, checkRawFilePath, BACKSTOP_LIMITS } from "#src/features/publish-content/backstop-policy";
 import { normalizeMode } from "#src/features/publish-content/file-tree-policy";
 

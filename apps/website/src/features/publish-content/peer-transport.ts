@@ -1,9 +1,9 @@
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
-import { bytesMatchSha256 } from "./blob-staging.js";
+import { bytesMatchSha256 } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { peerHostname, peerUrl } from "./peer-url.js";
 import type { PublishContentExportEnvelope } from "./export-bundle.js";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { ResolvedPeerCredential } from "./peers.js";
 import type { PackedEntity } from "./type-registry.js";

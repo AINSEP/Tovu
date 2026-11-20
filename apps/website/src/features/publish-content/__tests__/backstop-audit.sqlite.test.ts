@@ -3,7 +3,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
-import type { BackstopAuditRecord } from "../backstop-audit.js";
+import type { BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 import { runAuditedBackstop } from "../backstop-service.js";
 import { BackstopRefusal } from "../backstop-policy.js";
 

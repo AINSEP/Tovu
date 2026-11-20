@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { stageBundle } from "#src/features/publish-content/bundle-staging";
+import { stageBundle } from "@jini-ai/cms/publish/transfer";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";

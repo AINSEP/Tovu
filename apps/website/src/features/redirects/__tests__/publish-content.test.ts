@@ -8,7 +8,7 @@ import {
   InMemoryOriginSettingRepo,
   OriginRegistry,
 } from "@jini-ai/core/contracts/server/verified-origin";
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import { redirectMatcher } from "@jini-ai/cms/redirects";

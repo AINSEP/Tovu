@@ -36,7 +36,7 @@ import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sql
 import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";

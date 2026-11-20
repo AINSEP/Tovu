@@ -8,7 +8,7 @@ import test from "node:test";
 
 import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
 
-import { PublishContentApplyRowError } from "../apply-errors.js";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash, CONTENT_HASH_VERSION } from "../content-hash.js";
 import { changedSincePlan, notWired } from "../precheck-reasons.js";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "../repo-handler.js";

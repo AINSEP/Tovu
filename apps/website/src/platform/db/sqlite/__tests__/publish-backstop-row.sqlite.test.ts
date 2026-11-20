@@ -9,7 +9,7 @@ import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { ContentDatabase } from "../../content-database.generated.js";
 import type { ContentKernel } from "../../content-kernel.js";
 import { createRawRowSqlitePort } from "../../../../features/publish-content/publish-backstop-row.sqlite.js";
-import type { RawValue } from "#src/features/publish-content/backstop-ports";
+import type { RawValue } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file The "send by hand" raw-row port on a real in-memory SQLite content kernel: the policy and

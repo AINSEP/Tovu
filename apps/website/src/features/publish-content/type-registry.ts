@@ -1,9 +1,9 @@
-export type { PackedEntity } from "./packed-entity.js";
-import type { PackedEntity } from "./packed-entity.js";
+export type { PackedEntity } from "@jini-ai/cms/publish/transfer";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
-import type { BackstopPorts } from "./backstop-ports.js";
-import type { BackstopMetadata } from "./backstop-audit.js";
+import type { BackstopPorts } from "@jini-ai/cms/publish/transfer";
+import type { BackstopMetadata } from "@jini-ai/cms/publish/transfer";
 import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 
 /**

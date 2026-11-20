@@ -1,6 +1,6 @@
 import type { Selectable } from "kysely";
 
-import type { PublishContentBundleRepoPort, StagedBundleRecord } from "#src/features/publish-content/bundle-staging";
+import type { PublishContentBundleRepoPort, StagedBundleRecord } from "@jini-ai/cms/publish/transfer";
 import type { ContentKernel } from "../content-kernel.js";
 import type { PublishContentBundlesTable } from "../content-database.generated.js";
 

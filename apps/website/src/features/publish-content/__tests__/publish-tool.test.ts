@@ -3,7 +3,7 @@ import test from "node:test";
 import { ToolInputError, ToolPermissionDeniedError } from "@jini-ai/core";
 import { plan, confirm, execute, PlanStaleError } from "../../../contracts/core/gated-mutations/gateway.js";
 import { importErrorResponse } from "../../../server/inbound/admin-http/routes/publish-content/import-errors.js";
-import { stageBundle } from "../bundle-staging.js";
+import { stageBundle } from "@jini-ai/cms/publish/transfer";
 import { buildPublishContentImportHooks } from "../gated-hooks.js";
 import { contentHash } from "../content-hash.js";
 import { contributePublishContentTools } from "../tool-registrations.js";

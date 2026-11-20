@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
-import type { RawColumn, RawRowPort, RawValue } from "#src/features/publish-content/backstop-ports";
+import type { RawColumn, RawRowPort, RawValue } from "@jini-ai/cms/publish/transfer";
 import { BackstopRefusal, checkRawTable } from "#src/features/publish-content/backstop-policy";
 
 function identifier({ name }: { name: string }, _optional = {}): string {

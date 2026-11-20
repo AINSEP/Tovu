@@ -4,8 +4,8 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { computeBlobStorageKey, isDocumentOnlyBlob } from "@jini-ai/cms/media";
 import { BackstopRefusal, checkRawFilePath, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
 import { normalizeMode } from "./file-tree-policy.js";
-import type { RawFileInverse, RawFilePort, RawFileSnapshot } from "./backstop-ports.js";
-import { PublishContentApplyRowError } from "./apply-errors.js";
+import type { RawFileInverse, RawFilePort, RawFileSnapshot } from "@jini-ai/cms/publish/transfer";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "./content-hash.js";
 import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, SkippedPackEntity } from "./type-registry.js";
 

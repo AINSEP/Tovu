@@ -1,12 +1,10 @@
 /** Tovu's product inputs for the Jini host. The runtime owns algorithms; this binding owns the
  * SDK vocabulary, declarations, admission policy and executable import boundary. */
 import { createHash } from "node:crypto";
-import { readFile, realpath } from "node:fs/promises";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { readFile } from "node:fs/promises";
 import { definePlugin, HOOK_POINTS, HOOK_CONTENT_ENTRY_BEFORE_SAVE, type ContentEntryDraft, type PluginSdk } from "@tovu/sdk"; // legacy alias: the bundled backing package.
-import type { ClaimMode, DeclarativeContentTypesPort, PluginManifest, PluginModuleImportPort, PluginSdkBinding, PluginTierPolicy, HookRegistry } from "@jini-ai/plugins/host";
-import { PluginInstallError, snapshotPluginModuleGraph, type PluginModuleSnapshotLifecycle } from "@jini-ai/plugins/host/node";
+import type { ClaimMode, DeclarativeContentTypesPort, PluginSdkBinding, PluginTierPolicy, HookRegistry } from "@jini-ai/plugins/host";
+import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import type { RunTier2CallRequired } from "@jini-ai/plugins/host/worker";
 import { PLUGIN_CONTRIBUTION_CAPABILITIES, PLUGIN_MANIFEST_FILENAME, PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
 import { SHARED_EXTENSION_CAPABILITIES } from "../../contracts/core/extension-capability-vocabulary.js";
@@ -87,37 +85,3 @@ export const pluginHostBinding = {
 
 /** Product preview callback ABI remains positional; only the Jini registry receives objects. */
 export type PluginBeforeSavePreview = (pluginId: string, entry: Readonly<ContentEntryDraft>) => ReturnType<HookRegistry["previewBeforeSave"]>;
-
-/** Adapts the product's module seam to Jini's registry. A built-in/test seam retains its original path;
- * a site entry is contained and snapshotted only after Jini verifies integrity and SDK range.
- * Same-version replacement needs a fresh filesystem identity for ALL helpers, including late
- * dynamic imports and CommonJS require caches. Snapshots remain available until shutdown.
- * @param required The validated manifest and source selected for this load.
- * @param optional.importModule The existing built-in/worker/test import seam, when present.
- * @param optional.snapshots The runtime's snapshot owner, disposed after plugin users stop.
- * @returns A registry importer projecting the default export without changing export validation.
- * @throws Snapshot/filesystem/import errors; Jini maps them to the existing load reasons.
- * @complexity O(total package bytes) for a site snapshot; O(1) for an injected seam.
- * @example createPluginModuleImporter({ manifest, source: "site" }, {})
- */
-export function createPluginModuleImporter(
-  required: { manifest: PluginManifest; source: "built-in" | "site" },
-  optional: { importModule?: (entryPath: string) => Promise<unknown>; snapshots?: PluginModuleSnapshotLifecycle } = {},
-): PluginModuleImportPort {
-  return async ({ plugin, modulePath }) => {
-    if (optional.importModule) {
-      const imported = await optional.importModule(modulePath);
-      return { exported: typeof imported === "object" && imported !== null ? (imported as { default?: unknown }).default : undefined };
-    }
-    let entryPath = modulePath;
-    if (required.source === "site") {
-      const [root, entry] = await Promise.all([realpath(plugin.packageRoot), realpath(modulePath)]);
-      // The immutable snapshot owner rejects symlinks/hardlinks and checks every retained byte.
-      if (!entry.startsWith(root + path.sep)) return `module path '${modulePath}' escapes the plugin root`;
-      entryPath = await snapshotPluginModuleGraph({ pluginRoot: plugin.packageRoot, manifest: required.manifest },
-        optional.snapshots ? { lifecycle: optional.snapshots } : {});
-    }
-    const imported = await import(pathToFileURL(entryPath).href);
-    return { exported: imported.default };
-  };
-}

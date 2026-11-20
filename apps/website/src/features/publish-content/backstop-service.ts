@@ -1,5 +1,5 @@
-import type { BackstopAuditPort, BackstopAuditRecord, BackstopMetadata } from "./backstop-audit.js";
-import type { BackstopSelection } from "./backstop-ports.js";
+import type { BackstopAuditPort, BackstopAuditRecord, BackstopMetadata } from "@jini-ai/cms/publish/transfer";
+import type { BackstopSelection } from "@jini-ai/cms/publish/transfer";
 import { BACKSTOP_LIMITS, checkRawValues, gapLabelFor } from "./backstop-policy.js";
 import type { PackedEntity } from "./type-registry.js";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";

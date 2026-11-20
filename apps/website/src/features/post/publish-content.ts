@@ -4,7 +4,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 
 import { contentHash } from "#src/features/publish-content/content-hash";
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { addressHeldByOther, trashedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
 import type {

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { BackstopAuditPort, BackstopAuditRecord } from "../backstop-audit.js";
+import type { BackstopAuditPort, BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 import { runAuditedBackstop } from "../backstop-service.js";
-import { PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "../bundle-staging.js";
+import { PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "@jini-ai/cms/publish/transfer";
 import { PUBLISH_CONTENT_PULL_MAX_BLOBS } from "../peer-transport.js";
 
 /**
