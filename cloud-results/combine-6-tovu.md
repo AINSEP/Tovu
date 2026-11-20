@@ -49,7 +49,7 @@ Unattended cloud run. Node 24.22.3 (`~/.local/node24`), pnpm 10.33.2 (corepack).
 | 8 | tv-ext-web `32278af79` | `07ad2b75c` | none | 1 new error-gate entry (`failure-text-from-catalog` stdin-input.ts) | open | merged |
 | 9 | tv-ext-admin `89cb9bd72` | `fb1ddd27d` | none | — | — | merged |
 | 10 | tv-ext-desktop `bee1daa56` | `655d73902` | none | — | — | merged |
-| 11 | tv-ext-cms2 `3057963c4` (incl. tv-ext-cms) | `7091708c1` | none | trash-item-tool: Jini `EntitySnapshotRow.version` optional vs port's required; `scripts/forms-maintenance.ts` imported the deleted entry-refs repo; desktop e2e fixture imported deleted `remove-site-tree` (xd5-desktop) | `2221462ae` | merged |
+| 11 | tv-ext-cms2 `3057963c4` (incl. tv-ext-cms) | `7091708c1` | none | (also tv-ext-desktop / tv-xd-lockfile: undeclared runtime deps → `a0dbfebe3`) trash-item-tool: Jini `EntitySnapshotRow.version` optional vs port's required; `scripts/forms-maintenance.ts` imported the deleted entry-refs repo; desktop e2e fixture imported deleted `remove-site-tree` (xd5-desktop) | `2221462ae` | merged |
 
 Per-merge gates: run after every merge for 1–4; for group 3 (7–11) once after the group (tool budget), all fixed in `2221462ae`.
 
@@ -59,10 +59,10 @@ Per-merge gates: run after every merge for 1–4; for group 3 (7–11) once afte
 3. **tv-xd5-desktop**: `recordSiteClosed` adapter in `main/index.ts` was an untyped arrow (implicit any: would have failed `tsc -p tsconfig.main.json`); e2e fixture imported a deleted module.
 4. **tv-ext-cms2**: `scripts/forms-maintenance.ts` imported a deleted repo (module-load crash of the maintenance script) and `trash-item-tool` failed `tsc`.
 5. **Jini (not fixable here)**: ag-ui transport now rejects with a generic `'The agent run stream stopped with an error (<class>)…'` **without `{ cause }` and without the HTTP status** (6 admin tests); admin-surfaces sign-in failure log lost plugin id and class (2 node tests); 8 Jini subpaths have files but no `exports` (blocks xd5-render/publish).
-All compile-level; no runtime regression found by a failing test in this run beyond the Jini items.
+6. **Packaged desktop would miss two runtime packages** (`@jini-ai/user-management`, `@jini-ai/platform` via `@tovu/contracts`): caught by the desktop hoisting test, fixed in `a0dbfebe3`.
 
 ## Gates — base vs final (Tovu root; admin = `cd apps/admin && npx tsc --noEmit -p .`)
-BASE = `d74d4d92e` (merge-5 relinked to Jini merge-6). FINAL = `2221462ae`.
+BASE = `d74d4d92e` (merge-5 relinked to Jini merge-6). FINAL = `2221462ae` (later commits: `a0dbfebe3` deps/lockfiles only, this report).
 
 | gate | BASE | FINAL |
 |---|---|---|
@@ -85,7 +85,9 @@ Open why-comment blocks (lost from files that still exist; need the comment move
 - tv-wave-a3 scoped (594 files: changed tests + `__tests__` next to changed sources + importers): 6188 tests, 6119 pass, 57 fail. All 35 non-Postgres failures (24 files) fail identically on the relinked base (`d74d4d92e`): **0 new**. The rest are Postgres suites (no server).
 - Admin vitest, groups 1–2 areas (security, lib, deployment, consent, themes): 4113/4122; the 9 failures are base-red (relink, above).
 - Desktop: smoke gate suites + project-ipc/add-site/shutdown/history-menu/project-wiring **331/331**. A packaged-app smoke (real Electron binary) is impossible here: `npm ci --ignore-scripts`, no Electron binary, headless container.
-FULL_SUITES_PLACEHOLDER
+- **FULL node suite** (`npm test` globs, `--test-concurrency=2`, worktree at `2221462ae`): **stopped by the run's time budget, PARTIAL**: 30,569 top-level ok / 214 not ok; 97 failing files, 28 of them Postgres suites (no server). The 69 non-Postgres failing files are listed in `cloud-results/combine-6-tovu-full-suite-failing-files.txt`; there was no time to diff them against base (the scoped wave-a3 run and the admin/desktop runs were base-diffed: 0 new).
+- **Admin vitest FULL** (HEAD `2221462ae`): 14,857 pass / 25 fail / 2 skipped, 6 files: all base-red (re-run on the relinked base: same files fail; JiniMediaPicker.hooks ×3 + recharts-bundle-integer-ticks ×13 fail there too: 16/26).
+- **Desktop `npm test` FULL**: 2161 pass / 48 fail; base 47 fail. The 1 new one, `jini-mcp-peers.test` "runtime source imports declare their packages instead of relying on hoisting", was a **real packaging bug** (failing test first): `desktop-auth.ts` imports `@jini-ai/user-management` (tv-ext-desktop) and `packages/contracts/src/credential-copy.ts` imports `@jini-ai/platform` (tv-xd-lockfile), neither declared → both declared via `npm install` (desktop/admin/root locks), `a0dbfebe3`; 8/8.
 
 ## Skipped and why
 - **tv-xd5-render, tv-xd5-publish**: aborted (Jini merge-6 lacks their export entries, above). Their xd2/3/4 rounds are inside them, so none of the render/publish extraction is on this branch.
@@ -103,4 +105,5 @@ FULL_SUITES_PLACEHOLDER
 7. Relink base-red: desktop tsc renderer 3 / main 11 (`desktop-resources.ts` ProcessSnapshot args, `site-backend.ts` TServer, `smoke-packaged-chat-gate`, `App.tsx` trailing-comma TS1013), admin literal-copy (collections placeholders), credential-input autocomplete, dictionary sinks (posts-i18n).
 
 ## Next step
+Re-run the full node suite to completion (it needed > 1.5 h at concurrency 2 here) and diff its 69 non-Postgres failing files against `d74d4d92e`.
 Owner: decision 1 (Jini exports), then combine-7 merges tv-xd5-render + tv-xd5-publish (+ the deferred tv-ext-rs-c, tv-rs-e, tv-split, tv-dh, uiux-split) and clears the 50 why-comment blocks + 2 error-gate entries.
