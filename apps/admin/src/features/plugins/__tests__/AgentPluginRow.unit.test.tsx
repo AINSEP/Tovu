@@ -86,6 +86,7 @@ it.each(["toggle", "remove-or-enable"] as const)("a Soon plugin's switch is disa
   const row = screen.getByRole("listitem", { name: "Posthog" });
   const toggle = within(row).getByRole("switch");
   expect(toggle).toBeDisabled();
+  expect(toggle).toHaveClass("agent-plugin-switch--locked");
   fireEvent.click(toggle);
   expect(onToggleEnabled).not.toHaveBeenCalled(); expect(onEnable).not.toHaveBeenCalled();
   expect(within(row).queryByRole("button", { name: "Enable" })).toBeNull();
