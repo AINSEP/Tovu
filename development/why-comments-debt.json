@@ -35,7 +35,7 @@
     },
     {
       "id": "b4867ea042ff",
-      "reason": "File header of the deleted ports.ts; the 'written only by the entries write chokepoint, same transaction' rule now sits above the EntryRefsRepoPort import in platform/db/repos/entry-refs-repo.ts; the port itself is Jini's (cms/widgets/ports.ts)."
+      "reason": "File header of the deleted ports.ts; the 'written only by the entries write chokepoint, same transaction' rule now sits above the EntryRefsRepoPort import in Jini packages/cms/src/widgets/sql/entry-refs-repo.ts; the port itself is Jini's (cms/widgets/ports.ts)."
     },
     {
       "id": "5bca7dbd0f7f",
@@ -59,7 +59,7 @@
     },
     {
       "id": "b807e0195f58",
-      "reason": "File header of the in-memory repo that moved to Jini cms/widgets/entry-refs.memory.ts (Jini 7412f1dbd), reworded there; the rule-of-two pointer sits in platform/db/repos/entry-refs-repo.ts."
+      "reason": "File header of the in-memory repo that moved to Jini cms/widgets/entry-refs.memory.ts (Jini 7412f1dbd), reworded there; the rule-of-two pointer sits in Jini packages/cms/src/widgets/sql/entry-refs-repo.ts."
     },
     {
       "id": "41b698d88358",

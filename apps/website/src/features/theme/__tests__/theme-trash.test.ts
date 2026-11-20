@@ -199,7 +199,7 @@ test("trash_item accepts entityType 'theme' and routes it through theme_trash (a
     ...deps,
     isTrashableEntityType: ({ entityType }: { entityType: string }) => entityType === THEME_ENTITY_TYPE,
   } as unknown as TrashItemToolDeps;
-  const [trashItem] = deriveTrashItemRegistrations({ registrations, routeDeps, surfaces: {} as never });
+  const [trashItem] = deriveTrashItemRegistrations({ registrations, routeDeps });
   assert.ok(trashItem);
   const schema = trashItem.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };
   assert.deepEqual(schema.properties.entityType.enum, ["theme"]);

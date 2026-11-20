@@ -28,9 +28,6 @@ import { buildTrashRegistrations } from "../tool-registrations.js";
 import { deriveTrashItemRegistrations } from "../trash-item-tool.js";
 import { trashToolEntityTypes } from "../tool-kinds.js";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { TRASH_RETENTION_DAYS } from "../ports.js";
 
 const WS = "member-trash-workspace";
@@ -154,9 +151,7 @@ test("gapb member: Trash revokes credentials and purge works without a core-comm
 
 test("gapb member: generic tool schemas include member without a per-resource delete tool", t => {
   const h = harness(); t.after(() => h.client.close());
-  const [tool] = deriveTrashItemRegistrations({ registrations: [], surfaces: {
-    surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
-  }, routeDeps: {
+  const [tool] = deriveTrashItemRegistrations({ registrations: [], routeDeps: {
     registry: h.registry, db: h.kernel, trash: h.trash, authorize: async () => ({ allowed: true, reason: "test" }),
     workspaceId: WS, clock: { nowIso: () => AT }, isTrashableEntityType: ({ entityType: type }) => type === "member",
     postRepo: { findById: async () => null }, commentRepo: { findById: async () => null }, commentsReady: Promise.resolve(),

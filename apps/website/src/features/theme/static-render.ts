@@ -1,4 +1,5 @@
-import { expandPartials } from "../../contracts/core/expand-partials.js";
+import { expandPartials } from "@jini-ai/cms/widgets/markers";
+import { DEFAULT_THEME_SLOTS } from "../../contracts/core/theme-slots.js";
 import { injectListingScript } from "@jini-ai/cms/listing";
 import { injectMenuDropdownScript } from "@jini-ai/cms/navigation/dropdown";
 import { escapeHtml } from "#src/platform/html/escape";
@@ -176,7 +177,7 @@ export function renderStaticPage(
   html = rewriteAssetPaths({ html, themeId: theme.manifest.id }, { apiVersion: theme.manifest.apiVersion });
   warnUnrewrittenAssetPaths({ html, theme, pageId });
   html = injectColorMode({ html, defaultMode: theme.manifest.defaultMode });
-  html = expandPartials({ html: html, theme: theme });
+  html = expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: theme });
   html = injectMenuEmbeds({ html, menus: menus ?? {} });
   html = injectPostPreviewsEmbeds({ html, previews: postPreviews ?? [], batches: postPreviewBatches ?? new Map() }, { page: postPreviewsPage });
   html = injectCollectionEmbeds({ html, lists: collectionLists ?? new Map() });

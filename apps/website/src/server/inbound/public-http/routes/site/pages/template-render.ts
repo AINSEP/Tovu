@@ -10,7 +10,8 @@ import { renderStaticPage } from "#src/features/theme/static-render";
 import { injectCurrentEntityContentId, injectPageTitle, resolveTemplate } from "#src/features/theme/index";
 import { tokenStylesheetSentinel } from "#src/features/theme/static-asset-contract";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
-import { expandPartials } from "../../../../../../contracts/core/expand-partials.js";
+import { expandPartials } from "@jini-ai/cms/widgets/markers";
+import { DEFAULT_THEME_SLOTS } from "../../../../../../contracts/core/theme-slots.js";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { postPublicPath } from "#src/platform/routing/index";
 import { renderAssignedTermsBlock } from "../../../http/site/render/post-body.js";
@@ -157,7 +158,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
   const { pageId, html: rawTemplate } = resolution;
 
   // Expand before content resolution so a partial's own byline suppresses the core header too.
-  const withTitle = injectPageTitle({ html: expandPartials({ html: rawTemplate, theme: theme }), title: post.title });
+  const withTitle = injectPageTitle({ html: expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: rawTemplate, theme: theme }), title: post.title });
   const withCurrentId = injectCurrentEntityContentId({ html: withTitle, entityId: post.id });
   // Taxonomy render-surface gap fix (2026-09-02): assigned terms are metadata ABOUT the entry, not
   // part of its authored body, so they go in the conventional "filed under" position: right after

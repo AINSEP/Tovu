@@ -4,7 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 
-import { expandPartials } from "../../../contracts/core/expand-partials.js";
+import { expandPartials } from "@jini-ai/cms/widgets/markers";
+import { DEFAULT_THEME_SLOTS } from "../../../contracts/core/theme-slots.js";
 import { renderStaticPage } from "../static-render.js";
 import { loadTheme } from "../theme.js";
 
@@ -63,7 +64,7 @@ for (const themeId of MIGRATED_STATIC_THEME_IDS) {
         const rendered = html as string;
 
         // Scripts a shared partial carries (the stock footer's one kUInetic tag) are part of the page too.
-        const sourceAssets = assetReferences(expandPartials({ html: theme.pages[pageId], theme: theme }));
+        const sourceAssets = assetReferences(expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: theme.pages[pageId], theme: theme }));
         const renderedAssets = assetReferences(rendered);
         const expectedUrl = (url: string) => url.replace(/^\.\.\/(css|scripts)\//, `/theme-assets/${themeId}/$1/`);
         assert.deepEqual(renderedAssets.stylesheets, sourceAssets.stylesheets.map(expectedUrl), `${themeId}/${pageId}: preserve every stylesheet with its exact URL`);
