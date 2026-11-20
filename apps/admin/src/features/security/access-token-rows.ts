@@ -1,4 +1,4 @@
-import type { CredentialTokenHint } from "@/lib/credential-copy";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import { PUBLISH_CREDENTIAL_ROW_LABEL } from "../deployment/rules";
 import { SOURCE_CONTROL_CREDENTIAL_ROW_LABEL } from "../source-control/rules";
 import { type AccessTokenKind, type AccessTokenRowCategoryId } from "./rules";

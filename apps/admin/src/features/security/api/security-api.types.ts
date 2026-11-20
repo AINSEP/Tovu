@@ -1,4 +1,4 @@
-import type { CredentialTokenHint } from "../../../lib/credential-copy";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 
 /** A publish credential's provider id — the deploy target id it publishes with (see
  *  {@link AdminStaticPublishTargetId}). An open string: the server's deploy registry owns the set. */

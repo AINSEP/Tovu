@@ -17,7 +17,7 @@
     { "repo": "tovu", "file": "apps/website/src/platform/db/schema.postgres.ts", "reason": "Generated from schema.sqlite.ts by generate-postgres-schema.ts; CI drift-checks it." },
     { "repo": "tovu", "file": "apps/website/src/platform/db/schema.sqlite.ts", "reason": "DB schema declaration, one line per column; splitting it scatters one table set." },
     { "repo": "tovu", "file": "apps/admin/src/features/consent/consent-dictionary.ts", "reason": "Data table: literal copy rows, no logic." },
-    { "repo": "tovu", "file": "apps/website/src/contracts/core/credential-copy.ts", "reason": "Data table: literal copy rows, no logic." },
+    { "repo": "tovu", "file": "packages/contracts/src/credential-copy.ts", "reason": "Data table: literal copy rows, no logic." },
     { "repo": "tovu", "file": "apps/website/src/features/trash/registry.ts", "function": "buildTrashRegistry", "identity": "buildTrashRegistry#1", "reason": "Data table: one literal row per trashable type." },
     { "repo": "tovu", "file": "apps/website/src/features/post/tool-registrations.ts", "function": "content_post_update", "identity": "buildPostRegistrations#1.content_post_update#1", "reason": "Registration list: tool wiring entries." },
     { "repo": "tovu", "file": "apps/website/src/features/post/tool-registrations.ts", "function": "fn", "identity": "buildPostRegistrations#1.content_post_update#1.fn#1", "reason": "Registration list: tool wiring entries (inner handler of content_post_update)." },

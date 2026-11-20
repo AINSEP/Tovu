@@ -1,5 +1,6 @@
 import { classifyCredentialSubmitError } from "../../../lib/credential-submit-error";
-import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
+import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@/features/source-control/api/source-control-api.types";

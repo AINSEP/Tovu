@@ -1,5 +1,7 @@
 import { useAdminLocale } from './use-admin-locale.hooks';
-import { formatCredentialHint, storedCredentialHint, type CredentialTokenHint } from '@/lib/credential-copy';
+import { formatCredentialHint } from '@tovu/contracts/credential-copy';
+import { storedCredentialHint } from '@/lib/credential-copy';
+import type { CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 
 /** Formats only the server-derived safe hint; the browser never has a stored token to inspect. */
 export function useCredentialHint({ hint }: { hint?: CredentialTokenHint | null }, _optional = {}): string {

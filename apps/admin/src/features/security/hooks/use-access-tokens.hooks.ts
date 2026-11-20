@@ -1,4 +1,5 @@
-import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
+import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets/contracts";
 

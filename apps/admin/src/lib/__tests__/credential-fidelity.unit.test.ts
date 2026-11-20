@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ADMIN_LOCALES } from '../../../../website/src/contracts/core/admin-locales';
-import { CREDENTIAL_COPY } from '../../../../website/src/contracts/core/credential-copy';
-import { credentialDraftError, credentialText, formatCredentialHint, storedCredentialHint } from '../credential-copy';
+import { CREDENTIAL_COPY, credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
+import { credentialDraftError, storedCredentialHint } from '../credential-copy';
 import { buildSourceControlConnectionInput } from '../../features/source-control/rules';
 import { buildCredentialConnectionInput } from '../../features/deployment/rules';
 import { describeStoredCredentials, toAccessTokenWriteBody } from '../../features/settings/hooks/use-external-mcp.hooks';
@@ -23,8 +23,14 @@ describe('credential byte preservation and safe admin hints', () => {
     expect(storedCredentialHint({ stored: null })).toBeUndefined();
   });
   it('rethrows a validator failure that is not a credential input error instead of displaying it', () => {
+    expect.assertions(3);
     const failure = new RangeError('validator bug');
     expect(() => credentialDraftError({ value: 'abc' }, { assertToken: () => { throw failure; } })).toThrow(failure);
+    try {
+      credentialDraftError({ value: 'abc' }, { assertToken: () => { throw failure; } });
+    } catch (error) {
+      expect(error).toBe(failure);
+    }
     expect(credentialDraftError({ value: 'abc' }, { assertToken: () => {} })).toBe(null);
   });
   it('sends the original entered token to the store; blank and whitespace stay distinct', () => {

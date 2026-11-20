@@ -1,4 +1,4 @@
-import type { CredentialTokenHint } from "../../../lib/credential-copy";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { AdminDescriptorI18n, AdminPublishTargetField } from "../../deployment/api/deployment-api.types";
 
 /**
