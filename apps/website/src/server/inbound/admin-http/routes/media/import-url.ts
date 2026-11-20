@@ -11,7 +11,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import type { MediaRouteDeps } from "./deps.js";
-import { parseOptionalStringField } from "./parse.js";
+import { parseOptionalStringField } from "@jini-ai/cms/media";
 
 export type MediaImportUrlRouteDeps = MediaRouteDeps & Pick<RouteDeps, "mediaImportHttpClient">;
 

@@ -2,13 +2,11 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ENTRY_LIFECYCLE_OPS, parseEntryLifecycleOp } from "#src/features/entries/index";
-import { toEntryOutbox } from "#src/features/entries/index";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
-import { entryWriteErrorStatus } from "./write-error-status.js";
+import { entriesDeps, entryWriteErrorStatus } from "@jini-ai/cms/entries";
 
 /**
  * @file design-spec.md §1.5/§1.9 — `POST /api/admin/v1/entries/:id/lifecycle` (Publish/Unpublish,
@@ -38,14 +36,7 @@ export function registerAdminEntryLifecycleRoute({ app, deps }: { app: Express; 
 
       const handler = ENTRY_LIFECYCLE_OPS[op];
       const result = await handler({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          clock: deps.clock,
-          // Jini passes entity scope separately; merge it into the host evaluator's request.
-          authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
-          outbox: toEntryOutbox(deps),
-        },
+        deps: entriesDeps(deps),
         input: {
           actorId: principal.id,
           workspaceId: deps.workspaceId,

@@ -8,7 +8,7 @@ import { toContentTypeOutbox } from "#src/features/content-types/index";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
-import { contentTypeWriteErrorStatus } from "./write-error-status.js";
+import { contentTypeWriteErrorStatus } from "@jini-ai/cms/content-types";
 
 /**
  * @file design-spec.md §1.3/§1.9 — `POST /api/admin/v1/content-types/:key/lifecycle` (Deprecate /
