@@ -1708,6 +1708,454 @@
     {
       "id": "d8268eba1aed",
       "reason": "Owner decision (combine-6): a batch reports per-item results, so 'execution failures stop subsequent items' no longer holds; the rewritten comment beside the test states the per-item contract."
+    },
+    {
+      "id": "8e606356c11e",
+      "reason": "Whole file apps/admin/src/lib/__tests__/visible-interval.unit.test.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "432a48c49d0e",
+      "reason": "Whole file apps/admin/src/lib/visible-interval.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ef56a6202bce",
+      "reason": "Whole file apps/admin/src/lib/visible-interval.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "32819620499d",
+      "reason": "Whole file apps/desktop/src/keyed-serializer.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7cbcba5f5448",
+      "reason": "Whole file apps/desktop/src/keyed-serializer.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a5c5b6e45971",
+      "reason": "Whole file apps/desktop/src/keyed-serializer.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "3866b9a646a9",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4113cecd4c9b",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b4227a85d894",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a069ce5c6dea",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "42cfa2114168",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "28e5f1b76b4e",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "6a0e26917cfa",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b4626e9c71b7",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.boundaries.test.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "bc04123ad267",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.test.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4501817adaf3",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.test.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4db449b31f17",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4de61ea4272a",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b8807589390b",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4f5763c118c0",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "37258bfa7449",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "56f009712577",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "160f1eb87dd9",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e764748e85d2",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "266d6495998b",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "68f57373b239",
+      "reason": "Whole file apps/desktop/src/renderer/persistable-messages.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c0e6c9e7d3ae",
+      "reason": "Whole file apps/desktop/src/renderer/visible-interval.test.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4cb412e456a4",
+      "reason": "Whole file apps/desktop/src/renderer/visible-interval.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "458cae8dd734",
+      "reason": "Whole file apps/desktop/src/site-history-menu.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "98a72b2c125c",
+      "reason": "Whole file apps/desktop/src/site-history-menu.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "cd7ebf512d2c",
+      "reason": "Whole file apps/desktop/src/site-history-menu.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ac3786c58869",
+      "reason": "Whole file apps/desktop/src/site-history-menu.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "5d9b75eec706",
+      "reason": "Whole file apps/desktop/src/site-preview-scheduler.ts deleted by f6074b50b (refactor(desktop): extraction round 3 Tovu half — L6b, L8a, L9a, L10a …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "244e6322cc7e",
+      "reason": "Whole file apps/desktop/src/site-process-registry.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4c1c6a672689",
+      "reason": "Whole file apps/desktop/src/site-process-registry.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a7a860dc5650",
+      "reason": "Whole file apps/desktop/src/site-process-registry.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e9ac607a5ea0",
+      "reason": "Whole file apps/desktop/src/site-process-registry.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "dd7d07574405",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "42016e99a4fe",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7beeb7e63ad7",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "06d04055429d",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b64dc1ff9298",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4efa4fefb065",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "75dfebecaa75",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "f6f66c9c4cb1",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a34104134c47",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "fdc811233990",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b285ebe4e062",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "997cd261e7e5",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4bb479351e79",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "21a710e7958b",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "57fb83788f33",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c34752970a6a",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "eade7655f91d",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e4a4d98ecc11",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "8884b5002dc7",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "db4ada4310a5",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e82e20d6c00d",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "93e0150f5614",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "396287224c6d",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "98e5da60539b",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "43624049de0b",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b3eed0313cbb",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e0b693478b30",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "2ae36b6e4a49",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4a801bf73f86",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ab2a51e687aa",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c1bf19205871",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ae324bb1ffff",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "732ee0894081",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7f8043c8bab9",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ebb29bb8bc53",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "69f535a99a03",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "aeaf6078b66d",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "754c6adb6ec7",
+      "reason": "Whole file apps/desktop/src/site-supervisor.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "87e86d3c3259",
+      "reason": "Whole file apps/desktop/src/site-supervisor.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "9a175b600d07",
+      "reason": "Whole file apps/desktop/src/site-supervisor.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "db54e995d12c",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "784d163c0ead",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "54a8686db035",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "13cc08b24efa",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "f6e9c2afaf88",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "f28651874caa",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "bb78a84c5507",
+      "reason": "Whole file apps/desktop/src/site-transitions.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7d9b531206ea",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e268e289414f",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "0fb085e5f41b",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "d9596dfc2d14",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "cc7727d64c76",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "381400c806d3",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "20a4262a2a78",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "6a874776517e",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "514045b460b9",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b011e2309d26",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "95b755fff798",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "95efea6e29c0",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a67cecada307",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "87af27f187c5",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "fa584bfbb1de",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a1a52f21b461",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ad0b1d288d60",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7be6040e327d",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c5983b754b47",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "917f36ead99e",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "2e3bfbbf8777",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "9a5c2afc3cae",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "dc32760fae2a",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "187fd7223063",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "03467d76e87c",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c6610572df14",
+      "reason": "Whole file apps/website/src/contracts/core/expand-partials.ts deleted by 3057963c4 (refactor(cms): planned extraction Tovu half — S8b-T expand-partials on…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "bb5d887ff4f9",
+      "reason": "Whole file apps/website/src/contracts/core/expand-partials.ts deleted by 3057963c4 (refactor(cms): planned extraction Tovu half — S8b-T expand-partials on…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "adcf423bba41",
+      "reason": "Whole file apps/website/src/platform/db/repos/entry-refs-repo.ts deleted by 6adc57a1e (refactor(cms): planned extraction Tovu halves — S8a-T entry-refs repo,…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
     }
   ]
 }

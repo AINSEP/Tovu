@@ -270,7 +270,11 @@ export function deriveTrashItemRegistrations(
         ...delegate,
         toDelegateInput: ({ entityId }: { entityId: string }) => delegate.toDelegateInput({ deps: routeDeps, entityId }),
       }])),
-      readLiveVersion: (input) => readLiveSnapshot(input, { kernel: routeDeps.db, registry: routeDeps.registry }),
+      // The snapshot's `version` is optional (entries without one); the port wants it explicit.
+      readLiveVersion: async (input) => {
+        const row = await readLiveSnapshot(input, { kernel: routeDeps.db, registry: routeDeps.registry });
+        return row && { version: row.version ?? null };
+      },
       moveToTrash: (input) => moveToTrash(input, {
         registry: routeDeps.registry, trash: routeDeps.trash, db: routeDeps.db, authorize: routeDeps.authorize, clock: routeDeps.clock,
       }),
