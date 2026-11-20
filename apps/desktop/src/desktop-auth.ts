@@ -38,6 +38,7 @@
  */
 import crypto from "node:crypto";
 import path from "node:path";
+import { assertLoopbackHttpUrl, ensureSession } from "@jini-ai/user-management/session-bootstrap";
 
 /** The owner account this shell seeds and logs in as. **Must stay Tovu's own default owner
  *  username** (`features/identity/wiring.ts:120`) — see this file's header for the measured reason
@@ -64,11 +65,6 @@ const SESSION_PROBE_PATH = "/api/admin/v1/auth/me";
  *  import: this directory stays self-contained (see `main.ts`'s header), so nothing under
  *  `apps/website/` has to change, or even be resolvable, for this shell to build. */
 const SESSION_COOKIE_NAME = "tovu_session";
-
-/** Hosts a spawned-by-us server can legitimately be reached on. `localhost` is excluded on purpose:
- *  it is a NAME, resolvable through `/etc/hosts` or DNS to somewhere else entirely, and this shell
- *  always knows the literal address its own child bound. */
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "[::1]"]);
 
 /** What {@link redeemBootSession} and {@link endSiteSession} resolve with. */
 interface AuthOutcome {
@@ -116,6 +112,9 @@ interface AuthNet<TSession, TRequest extends AuthRequest = AuthRequest> {
   request(options: AuthRequestOptions<TSession>): TRequest;
 }
 
+/** Hosts a spawned-by-us server can legitimately be reached on. `localhost` is excluded on purpose:
+ *  it is a NAME, resolvable through `/etc/hosts` or DNS to somewhere else entirely, and this shell
+ *  always knows the literal address its own child bound. */
 /**
  * Throw unless `adminUrl` names a plain-HTTP loopback origin.
  *
@@ -128,19 +127,11 @@ interface AuthNet<TSession, TRequest extends AuthRequest = AuthRequest> {
  * @complexity O(1).
  */
 function assertLoopbackAdminUrl({ adminUrl }: { adminUrl: string }, _options = {}): URL {
-  let parsed: URL;
-  try {
-    parsed = new URL(adminUrl);
-  } catch {
-    throw new Error(`desktop sign-in refused: ${adminUrl} is not a valid URL.`);
-  }
-  if (parsed.protocol !== "http:") {
-    throw new Error(`desktop sign-in refused: ${parsed.protocol}// is not plain-HTTP loopback.`);
-  }
-  if (!LOOPBACK_HOSTS.has(parsed.hostname)) {
-    throw new Error(`desktop sign-in refused: ${parsed.hostname} is not a loopback address.`);
-  }
-  return parsed;
+  return assertLoopbackHttpUrl({ url: adminUrl }, { message: ({ reason, detail }) => {
+    if (reason === 'invalid') return `desktop sign-in refused: ${detail} is not a valid URL.`;
+    if (reason === 'scheme') return `desktop sign-in refused: ${detail}// is not plain-HTTP loopback.`;
+    return `desktop sign-in refused: ${detail} is not a loopback address.`;
+  } });
 }
 
 /**
@@ -387,10 +378,7 @@ async function ensureSiteSession<TSession>(deps: {
   adminUrl: string;
   redeem: () => Promise<boolean>;
 }): Promise<{ authenticated: boolean; redeemed: boolean }> {
-  if (await hasValidSession({ net: deps.net, session: deps.session, adminUrl: deps.adminUrl })) {
-    return { authenticated: true, redeemed: false };
-  }
-  return { authenticated: await deps.redeem(), redeemed: true };
+  return ensureSession({ probe: () => hasValidSession({ net: deps.net, session: deps.session, adminUrl: deps.adminUrl }), redeem: deps.redeem }, {});
 }
 
 /**

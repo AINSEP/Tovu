@@ -70,11 +70,11 @@ test("linux honours XDG_CONFIG_HOME and falls back to ~/.config", () => {
 test("win32 honours APPDATA and falls back to the conventional Roaming path", () => {
   assert.equal(
     resolveDesktopUserDataDir({ env: { APPDATA: "C:\\Users\\u\\AppData\\Roaming" }, platform: "win32", homedir: "C:\\Users\\u" }),
-    path.join("C:\\Users\\u\\AppData\\Roaming", "tovu-desktop"),
+    "C:\\Users\\u\\AppData\\Roaming\\tovu-desktop",
   );
   assert.equal(
     resolveDesktopUserDataDir({ env: {}, platform: "win32", homedir: "C:\\Users\\u" }),
-    path.join("C:\\Users\\u", "AppData", "Roaming", "tovu-desktop"),
+    "C:\\Users\\u\\AppData\\Roaming\\tovu-desktop",
   );
 });
 
