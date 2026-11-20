@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Clock } from '@jini-ai/core/primitives';
-import { InMemoryVersionedMediaRepo } from '../versioned-media-repo.js';
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { findMediaWhereUsed } from '#src/features/media/where-used';
 import { extractEntryRefs } from '@jini-ai/cms/widgets';
 import { InMemoryEntryRefsRepo } from '@jini-ai/cms/widgets';
@@ -25,7 +25,7 @@ test('usage queries canonical id and slug and combines indexed widgets with curr
 
 test('usage HTTP route enforces workspace and media.read before any asset lookup', async () => {
   const { registerAdminMediaWhereUsedRoute } = await import('#src/server/inbound/admin-http/routes/media/where-used');
-  const { InMemoryVersionedMediaRepo } = await import('#src/features/media/index');
+  const { InMemoryVersionedMediaRepo } = await import("@jini-ai/cms/media");
   let handler: (req: any, res: any) => Promise<void> = async () => {};
   let reads = 0, allowed = false, status = 200, body: any;
   class MediaRepo extends InMemoryVersionedMediaRepo { override async findById(input: Parameters<InstanceType<typeof InMemoryVersionedMediaRepo>['findById']>[0]) { reads++; return super.findById(input); } }

@@ -5,7 +5,7 @@ import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/tra
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
-import { InMemoryVersionedMediaRepo } from "#src/features/media/versioned-media-repo";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { MAX_CONTENT_EMBED_DEPTH, MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "@jini-ai/cms/widgets/content-markers";
 import { contentMarkerPorts } from "../pages/render-context/content-marker-ports.js";
 import type { ContentMarkerResolutionDeps } from "../pages/render-context/deps.js";

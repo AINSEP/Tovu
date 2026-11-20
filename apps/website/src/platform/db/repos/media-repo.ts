@@ -5,10 +5,11 @@ import type { ContentKernel } from "../content-kernel.js";
 import { listColumns } from "@jini-ai/db/kernel";
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { mediaFileReplacementRecord, type MediaRecord, type MediaFileReplacementInput } from "@jini-ai/cms/media";
-import type { MediaContentTypeStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
+import type { MediaContentTypeStorePort } from "#src/features/media/index";
 import type { UUID } from "@jini-ai/core/primitives";
 import { MediaConflictError } from "@jini-ai/cms/media";
 import type {
+  VersionedMediaRepoPort,
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
   TransformDefinitionRepoPort,

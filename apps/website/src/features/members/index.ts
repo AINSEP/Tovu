@@ -56,10 +56,12 @@ export type {
   MemberConsentRepoPort,
   MemberAccessResolver,
   MembersWriteServiceDeps,
+  MembersWriteServiceSourceDeps,
   MembersWriteService,
   MemberSignInInput,
   MemberSignInResult,
 } from "./ports.js";
+export { buildMembersWriteServiceDeps } from "./ports.js";
 
 // `MailerPort` is the shared `../mail` core primitive (ADR-037) — re-exported here so existing
 // `members` consumers don't need to know the type moved.

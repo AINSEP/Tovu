@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "@jini-ai/cms/media";
+import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "@jini-ai/cms/media";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
 import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { InMemoryMediaContentTypeStore } from "../content-type-store.js";
 import { verifyPublishedMedia } from "../verify-published-media.js";
-import { InMemoryVersionedMediaRepo } from "../versioned-media-repo.js";
 
 const WS = "ws-b08";
 const SHA = "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6";

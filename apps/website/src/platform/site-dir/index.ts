@@ -94,7 +94,7 @@ export { isSiteSwitcherEnabled } from "./site-switcher-enabled.js";
  * itself (`compareSchemaVersion`) stays boot-only, off this barrel (`no-deep-imports:platform/site-dir`
  * is `error`-severity).
  */
-export { runtimeSchemaVersion, type RuntimeSchemaVersion } from "./schema-guard.js";
+export { runtimeSchemaVersion, isBundledSchemaIdentity, type RuntimeSchemaVersion } from "./schema-guard.js";
 /**
  * `findSiteKeyDependentData` joined 2026-09-29: the admin site key route (`server/inbound/**`)
  * reads it to report `"missing-with-data"` on every storage kind, and the boot callers inject it
@@ -110,6 +110,7 @@ export { readTemplate } from "./read-template.js";
 export { createSitesWorkspace, assertTestHomeIsolation, type SitesWorkspace } from "./sites-home.js";
 export { buildSiteMetaForNewKey } from "./key-only-site-meta.js";
 export { STORAGE_SECRET_FILENAME } from "./layout.js";
+export { waitForLocalAdminBuild } from "./local-admin-bundle.js";
 export {
   LocalSiteError,
   createLocalSiteSupervisor,

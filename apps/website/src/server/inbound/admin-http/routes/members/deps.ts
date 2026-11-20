@@ -7,7 +7,7 @@
  * `toMembersWriteServiceDeps` assembles the bundle shared by four admin routes.
  */
 import type { MembersWriteServiceDeps } from "#src/features/members/index";
-import { buildMembersWriteServiceDeps } from "#src/features/members/tool-registrations";
+import { buildMembersWriteServiceDeps } from "#src/features/members/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MembersDeps, RouteDeps } from "#src/server/routes/types";
 

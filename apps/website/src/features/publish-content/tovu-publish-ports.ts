@@ -1,5 +1,6 @@
 import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort, RemovePostFn } from "#src/features/post/contracts";
-import type { AssetBlobRepoPort, BlobStorePort, MediaContentTypeStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
+import type { VersionedMediaRepoPort } from "@jini-ai/cms/media";
+import type { AssetBlobRepoPort, BlobStorePort, MediaContentTypeStorePort } from "#src/features/media/index";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";

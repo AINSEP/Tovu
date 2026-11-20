@@ -189,7 +189,7 @@ test('an old metadata draft cannot undo an already committed file replacement', 
 });
 
 test('a preview started before replacement cannot reinsert an obsolete rendition', async t => {
-  const { guardMediaRenditionRepo } = await import('#src/features/media/guard-rendition-repo');
+  const { guardMediaRenditionRepo } = await import("@jini-ai/cms/media");
   const { deps, media, before } = await fixture(t);
   const guarded = guardMediaRenditionRepo({ mediaRepo: deps.mediaRepo, renditionRepo: deps.assetRenditionRepo, media });
   const preview = before.find(row => row.transformName === 'public')!;

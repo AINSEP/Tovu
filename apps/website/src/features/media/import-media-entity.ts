@@ -1,7 +1,8 @@
 import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 
 import { MediaConflictError, MediaSourceImmutableError, resolveWriteOnceSource, replaceMediaFile, MediaValidationError, sniffContentType } from "./index.js";
-import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord, VersionedMediaRepoPort } from "./index.js";
+import type { VersionedMediaRepoPort } from "@jini-ai/cms/media";
+import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord } from "./index.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
 
 /** The reviewed source a replace-on-import may overwrite (publish-content's precheck refusal carries it). */

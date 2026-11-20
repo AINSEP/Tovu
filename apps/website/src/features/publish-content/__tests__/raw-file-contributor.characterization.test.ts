@@ -13,7 +13,8 @@ import path from "node:path";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo } from "#src/features/media/index";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore } from "#src/features/media/index";
 
 import { PublishContentApplyRowError } from "../apply-errors.js";
 import type { RawFilePort, RawFileSnapshot } from "../backstop-ports.js";

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { InMemoryAssetRenditionRepo, type AssetRenditionRecord, type MediaRecord } from '@jini-ai/cms/media';
-import { InMemoryVersionedMediaRepo } from '../versioned-media-repo.js';
+import { InMemoryVersionedMediaRepo, InMemoryAssetRenditionRepo, type AssetRenditionRecord, type MediaRecord } from '@jini-ai/cms/media';
 
 const media = { id: 'asset', workspaceId: 'ws', status: 'active', source: { sha256: 'source-a' } } as MediaRecord;
 const record: AssetRenditionRecord = { id: 'rendition', workspaceId: 'ws', assetId: 'asset', transformName: 'thumb', version: 1, storageKey: 'thumb', createdAt: '2026-11-01T00:00:00Z' };

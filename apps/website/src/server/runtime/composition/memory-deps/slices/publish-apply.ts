@@ -4,7 +4,8 @@ import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/f
 import { buildContentPublishPorts } from "../../content-publish-ports.js";
 import { rescanThemes, type discoverAllBuiltInThemes } from "#src/features/theme/index";
 import type { InMemoryPostRepo } from "#src/features/post/index";
-import type { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo } from "#src/features/media/index";
+import type { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import type { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore } from "#src/features/media/index";
 import type { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
 import type { TrashAwareInMemoryMenuRepo } from "#src/features/navigation/trash-aware-memory-menu-repo";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";

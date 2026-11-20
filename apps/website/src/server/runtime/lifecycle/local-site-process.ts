@@ -26,7 +26,7 @@ import { resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/dev-hos
 import { resolveLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { createLogBuffer, createRotatingLogFileSink } from "#src/platform/server-logs/index";
 import { redactSecretShapes, TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
-import { waitForLocalAdminBuild } from "../../../platform/site-dir/local-admin-bundle.js";
+import { waitForLocalAdminBuild } from "#src/platform/site-dir/index";
 
 /** Bind site-child diagnostics to a separate parent-owned file; the child owns server.log.
  * Reuses the existing redactor, bounded buffer and synchronous rotating sink. Native fatal errors

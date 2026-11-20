@@ -2,9 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
 import { randomUUID } from 'node:crypto';
-import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo,
+import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo,
   InMemoryBlobStore, uploadMedia, registerTransform, replaceMediaFile } from '@jini-ai/cms/media';
-import { InMemoryVersionedMediaRepo } from '#src/features/media/versioned-media-repo';
 import { InMemoryPostRepo } from '#src/features/post/repo.memory';
 import { SqlitePostRepo } from '#src/features/post/repo.sqlite';
 import { SqliteEntryRepo } from '#src/features/entries/repo.sqlite';
