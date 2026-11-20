@@ -246,3 +246,11 @@ test("taxonomy-list widget: renders a nested term tree and ignores non-object te
 test("taxonomy-list widget: a missing terms array renders no term", () => {
   assert.ok(!renderWidgetIr({ componentId: "taxonomy-list", props: { id: "topics", name: "Topics" } }).includes("data-tovu-term="));
 });
+
+test("taxonomy-list widget: a rootless two-node cycle renders each term once with exact escaped markup", () => {
+  assert.equal(renderWidgetIr({
+    componentId: "taxonomy-list",
+    props: { id: 'topics"', name: "Topics & tags", hierarchical: true,
+      terms: [{ id: "a", name: "A & B", parentId: "b" }, { id: "b", name: "<B>", parentId: "a" }] },
+  }), '<section data-tovu-taxonomy="topics&quot;" aria-label="Topics &amp; tags"><ul data-tovu-taxonomy-list data-depth="0"><li data-tovu-term="a" data-depth="0"><span data-tovu-term-label>A &amp; B</span><ul data-tovu-taxonomy-list data-depth="1"><li data-tovu-term="b" data-depth="1"><span data-tovu-term-label>&lt;B&gt;</span></li></ul></li></ul></section>');
+});

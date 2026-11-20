@@ -50,6 +50,21 @@ describeEachDialect("SqlSearchIndexStore", {
     assert.equal(await indexState.get({ target: TARGET, key: { ...key("p"), collection: "post/1" } }), null);
   });
 
+  test("put rejects older revisions, accepts the same revision, and leaves another generation unchanged", async () => {
+    const { indexState } = make();
+    const newer = row({ revision: 2 });
+    const neighbor = row({ target: OTHER, revision: 1 });
+    await indexState.put({ row: newer });
+    await indexState.put({ row: neighbor });
+    assert.equal(await indexState.put({ row: row({ revision: 1 }) }), false);
+    assert.deepEqual(await indexState.get({ target: TARGET, key: key("p/1") }), newer);
+    assert.deepEqual(await indexState.get({ target: OTHER, key: key("p/1") }), neighbor);
+    const sameRevision = row({ revision: 2, status: "indexed" });
+    assert.equal(await indexState.put({ row: sameRevision }), true);
+    assert.deepEqual(await indexState.get({ target: TARGET, key: key("p/1") }), sameRevision);
+    assert.deepEqual(await indexState.get({ target: OTHER, key: key("p/1") }), neighbor);
+  });
+
   test("settle is a compare-and-swap on the observed revision and task id", async () => {
     const { indexState } = make();
     const settled = row({ status: "indexed", updatedAtMs: 1_760_000_002_000 });

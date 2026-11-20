@@ -8,7 +8,7 @@ import { escapeHtml } from "#src/platform/html/escape";
 import { str, isObject } from "./value-readers.js";
 import { renderWidgetSocialLinks, renderWidgetRecentEntries, renderWidgetEntrySummary } from "./widgets/social-entries.js";
 import { renderWidgetMenu } from "./widgets/menu.js";
-import { renderHtmlTaxonomy } from "#src/features/taxonomy/render-entry";
+import { renderHtmlTaxonomy } from "@jini-ai/cms/taxonomy";
 import { renderWidgetContactForm } from "./contact-form-widget.js";
 import { renderWidgetMediaImage, renderMediaWidget } from "./widgets/media.js";
 import { renderWidgetPostContent } from "./widgets/post-content.js";
@@ -60,6 +60,7 @@ const WIDGET_IR_RENDERERS: Record<string, (required: { ir: WidgetRenderIR }, opt
   "entry-summary": ({ ir }) => renderWidgetEntrySummary(ir.props),
   menu: ({ ir }) => renderWidgetMenu(ir.props),
   "taxonomy-list": ({ ir }) => renderHtmlTaxonomy({
+    attributes: { section: "data-tovu-taxonomy", list: "data-tovu-taxonomy-list", term: "data-tovu-term", label: "data-tovu-term-label" },
     id: str({ value: ir.props.id }), name: str({ value: ir.props.name }), hierarchical: ir.props.hierarchical === true,
     terms: (Array.isArray(ir.props.terms) ? ir.props.terms : []).filter(isObject).map((term) => ({
       id: str({ value: term.id }), name: str({ value: term.name }), parentId: typeof term.parentId === "string" ? term.parentId : null,

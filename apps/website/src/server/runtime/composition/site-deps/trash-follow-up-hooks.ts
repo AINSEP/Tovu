@@ -4,8 +4,8 @@ import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { createFormFilePurgeHooks } from "#src/features/forms/form-file-purge";
 import { createFormMediaCleanup } from "#src/features/forms/form-file-purge";
-import { createTaxonomyPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
-import { createTermPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
+import { createTaxonomyPurgeFollowUp } from "@jini-ai/cms/taxonomy";
+import { createTermPurgeFollowUp } from "@jini-ai/cms/taxonomy";
 import { purgeMedia as purgeFormMedia } from "#src/features/media/index";
 import { restoreWidgetPriorStatus } from "@jini-ai/cms/widgets";
 import { trashMedia as trashFormMedia } from "#src/features/media/index";

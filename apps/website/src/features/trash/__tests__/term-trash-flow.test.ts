@@ -15,7 +15,7 @@ import {
   createTaxonomyPurgeFollowUp,
   createTermPurgeFollowUp,
   type TaxonomyEventOutboxPort,
-} from "#src/features/taxonomy/taxonomy-trash-follow-ups";
+} from "@jini-ai/cms/taxonomy";
 import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
 import { updatePost, type PostRecord } from "#src/features/post/index";
 
@@ -35,7 +35,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
  * (`moveToTrash`) — plan §2 T6, owner decision 5. Real SQLite, real taxonomy repos, the real
  * `updatePost` save path: nothing here is a double of the thing under test. Modeled directly on
  * `form-trash-flow.test.ts` — does not depend on the composition lock (`deps.ts`/`app.ts`) at all;
- * this harness wires the same purge follow-ups (`taxonomy-trash-follow-ups.ts`) `deps.ts` wires,
+ * this harness wires the same purge follow-ups (`Jini packages/cms/src/taxonomy/taxonomy-trash-follow-ups.ts`) `deps.ts` wires,
  * built here so the test proves the WIRING end to end, not just the hooks' own already-certified
  * pure-fake unit tests (`taxonomy-trash-follow-ups.test.ts`).
  */

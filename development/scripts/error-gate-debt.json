@@ -527,7 +527,7 @@
   {
     "file": "apps/desktop/src/desktop-memory-sampler.ts",
     "rule": "catch-reads-error",
-    "value": 2
+    "value": 1
   },
   {
     "file": "apps/desktop/src/desktop-resources.ts",

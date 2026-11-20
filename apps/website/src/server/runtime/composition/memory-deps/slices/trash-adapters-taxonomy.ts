@@ -1,7 +1,7 @@
 import type { TrashDb } from "#src/features/trash/index";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
-import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
+import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp } from "@jini-ai/cms/taxonomy";
 import { withFollowUps, type TrashAdapter, type TrashEntry } from "@jini-ai/cms/trash";
 
 // The in-memory composition root's Trash adapters for taxonomy terms and taxonomies. Both are SQL table
