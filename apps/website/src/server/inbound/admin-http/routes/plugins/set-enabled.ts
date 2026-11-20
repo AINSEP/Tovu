@@ -8,7 +8,7 @@ import { pluginCapabilitySet, PluginIncompatibleError, PluginInvalidError, Plugi
 import { PluginLoadError, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
-import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

@@ -11,7 +11,6 @@ import { createYauzlAgentPluginArchiveReader, type YauzlEntry, type YauzlPort } 
 import type { AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { PluginInstallError, readPluginArchive } from "@jini-ai/plugins/host/node";
 
-export { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 
 /** True for a Unix-authored entry whose file-type bits are neither unset, a regular file nor a directory. */
 function isSpecialUnixEntry(required: { entry: YauzlEntry }): boolean {

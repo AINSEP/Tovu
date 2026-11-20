@@ -1,6 +1,6 @@
 /** Request/attachment custody, per-call deployment policy and telemetry stay with the host. */
 import { sitePluginLocalInstallEnabled } from './install.js';
-import { MAX_PLUGIN_ARCHIVE_BYTES } from './install-archive.js';
+import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 import { pluginInstallRiskSentence } from './install-consent.js';
 import { readPluginInstallRequest, readPluginInstallArchive } from './install-source.js';
 import { catalog, PLUGINS_INSTALL_TOOL_ID } from './install-tool-catalog.js';

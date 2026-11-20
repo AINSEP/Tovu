@@ -1,4 +1,4 @@
-/** Mirrors `apps/website/src/server/inbound/admin-http/http/plugins.ts`'s `AdminPluginEnvelope` (SPEC-005 REQ-10, api.spec.md
+/** Mirrors `@jini-ai/plugins/host`'s `AdminPluginEnvelope` (SPEC-005 REQ-10, api.spec.md
  * §5) — the `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
 export interface AdminPlugin {
   id: string;

@@ -17,7 +17,7 @@ import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runt
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo, createPost } from "#src/features/post/index";
-import { toAdminPluginResponse } from "#src/features/plugin-runtime/admin-response";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 
 /**
  * @file C-011/C-012 `setPluginEnabled()`/`getActivation()` — SPEC-005 REQ-07, BR-05, AC-02, AC-13
