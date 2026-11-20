@@ -365,7 +365,7 @@ async function writePublishedPost({ kind, ports, deps, workspaceId, id, state, e
 
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.
-async function validatePublishedPost({ kind, ports, workspaceId, entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<PostRow, PostPorts>>[0]["validate"]>>[0] & { kind: PostKind }) {
+async function validatePublishedPost({ kind, ports, workspaceId, entity }: Omit<Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<PostRow, PostPorts>>[0]["validate"]>>[0], "existing"> & { kind: PostKind }) {
       const wrongKind = packedKindMismatch({ kind, id: entity.id, state: entity.state });
       if (wrongKind) return wrongKind;
       const slug = entity.state.slug;
