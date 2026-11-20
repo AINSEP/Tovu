@@ -1,4 +1,5 @@
 import { readAgentPluginPortableExtension } from "@jini-ai/agent-plugins/manifest";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 /**
  * @file Trusted-replacement supersession, declared by the replacing plugin and read generically.
  *
@@ -78,7 +79,7 @@ export function parseSupersedes(required: { readonly manifestText: string | unde
 }
 
 async function readOrUndefined({ read }: { read: () => Promise<string> }, _optional: Record<string, never> = {}): Promise<string | undefined> {
-  try { return await read(); } catch { return undefined; }
+  return orFallback({ work: read, fallback: undefined, step: "read plugin supersession manifest" });
 }
 
 async function declaredBy(required: { readonly plugin: TrustedPluginPackage; readonly manifests: SupersessionManifestsPort }) {

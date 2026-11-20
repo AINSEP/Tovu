@@ -1,6 +1,7 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { isNonArrayRecord } from "@jini-ai/core";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { load, FAILSAFE_SCHEMA } from "js-yaml";
 import type { AgentPluginDeliveryMode } from "@jini-ai/agent-plugins/lifecycle";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
@@ -136,8 +137,11 @@ function opensFrontmatter({ lines, index }: { lines: readonly string[]; index: n
   let end = index + 1;
   while (end < lines.length && lines[end]!.trimEnd() !== "---") end++;
   if (end === lines.length) return false;
-  try { return isNonArrayRecord({ value: load(lines.slice(index + 1, end).join("\n"), { schema: FAILSAFE_SCHEMA }) }); }
-  catch { return false; }
+  return orFallbackSync({
+    work: () => isNonArrayRecord({ value: load(lines.slice(index + 1, end).join("\n"), { schema: FAILSAFE_SCHEMA }) }),
+    fallback: false,
+    step: "classify plugin guidance frontmatter",
+  });
 }
 
 function nextFrontmatterState(required: { state: FrontmatterState; line: string; lines: readonly string[]; index: number }): FrontmatterState {
