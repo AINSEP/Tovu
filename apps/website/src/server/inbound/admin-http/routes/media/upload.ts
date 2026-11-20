@@ -6,7 +6,7 @@ import { captureMediaUploaded, MediaConflictError, MediaValidationError, resolve
 import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";
-import { parseOptionalStringField } from "./parse.js";
+import { parseOptionalStringField } from "@jini-ai/cms/media";
 import { sendValidationOrInternalError } from "./route-guards.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -34,7 +34,7 @@ function parseUploadKind({ raw }: { raw: unknown }, _optional = {}): MediaKind {
 /** The three required upload fields plus the three optional metadata fields, parsed off an untyped
  *  body in one place, or `null` if a required field is missing or the wrong shape. `dataBase64` must
  *  be a non-empty string — an absent or non-string value is rejected here rather than reaching
- *  `Buffer.from`. `alt`/`caption`/`credit` go through `parse.js`'s `parseOptionalStringField`, which
+ *  `Buffer.from`. `alt`/`caption`/`credit` go through `@jini-ai/cms/media`'s `parseOptionalStringField`, which
  *  throws `MediaValidationError` for a non-string, non-null, non-undefined value — the caller MUST
  *  invoke this inside a `try`/`catch` (or otherwise catch synchronously), not treat it as
  *  throw-free the way the `null` return above is. On upload there is no existing value to preserve,

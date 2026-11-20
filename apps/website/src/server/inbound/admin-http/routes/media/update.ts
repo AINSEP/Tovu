@@ -9,15 +9,15 @@ import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media"
 import { readRecordedContentType } from "./content-type.js";
 import { resolveMediaByteSizes } from "./byte-size.js";
 import type { MediaRouteRegistrar } from "./deps.js";
-import { parseOptionalSlugField, parseOptionalStringField, parseOptionalTitleField } from "./parse.js";
+import { parseOptionalSlugField, parseOptionalStringField, parseOptionalTitleField } from "@jini-ai/cms/media";
 
 /**
  * `undefined` (omitted) survives as `undefined`, `null` (explicit clear) survives as `null` rather
  * than coercing through `convert`, and anything else is passed through `convert` — matching
  * `updateMediaMetadata`'s width/height/cssClass undefined/null/value contract (see that input
- * type's doc). Deliberately distinct from `parse.js`'s string-field parsers: `width`/`height`/
+ * type's doc). Deliberately distinct from `@jini-ai/cms/media`'s string-field parsers: `width`/`height`/
  * `cssClass` accept `null` all the way through to the service layer, which has its own clear
- * semantics for them, whereas `alt`/`caption`/`credit`/`title` are mapped or rejected in `parse.js`
+ * semantics for them, whereas `alt`/`caption`/`credit`/`title` are mapped or rejected in `@jini-ai/cms/media`'s field parsers
  * before they ever reach `updateMediaMetadata` (see that module's doc for why).
  *
  * @complexity O(1).

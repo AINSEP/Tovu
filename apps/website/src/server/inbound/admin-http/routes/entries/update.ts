@@ -2,13 +2,11 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { toEntryOutbox } from "#src/features/entries/index";
 import { updateEntry } from "#src/features/entries/index";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
-import { entryWriteErrorStatus } from "./write-error-status.js";
+import { entriesDeps, entryWriteErrorStatus } from "@jini-ai/cms/entries";
 
 /**
  * @file design-spec.md §1.5/§1.9 — `PUT /api/admin/v1/entries/:id` (updates an entry's
@@ -28,14 +26,7 @@ export function registerAdminEntryUpdateRoute({ app, deps }: { app: Express; dep
       }
 
       const result = await updateEntry({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          clock: deps.clock,
-          // Jini passes entity scope separately; merge it into the host evaluator's request.
-          authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
-          outbox: toEntryOutbox(deps),
-        },
+        deps: entriesDeps(deps),
         input: {
           actorId: principal.id,
           workspaceId: deps.workspaceId,
