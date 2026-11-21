@@ -1,4 +1,4 @@
-SHA_PLACEHOLDER
+`integ/merge-7-2026-11-20` @ `46dfe2842` (report commit; the branch tip is the next commit, which only fills in this line). Code tip: `8ec117a4a`. Jini: `origin/integ/merge-7-2026-11-20` `f1c8474e7` at start → `06559aff5` for the final gates.
 
 # combine-7 TOVU (2026-11-20/21) — `integ/merge-7-2026-11-20`
 
