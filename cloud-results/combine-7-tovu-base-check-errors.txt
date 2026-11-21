@@ -1,0 +1,8 @@
+
+> tovu@0.1.0 check:errors
+> node development/scripts/check-error-gate.mjs
+
+New: [catch-reads-error] apps/desktop/src/tovu-server.ts (1)
+New: [failure-text-from-catalog] apps/website/src/cli/commands/stdin-input.ts (1)
+75 entries improved or are gone: run with --update to lower the debt list.
+Error gate (WARN mode): 2 new or worse entries. Not failing the build yet; fix them or use a named idiom.

@@ -1,0 +1,181 @@
+apps/admin/src/features/deployment/__tests__/publish-targets.fixture.ts:5: * the shape each hosting plugin's `content/agent-plugins/<id>/tovu-deploy-targets.json` produces, for the admin's unit
+apps/admin/src/features/plugins/__tests__/package-file-tree.unit.test.ts:114:      "tovu-deploy-targets.json",
+apps/admin/src/features/plugins/__tests__/package-file-tree.unit.test.ts:18:  "tovu-deploy-targets.json",
+apps/admin/src/features/plugins/__tests__/package-file-tree.unit.test.ts:40:      "tovu-deploy-targets.json",
+apps/admin/src/features/source-control/rules.ts:11: * the scope boundary. The hosts are data: each comes from a plugin's `tovu-source-control.json`
+apps/website/src/cli/__tests__/unit/deploy-config-command.unit.test.ts:113:  await writeFile(path.join(root, "broken", "tovu-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id: "broken", label: "
+apps/website/src/cli/__tests__/unit/deploy-config-command.unit.test.ts:44:  await writeFile(path.join(pluginRoot, "tovu-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id: "fly", label: "Fixture 
+apps/website/src/cli/__tests__/unit/deploy-config-target-help.unit.test.ts:39:    await writeFile(path.join(sourceRoot, pluginId!, "tovu-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id, label:
+apps/website/src/cli/commands/deploy-config.ts:20: * hosting Agent Plugins ship (`content/agent-plugins/<id>/tovu-deploy-configs.json`, loaded by
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-actions-ops.unit.test.ts:27:  for (const file of ["tovu-deploy-ops.json", "deploy-ops/github-actions.mjs"]) assert.ok(packed.files.includes(file), fil
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts:17:const filename = "tovu-mail-adapters.json";
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts:56:    for (const [filename, key, saveKind] of [['tovu-deploy-targets.json', 'targets', 'publish-host'], ['tovu-source-con
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts:69:    if (existsSync(path.join(packageRoot, 'tovu-search-providers.json'))) {
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-credential-cards.unit.test.ts:77:    for (const filename of ['tovu-deploy-ops.json', 'tovu-credential-schemes.json']) {
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-search-meilisearch-conformance.unit.test.ts:17: * plugin's own `tovu-search-providers.json` through the search-provider registry, so the manifest,
+apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts:89: * Each hosting plugin ships its own descriptor file: every shipped `<id>/tovu-deploy-targets.json`,
+apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts:93:  .map(({ pluginId, dir }) => ({ file: `${pluginId}/tovu-deploy-targets.json`, absolute: path.join(dir, "tovu-deploy-targets.json") }
+apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts:95:const SOURCE_CONTROL_FILE = { file: "github/tovu-source-control.json", absolute: path.join(agentPluginSourceDir({ pluginId: "github" 
+apps/website/src/features/agent-plugins/__tests__/unit/mail-adapter-registry.unit.test.ts:191:      "mail adapters from 'malformed-mail' were not loaded: tovu-mail-adapters.json is invalid: not valid JSON",
+apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts:70:test("tovu-mail-adapters.json v2 carries setup through, and a bad setup refuses the file", () => {
+apps/website/src/features/agent-plugins/admin-surfaces/README.md:19:plugin root: tovu-admin-surfaces.json + surface files
+apps/website/src/features/agent-plugins/admin-surfaces/README.md:38:| `ADMIN_SURFACES_FILENAME` | `surfaces.ts` | `tovu-admin-surfaces.json`, the file a plugin ships |
+apps/website/src/features/agent-plugins/admin-surfaces/README.md:51:- A second provider plugin adds a surface by shipping `tovu-admin-surfaces.json` and its static
+apps/website/src/features/agent-plugins/admin-surfaces/README.md:70:    (`tovu-form-destinations.json`) on one of ITS connections. The plugin names a connection by id and
+apps/website/src/features/agent-plugins/admin-surfaces/delivery-bindings.ts:14: * contributes (`tovu-form-destinations.json`) and which connections it declares in this workspace.
+apps/website/src/features/agent-plugins/admin-surfaces/surfaces.ts:25:export const ADMIN_SURFACES_FILENAME = "tovu-admin-surfaces.json";
+apps/website/src/features/agent-plugins/auth-schemes.ts:60:export const CREDENTIAL_SCHEMES_FILENAME = "tovu-credential-schemes.json";
+apps/website/src/features/agent-plugins/connect-tool.ts:115:  /** Plugin-declared OAuth API connections (`tovu-connections.json`). Absent: only MCP servers connect. */
+apps/website/src/features/agent-plugins/executable-tools/README.md:48:| `AGENT_PLUGIN_TOOLS_FILENAME` | `tovu-agent-tools.json`. |
+apps/website/src/features/agent-plugins/executable-tools/README.md:6:`tovu-agent-tools.json` at its package root. Jini admits and projects them
+apps/website/src/features/agent-plugins/executable-tools/README.md:71:`tovu-connections.json` (`apiOrigins`); any other origin is refused before anything is sent, so a
+apps/website/src/features/agent-plugins/executable-tools/README.md:82:A second provider plugin needs no change here: it ships its own `tovu-agent-tools.json`, modules and
+apps/website/src/features/agent-plugins/executable-tools/README.md:92:  `tovu-connections.json`) are charged by the host on every token read
+apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/register.unit.test.ts:49:  assert.equal(AGENT_PLUGIN_TOOLS_FILENAME, 'tovu-agent-tools.json');
+apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/register.unit.test.ts:50:  assert.deepEqual(loads, [{ workspaceId: WORKSPACE, filename: 'tovu-agent-tools.json', orderByPluginId: true }]);
+apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts:19:export const AGENT_PLUGIN_TOOLS_FILENAME = 'tovu-agent-tools.json';
+apps/website/src/features/agent-plugins/mail-adapter-registry.ts:8:export const MAIL_ADAPTERS_FILENAME = "tovu-mail-adapters.json";
+apps/website/src/features/agent-plugins/search-provider-registry.ts:26:export const SEARCH_PROVIDERS_FILENAME = "tovu-search-providers.json";
+apps/website/src/features/api-connections/README.md:16:| `contribution.ts` | Loads `tovu-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `crea
+apps/website/src/features/api-connections/__tests__/api-connection-budgets.test.ts:26:const fixtureRaw = readFileSync(path.join(fixtureRoot, "tovu-connections.json"), "utf8");
+apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts:435:  const file = path.join(root, "tovu-connections.json");
+apps/website/src/features/api-connections/__tests__/contribution.unit.test.ts:2: * @file Phase-C unit tests for `contribution.ts`: every refusal of the `tovu-connections.json`
+apps/website/src/features/api-connections/__tests__/fixtures/acme-office/README.md:10:| `tovu-agent-tools.json` + `tools/whoami.mjs` | Executable tool, read (runs without a card). |
+apps/website/src/features/api-connections/__tests__/fixtures/acme-office/README.md:11:| `tovu-agent-tools.json` + `tools/append-row.mjs` | Executable tool, write (Tovu's confirmation card names the account and table firs
+apps/website/src/features/api-connections/__tests__/fixtures/acme-office/README.md:12:| `tovu-agent-tools.json` + `tools/selection.mjs` | Executable tool reading plugin state (read-only). |
+apps/website/src/features/api-connections/__tests__/fixtures/acme-office/README.md:15:| `tovu-admin-surfaces.json` + `surface/` | Admin surface with a handler module (`features/agent-plugins/admin-surfaces`): status, a "
+apps/website/src/features/api-connections/__tests__/fixtures/acme-office/README.md:16:| `tovu-form-destinations.json` + `destinations/rows.mjs` | Push form destination: delivers one submission per call with the access to
+apps/website/src/features/api-connections/__tests__/fixtures/acme-office/README.md:9:| `tovu-connections.json` + `lib/connection.mjs` | API connection: OAuth sign-in (PKCE), account identity, revocation, a per-account re
+apps/website/src/features/api-connections/__tests__/support/acme-harness.ts:105:  const file = path.join(root, "tovu-connections.json");
+apps/website/src/features/api-connections/budgets.ts:11: * `tovu-connections.json`), parsed, clamped and enforced by the host through the real http-kit
+apps/website/src/features/api-connections/contribution.ts:26:export const API_CONNECTIONS_FILENAME = "tovu-connections.json";
+apps/website/src/features/consent/region-plugins.ts:17:export const CONSENT_CONTRIBUTIONS_FILENAME = 'tovu-consent.json';
+apps/website/src/features/custom-credentials/__tests__/fixture-auth-schemes.fixture.ts:7: * `example-host` fixture plugin (`fixtures/example-host/tovu-credential-schemes.json`), with no
+apps/website/src/features/custom-credentials/__tests__/fixtures/example-host/tovu-credential-schemes.json:8:      "note": "Test fixture: a token that carries its own Authorization scheme word, the shape the real Fly.io F
+apps/website/src/features/custom-credentials/credentialed-request.ts:55: * `tovu-credential-schemes.json` (`note`).
+apps/website/src/features/custom-credentials/credentialed-request.ts:63: * (`tovu-credential-schemes.json`), loaded once per call at each entry point
+apps/website/src/features/deployments/__tests__/deploy-config-registry.unit.test.ts:138:      "deploy configs from 'bad' were not loaded: tovu-deploy-configs.json is invalid: not valid JSON",
+apps/website/src/features/deployments/deploy-config-registry.ts:39:export const DEPLOY_CONFIGS_FILENAME = "tovu-deploy-configs.json";
+apps/website/src/features/deployments/deploy-config.ts:12: * `deploy-configs/*.mjs`, declared in each one's `tovu-deploy-configs.json`, loaded by `./deploy-config-registry.ts`); this file
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:104:      const parsed = parseDeployOpsFile({ raw: await readFile(path.join(packageRoot, "tovu-deploy-ops.json"), "utf8") });
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:107:      const files = Object.fromEntries(await Promise.all(["plugin.json", "tovu-deploy-ops.json", ...descriptors.map(d => d.module)].map(asyn
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:130:      await writeFile(path.join(packageRoot, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id, label: id, hosts:
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:148:    await writeFile(path.join(source, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example-actions", label
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:160:    assert.deepEqual(registry.refusals, ["deploy ops from 'example-pages' were not loaded: only bundled plugins shipping tovu-deploy-ops.jso
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:176:        await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Exa
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:187:      await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Examp
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:200:    await mkdir(path.join(packageRoot, "tovu-deploy-ops.json"), { recursive: true });
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:205:    await writeFile(path.join(invalidRoot, "tovu-deploy-ops.json"), "{}");
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:206:    assert.deepEqual((await loadDeployOpsRegistryFromSource({ pluginId: "broken", packageRoot })).refusals, ["deploy ops from 'broken' were 
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:230:  const railway = bundledContributionSources({ sourceRoot: SHIPPED.root, filename: "tovu-deploy-ops.json" }).find(plugin => plugin.pluginId 
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:35:    await writeFile(path.join(root, "tovu-deploy-ops.json"), "{");
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:36:    assert.deepEqual((await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root })).refusals, ["deploy ops from 'deploy' 
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:37:    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example"
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:61:        await writeFile(path.join(root, "tovu-deploy-ops.json"), raw);
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:64:        assert.deepEqual(registry.refusals, [`deploy ops from 'deploy' were not loaded: tovu-deploy-ops.json is invalid: ${reason}`]);
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:80:        await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Exam
+apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:93:for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot: SHIPPED.root, filename: "tovu-deploy-ops.json" })) {
+apps/website/src/features/deployments/deploy-ops/__tests__/run-ops-contract.test.ts:27:    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "scripted", label: 
+apps/website/src/features/deployments/deploy-ops/__tests__/secrets-adapter-contract.test.ts:22:    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: Object.keys(module
+apps/website/src/features/deployments/deploy-ops/__tests__/secrets.test.ts:212:      await writeFile(path.join(root, "tovu-deploy-ops.json"), manifest(`m/${file}`));
+apps/website/src/features/deployments/deploy-ops/__tests__/typed-secret-card.test.ts:85:    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "plain", label: "P
+apps/website/src/features/deployments/deploy-ops/registry.ts:13:export const DEPLOY_OPS_FILENAME = "tovu-deploy-ops.json";
+apps/website/src/features/deployments/deploy-targets/__tests__/descriptor-fields.unit.test.ts:13: * `tovu-deploy-targets.json`, parsed and validated by the registry.
+apps/website/src/features/deployments/deploy-targets/__tests__/descriptor-fields.unit.test.ts:20:  const files = composedBundledPluginDirs().map(({ dir }) => path.join(dir, "tovu-deploy-targets.json")).filter((file) => e
+apps/website/src/features/deployments/deploy-targets/__tests__/descriptor-fields.unit.test.ts:250:    await writeFile(pathModule.join(root, "tovu-deploy-targets.json"), file([{ ...BASE, module: "targets/ok.mjs" }, { ...B
+apps/website/src/features/deployments/deploy-targets/registry.ts:35:export const DEPLOY_TARGETS_FILENAME = "tovu-deploy-targets.json";
+apps/website/src/features/form-destinations/README.md:4:(`tovu-form-destinations.json` plus a contained `.mjs` module). No vendor is named here; plugins
+apps/website/src/features/form-destinations/__tests__/registry.unit.test.ts:64:    await writeFile(path.join(root, "tovu-form-destinations.json"), file([{ id: "bad", label: "Bad", module: "bad.mjs", receive: "external", 
+apps/website/src/features/form-destinations/__tests__/registry.unit.test.ts:68:    await writeFile(path.join(root, "tovu-form-destinations.json"), file([{ id: "incomplete", label: "Incomplete", module: "incomplete.mjs", 
+apps/website/src/features/form-destinations/index.ts:3: * submissions go, contributed by Agent Plugins (`tovu-form-destinations.json`). See `./types.ts`.
+apps/website/src/features/form-destinations/registry.ts:24:export const FORM_DESTINATIONS_FILENAME = "tovu-form-destinations.json";
+apps/website/src/features/form-destinations/types.ts:2: * @file The form destination contract (`tovu-form-destinations.json`, `./registry.ts`). The types live
+apps/website/src/features/member-login/CONTRACTS.md:7:`providers.ts` reads the shape currently shipped in `@jini-ai/agent-plugins/google-login/tovu-login-providers.json` (Jini `packages/agent-plugins/google-login/`): `{s
+apps/website/src/features/member-login/__tests__/providers.test.ts:70:    await writeFile(path.join(pluginRoot, "tovu-login-providers.json"), file());
+apps/website/src/features/member-login/__tests__/providers.test.ts:84:  await writeFile(path.join(pluginRoot, "tovu-login-providers.json"), file());
+apps/website/src/features/member-login/providers.ts:12:export const LOGIN_PROVIDERS_FILENAME = "tovu-login-providers.json";
+apps/website/src/features/object-storage/__tests__/env-declarations.contract.test.ts:17:    writeFileSync(path.join(dir, "tovu-object-stores.json"), JSON.stringify({ schemaVersion: 1, providers }));
+apps/website/src/features/object-storage/__tests__/env-declarations.contract.test.ts:41:  const file = path.join(sourceRoot, "example-0", "tovu-object-stores.json");
+apps/website/src/features/object-storage/__tests__/index.unit.test.ts:22:  assert.equal(barrel.OBJECT_STORES_FILENAME, "tovu-object-stores.json");
+apps/website/src/features/object-storage/__tests__/registry.unit.test.ts:111:      refusals: ["object_store providers from 'broken' were not loaded: tovu-object-stores.json is invalid: not valid JSON"],
+apps/website/src/features/object-storage/__tests__/registry.unit.test.ts:125:  assert.equal(refusals[0], "object_store providers from 'broken' were not loaded: tovu-object-stores.json is invalid: not valid JSON");
+apps/website/src/features/object-storage/__tests__/registry.unit.test.ts:15: * @file Tovu's object-store provider registry: the `tovu-object-stores.json` manifest parser, the
+apps/website/src/features/object-storage/__tests__/registry.unit.test.ts:196:    "object_store providers from 'a-bad-manifest' were not loaded: tovu-object-stores.json is invalid: not valid JSON",
+apps/website/src/features/object-storage/registry.ts:26:export const OBJECT_STORES_FILENAME = "tovu-object-stores.json";
+apps/website/src/features/publish-trust/__tests__/candidate-declarations.contract.test.ts:18:    const file = path.join(dir, "tovu-deploy-configs.json");
+apps/website/src/features/publish-trust/connect.ts:47: *  plugins (`candidatePaths` in `tovu-deploy-configs.json`); core adds only the neutral `app.json`.
+apps/website/src/features/site-backup/__tests__/import-bundled-packages.integration.test.ts:115:  assert.equal(requireShareSecretFree({ path: file, bytes: pluginFiles.get("agent-plugins/github/package/locales/tovu-source
+apps/website/src/features/site-backup/__tests__/import-bundled-packages.integration.test.ts:21:  ["agent-plugins/github/package/locales/tovu-source-control.json", Buffer.from('{"API token":"Token de API","Access token":"
+apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:119:    { runtime: "themes/site/tovu-credential-schemes.json", archive: "themes/site/tovu-credential-schemes.json", code: "UNSAFE_FILE"
+apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:148:  for (const filename of ["mcp.json", "tovu-credential-schemes.json", "vendor-credentials.json"]) await t.test(filename, { timeout:
+apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:199:  for (const filename of ["mcp.json", "tovu-credential-schemes.json"]) await t.test(filename, { timeout: 120000 }, async t => {
+apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts:183:  const path = `${FORGED_ROOT}/tovu-credential-schemes.json`;
+apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts:219:  const path = "plugins/p/tovu-credential-schemes.json";
+apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts:90:for (const name of ["mcp.json", "tovu-credential-schemes.json", "nested/dir/MCP.json"]) {
+apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:30:  ["tovu-credential-schemes.json", Buffer.from('{"schemes":[]}')],
+apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:31:  ["tovu-deploy-targets.json", Buffer.from('{"targets":[]}')],
+apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:32:  ["tovu-deploy-configs.json", Buffer.from('{"configs":[]}')],
+apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:58:    ["tovu-deploy-targets.json", '{"i18n":{"es":{"API token": "Token de API", "token": "Zq7xK2mP9vR4tL8wN3bY6cH1"}}}'],
+apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:71:    assert.equal(requireShareSecretFree({ path: at("tovu-deploy-targets.json"), bytes: Buffer.from(`{"note": "${secret}"}`) }, { pac
+apps/website/src/features/site-backup/__tests__/sources.unit.test.ts:372:/** What the bundled github plugin declares in tovu-source-control.json. */
+apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts:469:// tovu-source-control.json (reservedPaths), checked once the credential names the host.
+apps/website/src/features/site-backup/share-file-policy.ts:9:const PACKAGE_MANIFEST_NAMES = ["mcp.json", "tovu-credential-schemes.json"];
+apps/website/src/features/source-control/credential-form.ts:3: * `tovu-source-control.json` entry (`./provider-registry.ts`): what a person is asked for on the
+apps/website/src/features/source-control/provider-module.ts:133:/** The host facts a plugin DECLARES in `tovu-source-control.json` (`provider-registry.ts`), carried
+apps/website/src/features/source-control/provider-registry.ts:37:export const SOURCE_CONTROL_PROVIDERS_FILENAME = "tovu-source-control.json";
+apps/website/src/server/__tests__/integration/composition-served-site-dir.integration.test.ts:175:      "tovu-source-control.json": JSON.stringify({ schemaVersion: 1, providers: [{ id: "bound-git", label: "Bound Git", ap
+apps/website/src/server/__tests__/integration/composition-served-site-dir.integration.test.ts:176:      "tovu-deploy-targets.json": JSON.stringify({ schemaVersion: 1, targets: [{ id: "bound-target", label: "Bound Target"
+apps/website/src/server/__tests__/integration/composition-served-site-dir.integration.test.ts:177:      "tovu-deploy-ops.json": JSON.stringify({ schemaVersion: 1, platforms: [{ id: "bound-ops", label: "Bound Ops", module
+apps/website/src/server/__tests__/integration/composition-served-site-dir.integration.test.ts:178:      "tovu-mail-adapters.json": JSON.stringify({ schemaVersion: 1, adapters: [{ id: "bound_mail", label: "Bound Mail", mo
+apps/website/src/server/__tests__/integration/composition-served-site-dir.integration.test.ts:179:      "tovu-credential-schemes.json": JSON.stringify({ schemaVersion: 1, schemes: [{ id: "bound-scheme", prefix: "FixtureV
+apps/website/src/server/__tests__/unit/bundled-agent-plugins-dir-callers.unit.test.ts:46:  writeFileSync(path.join(packageRoot, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: PLATFORM_ID, l
+apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts:26:const raw = readFileSync(new URL(import.meta.resolve('@jini-ai/agent-plugins/resend/tovu-mail-adapters.json')), 'utf8');
+apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts:108:  const contributionTexts = new Map(["tovu-connections.json", "tovu-agent-tools.json", "tovu-admin-surfaces.json", "tovu-form-desti
+apps/website/src/server/runtime/composition/__tests__/fixtures/cost-counters.baseline.json:33:        "tovu-connections.json"
+apps/website/src/server/runtime/composition/__tests__/fixtures/cost-counters.baseline.json:39:        "tovu-connections.json"
+apps/website/src/server/runtime/composition/__tests__/plugin-credential-cards.unit.test.ts:177:    readFile: async ({ filename }) => filename === 'tovu-deploy-targets.json' ? JSON.stringify({ schemaVersion: 1, targets: [
+apps/website/src/server/runtime/composition/__tests__/plugin-credential-cards.unit.test.ts:20:      assert.ok(['plugin.json', 'tovu-deploy-targets.json', 'tovu-source-control.json', 'tovu-mail-adapters.json'].includes(fi
+apps/website/src/server/runtime/composition/__tests__/site-mailer.unit.test.ts:371:  await writeFile(path.join(pluginDir, 'tovu-mail-adapters.json'), JSON.stringify({ schemaVersion: 1, adapters: [{ id: 'firstadapter', la
+apps/website/src/server/runtime/composition/agent-plugin-connections.ts:50: * Budgets a plugin DECLARES on a connection (`budgets` in `tovu-connections.json`) are enforced by
+apps/website/src/server/runtime/composition/plugin-credential-cards.ts:71:    { filename: 'tovu-deploy-targets.json', parse: parseDeployTargetsFile },
+apps/website/src/server/runtime/composition/plugin-credential-cards.ts:72:    { filename: 'tovu-source-control.json', parse: ({ raw }: { raw: string }, _options = {}) => parseSourceControlProvidersFile({ raw }) },
+apps/website/src/server/runtime/composition/plugin-credential-cards.ts:73:    { filename: 'tovu-mail-adapters.json', parse: parseMailAdaptersFile },
+content/agent-plugin-overlays/cloudflare/__tests__/contribution-migration.test.mjs:27:    entry('tovu-deploy-targets.json', JSON.stringify({ schemaVersion: 1, targets: [{ id: 'cloudflare-pages', label: 'Pages', module: '
+content/agent-plugin-overlays/fly/__tests__/bundled-package.test.mjs:285:  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-ops.json")).platforms.map((entry) => entry.id), ["fly"]);
+content/agent-plugin-overlays/fly/__tests__/bundled-package.test.mjs:286:  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-configs.json")).generators.map((entry) => entry.id), ["fly"]);
+content/agent-plugin-overlays/fly/__tests__/bundled-package.test.mjs:290:  assert.ok(packed.files.includes("tovu-credential-schemes.json"));
+content/agent-plugin-overlays/fly/__tests__/bundled-package.test.mjs:291:  assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
+content/agent-plugin-overlays/fly/__tests__/publish-candidates.test.mjs:15:  const declaration = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "tovu-deploy-configs.json"), "utf8")).generators[0];
+content/agent-plugin-overlays/github/__tests__/source-control-credential.test.mjs:17:const raw = readFileSync(path.join(PLUGIN_ROOT, 'tovu-source-control.json'), 'utf8');
+content/agent-plugin-overlays/google-login/__tests__/credential-card.test.mjs:14:const preset = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'tovu-login-providers.json'), 'utf8')).providers[0];
+content/agent-plugin-overlays/google-login/__tests__/login-provider.test.mjs:13:const data = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'tovu-login-providers.json'), 'utf8'));
+content/agent-plugin-overlays/google-login/__tests__/login-provider.test.mjs:37:    sourceRoot: path.dirname(PLUGIN_ROOT), filename: 'tovu-login-providers.json',
+content/agent-plugin-overlays/google-workspace/__tests__/credential-card.test.mjs:15:const connection = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8')).connections[0];
+content/agent-plugin-overlays/google-workspace/__tests__/oauth.contract.test.mjs:4: * (`tovu-connections.json`) and hooks (`lib/auth.mjs`) run inside the real Jini API-connection
+content/agent-plugin-overlays/google-workspace/__tests__/oauth.contract.test.mjs:52:  const file = JSON.parse(await readFile(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8'));
+content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin-harness.mjs:2: * @file Test harness for the Sheets admin tools: boots the plugin's REAL `tovu-agent-tools.json` and
+content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin-harness.mjs:39:  const definition = defineAgentPluginToolContribution({ filename: 'tovu-agent-tools.json' });
+content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin-harness.mjs:40:  const parsed = definition.parse({ raw: await readFile(path.join(PLUGIN_ROOT, 'tovu-agent-tools.json'), 'utf8') });
+content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin-harness.mjs:47:/** The host's `apiOrigins` port, answered from the plugin's own `tovu-connections.json` (what the real host reads). */
+content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin-harness.mjs:49:  const declared = JSON.parse(await readFile(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8'));
+content/agent-plugin-overlays/railway/__tests__/deploy-config.test.mjs:59:  for (const file of ["plugin.json", "mcp.json", "tovu-deploy-configs.json", "deploy-configs/railway.mjs", "skills/railway/SKILL.md", "tovu-deploy
+content/agent-plugin-overlays/railway/__tests__/deploy-config.test.mjs:60:  assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
+content/agent-plugin-overlays/render/__tests__/deploy-config.test.mjs:70:  for (const file of ["plugin.json", "mcp.json", "tovu-deploy-configs.json", "deploy-configs/render.mjs", "skills/render/SKILL.md", "tovu-deploy-op
+content/agent-plugin-overlays/render/__tests__/deploy-config.test.mjs:71:  assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
+content/agent-plugin-overlays/resend/__tests__/resend-mcp.test.mjs:143:  const mail = await readJson("tovu-mail-adapters.json");
+content/agent-plugin-overlays/s3-compatible/__tests__/credential-card.test.mjs:26:  const target = JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'tovu-deploy-targets.json'), 'utf8')).targets.find(entry => entry.id === 's
+content/agent-plugin-overlays/s3-compatible/__tests__/env-declaration.test.mjs:13:const { id, env: declaration } = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "tovu-object-stores.json"), "utf8")).providers[0];
+content/agent-plugin-overlays/vercel/__tests__/blob-share.test.mjs:121:  const manifest = parseObjectStoresFile({ raw: await readFile(path.join(PLUGIN_DIR, "tovu-object-stores.json"), "utf8") });
+content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md:150:  tovu-mail-adapters.json
+content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md:176:`tovu-mail-adapters.json`:
+content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md:35:  `tovu-mail-adapters.json` schemaVersion **2** and a relative `.mjs` module.
+development/e2e/journeys/admin-visual.pins.journey.ts:142:  .map(({ dir }) => path.join(dir, "tovu-deploy-targets.json")).filter(file => existsSync(file))
+development/e2e/support/bug-pin-fixtures.ts:168:      const targets = ["github-pages", "vercel"].map(pluginId => path.join(agentPluginSourceDir({ pluginId }), "tovu-deploy-targets.json")).filter(file => existsSync(file))
+development/scripts/__tests__/compose-bundled-agent-plugins.test.ts:102:  f.write('content/agent-plugins/fly/tovu-deploy-ops.json', JSON.stringify({ schemaVersion: 1, platforms: [{ id: 'fly', module: 'deploy-ops/fly.mjs'
+development/scripts/__tests__/compose-bundled-agent-plugins.test.ts:103:  f.write('content/agent-plugins/how-tovu-works/tovu-admin-surfaces.json', JSON.stringify({ surfaces: [
+development/scripts/__tests__/compose-bundled-agent-plugins.test.ts:114:    'fly/tovu-deploy-ops.json: deploy-ops/fly.mjs',
+development/scripts/__tests__/compose-bundled-agent-plugins.test.ts:115:    'how-tovu-works/tovu-admin-surfaces.json: ../fly/deploy-configs/fly.mjs',
+development/scripts/__tests__/compose-bundled-agent-plugins.test.ts:122:  f.write(`${PACKAGE_DIR}/jev/tovu-agent-tools.json`, JSON.stringify({ tools: [{ module: 'tools/run.mjs' }] }));
+development/scripts/__tests__/compose-bundled-agent-plugins.test.ts:123:  const listPackageFiles = () => [...f.files, 'jev/tovu-agent-tools.json'];
+development/scripts/__tests__/compose-bundled-agent-plugins.test.ts:26:  write('content/agent-plugins/fly/tovu-deploy-configs.json', JSON.stringify({ schemaVersion: 1, generators: [
+development/todos.md:45:13. **Export credential warning is noise (owner 2026-11-03 ~10 PM: "not sure how to fix — Codex plan it"):** every site export says "may contain credentials in 60 files". All 60 are Tovu's OWN b

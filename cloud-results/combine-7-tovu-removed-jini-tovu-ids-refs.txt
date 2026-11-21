@@ -1,0 +1,57 @@
+content/agent-plugin-overlays/fly/__tests__/bundled-package.test.mjs:282:  assert.equal(manifest.extensions.jini.id, "tovu/fly");
+apps/website/src/features/agent-plugins/__tests__/unit/identity.unit.test.ts:12:      readText: async () => JSON.stringify({ name: 'github', extensions: { tovu: { id: 'tovu/github', maturity } } }),
+apps/website/src/features/agent-plugins/__tests__/unit/identity.unit.test.ts:31:    readText: async () => JSON.stringify({ name: 'github', extensions: { tovu: { id: 'tovu/github', providerPlugin: 'ana
+apps/website/src/features/agent-plugins/__tests__/unit/identity.unit.test.ts:44:  const manifest = { name: "github", version: "1.0.0", keywords: ["repository"], extensions: { tovu: { id: "tovu/github"
+apps/website/src/features/agent-plugins/__tests__/unit/identity.unit.test.ts:49:  assert.deepEqual(identity, { id: "tovu/github", keywords: ["repository"], provides: ["source-control"], warnings: [] }
+apps/website/src/features/agent-plugins/__tests__/unit/identity.unit.test.ts:77:  await writeFile(path.join(root, "plugin.json"), JSON.stringify({ name: "github", extensions: { tovu: { id: "tovu/githu
+apps/website/src/features/agent-plugins/__tests__/unit/identity.unit.test.ts:79:  assert.equal(identity.id, "tovu/github");
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:40:const manifest = { name: 'github', keywords: ['repository'], extensions: { tovu: { id: 'tovu/github', provides:
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:68:  assert.deepEqual(await ctx.host.getPlugin({ id: 'tovu/github' }), { id: 'tovu/github', version: '1.2.3', enab
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:72:  assert.deepEqual((await ctx.host.findProviders({ capability: 'source-control' }, { enabledOnly: true })).map(
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:74:  assert.equal(await ctx.host.getPlugin({ id: 'tovu/github' }), null);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:91:  assert.equal((await sdk.plugins.getPlugin({ id: 'tovu/github' }))?.enabled, false);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:93:  assert.equal((await sdk.plugins.getPlugin({ id: 'tovu/github' }))?.enabled, true);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:103:  assert.equal(await host.getPlugin({ id: 'tovu/github' }), null);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:120:  await assert.rejects(ctx.host.withInstallIdentity({ candidate: { id: 'tovu/github', localId: 'bridge', famil
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:248:    assert.equal(await host.getPlugin({ id: 'tovu/github' }), null);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:251:    await assert.rejects(host.withInstallIdentity({ candidate: { id: 'tovu/github', localId: 'alias', family: 
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:261:    readAgentManifest: async ({ plugin: revision }) => ({ ...manifest, extensions: { tovu: { id: revision.arch
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:264:  assert.equal(await host.getPlugin({ id: 'tovu/github' }), null);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:266:  for (const id of ['vendor/github', 'tovu/github']) {
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:272:  assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.version, '1.2.3');
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:283:  assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.version, '1.2.3');
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:295:  assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.localId, 'github');
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:403:  assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.enabled, true);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:405:  assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.enabled, false);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:407:  assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.enabled, true);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:426:  assert.equal(await host.getPlugin({ id: 'tovu/github' }), null);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:429:  assert.equal(await host.getPlugin({ id: 'tovu/github' }), null);
+apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts:436:  for (const id of ['vendor/github', 'tovu/github']) {
+apps/website/src/features/member-login/__tests__/providers.test.ts:69:    await writeFile(path.join(pluginRoot, "plugin.json"), JSON.stringify({ extensions: { [namespace]: { id: "tovu/google-login" } 
+apps/website/src/features/member-login/__tests__/providers.test.ts:83:  await writeFile(path.join(pluginRoot, "plugin.json"), JSON.stringify({ extensions: { jini: { id: "another/google-login" }, tovu:
+content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:19:const config = { type: 'plugin', plugin: 'tovu/google-login', component: 'sign-in-button', version: 1, props: { variant: 'light
+content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:23:  const owner = { ...parsed.manifest, id: 'tovu/google-login', enabled,
+content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs:69:  assert.equal(configured.get('google-login')[0].plugin, 'tovu/google-login');
+content/agent-plugin-overlays/google-login/__tests__/login-provider.test.mjs:31:  assert.equal(manifest.extensions.jini.id, 'tovu/google-login');
+content/agent-plugin-overlays/railway/__tests__/deploy-config.test.mjs:51:  assert.equal(manifest.extensions.jini.id, "tovu/railway");
+apps/website/src/features/deployments/__tests__/deploy-config-host-notes.unit.test.ts:28:  for (const pluginId of ["render", "tovu/render"]) {
+content/agent-plugin-overlays/render/__tests__/deploy-config.test.mjs:62:  assert.equal(manifest.extensions.jini.id, "tovu/render");
+content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md:162:{"extensions":{"tovu":{"id":"tovu/resend","provides":["outbound-mail"],
+apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts:175:    await installReal("site-compliance", "seed-set-enabled-a", { 
+apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts:185:    assert.equal(body.agentPlugin.id, "tovu/site-compliance");
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts:100:      "TOVU_SUPABASE_MCP_PACKAGE",
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts:101:      "TOVU_SUPABASE_MCP_CONNECT_TIMEOUT_MS",
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts:102:      "TOVU_SUPABASE_MCP_CALL_TIMEOUT_MS",
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts:103:      "TOVU_SUPABASE_MCP_MAX_RESULT_BYTES",
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts:96:      "TOVU_SUPABASE_MCP_ENABLED",
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts:97:      "TOVU_SUPABASE_MCP_PROJECT_REF",
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts:98:      "TOVU_SUPABASE_MCP_ALLOWED_TOOLS",
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts:99:      "TOVU_SUPABASE_MCP_FEATURES",
+apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts:284:  await importAgentPluginAccessTokensFromEnv({ deps, env: { TOVU_SUPABASE_MCP_
+apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts:286:  assert.match(logs.info[0] ?? "", /TOVU_SUPABASE_MCP_ENABLED is no longer use
+apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts:287:  assert.ok(!(logs.info[0] ?? "").includes("TOVU_SUPABASE_MCP_PROJECT_REF"));
+apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts:440:  await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN, 
+apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts:444:  assert.match(logs.info[0] ?? "", /TOVU_SUPABASE_MCP_ENABLED is no longer use
+apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts:48:const RETIRED = ["TOVU_SUPABASE_MCP_ENABLED", "TOVU_SUPABASE_MCP_PROJECT_REF"];
+content/agent-plugin-overlays/cloudflare/GUIDANCE.md:28:(`schema_migrations`), binds it as `TOVU_FORMS`, installs the per-site receiver key as secret
+content/agent-plugin-overlays/cloudflare/GUIDANCE.md:29:`TOVU_FORMS_SECRET`, and routes `/forms/*` and `/_tovu/*` to the Worker before static assets. The

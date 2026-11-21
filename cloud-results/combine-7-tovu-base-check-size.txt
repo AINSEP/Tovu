@@ -1,0 +1,12 @@
+
+> tovu@0.1.0 check:size
+> node --import tsx development/scripts/check-size-drift.ts
+
+Accepted exception: apps/admin/src/features/consent/consent-dictionary.ts:509 <file> [max-lines] 1937 — Data table: literal copy rows, no logic.
+Accepted exception: apps/website/src/features/post/tool-registrations.ts:225 buildPostRegistrations#1.content_post_update#1 [max-lines-per-function] 89 — Registration list: tool wiring entries.
+Accepted exception: apps/website/src/features/post/tool-registrations.ts:227 buildPostRegistrations#1.content_post_update#1.fn#1 [max-lines-per-function] 86 — Registration list: tool wiring entries (inner handler of content_post_update).
+Accepted exception: apps/website/src/platform/db/schema.postgres.ts:551 <file> [max-lines] 1149 — Generated from schema.sqlite.ts by generate-postgres-schema.ts; CI drift-checks it.
+Accepted exception: apps/website/src/platform/db/schema.sqlite.ts:914 <file> [max-lines] 1376 — DB schema declaration, one line per column; splitting it scatters one table set.
+Accepted exception: apps/website/src/server/runtime/composition/peer-site-reads.ts:203 composePeer#1 [max-lines-per-function] 89 — Registration list: peer-site read wiring.
+Accepted exception: packages/contracts/src/credential-copy.ts:543 <file> [max-lines] 552 — Data table: literal copy rows, no logic.
+check:size — ok: 78 violations (55 functions, 23 files); 71 debt entries, 7 accepted exceptions.
