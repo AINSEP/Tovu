@@ -1,0 +1,208 @@
+name: Full suites
+
+on:
+  schedule: [{ cron: '43 4 * * 3,6' }]
+  workflow_dispatch: {}
+
+permissions: { contents: read }
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-suites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # BLOCKER 1 fix (see ADS-memory/reports/external-audit/runs/2026-08-12-five-auditor-postgres-manifest-audit.md):
+    # src/platform/db/__tests__/migration-manifest-postgres.test.ts proves Postgres semantics against a real
+    # server via src/platform/db/migration/pg-fixture.ts (`psql` shell-out — see that file's header for why).
+    # It is deliberately fail-closed, not skip-if-absent: an auditor stripped `psql` from PATH and
+    # confirmed 5/5 tests fail, 0 skip. That means a Postgres server MUST exist wherever `npm test`
+    # runs, or CI fails for the right reason but every PR is red. This service container is that
+    # server — GitHub-hosted `ubuntu-latest` runners are ephemeral (fresh container per job), so there
+    # is no persistent/shared database `recreateDatabase()`'s `DROP DATABASE IF EXISTS` could ever
+    # collide with. That ephemerality guarantee does NOT extend to self-hosted, non-ephemeral runners;
+    # if this workflow is ever moved to one, concurrent runs sharing one long-lived Postgres could drop
+    # each other's fixture database and this section needs revisiting.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        # GitHub Actions blocks job steps from starting until this health check passes, so the "Test"
+        # step below never races an unready server. Syntax matches GitHub's documented example
+        # verbatim (docs.github.com → Creating PostgreSQL service containers).
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/admin/package-lock.json
+            apps/site-chat/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Build packages/sdk (workspace prerequisite for typecheck)
+        run: npm run build --workspace=packages/sdk
+
+      - name: Install admin dependencies
+        run: npm ci --prefix apps/admin
+
+      - name: Hardwiring audit guards (exact occurrence debt ratchet)
+        id: gate-hardwiring
+        continue-on-error: true
+        # The public-site graph needs its own browser dependencies, not just root dependencies.
+        run: |
+          npm ci --prefix apps/site-chat
+          node development/scripts/check-hardwiring.mjs
+
+      - name: Dependency audit (root)
+        run: npm audit --package-lock-only
+        continue-on-error: true
+
+      - name: Dependency audit (admin)
+        working-directory: apps/admin
+        run: npm audit --package-lock-only
+        continue-on-error: true
+
+      - name: Dependency audit (site chat)
+        working-directory: apps/site-chat
+        run: npm audit --package-lock-only
+        continue-on-error: true
+
+      - name: Install headless Chromium for the layout tests
+        run: npx --no-install playwright install --with-deps --only-shell chromium
+
+      - name: Create commerce test database
+        run: psql postgresql://postgres:postgres@localhost:5432/postgres -c 'CREATE DATABASE commerce_test'
+
+      - name: Test
+        # PGHOST/PGPORT/PGUSER/PGPASSWORD are libpq's standard env var names; src/platform/db/migration/pg-fixture.ts
+        # reads the first three (PGPASSWORD flows to `psql` automatically via inherited process env) and
+        # falls back to the `/tmp` socket + role `la` used by local development when they're unset. Setting
+        # them only on this step, pointed at the `postgres` service container above, is what turns BLOCKER 1
+        # from "fails for the right reason with no way to pass" into an actual test run.
+        #
+        # continue-on-error, DELIBERATELY and NOT quietly: measured 2026-08-16 at 82 pre-existing
+        # failures out of 4991 tests (`npm run test:cov`, full src/**+packages/*), independently
+        # corroborated by the session's Coordinator as pre-existing debt, not new regressions. This
+        # is the FIRST time this workflow has ever run against general-work (see this file's header),
+        # so there is no baseline yet to ratchet against for this repo-wide scope, and building one
+        # spans other agents' domains (Jini packages, apps/admin-adjacent server code) this task was
+        # not scoped to own -- see `route-coverage`'s own Test step below for the narrower scope
+        # (src/server/**) that DOES get a real ratchet, because that scope already belongs to this
+        # task. This step's own failures are therefore informational only; nothing after it is
+        # gated on it succeeding.
+        id: test
+        continue-on-error: true
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        # TEST_CONCURRENCY (2026-08-19): caps node's test-runner worker fan-out on this
+        # runner. Default is os.availableParallelism()-1; each worker is a full process, and
+        # liquid-sandbox.test.ts additionally spawns its OWN heap-limited Worker on purpose (it
+        # proves the render sandbox's V8 resourceLimits actually fire). On a constrained
+        # GitHub runner the sum overshoots available RAM and the kernel kills a SIBLING worker
+        # with ERR_WORKER_OUT_OF_MEMORY. A file that dies that way is reported by node as one
+        # top-level `not ok N - <file path>`, which check:route-test-baseline can never match
+        # against its test-DESCRIPTION-keyed baseline -- so it always prints as a NEW failure and
+        # reds the gate for a codebase that is not broken. Diagnosed on runs 32091498514 /
+        # 32093877745 (see check-test-baseline.ts "Known limitation: CI-runner file-level
+        # crashes") and reproduced again on 32284065315, where all 8 file-path-shaped entries
+        # passed clean when re-run individually. Set here rather than in the scripts so local
+        # runs keep full parallelism -- the npm scripts add the flag only when this var is set.
+          TEST_CONCURRENCY: 2
+          COMMERCE_PG_URL: postgresql://postgres:postgres@localhost:5432/commerce_test
+        # `test:ci`, not `test`: identical suite and globs, but adds a TAP reporter writing
+        # development/coverage/test-results-all.tap alongside the usual stdout output. That file is
+        # what the report step below reads. `npm test` is left untouched for local use.
+        run: npm run test:ci
+
+      # VISIBILITY STEP, not a gate (2026-08-19). The step above has been `continue-on-error` since
+      # this workflow was written, on a measured 82 pre-existing repo-wide failures with no baseline
+      # to ratchet against -- so for weeks it burned ~13 minutes per run producing a number nobody
+      # read and nothing depended on. This step turns that into an actual artifact: the exact list
+      # of failing tests, in the precise JSON shape `development/scripts/repo-test-failure-baseline.json`
+      # expects, ready to be copied into that file.
+      #
+      # It is deliberately NOT blocking yet, and neither is the step above. The plan, in order:
+      #   1. (this commit) print the real list from a real CI run -- the environment that actually
+      #      matters, and the one place the full suite can run without eating a laptop's RAM.
+      #   2. commit that list as repo-test-failure-baseline.json.
+      #   3. add `npm run check:test-baseline` as a REAL gate alongside the others. From then on any
+      #      NEW repo-wide failure fails the build, while the known debt is tolerated AND visible.
+      # Step 3 is what makes this a gate; until the baseline exists there is nothing to ratchet
+      # against, and a gate with no baseline is just a red build.
+      - name: Repo-wide test failure report (informational)
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ ! -f development/coverage/test-results-all.tap ]; then
+            echo "No TAP output — the Test step did not get far enough to produce one."
+            exit 0
+          fi
+          npx tsx development/scripts/check-test-baseline.ts \
+            --capture /tmp/repo-test-failure-baseline.json \
+            development/coverage/test-results-all.tap
+          echo ""
+          echo "===== COPY THE BLOCK BELOW INTO development/scripts/repo-test-failure-baseline.json ====="
+          cat /tmp/repo-test-failure-baseline.json
+          echo "===== END ====="
+
+      - name: Test admin
+        id: gate-admin-test
+        continue-on-error: true
+        run: npm --prefix apps/admin test -- --maxWorkers=2 --minWorkers=1
+
+      - name: Lint
+        # No lint tool existed in this repo before this workflow. Added Biome (single
+        # dependency-light binary, off-the-shelf "recommended" preset — not a bespoke ruleset)
+        # covering src/**/*.ts and apps/admin/src/**/*.{ts,tsx}. A first-time lint pass over this
+        # previously-unlinted codebase surfaces ~130 pre-existing findings (mostly
+        # lint/style/noNonNullAssertion and lint/a11y/useButtonType) that are out of scope to
+        # mass-fix here, especially with other work concurrently in flight across the tree.
+        # Non-blocking for now, same posture as check:boundaries/check:inventory above, until a
+        # follow-up task triages the existing findings and this can flip to blocking.
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build admin
+        id: gate-admin-build
+        continue-on-error: true
+        run: npm run admin:build
+
+      - name: Knip unused code report (informational)
+        # Report-only rollout: intentionally absent from the gate summary.
+        continue-on-error: true
+        run: npm run quality:knip
+
+      - name: SonarJS rule counts (informational, no Docker)
+        # Report-only: deliberately excluded from the blocking gate summary.
+        continue-on-error: true
+        run: npm run quality:sonar
+
+      - name: Gate summary (full suites)
+        if: always()
+        run: |
+          test "${{ steps.test.outcome }}" = success
+          test "${{ steps.gate-admin-test.outcome }}" = success
+          test "${{ steps.gate-admin-build.outcome }}" = success

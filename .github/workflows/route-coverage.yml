@@ -1,0 +1,167 @@
+name: Route coverage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/website/src/server/**"
+      - "development/scripts/**"
+      - "package.json"
+      - "package-lock.json"
+  pull_request:
+    branches: [main, general-work]
+    paths:
+      - "apps/website/src/server/**"
+      - "development/scripts/**"
+      - "package.json"
+      - "package-lock.json"
+
+permissions: { contents: read }
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  route-coverage:
+    # Deliberately a SEPARATE job, not a step tacked onto build-and-test above, so it runs in
+    # parallel and this repo's wall-clock CI time is max(build-and-test, route-coverage) rather
+    # than their sum. `npm run test:cov` (full src/** + packages/*, 4991 tests) was measured at
+    # 18.5 minutes on 2026-08-16 -- unacceptable to add to the critical path of every push. This
+    # job instead runs `test:cov:server`, scoped to src/server/**/*.test.ts only (the audit's own
+    # measurement command, ~7 minutes): every test that can exercise src/server/routes/** lives
+    # under src/server/**, so the two gates below lose no real signal from the narrower scope, and
+    # none of those tests need the Postgres service container build-and-test uses (verified: no
+    # src/server test references psql/pg-fixture/PGHOST) so this job skips that setup entirely.
+    #
+    # 2026-08-18: the "Route tests + coverage (tiered ...)" step below runs the same src/server
+    # suite two MORE times (split unit-only / integration-only, for the two-tier diff gate) on top
+    # of the combined run above (kept for the floor gate) -- accepted extra wall-clock cost for this
+    # job specifically, per this task's own scoping ("the floor gate is not the target of this
+    # redesign, use judgment, simplest is leaving it on the old combined lcov.info"); the
+    # integration-only run is small (12 files), the unit-only run is close to the combined run's own
+    # length since most tests are unit. If this job's wall-clock time becomes the bottleneck later,
+    # the fix is a real lcov merge (summing hit counts per line/branch across the two partial runs)
+    # so the floor gate can read `test:cov:server:tiered`'s output instead of a third full run --
+    # not attempted here since it needs the `lcov` CLI (or equivalent merge logic), not just Node.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, not the default shallow clone: check-route-coverage-diff.ts needs a real
+          # `git merge-base` against the PR's base branch to know which route files changed. A
+          # shallow clone would make that resolution fail outright (the gate exits non-zero rather
+          # than silently passing -- see check-route-coverage-diff.ts's own error message).
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        # @jini-ai/* deps resolve straight from the npm registry (see this file's header,
+        # `daa74a65`) -- no sibling Jini checkout, no pnpm, no build step needed first.
+        run: npm ci
+
+      - name: Route tests + coverage (src/server-scoped)
+        # Writes development/coverage/lcov.info AND development/coverage/test-results.tap in the
+        # same run (three simultaneous --test-reporter pairs -- see test:cov:server's own command).
+        #
+        # continue-on-error, DELIBERATELY and NOT quietly, same reasoning as build-and-test's Test
+        # step: this is the first time this workflow has ever run against general-work (see this
+        # file's header), so `npm run test:cov:server` is red on arrival -- 28 pre-existing failures
+        # under src/server/**, independently verified by the session's Coordinator against an
+        # isolated worktree at session start (byte-identical failing test names, zero new). UNLIKE
+        # build-and-test's Test step, this one IS backed by a real ratchet below (this scope already
+        # belongs to this task) -- the three steps after this one are the actual gates; this step
+        # existing only to produce their input files.
+        id: route-tests
+        continue-on-error: true
+        env:
+          TEST_CONCURRENCY: 2
+        run: npm run test:cov:server
+
+      - name: Route tests + coverage (tiered -- unit vs integration)
+        # 2026-08-18 two-tier redesign: `test:cov:server` above writes ONE combined lcov.info, which
+        # cannot tell a route file's unit branch coverage apart from its integration branch coverage
+        # -- exactly the gap that let a pure import-redirect push trip the old single-80%-number diff
+        # gate on pre-existing debt it couldn't see the shape of (see check-route-coverage-diff.ts's
+        # header, "Two-tier redesign"). This step runs the src/server test suite TWICE more, split by
+        # `route-coverage-lib.ts`'s `isIntegrationTestFile` convention, writing
+        # development/coverage/lcov.unit.info and lcov.integration.info -- inputs the diff gate below
+        # now reads instead of the combined file. Does NOT touch development/coverage/lcov.info or
+        # test-results.tap (the floor gate and test-failure-baseline step below still read those,
+        # produced by the step above) -- test:cov:server:unit/integration deliberately `rm -f` only
+        # their own output file, not the whole development/coverage/ directory.
+        #
+        # continue-on-error, same reasoning as the step above: the real gates are the explicit checks
+        # after this one, and this step exists only to produce their input files.
+        id: route-tests-tiered
+        continue-on-error: true
+        env:
+          TEST_CONCURRENCY: 2
+        run: npm run test:cov:server:tiered
+
+      - name: Check route coverage floor
+        # src/server/routes/** aggregate must not backslide below the 2026-08-16 baseline (minus
+        # margin) — see development/scripts/check-route-coverage-floor.ts's header for the exact
+        # thresholds and where they came from. Unchanged by the 2026-08-18 two-tier redesign below —
+        # still reads the combined development/coverage/lcov.info from the step above.
+        id: gate-coverage-floor
+        continue-on-error: true
+        run: npm run check:route-coverage-floor
+
+      - name: Check route coverage diff
+        # Every new/modified route file must individually clear BOTH: unit branch coverage >= 99%
+        # AND integration branch coverage >= 95% (2026-08-18 two-tier redesign, replacing the
+        # original single 80%-branch bar — see development/scripts/check-route-coverage-diff.ts's
+        # header, "Two-tier redesign", for why one combined number wasn't enough). Reads
+        # development/coverage/lcov.unit.info and lcov.integration.info, written by the tiered step
+        # above. GITHUB_BASE_REF is set automatically on pull_request events. GITHUB_EVENT_BEFORE
+        # (2026-08-17 fix) covers push events on any branch, diffing against the SHA this push
+        # started from rather than a long-diverged `origin/main` — without it, the first real run on
+        # `general-work` (a branch weeks ahead of `main`) flagged dozens of longstanding files as
+        # "changed", not this push's own diff. See the script's own header for the full incident.
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        id: gate-coverage-diff
+        continue-on-error: true
+        run: npm run check:route-coverage-diff
+
+      - name: Check route test-failure baseline
+        # THE real gate for the "test step is red" problem in this job's scope: fails on any NEW
+        # failing test under src/server/** not already in development/scripts/route-test-failure-baseline.json
+        # (the 28 known-pre-existing ones), tolerates those. See check-test-baseline.ts's own header
+        # for the full reasoning, the ratchet precedent it mirrors (check:admin-complexity-drift,
+        # Jini's guard:drift), and its one known limitation (test names, not fully-qualified
+        # per-file identities).
+        id: gate-test-baseline
+        continue-on-error: true
+        run: npm run check:route-test-baseline
+
+      # See the identically-purposed step at the end of `build-and-test` for why this exists.
+      - name: Gate summary (route-coverage)
+        if: always()
+        run: |
+          fail=0
+          skipped=0
+          check () { # SKIP vs FAIL distinction: see build-and-test's summary step for why.
+            case "$1" in
+              success) printf '  PASS  %s\n' "$2" ;;
+              skipped) printf '  SKIP  %s  (did not run — an earlier step halted the job)\n' "$2"; skipped=1; fail=1 ;;
+              *)       printf '  FAIL  %s\n' "$2"; fail=1 ;;
+            esac
+          }
+          echo "--- route-coverage gates ---"
+          check "${{ steps.gate-coverage-floor.outcome }}"  "check:route-coverage-floor"
+          check "${{ steps.gate-coverage-diff.outcome }}"   "check:route-coverage-diff"
+          check "${{ steps.gate-test-baseline.outcome }}"   "check:route-test-baseline"
+          echo "---"
+          if [ "$fail" -ne 0 ]; then
+            echo "One or more gates failed. Scroll up: EVERY failing gate above has its own full log," >&2
+            echo "so this run reports all of them at once rather than only the first." >&2
+            exit 1
+          fi
+          echo "All route-coverage gates passed."

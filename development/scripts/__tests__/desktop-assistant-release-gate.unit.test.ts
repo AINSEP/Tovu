@@ -27,6 +27,19 @@ test('manual dispatch from main with a desktop tag runs the gate and every relea
   }
 });
 
+test('manual dry-run dispatch keeps unsigned checks and excludes signing, Store and draft release jobs', () => {
+  const input = workflow.on.workflow_dispatch.inputs.dry_run;
+  assert.equal(input.type, 'boolean', 'the rehearsal input must be Boolean');
+  assert.equal(input.default, false, 'manual releases must default to the existing release behavior');
+  for (const job of ['assistant-gate', 'gates']) {
+    assert.match(workflow.jobs[job].if, /github.event_name == 'workflow_dispatch' && startsWith\(inputs.tag, 'desktop-v'\)/, 'a valid supplied desktop tag must keep unsigned checks eligible');
+    assert.doesNotMatch(workflow.jobs[job].if, /inputs\.dry_run/, 'unsigned checks must remain eligible during rehearsal');
+  }
+  for (const job of ['build', 'store-identity', 'win-x64-store', 'release']) {
+    assert.match(workflow.jobs[job].if, /^\$\{\{ !inputs\.dry_run && \(.+\) \}\}$/, 'rehearsal must exclude the entire signing, Store or release condition');
+  }
+});
+
 test('the autonomous release chain stops at a draft without adding a prerelease or Latest promotion gate', () => {
   const commands = workflow.jobs.release.steps.map((step: any) => step.run ?? '').join('\n');
   assert.match(commands, /gh release create .*--draft/);
