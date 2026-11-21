@@ -286,7 +286,7 @@ function failIfShellIsIncomplete(repoRoot: string, shell: ShellEntry, { fs }: St
   const missing = (shell.requiredFiles ?? []).find((name) => !fs.existsSync(path.join(dir, name)));
   if (missing === undefined) return;
   const consequence = shell.missingMeans ? `, so ${shell.missingMeans}` : "";
-  fail(`the built shell at ${dir} is incomplete: ${missing} is missing${consequence}. Run \`${shell.buildWith}\` at ${repoRoot} first.`);
+  fail({ message: `the built shell at ${dir} is incomplete: ${missing} is missing${consequence}. Run \`${shell.buildWith}\` at ${repoRoot} first.` });
 }
 
 /** Every check that must pass before anything under `staging/` is touched. */
