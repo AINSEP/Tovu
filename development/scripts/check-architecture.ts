@@ -208,7 +208,7 @@ interface Baseline {
   backEdgesIntoServerRuntimeOnly: number;
   /** NOW computed on the runtime/value-only graph (2026-08-17, Sol's step 5) — a mutual cycle or
    * SCC membership here is a real `require`/ESM-load risk. Type-only cycles (common through
-   * `RouteDeps` and similar shared signature types) no longer count; see `isTypeOnlyDependency()`. */
+   * `RouteDeps` and similar shared signature types) no longer count. */
   moduleCycles: { mutualCycleCount: number; largestScc: number; pairs: string[] };
   /** RATCHETED. Distinct private files reachable from outside their own module — the actual public
    * API surface, and precisely what a package `exports` map would have to enumerate. All-import
@@ -335,20 +335,7 @@ function stronglyConnectedComponents(adjacency: Map<string, Set<string>>): strin
 
 interface CruiseModule {
   source: string;
-  dependencies: { resolved: string; dependencyTypes: string[] }[];
-}
-
-/** True for an edge that is ONLY an `import type { X } from "..."` or `import("...").X`
- * type query — erased by `tsc`, never
- * emitted into the built JS, and therefore incapable of participating in a real runtime
- * require/import cycle. dependency-cruiser's `--ts-pre-compilation-deps` tags these in
- * `dependencyTypes` (confirmed empirically: `npx depcruise <file> --ts-pre-compilation-deps
- * --output-type json` on a known `import type`-only edge returns
- * `dependencyTypes: ["local", "type-only", "import"]`). A mixed import
- * (`import { foo, type Bar } from "./x"`) carries a real value too, so it is NOT type-only here.
- * Inline type queries carry `type-import` instead of `type-only`; both must be excluded. */
-function isTypeOnlyDependency(dep: { dependencyTypes: string[] }): boolean {
-  return dep.dependencyTypes.includes("type-only") || dep.dependencyTypes.includes("type-import");
+  dependencies: { resolved: string }[];
 }
 
 /** `src/index.ts` (the package entrypoint) and everything under `src/cli/**` are callers OF the
@@ -366,14 +353,14 @@ function isOuterCompositionCaller(file: string): boolean {
  * ERR_PACKAGE_PATH_NOT_EXPORTED. Shelling out to its CLI is the same path `check:boundaries` already
  * uses and keeps this script independent of the library's module format.
  */
-function cruise(): CruiseModule[] {
+function cruise({ runtimeOnly }: { runtimeOnly: boolean }): CruiseModule[] {
   const raw = execFileSync(
     "npx",
     [
       "depcruise",
       SRC_ROOT,
       "--no-config",
-      "--ts-pre-compilation-deps",
+      ...(runtimeOnly ? [] : ["--ts-pre-compilation-deps"]),
       "--ts-config",
       "tsconfig.json",
       "--do-not-follow",
@@ -387,22 +374,7 @@ function cruise(): CruiseModule[] {
 }
 
 /**
- * File-level import graph, filtered per `--include-tests`. TWO of these are built from the SAME
- * `cruise()` result — one cruise, two graphs, so the metrics can never disagree about what the
- * codebase looks like even though they now answer two different questions (Sol's step 5):
- *
- *   - `{ runtimeOnly: false }` (all-import): every edge, including `import type`-only ones. This
- *     is the CHANGE-COUPLING graph — propagation cost and bidirectional hub count use it, because
- *     a type-only
- *     edit still forces `tsc` to re-check every importing file, and API surface / deep-import
- *     hygiene are about what a module's contract exposes regardless of whether a caller uses it
- *     for a type or a value.
- *   - `{ runtimeOnly: true }` (runtime/value-only): `import type`-only edges dropped. This is the
- *     CIRCULAR-LOAD-RISK graph — module cycles / SCC use it, because a type-only edge is erased by
- *     `tsc` and can never participate in a real `require`/ESM-load cycle. Mixing the two into one
- *     graph (the pre-2026-08-17 shape of this function) is why `RouteDeps`-style type-only imports
- *     (e.g. `features/deployments/tool-registrations.ts` importing `RouteDeps` for a signature)
- *     inflated the same SCC number as a genuine runtime coupling.
+ * File-level import graph, filtered per `--include-tests`; runtime metrics use emitted imports.
  *
  * Scoped to `src/**` on both ends. `--ts-pre-compilation-deps` makes dependency-cruiser resolve
  * and record *every* file it walks into as its own "module" entry, including ones outside this
@@ -417,7 +389,7 @@ function cruise(): CruiseModule[] {
  * them. Module-scoped metrics (cycles, deep imports, instability) were unaffected: they already
  * gate on `moduleOf()`, which returns `null` for anything outside `src/`.
  */
-function buildFileGraph(modules: CruiseModule[], opts: { runtimeOnly: boolean }): Map<string, Set<string>> {
+function buildFileGraph(modules: CruiseModule[]): Map<string, Set<string>> {
   const inScope = (file: string): boolean => file.startsWith(`${SRC_ROOT}/`);
   const isGraphFile = ({ file }: { file: string }, _options = {}): boolean =>
     inScope(file) && (INCLUDE_TESTS || !isTestFile(file));
@@ -426,7 +398,6 @@ function buildFileGraph(modules: CruiseModule[], opts: { runtimeOnly: boolean })
     for (const dep of mod.dependencies) {
       if (!isGraphFile({ file: dep.resolved })) continue;
       if (dep.resolved === mod.source) continue;
-      if (opts.runtimeOnly && isTypeOnlyDependency(dep)) continue;
       forward.get(mod.source)!.add(dep.resolved);
       if (!forward.has(dep.resolved)) forward.set(dep.resolved, new Set());
     }
@@ -924,10 +895,8 @@ function reportVerdict({ blockingRegressed, blockingCyclesRegressed, newFeatureE
 }
 
 function measureFileGraphs({}: Record<string, never>) {
-  const modules = cruise();
-  // One cruise, two graphs — see `buildFileGraph()`'s own doc comment for what each is for.
-  const forwardAll = buildFileGraph(modules, { runtimeOnly: false });
-  const forwardRuntime = buildFileGraph(modules, { runtimeOnly: true });
+  const forwardAll = buildFileGraph(cruise({ runtimeOnly: false }));
+  const forwardRuntime = buildFileGraph(cruise({ runtimeOnly: true }));
   const fileCount = forwardAll.size;
 
   const {

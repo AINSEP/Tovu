@@ -10,11 +10,17 @@ const SCRIPT = "development/scripts/check-architecture.ts";
 
 // Run the real CLI and installed dependency-cruiser on two fixture modules: a value edge from
 // server to feature, and a configurable return edge. No exports or alternate graph owner needed.
-for (const { name, feature, runtimeEdges } of [
+for (const { name, feature, runtimeEdges, verbatimModuleSyntax } of [
   {
     name: "type-only import",
     feature: 'import type { App } from "../../server/runtime/composition/app.js"; export type Shape = App;',
     runtimeEdges: 0,
+  },
+  {
+    name: "inline named type import with verbatim module syntax",
+    feature: 'import { type App } from "../../server/runtime/composition/app.js"; export type Shape = App;',
+    runtimeEdges: 1,
+    verbatimModuleSyntax: true,
   },
   {
     name: "inline type-import query",
@@ -41,7 +47,7 @@ for (const { name, feature, runtimeEdges } of [
     fs.symlinkSync(path.join(REPO_ROOT, "node_modules"), path.join(scratch, "node_modules"), "dir");
     fs.writeFileSync(path.join(scratch, "package.json"), '{"type":"module"}');
     const tsConfig = path.join(scratch, "tsconfig.json");
-    fs.writeFileSync(tsConfig, '{"compilerOptions":{"module":"NodeNext","moduleResolution":"NodeNext"}}');
+    fs.writeFileSync(tsConfig, JSON.stringify({ compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext", verbatimModuleSyntax } }));
     const featurePath = path.join(scratch, "apps/website/src/features/sample/value.ts");
     const serverPath = path.join(scratch, "apps/website/src/server/runtime/composition/app.ts");
     fs.mkdirSync(path.dirname(featurePath), { recursive: true });
@@ -64,9 +70,9 @@ for (const { name, feature, runtimeEdges } of [
     const metrics = JSON.parse(fs.readFileSync(path.join(path.dirname(script), "check-architecture.baseline.json"), "utf8"));
     assert.equal(metrics.meta.fileCount, 3, "the fixture must resolve the source files and known neighbor");
     assert.equal(metrics.backEdgesIntoServer, 1, "type edges remain in the all-import graph");
-    assert.equal(metrics.backEdgesIntoServerRuntimeOnly, runtimeEdges);
-    assert.equal(metrics.moduleCycles.mutualCycleCount, runtimeEdges);
-    assert.equal(metrics.moduleCycles.largestScc, runtimeEdges * 2);
+    assert.equal(metrics.backEdgesIntoServerRuntimeOnly, runtimeEdges, `${name}: runtime back-edges must follow emitted imports`);
+    assert.equal(metrics.moduleCycles.mutualCycleCount, runtimeEdges, `${name}: mutual cycles must follow emitted imports`);
+    assert.equal(metrics.moduleCycles.largestScc, runtimeEdges * 2, `${name}: the emitted cycle must contain both modules`);
     assert.match(output, /back-edges into src\/server\/\*\*, by target file \(all-import\)/);
     assert.match(output, /1 → apps\/website\/src\/server\/runtime\/composition\/app\.ts/);
     assert.deepEqual(metrics.crossFeatureEdges, []);

@@ -1,6 +1,6 @@
 import { SiteBackupPlanStore, type SiteBackupPlan as JiniSiteBackupPlan } from "@jini-ai/devops/backup/plan-store";
 
-import type { BackupRepositoryState } from "../source-control/provider-module.js";
+import type { BackupRepositoryState } from "@jini-ai/devops/source-control";
 import type { PlannedDiskFile, SiteBackupInclude, SiteBackupScope, SkippedSiteBackupFile } from "./sources.js";
 
 /** Everything `site_backup_push` needs from the plan, so it never re-derives what the human saw. */

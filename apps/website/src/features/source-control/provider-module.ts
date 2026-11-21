@@ -1,4 +1,5 @@
 import type { HttpClientPort } from "../../platform/http/index.js";
+import type { BackupRepositoryState } from "@jini-ai/devops/source-control";
 
 /**
  * @file The contract a git-host provider MODULE (shipped inside an Agent Plugin) is written against.
@@ -86,14 +87,6 @@ export interface FileWritePlan {
 export type FileWritePlanResult = { ok: true; plan: FileWritePlan } | { ok: false; code: "branch-not-found"; message: string } | ProviderCallFailure;
 
 export type CommitFilesResult = { ok: true; commitSha: string; commitUrl: string } | { ok: false; code: "diverged"; message: string } | ProviderCallFailure;
-
-export interface BackupRepositoryState {
-  readonly branch: string;
-  readonly parentCommitSha: string;
-  readonly baseTreeSha: string;
-  readonly htmlUrl: string;
-  readonly folderExists: boolean;
-}
 
 export type InspectBackupRepositoryFailureCode = "repo-not-found" | "repo-not-private" | "no-push-permission" | "repo-empty" | "branch-not-found" | "folder-is-file";
 

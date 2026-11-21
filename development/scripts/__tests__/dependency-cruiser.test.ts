@@ -7,6 +7,44 @@ import test from "node:test";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 
+test("declared theme leaves retain private-file and upward value-import boundaries", (t) => {
+  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "boundary-entries-")));
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(scratch, "package.json"), '{"type":"module"}');
+  fs.writeFileSync(path.join(scratch, "tsconfig.json"), '{"compilerOptions":{"module":"NodeNext","moduleResolution":"NodeNext"}}');
+  fs.copyFileSync(path.join(REPO_ROOT, ".dependency-cruiser.mjs"), path.join(scratch, ".dependency-cruiser.mjs"));
+  fs.mkdirSync(path.join(scratch, "development/boundaries"), { recursive: true });
+  fs.copyFileSync(path.join(REPO_ROOT, "development/boundaries/feature-ranks.json"), path.join(scratch, "development/boundaries/feature-ranks.json"));
+  const src = path.join(scratch, "apps/website/src");
+  for (const [file, source] of Object.entries({
+    "features/theme/theme-page-eligibility.ts": "export const value = 1;\n",
+    "features/theme/private.ts": "export const value = 2;\n",
+    "features/media/upward.ts": 'import { value } from "../theme/theme-page-eligibility.js";\nexport const result = value;\n',
+    "server/consumer.ts": 'import { value as approved } from "../features/theme/theme-page-eligibility.js";\nimport { value as privateValue } from "../features/theme/private.js";\nexport const values = [approved, privateValue];\n',
+  })) {
+    const filePath = path.join(src, file);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, source);
+  }
+
+  const result = spawnSync(process.execPath, [
+    path.join(REPO_ROOT, "node_modules/dependency-cruiser/bin/dependency-cruise.mjs"),
+    "--config", ".dependency-cruiser.mjs", "--output-type", "json", "apps/website/src",
+  ], { cwd: scratch, encoding: "utf8", timeout: 30_000 });
+  assert.equal(result.error, undefined, `dependency-cruiser must start and finish: ${result.stderr}`);
+  assert.equal(result.signal, null, "dependency-cruiser must finish without a process signal");
+  const report = JSON.parse(result.stdout);
+  assert.deepEqual(
+    report.summary.violations.map((violation: { rule: { name: string; severity: string }; from: string; to: string }) =>
+      [violation.rule.name, violation.rule.severity, violation.from, violation.to]).sort(),
+    [
+      ["feature-rank:2", "error", "apps/website/src/features/media/upward.ts", "apps/website/src/features/theme/theme-page-eligibility.ts"],
+      ["no-deep-imports:features/theme", "error", "apps/website/src/server/consumer.ts", "apps/website/src/features/theme/private.ts"],
+    ],
+    "the declared leaf must be public while private files and upward value imports remain errors",
+  );
+});
+
 test("deep-import rules exempt tests and current composition, retaining other production boundaries", (t) => {
   const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "boundary-scope-")));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));

@@ -2,7 +2,7 @@ import type { SiteRenderContext } from "../../render-context.js";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { LISTING_BATCH_DEFAULT, renderListingMore, listingBatchPath, wrapListingItems } from "@jini-ai/cms/listing";
 import { featuredImageView, formatProductMoney } from "../template-render-data.js";
-import { renderCoverImageTag } from "#src/features/theme/index";
+import { renderCoverImageTag } from "#src/features/theme/static-render-content";
 import { escapeHtml } from "#src/platform/html/escape";
 import { shortDate } from "../post-body.js";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";

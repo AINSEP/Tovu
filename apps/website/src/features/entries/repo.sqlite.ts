@@ -1,6 +1,6 @@
 import { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
 import { jsonScalarEquals, jsonSortKey } from "@jini-ai/db/kernel";
-import { invalidateMediaAccessEvidence } from "../media/access-evidence.js";
+import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
 import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 

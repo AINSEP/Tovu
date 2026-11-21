@@ -689,14 +689,18 @@ const PUBLIC_ENTRIES = {
   "features/navigation": ["render-entry"],
   "features/post": ["contracts", "rendering", "read-model", "post", "post-read"],
   "features/presentation": ["active-theme-id"],
+  "features/seo": ["page-head-contributor"],
   "features/settings": ["site-title"],
   "features/taxonomy": ["contracts", "render-entry", "content-targets", "term-sync"],
   "features/theme": [
     "catalog", "rendering", "asset-operations", "static-render", "render-contract", "font-links",
     "token-aliases", "entry-list-markup", "active-theme", "static-asset-contract", "theme", "theme-id-aliases",
     "preview-policy", "theme-roster-ports",
+    "theme-page-eligibility", "visitor-publication",
+    "static-render-content", "static-render-menus", "static-render-previews",
+    "static-template-choice", "static-template-resolution",
   ],
-  "platform/site-dir": ["moves"],
+  "platform/site-dir": ["moves", "errors"],
 };
 
 // r26 Part A c-dispositions, IDs 15,16,18,30,32,37,81,87,88,89,91,92,94,95,

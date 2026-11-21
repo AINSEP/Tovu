@@ -5,7 +5,7 @@ import { USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner } from "#src/features/trash/index";
 import { createTrashService } from "@jini-ai/cms/trash";
-import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
 import { randomUUID } from "node:crypto";
 import { unhideIfRemoveThrows, type createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
 import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
