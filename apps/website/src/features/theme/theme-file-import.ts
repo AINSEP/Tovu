@@ -149,15 +149,16 @@ function persistThemeImport(
  */
 export async function importThemeFileFromUrl(
   required: { httpClient: HttpClientPort; themeDir: string; themesRoot: string; relativePath: string; url: string },
-  { plainHttpTestOrigins }: { plainHttpTestOrigins?: readonly string[] } = {},
+  { plainHttpTestOrigins, signal }: { plainHttpTestOrigins?: readonly string[]; signal?: AbortSignal | undefined } = {},
 ): Promise<ImportedThemeFile> {
   const { httpClient, themeDir, themesRoot, relativePath, url } = required;
   validateThemeImportDestination(required);
 
   const fetched = await fetchImage(
     { deps: { httpClient, plainHttpTestOrigins }, url },
-    { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT },
+    { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT, signal },
   );
+  signal?.throwIfAborted();
   return { ...persistThemeImport({ themeDir, themesRoot, relativePath, bytes: fetched.bytes, source: fetched.url.href }), sourceUrl: fetched.url.href };
 }
 

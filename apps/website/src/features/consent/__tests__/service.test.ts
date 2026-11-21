@@ -15,7 +15,7 @@ test('readiness, publication refresh and deployment retain redacted failure diag
   const failure = () => new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET');
   f.ports.renderPage = async () => { throw failure(); };
   const readiness = await f.service.readiness({ principalId: 'owner', config: f.config });
-  assert.ok(readiness.blockingProblems.some(problem => problem.code === 'RENDER_FAILED'));
+  assert.ok(readiness.blockingProblems.some(problem => problem.code === 'RENDER_FAILED'), 'render failure is a readiness blocker');
   const draft = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
   f.ports.published = async () => { throw failure(); };
   assert.deepEqual(await f.service.publish({ principalId: 'owner', draftId: draft.revision.id, expectedPublishedId: null }), { published: true, revisionId: draft.revision.id });
@@ -57,17 +57,17 @@ test('readiness validates declarations and reports unmanaged warnings without ch
   assert.equal(result.ready, true);
   assert.deepEqual(result.categories.map(item => item.id), ['necessary', 'functional', 'analytics', 'marketing']);
   assert.deepEqual(result.declarations, []);
-  assert.ok(result.warnings.some(item => item.code === 'UNMANAGED_CONTENT' && item.source === 'https://tracker.example/pixel.js'));
-  assert.ok(result.warnings.some(item => item.tag === 'script'));
-  assert.ok(result.warnings.some(item => item.attributes?.includes('onclick')));
-  assert.ok(!JSON.stringify(result).includes('secret=redact'));
+  assert.ok(result.warnings.some(item => item.code === 'UNMANAGED_CONTENT' && item.source === 'https://tracker.example/pixel.js'), 'unmanaged tracker URL is reported');
+  assert.ok(result.warnings.some(item => item.tag === 'script'), 'unmanaged script tag is reported');
+  assert.ok(result.warnings.some(item => item.attributes?.includes('onclick')), 'inline handler is reported');
+  assert.ok(!JSON.stringify(result).includes('secret=redact'), 'query secrets are redacted from readiness');
   assert.deepEqual(await f.store.read({}), before);
   f.ports.renderPage = async () => ({ html: '', ok: true, truncated: true });
   assert.equal((await f.service.readiness({ principalId: 'owner', config: f.config })).ready, false);
   f.ports.renderPage = async () => { throw new Error('private file path'); };
   const failed = await f.service.readiness({ principalId: 'owner', config: f.config });
   assert.equal(failed.ready, false);
-  assert.ok(!JSON.stringify(failed).includes('private file path'));
+  assert.ok(!JSON.stringify(failed).includes('private file path'), 'private paths are redacted from render failures');
 });
 
 test('invalid privacy linkage remains a draft and cannot replace the valid published policy', async t => {
@@ -75,12 +75,12 @@ test('invalid privacy linkage remains a draft and cannot replace the valid publi
   const valid = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
   await f.service.publish({ principalId: 'owner', draftId: valid.revision.id, expectedPublishedId: null });
   const invalid = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, privacyPolicyUrl: 'javascript:tracking()' }, expectedDraftId: valid.revision.id });
-  assert.ok(invalid.blockingProblems.length > 0);
+  assert.ok(invalid.blockingProblems.length > 0, 'invalid consent config blocks publication');
   await assert.rejects(f.service.publish({ principalId: 'owner', draftId: invalid.revision.id, expectedPublishedId: valid.revision.id }));
   assert.equal((await f.store.read({})).published?.id, valid.revision.id);
   f.ports.privacyPageExists = async () => false;
   const missing = await f.service.readiness({ principalId: 'owner', config: f.config });
-  assert.ok(missing.blockingProblems.some(problem => problem.code === 'PRIVACY_PAGE_MISSING'));
+  assert.ok(missing.blockingProblems.some(problem => problem.code === 'PRIVACY_PAGE_MISSING'), 'missing privacy page blocks readiness');
 });
 
 test('the single consent implementation drops only bad CSS and returns nonblocking preview warnings', async t => {
@@ -99,7 +99,7 @@ test('the single consent implementation drops only bad CSS and returns nonblocki
   assert.deepEqual(draft.blockingProblems, []);
   await f.service.publish({ principalId: 'owner', draftId: draft.revision.id, expectedPublishedId: null });
   assert.equal((await f.store.read({})).published?.id, draft.revision.id);
-  assert.ok(!preview.html.includes('[data-x]'));
+  assert.ok(!preview.html.includes('[data-x]'), 'rejected selector is omitted from preview');
   assert.match(preview.html, /font-size:\s*16px/);
   assert.deepEqual((await f.service.preview({ principalId: 'owner', config })).blockingProblems, []);
   assert.deepEqual((await f.service.preview({ principalId: 'owner', config })).warnings, preview.warnings);
@@ -124,7 +124,7 @@ test('deployment accepts valid local evidence while incomplete and unavailable p
   assert.equal(await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }), null);
   f.ports.readLegacy = async () => ({ ...f.config, privacyPolicyUrl: '' });
   const incomplete = await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' });
-  assert.ok(incomplete?.blockingProblems.some(problem => problem.code === 'PRIVACY_LINK_REQUIRED'));
+  assert.ok(incomplete?.blockingProblems.some(problem => problem.code === 'PRIVACY_LINK_REQUIRED'), 'enabled consent requires a privacy link');
   assert.equal(incomplete?.code, 'CONSENT_REVIEW_REQUIRED');
   assert.deepEqual(incomplete?.choices.map(choice => choice.id), ['fix-now', 'publish-without-banner']);
   const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
@@ -224,15 +224,15 @@ test('readiness requires writable receipt storage and reports its count without 
   f.ports.receiptStorage = async () => ({ writable: false, count: 7 });
   const denied = await f.service.readiness({ principalId: 'owner', config: f.config });
   assert.equal(denied.ready, false);
-  assert.ok(denied.blockingProblems.some(problem => problem.code === 'RECEIPT_STORAGE_UNAVAILABLE'));
+  assert.ok(denied.blockingProblems.some(problem => problem.code === 'RECEIPT_STORAGE_UNAVAILABLE'), 'denied receipt storage blocks readiness');
   f.ports.receiptStorage = async () => ({ writable: true, count: null });
   assert.equal((await f.service.readiness({ principalId: 'owner', config: f.config })).ready, false);
   f.ports.receiptStorage = async () => { throw new Error('private receipt directory'); };
   const failed = await f.service.readiness({ principalId: 'owner', config: f.config });
   assert.equal(failed.ready, false);
   assert.deepEqual(failed.receipts, { writable: false, count: null });
-  assert.ok(failed.blockingProblems.some(problem => problem.code === 'RECEIPT_STORAGE_UNAVAILABLE'));
-  assert.ok(!JSON.stringify(failed).includes('private receipt directory'));
+  assert.ok(failed.blockingProblems.some(problem => problem.code === 'RECEIPT_STORAGE_UNAVAILABLE'), 'failed receipt storage blocks readiness');
+  assert.ok(!JSON.stringify(failed).includes('private receipt directory'), 'private receipt directory is redacted');
   f.ports.renderPage = async () => { throw new Error('render failed'); };
   assert.deepEqual((await f.service.readiness({ principalId: 'owner', config: f.config })).receipts, { writable: false, count: null });
 });
@@ -240,7 +240,7 @@ test('readiness requires writable receipt storage and reports its count without 
 test('Jini validators reject credential links and unreadable custom colors; auto mode stays strict without a header', () => {
   const config = parseConsentConfig({ value: { ...consentFixtureDefaults, privacyPolicyUrl: 'https://user:pass@example.com/privacy', regionMode: 'auto', appearance: { backgroundColor: '#fff', textColor: '#fff' } } });
   const codes = consentConfigProblems({ config, trustedRegion: false }).map(problem => problem.code);
-  assert.ok(codes.includes('PRIVACY_LINK_REQUIRED')); assert.equal(codes.includes('TRUSTED_REGION_REQUIRED'), false); assert.ok(codes.includes('contrast'));
+  assert.ok(codes.includes('PRIVACY_LINK_REQUIRED'), 'credential URL is rejected as a privacy link'); assert.equal(codes.includes('TRUSTED_REGION_REQUIRED'), false); assert.ok(codes.includes('contrast'), 'unreadable custom colors report a contrast error');
 });
 
 test('SQL-only schema has exact columns and failed duplicate saves cannot move either head', async t => {
@@ -272,7 +272,7 @@ test('preview is read-only and local paths cannot address APIs, traverse or esca
   f.ports.renderPage = async () => ({ html: '', ok: false, truncated: false });
   const standalone = await f.service.preview({ principalId: 'owner' });
   assert.match(standalone.html, /jini-consent/);
-  assert.ok(!standalone.html.includes('tracker.example'));
+  assert.ok(!standalone.html.includes('tracker.example'), 'tracker is omitted from standalone preview');
 });
 
 test('the editor always offers automatic regions and never offers global opt-out', async t => {
@@ -297,10 +297,10 @@ test('standalone banner preview never calls the page renderer; unavailable page 
   f.ports.renderPage = async () => { throw new Error('private unavailable page'); };
   const preview = await f.service.preview({ principalId: 'owner', config: f.config });
   assert.match(preview.html, /jini-consent/);
-  assert.ok(!preview.html.includes('private unavailable page'));
+  assert.ok(!preview.html.includes('private unavailable page'), 'private fallback details are redacted from preview');
   const readiness = await f.service.readiness({ principalId: 'owner', config: f.config });
   assert.equal(readiness.ready, false);
-  assert.ok(readiness.blockingProblems.some(problem => problem.code === 'RENDER_FAILED'));
+  assert.ok(readiness.blockingProblems.some(problem => problem.code === 'RENDER_FAILED'), 'render failure blocks readiness');
 });
 
 test('the store refuses a head that points at a missing or oversized revision, and an oversized draft', async t => {
@@ -373,8 +373,8 @@ test('readiness separates invalid active declarations from nonblocking unmanaged
   const result = await f.service.readiness({ principalId: 'owner', config: f.config });
   assert.equal(result.ready, false);
   assert.equal(result.blockingProblems.filter(problem => problem.code === 'INVALID_SCRIPT_DECLARATION').length, 2);
-  assert.ok(result.warnings.some(warning => warning.code === 'MISSING_RUNTIME_SLOT'));
-  assert.ok(result.warnings.some(warning => warning.code === 'UNMANAGED_CONTENT'));
+  assert.ok(result.warnings.some(warning => warning.code === 'MISSING_RUNTIME_SLOT'), 'missing runtime slot is reported');
+  assert.ok(result.warnings.some(warning => warning.code === 'UNMANAGED_CONTENT'), 'unmanaged content warning remains nonblocking');
 });
 
 test('missing declaration collection is an explicit readiness blocker, never a green empty inventory', async t => {

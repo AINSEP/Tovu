@@ -152,7 +152,7 @@ function plainHttpTwin({ url, origins }: { url: string; origins: readonly string
  */
 export function fetchImage(
   { deps, url }: { deps: FetchImageDeps; url: string },
-  { policy = MEDIA_IMPORT_POLICY, accept = "image/*, video/*" }: { policy?: ImageImportPolicy; accept?: string } = {},
+  { policy = MEDIA_IMPORT_POLICY, accept = "image/*, video/*", signal }: { policy?: ImageImportPolicy; accept?: string; signal?: AbortSignal | undefined } = {},
 ): Promise<FetchedImage> {
   const twin = plainHttpTwin({ url, origins: deps.plainHttpTestOrigins });
   const fetched = fetchPackageImage({
@@ -166,6 +166,7 @@ export function fetchImage(
         const { maxResponseBytes: _packageResponseCap, ...hostRequest } = request;
         return deps.httpClient.send({
           ...hostRequest,
+          ...(signal ? { signal } : {}),
           url: twin.toReal({ value: hostRequest.url }),
           headers: { ...request.headers, Accept: accept },
         });

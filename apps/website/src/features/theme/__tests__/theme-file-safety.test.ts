@@ -52,7 +52,7 @@ function fixture(t: test.TestContext) {
     return registrations.find(r => r.descriptor.id === toolId)!.handler(ctx, { emitSurface });
   };
   const revisions = () => listThemeFiles({ themeDir, themesRoot: root }).filter(file => file.startsWith('.trash/revisions/'));
-  return { deps, root, themeDir, run, revisions };
+  return { deps, root, themeDir, run, revisions, controller };
 }
 
 const cases = [
@@ -205,6 +205,49 @@ for (const existed of [false, true]) {
     assert.deepEqual(f.revisions(), []);
   });
 }
+
+test('a cancelled URL import forwards its signal and preserves the destination and revisions', async t => {
+  const f = fixture(t);
+  const destination = path.join(f.themeDir, 'a.woff2');
+  const before = fs.readFileSync(destination);
+  const reason = new Error('theme URL import cancelled');
+  let outgoingSignal: AbortSignal | undefined;
+  let downloaded!: () => void;
+  let started!: () => void;
+  const sourceStarted = new Promise<void>(resolve => { started = resolve; });
+  const sourceReady = new Promise<void>(resolve => { downloaded = resolve; });
+  f.deps.mediaImportHttpClient.send = async request => {
+    outgoingSignal = request.signal;
+    started(); await sourceReady;
+    return { status: 200, headers: {}, bodyText: '', bodyBytes: Buffer.concat([font, Buffer.from('replacement')]), bodyTruncated: false };
+  };
+  const pending = f.run('theme_import_file_from_url', { themeId: 'copy', path: 'a.woff2', url: 'https://example.com/font.woff2' });
+  const rejected = assert.rejects(pending, error => error === reason, 'cancellation rejects with the original abort reason');
+  await sourceStarted;
+  f.controller.abort(reason);
+  downloaded();
+  await rejected;
+  assert.equal(outgoingSignal, f.controller.signal, 'the guarded download receives the execution signal');
+  assert.deepEqual(fs.readFileSync(destination), before, 'cancellation preserves the original font bytes');
+  assert.deepEqual(f.revisions(), [], 'cancellation creates no theme revision');
+});
+
+test('a URL replacement committed before cancellation retains its successful result and bytes', async t => {
+  const f = fixture(t);
+  const destination = fs.realpathSync(path.join(f.themeDir, 'a.woff2'));
+  const replacement = Buffer.concat([font, Buffer.from('new')]);
+  const rename = fs.renameSync;
+  const committed = t.mock.method(fs, 'renameSync', (oldPath, newPath) => {
+    rename(oldPath, newPath);
+    if (String(newPath) === destination) f.controller.abort(new Error('cancelled after theme replacement'));
+  });
+  syncBuiltinESMExports();
+  t.after(() => { committed.mock.restore(); syncBuiltinESMExports(); });
+  const result = await f.run('theme_import_file_from_url', { themeId: 'copy', path: 'a.woff2', url: 'https://example.com/font.woff2' });
+  assert.equal(f.controller.signal.aborted, true, 'cancellation occurs after the synchronous replacement commits');
+  assert.ok(result, 'a committed URL replacement returns its successful result despite cancellation');
+  assert.deepEqual(fs.readFileSync(destination), replacement, 'cancellation after commit retains the replacement bytes');
+});
 
 test('a committed theme replacement reloads despite pruning failure and retries retention next time', async t => {
   const f = fixture(t);

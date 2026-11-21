@@ -168,7 +168,7 @@ async function harness() {
   host.post("/internal/agent-plugin-preflight", (_req, res) => res.json({ prefix: "", refusalPrefix: "", pluginIds: [] }));
   const server = host.listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
-  const address = server.address(); assert.ok(address && typeof address !== "string");
+  const address = server.address(); assert.ok(address && typeof address !== "string", "the harness listens on a TCP address");
   const url = `http://127.0.0.1:${address.port}`;
   const token = "scope-behavior-token";
   const scope = await createSiteScope({ siteId: "behavior", token: "rpc-token", env: {
@@ -230,7 +230,7 @@ for (const disappearing of [true, false]) {
         body: JSON.stringify({ runId: disappearing ? "A" : "B", toolId: "guard-sentinel", input: {} }),
       });
       assert.equal(response.status, disappearing ? 404 : 403); await response.body?.cancel();
-      if (disappearing) assert.ok(lookups >= 2);
+      if (disappearing) assert.ok(lookups >= 2, "a disappearing run is rechecked before delegated execution");
       assert.deepEqual(controls.handlers, []);
     } finally { await h.close(); }
   });
@@ -242,11 +242,11 @@ test("run admission registers ownership and subscribes while refresh is blocked"
   try {
     controls.refresh = gate();
     const runId = await h.start("registration");
-    assert.ok(controls.events.includes("refresh"));
-    assert.ok(controls.events.includes("owner"));
-    assert.ok(controls.events.includes("register"));
-    assert.ok(controls.events.indexOf("owner") < controls.events.indexOf("refresh"));
-    assert.ok(controls.events.indexOf("register") < controls.events.indexOf("refresh"));
+    assert.ok(controls.events.includes("refresh"), "run admission reaches refresh");
+    assert.ok(controls.events.includes("owner"), "run admission registers the owner");
+    assert.ok(controls.events.includes("register"), "run admission registers the tracker");
+    assert.ok(controls.events.indexOf("owner") < controls.events.indexOf("refresh"), "owner registration precedes refresh");
+    assert.ok(controls.events.indexOf("register") < controls.events.indexOf("refresh"), "tracker registration precedes refresh");
     assert.equal(controls.events.filter(event => event === "subscribe").length, 2);
     const owned = await fetch(`${h.url}/api/runs/${runId}`, { headers: { authorization: `Bearer ${h.token}`, "x-tovu-principal-id": "owner" } });
     assert.equal(owned.status, 200); await owned.body?.cancel();
@@ -264,7 +264,7 @@ test("a failed resumed run clears its matching stored session", async () => {
     assert.equal(controls.launches[0]?.resumeSessionId, "stored");
     await h.scope.lifecycle.finish({ runId, status: "failed", code: 1, signal: null, resumable: false });
     await until(() => controls.events.includes("clear:resume:claude"));
-    assert.ok(controls.events.includes("clear:resume:claude"));
+    assert.ok(controls.events.includes("clear:resume:claude"), "a failed resume clears its matching stored binding");
     assert.equal(await controls.deps!.agentSessions.getSessionId({ conversationId: "resume", agentId: "claude" }), null);
   } finally { await h.close(); }
 });
@@ -323,7 +323,7 @@ test("a stopping run's terminal wait precedes the next concurrency decision", as
     await h.scope.lifecycle.finish({ runId: first, status: "cancelled", code: null, signal: null, resumable: false });
     await until(() => controls.launches.length === 2);
     assert.equal(controls.launches[1]?.runId, next);
-    assert.ok(controls.events.indexOf(`terminal:${first}`) < controls.events.indexOf("concurrency"));
+    assert.ok(controls.events.indexOf(`terminal:${first}`) < controls.events.indexOf("concurrency"), "the stopping run reaches its terminal event before the next concurrency admission");
   } finally { await h.close(); }
 });
 

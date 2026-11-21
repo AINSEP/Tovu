@@ -99,6 +99,25 @@ test("a key saved only on site A is listed on site B and usable there after appr
   } finally { await f.close(); }
 });
 
+test("an approved saved key remains usable after fifty earlier keys are inserted on its source site", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.a, "vercel-a", "Vercel");
+    const row = siteRow(await f.keysOnB.listChoices({}), "Vercel, site-a");
+    for (let index = 0; index < 50; index++) {
+      await f.save(f.a, `ahead-${String(index).padStart(2, "0")}`, `Earlier key ${index}`, "fake-earlier-token-not-real-5678");
+    }
+    const before = fs.readFileSync(f.a.dbPath);
+    const used = await f.keysOnB.use({ keyId: row.keyId, use: true });
+    assert.equal(used.keyId, "vercel-a", "the captured saved-key ID adopts the original row beyond the picker limit");
+    assert.equal(used.usedByThisSite, true, "the approving site receives the saved key");
+    assert.equal(await projectToken(f, used.keyId), FAKE_TOKEN, "the original key is re-sealed into the owner store");
+    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id });
+    assert.equal((await granted.find({ workspaceId: "project", id: used.keyId }))?.id, used.keyId, "site B can read the adopted key through its grant");
+    assert.deepEqual(fs.readFileSync(f.a.dbPath), before, "adopting the captured key leaves the source vault unchanged");
+  } finally { await f.close(); }
+});
+
 test("a key on this site can be added to Shared Keys from the same picker", async () => {
   const f = await fixture();
   try {

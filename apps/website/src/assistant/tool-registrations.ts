@@ -311,6 +311,8 @@ type ToolAssemblyInput = {
   policy: AssistantPermanentDeletesPolicy;
 };
 
+const ADMIN_ASSISTANT_PERMISSION_TOOL_IDS = new Set(["assistant_admin_screen_link", "search_components", "describe_component", "assistant_demo_image"]);
+
 /** Assemble domain handlers in catalog order, refusing duplicate admitted ids. */
 function collectDomainRegistrations({ routeDeps, surfaces, contributions, policy }: ToolAssemblyInput, _optional = {}) {
   const registrations: ToolRegistration[] = [];
@@ -330,7 +332,13 @@ function collectDomainRegistrations({ routeDeps, surfaces, contributions, policy
         );
       }
       ownerByToolId.set(registration.descriptor.id, slice.domain);
-      registrations.push(registration);
+      registrations.push(ADMIN_ASSISTANT_PERMISSION_TOOL_IDS.has(registration.descriptor.id) ? {
+        ...registration,
+        policy: { ...registration.policy, authorize: async ({ principal }) => {
+          const decision = await routeDeps.authorize({ workspaceId: routeDeps.workspaceId, principalId: principal.id, permission: "admin.assistant.use" });
+          return decision.allowed ? "allow" : "deny";
+        } },
+      } : registration);
     }
   }
 
