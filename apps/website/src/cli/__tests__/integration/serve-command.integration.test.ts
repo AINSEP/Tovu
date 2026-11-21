@@ -15,6 +15,7 @@ import Database from "better-sqlite3";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
 import { loginAsOwner } from "#src/server/__tests__/helpers/http-test-server";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";
 
 const require = createRequire(import.meta.url);
@@ -215,16 +216,15 @@ async function stopGracefully(child: ChildProcessWithoutNullStreams, timeoutMs =
   });
 }
 
-function initFixture(name = "Serve Fixture"): { parent: string; dir: string } {
+async function initFixture(name = "Serve Fixture"): Promise<{ parent: string; dir: string }> {
   const parent = mkTempParent();
   const dir = path.join(parent, "site");
-  const initResult = runCliSync(["init", dir, "--name", name, "--with-sample-content"]);
-  assert.equal(initResult.status, 0, `fixture setup: tovu init must succeed (stderr: ${initResult.stderr})`);
+  await initSite({ dir, name }, { withSampleContent: true });
   return { parent, dir };
 }
 
-test("behavior.spec.md §4: --port outside 1..65535, or non-integer, is rejected as VALIDATION (exit 2) rather than falling through to a default — boundary-value coverage of the documented range", () => {
-  const { parent, dir } = initFixture();
+test("behavior.spec.md §4: --port outside 1..65535, or non-integer, is rejected as VALIDATION (exit 2) rather than falling through to a default — boundary-value coverage of the documented range", async () => {
+  const { parent, dir } = await initFixture();
   try {
     for (const badPort of ["0", "-1", "65536", "999999", "not-a-number", "3.14"]) {
       const result = runCliSync(["serve", dir, "--port", badPort]);
@@ -237,7 +237,7 @@ test("behavior.spec.md §4: --port outside 1..65535, or non-integer, is rejected
 });
 
 test("behavior.spec.md §4: --port at the exact boundary values 1 and 65535 is ACCEPTED (not a validation error) — proves the range check is inclusive, not off-by-one", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   try {
     for (const boundaryPort of [1, 65535]) {
       // Hold the boundary port from THIS process first, so the assertion never depends on booting
@@ -295,8 +295,8 @@ test("AC-05: serve against a dir missing .site-meta.json (crashed init) exits 3 
   }
 });
 
-test("AC-06: serve against a site with a newer schemaVersion than the runtime exits 4 with SITE_NEWER_THAN_RUNTIME", () => {
-  const { parent, dir } = initFixture();
+test("AC-06: serve against a site with a newer schemaVersion than the runtime exits 4 with SITE_NEWER_THAN_RUNTIME", async () => {
+  const { parent, dir } = await initFixture();
   try {
     const metaPath = path.join(dir, ".site-meta.json");
     const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"));
@@ -312,8 +312,8 @@ test("AC-06: serve against a site with a newer schemaVersion than the runtime ex
   }
 });
 
-test("AC-09: serve against a site whose content.db has zero workspace rows exits 5 with SITE_CORRUPT", () => {
-  const { parent, dir } = initFixture();
+test("AC-09: serve against a site whose content.db has zero workspace rows exits 5 with SITE_CORRUPT", async () => {
+  const { parent, dir } = await initFixture();
   try {
     const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
     const db = new Database(dbPath);
@@ -329,7 +329,7 @@ test("AC-09: serve against a site whose content.db has zero workspace rows exits
 });
 
 test("EC-04: serve exits 1 with PORT_IN_USE when the resolved port is already bound", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   const blocker = net.createServer();
   // Allocate and hold the child's exact address in one step: no free-port race or IPv6 mismatch.
   await new Promise<void>((resolve, reject) => {
@@ -349,7 +349,7 @@ test("EC-04: serve exits 1 with PORT_IN_USE when the resolved port is already bo
 });
 
 test("BR-02/AC-11: --port flag takes precedence over config.json.port", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   const configPath = path.join(dir, "config.json");
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
   const configPort = await getFreePort();
@@ -371,7 +371,7 @@ test("BR-02/AC-11: --port flag takes precedence over config.json.port", async ()
 });
 
 test("BR-02/AC-11: config.json.port is used when no --port flag is given", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   const configPath = path.join(dir, "config.json");
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
   const configPort = await getFreePort();
@@ -392,7 +392,7 @@ test("BR-02/AC-11: config.json.port is used when no --port flag is given", async
 });
 
 test("BR-07: SIGTERM triggers a graceful stop (exit 0), and BR-04/EC-08: an explicit dir argument overrides TOVU_CONTENT_DB with a logged warning, serving the DIR's real content rather than the (nonexistent) env-var path", async () => {
-  const { parent, dir } = initFixture("Dir Wins");
+  const { parent, dir } = await initFixture("Dir Wins");
   const ignoredEnvDbPath = path.join(parent, "should-be-ignored", "content.db"); // deliberately does not exist
   const port = await getFreePort();
 
@@ -416,7 +416,7 @@ test("BR-07: SIGTERM triggers a graceful stop (exit 0), and BR-04/EC-08: an expl
 });
 
 test("B1: serve against a site whose content.db has 2 workspace rows succeeds (boots + responds), defaulting to the oldest — no more boot-bricking on a legitimately multi-workspace install", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
   const db = new Database(dbPath);
   db.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(
@@ -465,7 +465,7 @@ test("B1: serve against a site whose content.db has 2 workspace rows succeeds (b
 });
 
 test("B1: --workspace <id> selects a non-default workspace explicitly", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
   const db = new Database(dbPath);
   db.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(
@@ -498,8 +498,8 @@ test("B1: --workspace <id> selects a non-default workspace explicitly", async ()
   }
 });
 
-test("--workspace <id> naming no existing workspace is rejected as VALIDATION (exit 2)", () => {
-  const { parent, dir } = initFixture();
+test("--workspace <id> naming no existing workspace is rejected as VALIDATION (exit 2)", async () => {
+  const { parent, dir } = await initFixture();
   try {
     const result = runCliSync(["serve", dir, "--workspace", "does-not-exist"]);
     assert.equal(result.status, 2, `stderr: ${result.stderr}`);
@@ -510,7 +510,7 @@ test("--workspace <id> naming no existing workspace is rejected as VALIDATION (e
 });
 
 test("CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd than the install dir still finds built-in themes and never leaks a themes/uploads dir into that foreign cwd — the whole suite otherwise always spawns from the repo root, which accidentally made the process.cwd()-relative bug invisible", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   const foreignCwd = mkTempParent();
   const port = await getFreePort();
   const child = spawnServe([dir, "--port", String(port)], {}, foreignCwd);
@@ -532,7 +532,7 @@ test("CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd than
 });
 
 test("AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu serve process reaches the seeded content end to end", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   const marker = `cli-content-body-${randomUUID()}`;
   const db = new Database(resolveSiteDatabasePaths({ dir }).contentDbPath);
   const row = db.prepare("SELECT body_json FROM posts WHERE slug = ?").get("welcome") as { body_json: string };
@@ -592,11 +592,7 @@ async function startFakeOtlpCollector(): Promise<{ url: string; receivedCount: (
   };
 }
 
-test("an identity re-seed failure from a non-built-in owner role conflict must be logged while the serve process continues serving content", async () => {
-  const { parent, dir } = initFixture();
-  const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
-  const identityEnv = { TOVU_ADMIN_USER: "reseed-owner", TOVU_ADMIN_PASSWORD: "reseed-test-password" };
-
+async function seedAndConflictOwnerRole({ dir, dbPath, identityEnv }: { dir: string; dbPath: string; identityEnv: { TOVU_ADMIN_USER: string; TOVU_ADMIN_PASSWORD: string } }) {
   // First boot seeds identity fully (owner user + the 4 built-in roles/policies) and shuts down
   // cleanly — this is the ONE code path allowed to seed identity, so a real boot is required before
   // the corruption step below can mean anything.
@@ -630,6 +626,14 @@ test("an identity re-seed failure from a non-built-in owner role conflict must b
   } finally {
     db.close();
   }
+}
+
+test("an identity re-seed failure from a non-built-in owner role conflict must be logged while the serve process continues serving content", async () => {
+  const { parent, dir } = await initFixture();
+  const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
+  const identityEnv = { TOVU_ADMIN_USER: "reseed-owner", TOVU_ADMIN_PASSWORD: "reseed-test-password" };
+
+  await seedAndConflictOwnerRole({ dir, dbPath, identityEnv });
 
   const secondBootPort = await getFreePort();
   const secondBoot = spawnServe([dir, "--port", String(secondBootPort)], identityEnv);
@@ -666,8 +670,60 @@ test("an identity re-seed failure from a non-built-in owner role conflict must b
   }
 });
 
+async function installOtlpProvider({ port, collector }: { port: number; collector: Awaited<ReturnType<typeof startFakeOtlpCollector>> }) {
+  // Provider wave 2 retired env selection. Install the provider distribution's real artifact, enable it,
+  // and save through the same settings owner the admin uses, then prove selection on restart.
+  const packagePath = require.resolve("@jini-ai/provider-plugins/package.json");
+  const providerPackage = JSON.parse(fs.readFileSync(packagePath, "utf8")) as { name: string; version: string };
+  assert.equal(providerPackage.name, "@jini-ai/provider-plugins");
+  const artifact = { id: "observability-opentelemetry", path: path.join(path.dirname(packagePath), "plugins", "observability-opentelemetry", providerPackage.version) };
+  assert.ok(fs.existsSync(path.join(artifact.path, "jini.plugin.json")), "ENV: the prebuilt OpenTelemetry provider subpath is required for the CLI OTLP integration");
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const cookie = await loginAsOwner(baseUrl);
+  const headers = { cookie, "content-type": "application/json" };
+  const pluginsUrl = `${baseUrl}/api/admin/v1/workspaces/workspace-local/plugins`;
+  const source = { kind: "folder", path: artifact.path };
+  const preview = await fetch(`${pluginsUrl}/install/preview`, { method: "POST", headers, body: JSON.stringify({ source }), signal: fetchTimeoutSignal() });
+  assert.equal(preview.status, 200, await preview.clone().text());
+  const { plugin } = await preview.json() as { plugin: { digest: string } };
+  const installed = await fetch(`${pluginsUrl}/install`, { method: "POST", headers, body: JSON.stringify({ source, expectedDigest: plugin.digest }), signal: fetchTimeoutSignal() });
+  assert.equal(installed.status, 201, await installed.text());
+  const providerUrl = `${pluginsUrl}/${artifact.id}`;
+  const enabled = await fetch(providerUrl, { method: "PATCH", headers, body: JSON.stringify({ enabled: true }), signal: fetchTimeoutSignal() });
+  assert.equal(enabled.status, 200, await enabled.text());
+  const saved = await fetch(`${providerUrl}/provider-settings`, { method: "PUT", headers, body: JSON.stringify({ values: { endpoint: collector.url, auth: "none" } }), signal: fetchTimeoutSignal() });
+  assert.equal(saved.status, 200, await saved.clone().text());
+  assert.equal((await saved.json() as { appliesAt: string }).appliesAt, "restart");
+}
+
+async function assertExportedRequestSpan({ collector, requestId }: { collector: Awaited<ReturnType<typeof startFakeOtlpCollector>>; requestId: string }) {
+  const factor = loadFactor();
+  // Previously OTEL_BSP_SCHEDULE_DELAY shortened this wait. The provider now owns its 5s batch
+  // interval, so the deadline allows the production batching window without env overrides.
+  const deadline = Date.now() + 10_000 * factor;
+  // Jini 4c712e5b6 replaces raw request paths with router templates; the echoed id still
+  // identifies this exact content request without exporting an arbitrary slug or token.
+  const requestedSpan = () => collector.spans().find((span) =>
+    span.attributes.some((attr) => attr.key === "http.request.id" && attr.value.stringValue === requestId)
+  );
+  while (!requestedSpan() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  assert.ok(
+    collector.receivedCount() > 0,
+    `the spawned tovu serve process must export at least one span through the saved provider settings within ${Math.round((10_000 * factor) / 1000)}s`
+  );
+  const span = requestedSpan();
+  assert.ok(span, "a readiness or startup span cannot substitute for the uniquely named content request");
+  assert.ok(span.attributes.some((attr) => attr.key === "http.method" && attr.value.stringValue === "GET"));
+  assert.ok(span.attributes.some((attr) => attr.key === "http.status_code" && Number(attr.value.intValue) === 200));
+  assert.ok(span.attributes.some((attr) => attr.key === "http.route" && attr.value.stringValue === "/:slug"));
+  assert.ok(span.attributes.some((attr) => attr.key === "http.target" && attr.value.stringValue === "/:slug"));
+}
+
 test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu serve` process — not the in-memory or SQLite composition-root tier, the actual packaged CLI boot path this whole groundwork report was worried an instrumentation plan could silently miss — exports a real span through its saved, enabled provider plugin", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   const requestPath = `/welcome-otlp-${randomUUID()}`;
   const db = new Database(resolveSiteDatabasePaths({ dir }).contentDbPath);
   assert.equal(db.prepare("UPDATE posts SET slug = ? WHERE slug = ?").run(requestPath.slice(1), "welcome").changes, 1);
@@ -684,29 +740,7 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
   let child = spawnServe([dir, "--port", String(port)], childEnv);
   try {
     await waitForHttpReady(port, child);
-    // Provider wave 2 retired env selection. Install the provider distribution's real artifact, enable it,
-    // and save through the same settings owner the admin uses, then prove selection on restart.
-    const packagePath = require.resolve("@jini-ai/provider-plugins/package.json");
-    const providerPackage = JSON.parse(fs.readFileSync(packagePath, "utf8")) as { name: string; version: string };
-    assert.equal(providerPackage.name, "@jini-ai/provider-plugins");
-    const artifact = { id: "observability-opentelemetry", path: path.join(path.dirname(packagePath), "plugins", "observability-opentelemetry", providerPackage.version) };
-    assert.ok(fs.existsSync(path.join(artifact.path, "jini.plugin.json")), "ENV: the prebuilt OpenTelemetry provider subpath is required for the CLI OTLP integration");
-    const baseUrl = `http://127.0.0.1:${port}`;
-    const cookie = await loginAsOwner(baseUrl);
-    const headers = { cookie, "content-type": "application/json" };
-    const pluginsUrl = `${baseUrl}/api/admin/v1/workspaces/workspace-local/plugins`;
-    const source = { kind: "folder", path: artifact.path };
-    const preview = await fetch(`${pluginsUrl}/install/preview`, { method: "POST", headers, body: JSON.stringify({ source }), signal: fetchTimeoutSignal() });
-    assert.equal(preview.status, 200, await preview.clone().text());
-    const { plugin } = await preview.json() as { plugin: { digest: string } };
-    const installed = await fetch(`${pluginsUrl}/install`, { method: "POST", headers, body: JSON.stringify({ source, expectedDigest: plugin.digest }), signal: fetchTimeoutSignal() });
-    assert.equal(installed.status, 201, await installed.text());
-    const providerUrl = `${pluginsUrl}/${artifact.id}`;
-    const enabled = await fetch(providerUrl, { method: "PATCH", headers, body: JSON.stringify({ enabled: true }), signal: fetchTimeoutSignal() });
-    assert.equal(enabled.status, 200, await enabled.text());
-    const saved = await fetch(`${providerUrl}/provider-settings`, { method: "PUT", headers, body: JSON.stringify({ values: { endpoint: collector.url, auth: "none" } }), signal: fetchTimeoutSignal() });
-    assert.equal(saved.status, 200, await saved.clone().text());
-    assert.equal((await saved.json() as { appliesAt: string }).appliesAt, "restart");
+    await installOtlpProvider({ port, collector });
     await stopGracefully(child);
     child = spawnServe([dir, "--port", String(port)], childEnv);
     await waitForHttpReady(port, child);
@@ -715,29 +749,7 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
     const requestId = res.headers.get("x-request-id");
     assert.ok(requestId, "the content response must expose its trace correlation id");
 
-    const factor = loadFactor();
-    // Previously OTEL_BSP_SCHEDULE_DELAY shortened this wait. The provider now owns its 5s batch
-    // interval, so the deadline allows the production batching window without env overrides.
-    const deadline = Date.now() + 10_000 * factor;
-    // Jini 4c712e5b6 replaces raw request paths with router templates; the echoed id still
-    // identifies this exact content request without exporting an arbitrary slug or token.
-    const requestedSpan = () => collector.spans().find((span) =>
-      span.attributes.some((attr) => attr.key === "http.request.id" && attr.value.stringValue === requestId)
-    );
-    while (!requestedSpan() && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-
-    assert.ok(
-      collector.receivedCount() > 0,
-      `the spawned tovu serve process must export at least one span through the saved provider settings within ${Math.round((10_000 * factor) / 1000)}s`
-    );
-    const span = requestedSpan();
-    assert.ok(span, "a readiness or startup span cannot substitute for the uniquely named content request");
-    assert.ok(span.attributes.some((attr) => attr.key === "http.method" && attr.value.stringValue === "GET"));
-    assert.ok(span.attributes.some((attr) => attr.key === "http.status_code" && Number(attr.value.intValue) === 200));
-    assert.ok(span.attributes.some((attr) => attr.key === "http.route" && attr.value.stringValue === "/:slug"));
-    assert.ok(span.attributes.some((attr) => attr.key === "http.target" && attr.value.stringValue === "/:slug"));
+    await assertExportedRequestSpan({ collector, requestId });
   } finally {
     if (child.exitCode === null && !child.killed) {
       await stopGracefully(child);
@@ -748,7 +760,7 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
 });
 
 test("2026-09-05 dispatch: tovu serve mints TOVU_AGENT_DAEMON_TOKEN before spawning the agent daemon — `src/index.ts`'s `main()` calls `ensureAgentDaemonToken()` as its first statement (see `daemon-auth.ts`), but `serve.ts` never did, so every `tovu serve`-booted daemon answered fail-closed 503 to its own proxy. An unauthenticated request straight against the daemon's own port must get 401 (a real token is configured), never 503 (AGENT_DAEMON_UNCONFIGURED)", async () => {
-  const { parent, dir } = initFixture();
+  const { parent, dir } = await initFixture();
   const port = await getFreePort();
   const daemonPort = await getFreePort();
   // Explicitly omit any inherited token, so serve.ts must mint one itself.

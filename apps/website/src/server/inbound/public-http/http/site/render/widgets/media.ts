@@ -10,7 +10,7 @@ import { MEDIA_PLAYBACK_COPY } from "../media-playback-copy.js";
 import { type GalleryImageRenderer, renderGallery } from "@jini-ai/cms/widgets/html/gallery-render";
 import type { WidgetDocRendering } from "../doc/doc-render-contract.js";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { renderMediaRawHtml } from "@jini-ai/cms/widgets/html";
+import { renderMediaRawHtml } from "@jini-ai/cms/widgets/html/media-html";
 import { logMediaHtmlEvent } from "#src/features/widgets/media-html-log";
 
 /**

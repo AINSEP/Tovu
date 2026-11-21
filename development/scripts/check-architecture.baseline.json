@@ -299,11 +299,10 @@
   "backEdgesIntoServer": 0,
   "backEdgesIntoServerRuntimeOnly": 0,
   "moduleCycles": {
-    "mutualCycleCount": 2,
+    "mutualCycleCount": 1,
     "largestScc": 2,
     "pairs": [
-      "assistant <-> features/external-mcp",
-      "features/custom-credentials <-> features/source-control"
+      "assistant <-> features/external-mcp"
     ]
   },
   "moduleApiSurfaceFiles": 821,

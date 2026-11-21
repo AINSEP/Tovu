@@ -8,7 +8,7 @@ import { escapeHtml } from "#src/platform/html/escape";
 import { str, isObject } from "./value-readers.js";
 import { renderWidgetSocialLinks, renderWidgetRecentEntries, renderWidgetEntrySummary } from "./widgets/social-entries.js";
 import { renderWidgetMenu } from "@jini-ai/cms/navigation/menu-render";
-import { renderHtmlTaxonomy } from "@jini-ai/cms/taxonomy";
+import { renderHtmlTaxonomy } from "@jini-ai/cms/taxonomy/render-entry";
 import { renderWidgetContactForm } from "./contact-form-widget.js";
 import { renderWidgetMediaImage, renderMediaWidget } from "./widgets/media.js";
 import { renderWidgetPostContent } from "./widgets/post-content.js";
