@@ -13,6 +13,7 @@ import test, { after } from "node:test";
 import Database from "better-sqlite3";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 
 import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";
 
@@ -77,11 +78,10 @@ function mkTempParent(): string {
  * a genuine install dir (uploads/, themes/, plugins/, overrides/, a migrated content.db) rather
  * than a hand-assembled approximation of one.
  */
-function markerlessFixture(name = "Adopt Fixture"): { parent: string; dir: string } {
+async function markerlessFixture(name = "Adopt Fixture"): Promise<{ parent: string; dir: string }> {
   const parent = mkTempParent();
   const dir = path.join(parent, "site");
-  const init = runCli(["init", dir, "--name", name]);
-  assert.equal(init.status, 0, `fixture setup: tovu init must succeed (stderr: ${init.stderr})`);
+  await initSite({ dir, name });
   fs.rmSync(path.join(dir, "config.json"));
   fs.rmSync(path.join(dir, ".site-meta.json"));
   return { parent, dir };
@@ -171,7 +171,7 @@ async function waitForHttpReady(port: number, child: ChildProcessWithoutNullStre
 }
 
 test("the whole point: a marker-less but working site directory is REFUSED by serve, and tovu adopt is what makes it servable", async () => {
-  const { parent, dir } = markerlessFixture("Adoptable Site");
+  const { parent, dir } = await markerlessFixture("Adoptable Site");
   let child: ChildProcessWithoutNullStreams | undefined;
   try {
     // Half 1 — the defect this command exists for is real, at this exact fixture, right now.
@@ -207,8 +207,8 @@ test("the whole point: a marker-less but working site directory is REFUSED by se
   }
 });
 
-test("adopt DERIVES the schema stamp from the db's own applied migrations — a db behind this runtime is stamped with ITS index, never the runtime's latest", () => {
-  const { parent, dir } = markerlessFixture();
+test("adopt DERIVES the schema stamp from the db's own applied migrations — a db behind this runtime is stamped with ITS index, never the runtime's latest", async () => {
+  const { parent, dir } = await markerlessFixture();
   try {
     const entries = journalEntries();
     const target = entries[entries.length - 2];
@@ -235,8 +235,8 @@ test("adopt DERIVES the schema stamp from the db's own applied migrations — a 
   }
 });
 
-test("--dry-run prints the exact stamp it would write and writes NOTHING", () => {
-  const { parent, dir } = markerlessFixture("Dry Run Site");
+test("--dry-run prints the exact stamp it would write and writes NOTHING", async () => {
+  const { parent, dir } = await markerlessFixture("Dry Run Site");
   try {
     const entries = journalEntries();
     const target = entries[entries.length - 2];
@@ -275,8 +275,8 @@ test("--dry-run prints the exact stamp it would write and writes NOTHING", () =>
   }
 });
 
-test("adopt is idempotent: a re-run is a no-op that exits 0 and leaves both markers BYTE-identical (never a rewrite with a fresh siteId)", () => {
-  const { parent, dir } = markerlessFixture();
+test("adopt is idempotent: a re-run is a no-op that exits 0 and leaves both markers BYTE-identical (never a rewrite with a fresh siteId)", async () => {
+  const { parent, dir } = await markerlessFixture();
   try {
     assert.equal(runCli(["adopt", dir]).status, 0);
     const configBytes = fs.readFileSync(path.join(dir, "config.json"), "utf8");
@@ -292,8 +292,8 @@ test("adopt is idempotent: a re-run is a no-op that exits 0 and leaves both mark
   }
 });
 
-test("adopt is reversible: deleting the two markers returns the directory to exactly its prior state", () => {
-  const { parent, dir } = markerlessFixture();
+test("adopt is reversible: deleting the two markers returns the directory to exactly its prior state", async () => {
+  const { parent, dir } = await markerlessFixture();
   try {
     const treeBefore = treeIgnoringSqliteSidecars(dir);
     const dbBefore = sha256(resolveSiteDatabasePaths({ dir }).contentDbPath);
@@ -309,8 +309,8 @@ test("adopt is reversible: deleting the two markers returns the directory to exa
   }
 });
 
-test("adopt leaves content.db byte-identical — markers are written BESIDE the database, never into it", () => {
-  const { parent, dir } = markerlessFixture();
+test("adopt leaves content.db byte-identical — markers are written BESIDE the database, never into it", async () => {
+  const { parent, dir } = await markerlessFixture();
   try {
     const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
     const before = sha256(dbPath);
@@ -328,8 +328,8 @@ test("adopt leaves content.db byte-identical — markers are written BESIDE the 
   }
 });
 
-test("a PARTIALLY adopted directory is refused by name, and neither completed nor overwritten", () => {
-  const { parent, dir } = markerlessFixture();
+test("a PARTIALLY adopted directory is refused by name, and neither completed nor overwritten", async () => {
+  const { parent, dir } = await markerlessFixture();
   try {
     assert.equal(runCli(["adopt", dir]).status, 0);
     const configBytes = fs.readFileSync(path.join(dir, "config.json"), "utf8");
@@ -351,8 +351,8 @@ test("a PARTIALLY adopted directory is refused by name, and neither completed no
 /** The key-only `.site-meta.json` `npm run dev` writes (2026-10-05): site-key fields and nothing else. */
 const KEY_ONLY_META_TEXT = `{\n  "siteKeyId": "ff81dabf-4800-4b46-8ec7-5939fc82f52e",\n  "siteKeyFingerprint": "03b2912a352b"\n}`;
 
-test("config.json beside a key-only .site-meta.json (a dev site) is adopted by completing the meta, keeping the key fields and config.json", () => {
-  const { parent, dir } = markerlessFixture();
+test("config.json beside a key-only .site-meta.json (a dev site) is adopted by completing the meta, keeping the key fields and config.json", async () => {
+  const { parent, dir } = await markerlessFixture();
   try {
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "Dev Site", domain: null, port: null }));
     fs.writeFileSync(path.join(dir, ".site-meta.json"), KEY_ONLY_META_TEXT);
@@ -376,8 +376,8 @@ test("config.json beside a key-only .site-meta.json (a dev site) is adopted by c
   }
 });
 
-test("a key-only .site-meta.json with no config.json is adopted like a marker-less dir, carrying the key fields forward", () => {
-  const { parent, dir } = markerlessFixture("Key Only");
+test("a key-only .site-meta.json with no config.json is adopted like a marker-less dir, carrying the key fields forward", async () => {
+  const { parent, dir } = await markerlessFixture("Key Only");
   try {
     fs.writeFileSync(path.join(dir, ".site-meta.json"), KEY_ONLY_META_TEXT);
     const result = runCli(["adopt", dir]);
@@ -430,8 +430,8 @@ test("a content.db that has never been migrated is refused rather than stamped w
   }
 });
 
-test("a DIVERGENT schema lineage is refused with SITE_NEWER_THAN_RUNTIME (exit 4), not silently stamped — the case a wrong stamp would turn into data loss", () => {
-  const { parent, dir } = markerlessFixture();
+test("a DIVERGENT schema lineage is refused with SITE_NEWER_THAN_RUNTIME (exit 4), not silently stamped — the case a wrong stamp would turn into data loss", async () => {
+  const { parent, dir } = await markerlessFixture();
   try {
     const sqlite = new Database(resolveSiteDatabasePaths({ dir }).contentDbPath);
     sqlite.exec("INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('fabricated-hash', 9999999999999)");
@@ -448,9 +448,9 @@ test("a DIVERGENT schema lineage is refused with SITE_NEWER_THAN_RUNTIME (exit 4
   }
 });
 
-test("adopt --name sets the display name config.json carries, and defaults to the directory basename without it", () => {
-  const named = markerlessFixture();
-  const defaulted = markerlessFixture();
+test("adopt --name sets the display name config.json carries, and defaults to the directory basename without it", async () => {
+  const named = await markerlessFixture();
+  const defaulted = await markerlessFixture();
   try {
     assert.equal(runCli(["adopt", named.dir, "--name", "Renamed Site"]).status, 0);
     assert.equal(JSON.parse(fs.readFileSync(path.join(named.dir, "config.json"), "utf8")).name, "Renamed Site");
