@@ -222,7 +222,7 @@ test("unexpected site index failure keeps plain text and one redacted matching i
   assert.equal(res.status, 500);
   assert.match(res.headers.get("content-type") ?? "", /^text\/plain/);
   assert.match(text, /couldn’t load the site index/);
-  const id = text.match(/Error ID: ([a-f0-9-]{36})/)?.[1];
+  const id = text.match(/Error ID: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/)?.[1];
   assert.ok(id);
   assert.equal(reports.length, 1);
   assert.equal(logs.mock.calls.length, 1);

@@ -67,7 +67,7 @@ for (const operation of ["read", "columns"] as const) {
     assert.equal(response.status, 500);
     const body = response.body as { code: string; errorId: string; error: string };
     assert.equal(body.code, "INTERNAL_ERROR");
-    assert.match(body.errorId, /^[a-f0-9-]{36}$/);
+    assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
     assert.ok(body.error.includes(body.errorId));
     assert.equal(f.logs.length, 1); assert.equal(f.reports.length, 1);
     assert.ok(JSON.stringify(f.logs).includes(body.errorId));
@@ -125,7 +125,7 @@ for (const operation of ["plan", "undo"] as const) {
     assert.equal(response.status, 500);
     const body = response.body as { code: string; errorId: string; error: string };
     assert.equal(body.code, "INTERNAL_ERROR");
-    assert.match(body.errorId, /^[a-f0-9-]{36}$/);
+    assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
     assert.ok(body.error.includes(body.errorId));
     assert.equal(JSON.stringify(response).includes(KEY), false);
     assert.equal(f.logs.length, 1); assert.equal(f.reports.length, 1);

@@ -44,7 +44,7 @@ for (const [path, register, title, message] of [
     await extractRouteHandler(app, 'get', path)({ query: { token: `${Buffer.from('{}').toString('base64url')}.signature` } }, res);
     assert.equal(capture.statusCode, 500);
     assert.match(String(capture.jsonBody), /couldn’t complete/);
-    const id = String(capture.jsonBody).match(/Error ID: ([a-f0-9-]{36})/)?.[1];
+    const id = String(capture.jsonBody).match(/Error ID: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/)?.[1];
     assert.ok(id);
     assert.equal(logs.mock.calls.length, 1);
     assert.ok(JSON.stringify(logs.mock.calls).includes(id));
