@@ -13,6 +13,8 @@ import path from "node:path";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { createToolRegistry } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
 
 
 import { forceRemove } from "../fixtures/force-remove.js";
@@ -118,7 +120,7 @@ interface SearchResponse {
 }
 
 function findRegistration(workspaceId: string): ToolRegistration {
-  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
+  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId, authorize: async () => ({ allowed: true, reason: "fixture" }), agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
   assert.ok(registration, "search_agent_plugin_local must be registered");
   return registration;
 }
@@ -134,6 +136,36 @@ description: Evidence-based privacy, cookie/consent, and accessibility risk scre
 
 # Site Compliance
 `;
+
+test("plugin search authorizes the caller before returning installed catalog data through the executor", async () => {
+  await withAgentPluginsDir(async () => {
+    await installReal(WORKSPACE_A, "site-compliance", {
+      "plugin.json": manifestJson("site-compliance", { keywords: ["compliance"] }),
+      "skills/site-compliance/SKILL.md": SITE_COMPLIANCE_SKILL,
+    }, "archive-search-authorization");
+    const decisions: { workspaceId: string; principalId: string; permission: string }[] = [];
+    const registry = createToolRegistry({});
+    for (const registration of buildAgentPluginSearchRegistrations({
+      workspaceId: WORKSPACE_A,
+      agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
+      authorize: async ({ workspaceId, principalId, permission }) => {
+        decisions.push({ workspaceId, principalId, permission });
+        return { allowed: principalId === "allowed", reason: "fixture" };
+      },
+    })) registry.register(registration);
+    const executor = createToolExecutor({ registry });
+    const denied = await executor.execute({ principal: { id: "denied" }, run: { id: "search-denied" }, toolId: "search_agent_plugin_local", input: { query: "compliance" } });
+    assert.equal(denied.status, "failed", "a denied caller cannot execute plugin search");
+    assert.equal(denied.output, undefined, "denied plugin search carries no catalog data");
+    const allowed = await executor.execute({ principal: { id: "allowed" }, run: { id: "search-allowed" }, toolId: "search_agent_plugin_local", input: { query: "compliance" } });
+    assert.equal(allowed.status, "completed", "an allowed caller can execute plugin search");
+    assert.deepEqual(allowed.output, await search(WORKSPACE_A, { query: "compliance" }), "allowed plugin search returns the installed-plugin fixture");
+    assert.deepEqual(decisions, [
+      { workspaceId: WORKSPACE_A, principalId: "denied", permission: "admin.assistant.use" },
+      { workspaceId: WORKSPACE_A, principalId: "allowed", permission: "admin.assistant.use" },
+    ], "plugin search authorizes each principal in the configured workspace with the assistant permission");
+  });
+});
 
 for (const maturity of ['untested', 'soon', undefined] as const) {
   test(`search results carry host maturity ${maturity ?? '(absent)'}`, async () => {
@@ -151,7 +183,7 @@ for (const maturity of ['untested', 'soon', undefined] as const) {
 }
 
 test("the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit'", async () => {
-  const registrations = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
+  const registrations = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, authorize: async () => ({ allowed: true, reason: "fixture" }), agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
   assert.equal(registrations.length, 1);
   const [registration] = registrations;
   assert.ok(registration);
@@ -166,7 +198,7 @@ test("the description sends the model to plugins_set_enabled's 'agent-plugin' fa
   // Tool descriptions ship verbatim to the model. Since a1abe2bb plugins_set_enabled toggles BOTH
   // plugin families, so the old wording steered the model away from the one tool that can turn a
   // plugin found here on or off.
-  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
+  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, authorize: async () => ({ allowed: true, reason: "fixture" }), agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
   const description = registration?.descriptor.description ?? "";
   assert.doesNotMatch(description, /plugins_list\/plugins_set_enabled, which manage the separate \.tovu-plugin/);
   assert.match(description, /plugins_set_enabled with family 'agent-plugin'/);

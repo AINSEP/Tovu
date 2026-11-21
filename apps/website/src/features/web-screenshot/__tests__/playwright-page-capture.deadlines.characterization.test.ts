@@ -27,7 +27,7 @@ test("a navigation that commits at 3 s and a requested wait of 18 s now fits: th
   const run = watch(fixture.capture.capture(captureRequest({ settleMs: 18_000 })));
   await fixture.clock.advance(21_000);
   const outcome = run.outcome();
-  assert.ok(outcome && "image" in outcome);
+  assert.ok(outcome && "image" in outcome, "the long requested wait still produces an image");
   assert.equal(outcome.image.note, undefined, "it settled in time: no note");
   assert.deepEqual(fixture.screenshots.map(call => [call.at, call.animations]), [[21_000, "disabled"]]);
 });
@@ -38,9 +38,9 @@ test("a full-page scroll that takes 19 s now fits: a full page gets +10 s, so it
   const run = watch(fixture.capture.capture(captureRequest({ fullPage: true })));
   await fixture.clock.advance(21_000);
   const outcome = run.outcome();
-  assert.ok(outcome && "image" in outcome);
+  assert.ok(outcome && "image" in outcome, "the full-page capture produces an image");
   assert.equal(outcome.image.note, undefined);
-  assert.ok(fixture.events.includes("scroll-end"));
+  assert.ok(fixture.events.includes("scroll-end"), "full-page scrolling completes before capture");
 });
 
 test("a stable-frame screenshot that never settles returns the current frame with the still-animating note", async t => {
@@ -49,7 +49,7 @@ test("a stable-frame screenshot that never settles returns the current frame wit
   const run = watch(fixture.capture.capture(captureRequest({ settleMs: 0 })));
   await fixture.clock.advance(20_000);
   const outcome = run.outcome();
-  assert.ok(outcome && "image" in outcome);
+  assert.ok(outcome && "image" in outcome, "an unsettled frame still produces an image");
   assert.equal(outcome.image.png.toString(), "frame-1");
   assert.equal(outcome.image.note, "page was still animating near the 20 s deadline; captured the current frame (it may show a mid-animation state).");
   assert.deepEqual(fixture.screenshots.map(call => [call.at, call.timeout, call.animations]), [[0, 16_000, "disabled"], [16_000, 4_000, "allow"]]);
@@ -64,10 +64,10 @@ test("a navigation that never commits is a 'timeout' at the work deadline (T −
   assert.equal(run.outcome(), undefined);
   await fixture.clock.advance(1);
   const outcome = run.outcome();
-  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError);
+  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError, "navigation reaches a typed timeout failure");
   assert.equal(outcome.failure.kind, "timeout");
-  assert.ok(fixture.events.includes("context-close"));
-  assert.ok(fixture.events.includes("browser-close"));
+  assert.ok(fixture.events.includes("context-close"), "navigation timeout closes the context");
+  assert.ok(fixture.events.includes("browser-close"), "navigation timeout closes the browser");
 });
 
 test("the outer race and the render's hard stop use the same total, now the request's own (21.2 s here; was 20 s)", async t => {
@@ -75,7 +75,7 @@ test("the outer race and the render's hard stop use the same total, now the requ
   t.after(() => fixture.capture.close());
   const run = watch(fixture.capture.capture(captureRequest()));
   await fixture.clock.advance(2_000);
-  assert.ok(run.outcome() && "image" in run.outcome()!);
+  assert.ok(run.outcome() && "image" in run.outcome()!, "the request-sized budget produces an image");
   assert.deepEqual(fixture.clock.deadlineSignals, [21_200], "the render's hard stop");
   assert.equal(fixture.clock.timeouts[0], 21_200, "the outer race arms its own timer before anything else runs");
 });

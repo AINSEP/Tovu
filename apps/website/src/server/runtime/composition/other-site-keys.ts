@@ -107,7 +107,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
     /** Metadata only, for the permission check that precedes a grant. */
     async find({ keyId }: { keyId: string }, _options = {}): Promise<VaultRecord | null> {
       const { source, rowId } = resolveKeyId({ keyId }, sources);
-      return readPlainly({ source, read: async ({ rows }) => {
+      return readPlainly({ source, rowId, read: async ({ rows }) => {
         const row = rows.find(item => item.id === rowId);
         if (!row) return null;
         return { workspaceId: PROJECT_WORKSPACE_ID, id: row.id, kind: row.kind, label: row.label, ownerKey: "tovu", principalId: null, binding: null, provider: row.provider, isDefault: false, revision: 1, sealed: null, last4: null, tokenLength: null, meta: parseMeta({ row }) as VaultMeta, createdAt: "", updatedAt: "" };
@@ -116,7 +116,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
     /** After owner approval, re-seal the source key into Shared Keys; the plaintext stays in this function. */
     async adopt({ keyId }: { keyId: string }, _options = {}): Promise<{ keyId: string }> {
       const { source, rowId } = resolveKeyId({ keyId }, sources);
-      return readPlainly({ source, read: async ({ kernel, workspaceId, rows, keyStatus, keyring }) => {
+      return readPlainly({ source, rowId, read: async ({ kernel, workspaceId, rows, keyStatus, keyring }) => {
         const row = rows.find(item => item.id === rowId);
         if (!row) throw refused({ message: `This saved key is no longer on ${source.name}. Open Use a saved key again.` });
         const locked = lockedReason({ row, source, keyStatus });
@@ -132,7 +132,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
 
 function createSourceReader(workspace: SitesWorkspace, home: string, openSource: typeof openSqliteFileKernel) {
   /** Open one source read-only, read its metadata, and always close it. */
-  return async function readSource<T>({ source, read }: { source: Source; read: (input: { kernel: ContentKernel; workspaceId: string; rows: MetaRow[]; keyStatus: boolean; keyring: EnvOrFileKeyring }) => Promise<T> }): Promise<T> {
+  return async function readSource<T>({ source, rowId, read }: { source: Source; rowId?: string; read: (input: { kernel: ContentKernel; workspaceId: string; rows: MetaRow[]; keyStatus: boolean; keyring: EnvOrFileKeyring }) => Promise<T> }): Promise<T> {
     if (resolveSiteStorage({ siteDir: source.dir }).kind !== "sqlite") throw refused({ message: couldNotRead({ site: source.name }) });
     const resolved = resolveSiteDatabasePaths({ dir: source.dir }, { workspace, reserveIdentity: false });
     const kernel = openSource<SecretsVaultDatabase>({ filePath: resolved.contentDbPath }, { readOnly: true });
@@ -141,7 +141,8 @@ function createSourceReader(workspace: SitesWorkspace, home: string, openSource:
       const workspaceId = empty ? "" : (await resolveWorkspace({ kernel: kernel as unknown as ContentKernel })).id;
       const rows = empty ? [] : await kernel.query<MetaRow>(sql`SELECT id, kind, provider, label, meta FROM secrets_vault
         WHERE workspace_id=${workspaceId} AND owner_key='tovu' AND principal_id IS NULL AND binding IS NULL
-        AND kind IN (${sql.join(SHARED_KINDS)}) ORDER BY kind, id LIMIT ${MAX_ROWS_PER_SITE}`);
+        AND kind IN (${sql.join(SHARED_KINDS)}) ${rowId === undefined ? sql`` : sql`AND id = ${rowId}`}
+        ORDER BY kind, id LIMIT ${rowId === undefined ? MAX_ROWS_PER_SITE : 1}`);
       // EMPTY source env on both inspection and derivation: this process's TOVU_SITE_KEY is another site's.
       const keySources = siteKeySourcesForSiteDir({ siteDir: source.dir, mode: "local", env: {}, home, cwd: source.dir });
       const status = inspectSiteKeyMaterial({ sources: keySources }, { env: () => ({}) });

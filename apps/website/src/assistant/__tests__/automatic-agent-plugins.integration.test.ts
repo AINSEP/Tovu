@@ -420,7 +420,7 @@ test('50 relevant ids are discoverable by paging the existing search tool and al
   assert.equal(f.published.length, 0);
   const registry = createToolRegistry({});
   registry.register(f.runs.loadRegistration);
-  for (const registration of buildAgentPluginSearchRegistrations({ workspaceId: f.workspaceId, agentPluginLayout: f.layout })) registry.register(registration);
+  for (const registration of buildAgentPluginSearchRegistrations({ workspaceId: f.workspaceId, agentPluginLayout: f.layout, authorize: async () => ({ allowed: true, reason: 'test' }) })) registry.register(registration);
   const executor = createToolExecutor({ registry });
   const discovered = new Set<string>();
   let offset: number | null = 0;

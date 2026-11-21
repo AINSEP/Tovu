@@ -12,6 +12,7 @@ import {
   loadInstalledAgentPluginToolSources as loadHostAgentPluginToolSources, registerInstalledAgentPluginTools as registerHostAgentPluginTools,
   type AgentPluginToolGate, type AgentPluginToolSource, type IdentifiedAgentPluginSearchCandidate,
 } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
@@ -88,6 +89,8 @@ export interface AgentPluginSearchToolDeps {
   readonly agentPluginLayout: AgentPluginLayout;
 }
 
+type AgentPluginSearchRegistrationDeps = AgentPluginSearchToolDeps & { authorize: Parameters<typeof adaptLegacyAuthorize>[0]["authorize"] };
+
 /** "Soon" plugins are locked off (`soon-lock.ts`, owner 2026-11-10). Jini builds the search tool's
  *  description and has no hook for this, so Tovu appends it to both the catalog and the registration. */
 export const SOON_PLUGIN_SEARCH_NOTE = "A result with maturity 'soon' isn't ready and can't be turned on: never offer to enable, connect or use it; you may say it's coming soon.";
@@ -110,8 +113,9 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
  *  KNOWN GAP: Jini's handler loads its own candidates, so its results don't mark the host-listed
  *  Soon faces until Jini gets a host-maturity port (`development/open-bugs.md`). Enabling one is
  *  still refused in plain words. */
-export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearchToolDeps): ToolRegistration[] {
-  return buildHostAgentPluginSearchRegistrations({ workspaceId: routeDeps.workspaceId, ports: agentPluginHostToolPorts(routeDeps) })
+export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearchRegistrationDeps): ToolRegistration[] {
+  return buildHostAgentPluginSearchRegistrations({ workspaceId: routeDeps.workspaceId, ports: agentPluginHostToolPorts(routeDeps),
+    requirePermission: (input, entity) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), ...input }, entity) })
     .map(registration => ({ ...registration, descriptor: withSoonNote(registration.descriptor) }));
 }
 
@@ -120,7 +124,7 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
  * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, the ordinary seam every
  * other domain's `contribute<Domain>Tools()` uses.
  */
-export function contributeAgentPluginSearchTools(): ToolContributor<AgentPluginSearchToolDeps, unknown> {
+export function contributeAgentPluginSearchTools(): ToolContributor<AgentPluginSearchRegistrationDeps, unknown> {
   return { domain: "agent-plugin-search", build: buildAgentPluginSearchRegistrations, risk: agentPluginSearchDerivedRisk };
 }
 

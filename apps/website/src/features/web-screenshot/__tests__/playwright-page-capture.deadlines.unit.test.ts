@@ -51,13 +51,13 @@ test("one clock, three owners: the render's hard stop and the outer race both si
   assert.equal(run.outcome(), undefined);
   await fixture.clock.advance(1);
   const first = run.outcome();
-  assert.ok(first && "failure" in first && first.failure instanceof PageCaptureError);
+  assert.ok(first && "failure" in first && first.failure instanceof PageCaptureError, "the fallback ends in a single typed timeout");
   assert.equal(first.failure.kind, "timeout");
   await fixture.clock.advance(30_000);
   assert.equal(run.outcome(), first, "never a second outcome");
   assert.equal(fixture.screenshots.length, 1, "never a second frame");
   assert.equal(fixture.events.filter(event => event === "browser-close").length, 1);
-  assert.ok(fixture.events.includes("context-close"));
+  assert.ok(fixture.events.includes("context-close"), "the fallback timeout closes the context");
 });
 
 test("a page that hangs the renderer (the screenshot never returns) fails at the computed T, not at 20 s and not never", async t => {
@@ -68,9 +68,9 @@ test("a page that hangs the renderer (the screenshot never returns) fails at the
   assert.equal(run.outcome(), undefined, "20 s was the old limit; this request may take 25 s");
   await fixture.clock.advance(1);
   const outcome = run.outcome();
-  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError);
+  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError, "the renderer reaches a typed deadline failure");
   assert.equal(outcome.failure.kind, "timeout");
-  assert.ok(fixture.events.includes("browser-close"));
+  assert.ok(fixture.events.includes("browser-close"), "the renderer deadline closes the browser");
 });
 
 test("the budget grows with the request and never passes the 45 s cap", async t => {
@@ -114,10 +114,10 @@ test("a full-page scroll that ends before the work deadline keeps the stable-fra
   const run = watch(fixture.capture.capture(captureRequest({ fullPage: true, settleMs: 0 })));
   await fixture.clock.advance(25_000);
   const outcome = run.outcome();
-  assert.ok(outcome === undefined || "image" in outcome);
+  assert.ok(outcome === undefined || "image" in outcome, "the pre-deadline state permits a pending capture or an image");
   await fixture.clock.advance(1);
   const done = run.outcome();
-  assert.ok(done && "image" in done);
+  assert.ok(done && "image" in done, "the completed scroll produces a stable-frame image");
   assert.equal(done.image.note, undefined, "it settled in time: no note");
   assert.deepEqual(fixture.screenshots, [{ at: 25_000, timeout: 1_000, animations: "disabled" }], "30 s − 25 s left, minus the 4 s reserve");
 });
@@ -130,7 +130,7 @@ test("a navigation that never commits fails at the work deadline and says so: th
   assert.equal(run.outcome(), undefined, "T is 25 s, the work deadline 21 s");
   await fixture.clock.advance(1);
   const outcome = run.outcome();
-  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError);
+  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError, "navigation fails at its work deadline");
   assert.equal(outcome.failure.kind, "timeout");
   assert.equal(outcome.failure.limitMs, 21_000, "the work deadline");
   assert.equal(outcome.failure.loaded, false);
@@ -142,7 +142,7 @@ test("a page that loaded but hung the renderer fails at T and says so: it did no
   const run = watch(fixture.capture.capture(captureRequest({ settleMs: 5_000 })));
   await fixture.clock.advance(25_000);
   const outcome = run.outcome();
-  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError);
+  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError, "the hung renderer fails at the total deadline");
   assert.equal(outcome.failure.limitMs, 25_000);
   assert.equal(outcome.failure.loaded, true);
 });
