@@ -1,4 +1,4 @@
-import { after, describe } from "node:test";
+import { after, before, describe } from "node:test";
 
 import { sql } from "kysely";
 import pg from "pg";
@@ -46,6 +46,22 @@ function emptiedPostgresChatKernel(): ChatKernel {
   return heldUntil(pgChatKernel({ kernel: base }), pending);
 }
 
+/** Real-Postgres sections share one `TOVU_CHAT_TEST_POSTGRES_URL` database and TRUNCATE every chat
+ *  table per make, so two test processes on that database wiped each other's rows mid-test
+ *  (combine-10 A7). Each section holds this session-level advisory lock on its own connection, so
+ *  sections run one at a time across processes; PGlite and SQLite stay per-process and unlocked. */
+const REAL_POSTGRES_CHAT_LOCK = 7_402_311;
+
+export async function holdRealPostgresChatDatabase(
+  { connectionString }: { connectionString: string },
+  _optional = {}
+): Promise<{ release: () => Promise<void> }> {
+  const client = new pg.Client({ connectionString });
+  await client.connect();
+  await client.query("SELECT pg_advisory_lock($1)", [REAL_POSTGRES_CHAT_LOCK]);
+  return { release: () => client.query("SELECT pg_advisory_unlock($1)", [REAL_POSTGRES_CHAT_LOCK]).then(() => undefined).finally(() => client.end()) };
+}
+
 /** A fresh in-memory SQLite `chat.db` behind its kernel. */
 export function freshSqliteChatKernel(): ChatKernel {
   return sqliteKernel<ChatDatabase>({ source: openChatDb({ filePath: ":memory:" }) });
@@ -81,7 +97,13 @@ export function describeEachChatDialect<R>(
   });
   if (process.env.TOVU_CHAT_TEST_POSTGRES_URL !== undefined) {
     describe(`${title} [real postgres]`, () => {
+      let held: { release: () => Promise<void> } | undefined;
+      before(async () => {
+        held = await holdRealPostgresChatDatabase({ connectionString: process.env.TOVU_CHAT_TEST_POSTGRES_URL as string });
+      });
       after(async () => {
+        await held?.release();
+        held = undefined;
         await sharedRealPg?.close();
         sharedRealPg = undefined;
         realPgMigrated = undefined;
