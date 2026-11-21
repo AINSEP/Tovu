@@ -122,3 +122,23 @@ that saved `Tovu Search — <vendor>` before may no longer resolve it (not verif
   `ReturnType`s.
 - `@tovu/contracts` imported `@jini-ai/agent-runtime` undeclared (tv-ext-rs-c a52) — the packaged
   desktop would miss it; declared in `196e536c8`.
+
+## cloud-bugs-1120 (Tovu `fix/cloud-bugs-1120`, 2026-11-21)
+
+Triage of the 46 cloud-only rows (`origin/plan/culls-1120:cloud-bugs/list.md`) is in
+`cloud-results/cloud-bugs-1120.md`; rows not listed here were already fixed on the merge-7 bases,
+belong to the lockfile/release run, or need a packaged app / real provider (see that table).
+
+### `552-check-scripts-in-server-build` — FIXED-ON-BRANCH `f57b409e0`
+- Snapshot row 552 (11-02): build-time check scripts shipped in the desktop payload's `dist/src`.
+  `seal-aad-invariant.ts` had been excluded; `features/webhooks/secret-scan-guard.ts` and
+  `features/identity/default-credential-exposure.ts` (run from source by `check:secret-scan` /
+  `check:default-credential`) were still compiled by `tsconfig.json`. Now excluded;
+  `tsconfig.tests.json` still type-checks them. Test: `development/scripts/__tests__/app-runtime-dependencies.test.ts`
+  "repo-scanning check scripts run from source and never ship in the server build" (red on the base).
+
+### `1280-optional-peer-contract` — confirmed, listed (Jini, not fixed)
+- Jini `scripts/__tests__/optional-peer-contract.test.ts` 3/151 red at `06559affb`: stale pins
+  `ui → lexical` and `daemon → express` (neither manifest nor source has them any more) and four
+  `jini.optionalPeers` texts that do not name their opt-in subpath (agentic → protocol, platform → parse5,
+  user-management → ui-kit / react-dom). The other two parts of row 1280 are green after a clean install.
