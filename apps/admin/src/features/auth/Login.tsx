@@ -49,7 +49,7 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
           <SecretInput label={t("Password")} locale={locale} id="login-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         </>}
-        {failure ? <ErrorNotice failure={failure} t={t} className="login-error" /> : error ? <div className="login-error">{error}</div> : null}
+        {failure ? <ErrorNotice failure={failure} disclosure="id-only" t={t} className="login-error" /> : error ? <div className="login-error">{error}</div> : null}
         <button disabled={busy}>{busy ? t("Signing in…") : mfa ? t("Verify code") : t("Sign in")}</button>
         {mfa ? <button type="button" disabled={busy} onClick={mfa.cancel}>{t("Cancel")}</button> : null}
       </form>

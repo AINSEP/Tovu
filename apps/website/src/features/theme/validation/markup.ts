@@ -1,5 +1,5 @@
 import { parseGalleryConfig, scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
-import type { ThemeValidationIssue } from "./profiles.js";
+import type { ThemeValidationIssue } from "@jini-ai/cms/themes/manifest-v2";
 import { checkWebMcpMarkup } from './webmcp-markup.js';
 
 /**

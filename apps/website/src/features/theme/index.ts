@@ -26,7 +26,6 @@ export { checkBuiltThemeConformance, type ConformanceIssue } from "./build-confo
 export {
   validateThemePackage,
   type ThemeValidationProfile,
-  type ThemeValidationIssue,
   type ThemeValidationSeverity,
   type ThemeValidationFinding,
   type ValidateThemePackageResult,

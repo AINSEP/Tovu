@@ -23,7 +23,7 @@ export function OwnerRecoverySignIn({ recover = ownerRecoveryPort.recover, t = i
       <SecretInput id="owner-recovery-confirm" label={t('Confirm new password')} autoComplete="new-password" maxLength={512} value={confirmation} onChange={event => setConfirmation(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
       <button disabled={busy || !code || !password}>{t('Recover owner account')}</button>
     </form>
-    {failure ? <ErrorNotice failure={failure} t={t} /> : null}
+    {failure ? <ErrorNotice failure={failure} disclosure="id-only" t={t} /> : null}
     {message ? <p className="notice" role="status">{message}</p> : null}
   </details>;
 }

@@ -5,7 +5,9 @@ import path from 'node:path';
 import test from 'node:test';
 import { loadTheme } from "../theme.js";
 import { resolveThemeScripts } from "../theme-manifest-fields.js";
-import { validateManifestV2 } from '../validation/manifest-v2.js';
+import { validateManifestV2 } from "@jini-ai/cms/themes/manifest-v2";
+import { validateScripts } from "@jini-ai/cookie-consent/policy";
+import { isSourceDirGeneratedConflict } from "../theme-file-policy.js";
 
 const base = { id: 'declared', name: 'Declared', version: '1.0.0', apiVersion: 2, tier: 'declarative' };
 
@@ -34,8 +36,8 @@ test('loader retains validated declarations and rejects unknown purposes without
 });
 
 test('v2 validates declarations without warning about external unconditional scripts', () => {
-  assert.deepEqual(validateManifestV2({ raw: { ...base, scripts: [{ src: 'https://example.com/pixel.js' }] } }), []);
-  const problems = validateManifestV2({ raw: { ...base, scripts: [{ src: '/stats.js', consent: ['unknown'] }] } });
+  assert.deepEqual(validateManifestV2({ raw: { ...base, scripts: [{ src: 'https://example.com/pixel.js' }] }, validateScripts, isSourceDirGeneratedConflict }), [], 'External unconditional scripts pass manifest validation');
+  const problems = validateManifestV2({ raw: { ...base, scripts: [{ src: '/stats.js', consent: ['unknown'] }] }, validateScripts, isSourceDirGeneratedConflict });
   assert.ok(problems.some(problem => problem.ruleId === 'v2-scripts'));
   assert.ok(problems.every(problem => problem.ruleId !== 'v2-scripts-unimplemented'));
 });
