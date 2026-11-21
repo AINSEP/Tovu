@@ -4,6 +4,7 @@
  * no CLI is spawned. The executor fake is handed exactly what Jini's executor would be, so the
  * per-run credential, the prompt augmenter and the failure path are exercised as production wires them.
  */
+import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
 import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -382,7 +383,7 @@ test("Antigravity installs its static connector before a desktop turn and refuse
   });
   const { runId } = await h.chat.startTurn({ prompt: "hello", agentId: "antigravity" });
   await h.chat.lifecycle.waitForTerminal({ runId });
-  assert.deepEqual(installed, [{ agentId: "antigravity", allowed: true,
+  assert.deepEqual(installed, [{ agentId: "antigravity", allowed: true, files: { fileLock: nodeFileLock, writer: nodeAtomicWriter },
     spec: { command: process.execPath, args: ["/app/bridge.js"], env: { ELECTRON_RUN_AS_NODE: "1" } },
     ctx: { home: "/fixture-home", platform: process.platform, serverName: "jini" } }]);
   assert.doesNotMatch(JSON.stringify(installed), /JINI_DAEMON_TOKEN|JINI_RUN_ID|JINI_DAEMON_URL/);
