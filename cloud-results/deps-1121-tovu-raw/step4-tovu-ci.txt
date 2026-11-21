@@ -1,0 +1,12 @@
+== .
+Run `npm audit` for details.
+EXIT 0
+== apps/admin
+Run `npm audit` for details.
+EXIT 0
+== apps/desktop
+Run `npm audit` for details.
+EXIT 0
+== apps/site-chat
+Run `npm audit` for details.
+EXIT 0

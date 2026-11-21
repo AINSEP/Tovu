@@ -1,0 +1,4 @@
+✖ a torn projects file that cannot be moved aside is never written over, and the change is refused out loud (10.155163ms)
+✖ a torn recent-sites file that cannot be moved aside is left untouched, and remembering still does not throw (1.494855ms)
+✖ an unreadable own file that cannot be moved aside is left exactly as it was — nothing is written over it (43.97909ms)
+✖ failing tests:

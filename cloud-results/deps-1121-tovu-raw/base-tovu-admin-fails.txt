@@ -1,0 +1,19 @@
+ FAIL  src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx > MediaPickerDialog under the host picker > renders nothing of its own while the host picker is open, then an alert with Cancel if choosing fails
+ FAIL  src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx > useJiniMediaPicker > reports an error when the media list cannot be read
+ FAIL  src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx > useJiniMediaPicker > reports an error when the picked media is no longer active
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart of all-zero counts still draws whole-number ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart of large whole counts keeps at most 5 ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart of small whole counts ends its y axis at the largest count
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart of whole counts gets whole-number y ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart with fractional values keeps fractional y ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart of all-zero counts still draws whole-number ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart of large whole counts keeps at most 5 ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart of small whole counts ends its y axis at the largest count
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart of whole counts gets whole-number y ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart with fractional values keeps fractional y ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > keeps middle-dot label separators with a word at 180px
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > keeps middle-dot label separators with a word at 240px
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > keeps middle-dot label separators with a word at 375px
+ FAIL  src/lib/__tests__/admin-literal-copy.unit.test.ts > production admin features and shared components add no untranslated JSX copy
+ FAIL  src/lib/__tests__/credential-input-autocomplete.unit.test.ts > Jini UI credential inputs the admin renders (linked checkout only) > every credential-shaped input has an explicit, honored autoComplete
+ FAIL  src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts > apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N > every locale dictionary is consumed only through its own translator

@@ -1,0 +1,5 @@
+
+> tovu-desktop@0.1.31 typecheck
+> tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json && tsc -p tsconfig.live-verify.json
+
+EXIT 0
