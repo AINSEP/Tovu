@@ -156,19 +156,7 @@ function shouldSample({ cached, inFlight, sitesKey, sampledSitesKey, now, lastAt
   return !cached || sitesKey !== sampledSitesKey || now - lastAttempt >= retryIntervalMs;
 }
 
-/**
- * Main owns request-driven sampling and caches between polls. Concurrent callers share one read;
- * failures clear CPU history and return unavailable without leaking native errors. No timers to leak.
- * @param ports Desktop identity, OS sampler, clock, physical RAM and current owned site handles.
- * @param options Reserved; inject native reads through ports.samplePrivateMemory.
- * @returns get(request, options): resolves a serializable snapshot; never stops a process.
- * @example const monitor = createDesktopResources(ports); await monitor.get({ panelOpen: true });
- * @complexity Per sample O((s+1) * (n + tree(n))) time/O(n+s) space (see groupSample);
- * cached reads compare owned site handles in O(s log s) time/O(s) space.
- * macOS adds at most one top read per 60 s (512 owned PIDs, 5 s timeout, 8 MiB output cap);
- * ps still supplies ownership/CPU/RSS because top's PID/MEM table cannot replace that inventory.
- */
-export function createDesktopResources(ports: DesktopResourcesPorts, _options = {}) {
+function createDesktopPanelMemorySampler({ ports }: { ports: DesktopResourcesPorts }, _options = {}) {
   const samplePrivateMemory: PrivateMemorySampler | undefined = ports.samplePrivateMemory ?? (ports.platform === 'darwin'
     ? input => orFallback({ work: () => sampleProcessPrivateMemory({ pids: input.pids, platform: 'darwin' }), fallback: { metric: 'physical-footprint', readings: [...new Set(input.pids)].map(pid => ({ pid, bytes: null })) }, step: 'sample macOS footprint' }) : undefined);
   let lastMemoryAttempt = -Infinity;
@@ -186,6 +174,23 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
     memory = await samplePrivateMemory({ pids });
     return memory;
   }
+  return samplePrivateMemory ? panelMemory : undefined;
+}
+
+/**
+ * Main owns request-driven sampling and caches between polls. Concurrent callers share one read;
+ * failures clear CPU history and return unavailable without leaking native errors. No timers to leak.
+ * @param ports Desktop identity, OS sampler, clock, physical RAM and current owned site handles.
+ * @param options Reserved; inject native reads through ports.samplePrivateMemory.
+ * @returns get(request, options): resolves a serializable snapshot; never stops a process.
+ * @example const monitor = createDesktopResources(ports); await monitor.get({ panelOpen: true });
+ * @complexity Per sample O((s+1) * (n + tree(n))) time/O(n+s) space (see groupSample);
+ * cached reads compare owned site handles in O(s log s) time/O(s) space.
+ * macOS adds at most one top read per 60 s (512 owned PIDs, 5 s timeout, 8 MiB output cap);
+ * ps still supplies ownership/CPU/RSS because top's PID/MEM table cannot replace that inventory.
+ */
+export function createDesktopResources(ports: DesktopResourcesPorts, _options = {}) {
+  const panelMemory = createDesktopPanelMemorySampler({ ports });
 
   let previous: PreviousSample = { at: 0, processes: new Map() };
   let cached: ResourcesSnapshot | undefined;
@@ -195,12 +200,11 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
 
   /** Inventory failures use Jini's unavailable outcome; memory-source failures retain labelled RSS. */
   async function sample({ pollIntervalMs, sites }: { pollIntervalMs: number; sites: readonly OpenResourceSite[] }, _sampleOptions = {}): Promise<ResourcesSnapshot> {
-    let usages: readonly MemoryUsage[];
-    try {
+    const usages = await orFallback<readonly MemoryUsage[]>({ work: async () => {
       const sampled = await ports.listUsage();
-      usages = await readDesktopMemory({ usages: ownedUsages({ usages: sampled, desktopPid: ports.desktopPid, platform: ports.platform }),
-        platform: ports.platform, electronMetrics: ports.listElectronMetrics?.() ?? [], samplePrivateMemory: samplePrivateMemory ? panelMemory : undefined });
-    } catch { usages = []; }
+      return readDesktopMemory({ usages: ownedUsages({ usages: sampled, desktopPid: ports.desktopPid, platform: ports.platform }),
+        platform: ports.platform, electronMetrics: ports.listElectronMetrics?.() ?? [], samplePrivateMemory: panelMemory });
+    }, fallback: [], step: 'Read desktop process inventory' });
     const result = groupSample({ usages, sites, desktopPid: ports.desktopPid,
       previous, at: ports.now(), totalMemoryBytes: ports.totalMem(), pollIntervalMs });
     previous = result.history;

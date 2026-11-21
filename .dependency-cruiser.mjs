@@ -693,8 +693,8 @@ const PUBLIC_ENTRIES = {
   "features/taxonomy": ["contracts", "render-entry", "content-targets", "term-sync"],
   "features/theme": [
     "catalog", "rendering", "asset-operations", "static-render", "render-contract", "font-links",
-    "token-aliases", "entry-list-render", "active-theme", "static-asset-contract", "theme", "theme-id-aliases",
-    "preview-refresh",
+    "token-aliases", "entry-list-markup", "active-theme", "static-asset-contract", "theme", "theme-id-aliases",
+    "preview-policy", "theme-roster-ports",
   ],
   "platform/site-dir": ["moves"],
 };

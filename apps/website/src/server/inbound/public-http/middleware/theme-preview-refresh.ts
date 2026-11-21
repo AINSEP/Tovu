@@ -2,7 +2,7 @@ import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import type { Express, RequestHandler } from "express";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
-import { themeRosterPorts } from "#src/features/theme/index";
+import { themeRosterPorts } from "#src/features/theme/theme-roster-ports";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";

@@ -2312,6 +2312,366 @@
     {
       "id": "a9a54593565f",
       "reason": "32278af79 removed emptyPlanWhenGone from apps/website/src/server/runtime/composition/form-delivery.ts in favor of Jini planFormDeliveries with onSourceGone: empty-plan."
+    },
+    {
+      "id": "db9d36b21846",
+      "reason": "Moved to Jini packages/ui/src/features/site-card/rules.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d3a8bddfd8cb",
+      "reason": "Moved to Jini packages/ui/src/features/site-card/rules.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "cb0e1c467894",
+      "reason": "Moved to Jini packages/ui/src/browser/useMenuKeyboard.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9f868f4c29af",
+      "reason": "Moved to Jini packages/ui/src/features/tab-strip/scrollable.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e681aaa71b93",
+      "reason": "Moved to Jini packages/ui/src/features/tab-strip/scrollable.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "879f8dd7468d",
+      "reason": "Moved to Jini packages/agentic/src/core/render-surface.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "328e541fdabf",
+      "reason": "Moved to Jini packages/agentic/src/core/render-surface.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "45f5a7a5cc27",
+      "reason": "Moved to Jini packages/agent-runtime/src/native-permissions.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d9fdc7b543e7",
+      "reason": "Moved to Jini packages/core/src/contracts/server/security-headers.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "5ca31f7549c7",
+      "reason": "Moved to Jini packages/cms/src/forms/html/import-remote-submissions.ts (Tovu f54179c73f); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "74c8feb556f3",
+      "reason": "Moved to Jini packages/cms/src/forms/html/import-remote-submissions.ts (Tovu f54179c73f); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7f10d8265161",
+      "reason": "Moved to Jini packages/cms/src/media/guard-rendition-repo.ts (Tovu 067a60db52); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4f4c01fc9216",
+      "reason": "Moved to Jini packages/cms/src/media/versioned-repo.ts (Tovu 067a60db52); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ecd2124ceeeb",
+      "reason": "Moved to Jini packages/cms/src/media/versioned-repo.ts (Tovu 067a60db52); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "cfbcdfe1b858",
+      "reason": "Moved to Jini packages/cms/src/navigation/menu-render.ts (Tovu 12d16bbdd0); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c450fd6a1d38",
+      "reason": "Moved to Jini packages/plugins/src/host/admin-response.ts (Tovu cb609baa0b); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e865132e1e23",
+      "reason": "Moved to Jini packages/cms/src/media/cover-image.ts (Tovu 7e2422ef1d); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "83076738478d",
+      "reason": "Moved to Jini packages/cms/src/media/cover-image.ts (Tovu 7e2422ef1d); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "86ef2753ba62",
+      "reason": "Moved to Jini packages/cms/src/publish/transfer/file-blob-index.ts (Tovu 7e5c158ca6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "623b5c8f18f1",
+      "reason": "Moved to Jini packages/devops/src/backup/upload.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9862d040f102",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/render-entry.ts (Tovu dcf867ebf9); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6108d66daf5f",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/trash-term.ts (Tovu dcf867ebf9); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "29b3aa3aaf1d",
+      "reason": "Moved to Jini packages/cms/src/listing/entry-list.ts (Tovu f54179c73f); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6ec2ad6f6260",
+      "reason": "Moved to Jini packages/cms/src/themes/files/atomic-write.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "177b981d1af5",
+      "reason": "Moved to Jini packages/cms/src/themes/files/atomic-write.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "75583b54283e",
+      "reason": "Moved to Jini packages/cms/src/themes/files/original-source.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "71e11ad716e2",
+      "reason": "Moved to Jini packages/cms/src/themes/files/original-source.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "43d7ee054639",
+      "reason": "Moved to Jini packages/cms/src/themes/files/original-source.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "a3f2213ef6ef",
+      "reason": "Moved to Jini packages/cms/src/themes/files/original-source.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4e1fc892e648",
+      "reason": "Moved to Jini packages/cms/src/themes/files/moves.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "5080e4f4933a",
+      "reason": "Moved to Jini packages/cms/src/themes/files/moves.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "a35e2b245fe0",
+      "reason": "Moved to Jini packages/cms/src/themes/files/moves.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7b8bb3c9d66e",
+      "reason": "Moved to Jini packages/cms/src/themes/files/moves.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "35ea669cdcf3",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6eb6a7e769b4",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9cbe60c630dd",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6dc8112891e8",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d218a46d5d55",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "298277b3e358",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f8123b7f667d",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "192b335c11e5",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b61c8842889f",
+      "reason": "Moved to Jini packages/cms/src/themes/files/read-content.node.ts (Tovu 23c00b5bc9); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "86f80ac2e3f9",
+      "reason": "Moved to Jini packages/cms/src/themes/files/trash.node.ts (Tovu 7167a14396); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "634861eb81a8",
+      "reason": "Moved to Jini packages/cms/src/themes/preview/watcher.node.ts (Tovu 7167a14396); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "95b726d71bbb",
+      "reason": "Moved to Jini packages/cms/src/forms/sql/form-delivery-repo.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8e0a55510d8a",
+      "reason": "Moved to Jini packages/cms/src/forms/sql/form-delivery-repo.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "927018844f6b",
+      "reason": "Moved to Jini packages/cms/src/forms/sql/form-delivery-repo.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d273645bbbbf",
+      "reason": "Moved to Jini packages/cms/src/forms/sql/form-delivery-repo.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "eb9b41a2742f",
+      "reason": "Moved to Jini packages/cms/src/html/style-values.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "397480fdce87",
+      "reason": "Moved to Jini packages/cms/src/html/style-values.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "76fd803c61d4",
+      "reason": "Moved to Jini packages/chat/src/core/ag-ui/__tests__/translation.test.ts (Tovu 7e5c158ca6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "038c885e4ba2",
+      "reason": "Moved to Jini packages/http-kit/src/range.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1c15dcf52ed3",
+      "reason": "Moved to Jini packages/cms/src/content-types/write-error-status.ts (Tovu 7c4818ea6d); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8650fc45d097",
+      "reason": "Moved to Jini packages/cms/src/forms/form-controls.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b18cf7364a1e",
+      "reason": "Moved to Jini packages/cms/src/forms/express/handler.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "956bf5c68c23",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "32f60f8a424b",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c739f0d1c126",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "174ed7288b01",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "339e301d88bf",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1f197cf423c9",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "09622bb7ce98",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "fd787b063472",
+      "reason": "Moved to Jini packages/cms/src/forms/form-controls.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8d649be99023",
+      "reason": "Moved to Jini packages/cms/src/forms/form-controls.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "90d68fe08eb1",
+      "reason": "Moved to Jini packages/cms/src/forms/form-controls.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9420ae4f8e47",
+      "reason": "Moved to Jini packages/cms/src/forms/validation-messages.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e50cc74eabd8",
+      "reason": "Moved to Jini packages/cms/src/presentation/page-head.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "72f2fd50b298",
+      "reason": "Moved to Jini packages/cms/src/seo/types.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9511cd15c255",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "39b49da63b49",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2eebf52dfcc3",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "73a8429a5e8e",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0068b978c6d4",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4f56b7ce82fc",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4d36335f9217",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4cf240e8b7a8",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e77256fe3895",
+      "reason": "Moved to Jini packages/cms/src/widgets/document-markers.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "482f08c9b7d1",
+      "reason": "Moved to Jini packages/cms/src/html/document-marks.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7d5e9fabc75b",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-tags.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "061a78b8d799",
+      "reason": "Moved to Jini packages/cms/src/html/text-layout.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "760caa2a47ec",
+      "reason": "Moved to Jini packages/cms/src/html/text-layout.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "fa3855031ce9",
+      "reason": "Moved to Jini packages/cms/src/html/text-layout.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1e2e76c28ba6",
+      "reason": "Moved to Jini packages/cms/src/presentation/html.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "265b99022e12",
+      "reason": "Moved to Jini packages/cms/src/presentation/html.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2166b1492dae",
+      "reason": "Moved to Jini packages/cms/src/navigation/menu-render.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "87725fda854f",
+      "reason": "Moved to Jini packages/cms/src/listing/request-state.ts (Tovu af7ba5ab0e); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "533817c1aa76",
+      "reason": "Moved to Jini packages/cms/src/listing/request-state.ts (Tovu af7ba5ab0e); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "171bc374b761",
+      "reason": "Moved to Jini packages/cms/src/listing/request-state.ts (Tovu af7ba5ab0e); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "bae0fa01121d",
+      "reason": "Moved to Jini packages/cms/src/widgets/content-markers.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f3ea2058f2f7",
+      "reason": "Moved to Jini packages/cms/src/widgets/content-markers.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
     }
   ]
 }

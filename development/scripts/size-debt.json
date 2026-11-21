@@ -415,13 +415,6 @@
       "value": 535
     },
     {
-      "file": "apps/website/src/features/theme/publish-content.ts",
-      "function": "<file>",
-      "line": 814,
-      "rule": "max-lines",
-      "value": 512
-    },
-    {
       "file": "apps/website/src/server/inbound/admin-http/routes/themes/explore.ts",
       "function": "<file>",
       "line": 1085,
