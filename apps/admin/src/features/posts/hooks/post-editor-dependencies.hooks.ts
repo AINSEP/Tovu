@@ -272,7 +272,8 @@ function createFakePostResources(
     },
 
     async getPost() {
-      if (options.getPostError) throw new Error(options.getPostError);
+      // An ApiError like the real port's: a server refusal (404 "post not found") carries its reason.
+      if (options.getPostError) throw new ApiError({ message: options.getPostError, status: 404 });
       return { post: state.post };
     },
 
