@@ -33,7 +33,7 @@ function parseCliPermissionsSnapshot(required: { value: unknown }): AssistantCli
   try {
     validated = validateNativePermissionSnapshot({ value: required.value, capabilityKeys: CLI_CAPABILITY_KEYS }, { message: "Invalid CLI permissions" });
   } catch (error) {
-    if (error instanceof InvalidNativePermissionsError) throw new Error("Invalid CLI permissions");
+    if (error instanceof InvalidNativePermissionsError) throw new Error("Invalid CLI permissions", { cause: error });
     throw error;
   }
   const { enabled, capabilities } = validated;

@@ -1,5 +1,6 @@
 /** Desktop OS adapter for the reviewed batched footprint read; no per-process probes. */
 import type { ProcessPrivateMemory, ProcessUsage } from '@jini-ai/platform/process';
+import { orFallback } from '@jini-ai/core/errors/idioms';
 import { applyElectronMemoryReadings, type ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
 import type { MemoryMetric, ResourceProcess } from './contracts/resources.ts';
 
@@ -33,7 +34,7 @@ export async function readDesktopMemory({ usages, platform, electronMetrics, sam
 }, _options = {}): Promise<MemoryUsage[]> {
   const fallback = fallbackMemory({ usages, platform, electronMetrics });
   if (!samplePrivateMemory || !usages.length) return fallback;
-  try {
+  return orFallback({ work: async () => {
     const native = await samplePrivateMemory({ pids: usages.map(row => row.pid) });
     if (native.metric === 'unavailable') return fallback;
     const metric = native.metric;
@@ -42,7 +43,7 @@ export async function readDesktopMemory({ usages, platform, electronMetrics, sam
       const bytes = byPid.get(row.pid);
       return validBytes(bytes) ? { ...row, rssBytes: bytes, memoryMetric: metric } : row;
     });
-  } catch { return fallback; }
+  }, fallback, step: 'Read desktop private memory' });
 }
 
 /** A subtotal must expose fallback even if only one child failed; empty groups default to RSS. O(p) time/O(1) space. */

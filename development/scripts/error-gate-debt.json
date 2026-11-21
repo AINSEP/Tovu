@@ -105,11 +105,6 @@
     "value": 2
   },
   {
-    "file": "apps/admin/src/features/dashboard/hooks/use-recent-activity-disclosure.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts",
     "rule": "catch-reads-error",
     "value": 3
@@ -178,11 +173,6 @@
     "file": "apps/admin/src/features/media/hooks/use-edit-media-panel.hooks.ts",
     "rule": "catch-reads-error",
     "value": 4
-  },
-  {
-    "file": "apps/admin/src/features/media/hooks/use-media-grid-size.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
   },
   {
     "file": "apps/admin/src/features/media/hooks/use-media.hooks.ts",
@@ -315,11 +305,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 3
-  },
-  {
     "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
@@ -410,19 +395,9 @@
     "value": 2
   },
   {
-    "file": "apps/admin/src/integrations/jini-admin/media-ports.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/lib/admin-http/request.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/admin/src/lib/assistant-agents-snapshot.ts",
-    "rule": "catch-reads-error",
-    "value": 2
   },
   {
     "file": "apps/admin/src/lib/assistant-daemon-activation.ts",
@@ -465,16 +440,6 @@
     "value": 2
   },
   {
-    "file": "apps/admin/src/lib/local-owner-signin.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/lib/queued-daemon-start.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/lib/server-reconnect.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -500,11 +465,6 @@
     "value": 2
   },
   {
-    "file": "apps/desktop/src/app-version-ipc.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/desktop/src/desktop-agent-inventory.ts",
     "rule": "catch-reads-error",
     "value": 2
@@ -518,16 +478,6 @@
     "file": "apps/desktop/src/desktop-mcp-http.ts",
     "rule": "catch-reads-error",
     "value": 2
-  },
-  {
-    "file": "apps/desktop/src/desktop-memory-sampler.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/desktop/src/desktop-resources.ts",
-    "rule": "catch-reads-error",
-    "value": 1
   },
   {
     "file": "apps/desktop/src/external-site-stop.ts",
@@ -735,11 +685,6 @@
     "value": 2
   },
   {
-    "file": "apps/site-chat/src/session-store.ts",
-    "rule": "catch-reads-error",
-    "value": 4
-  },
-  {
     "file": "apps/site-chat/src/site-assistant-errors.ts",
     "rule": "no-generic-failure-text",
     "value": 1
@@ -900,19 +845,9 @@
     "value": 4
   },
   {
-    "file": "apps/website/src/features/agent-plugins/exports/source.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/agent-plugins/host-plugin-guidance.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/website/src/features/agent-plugins/host-signals.ts",
-    "rule": "catch-reads-error",
-    "value": 3
   },
   {
     "file": "apps/website/src/features/agent-plugins/install-upload.ts",
@@ -925,17 +860,7 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/features/agent-plugins/provider-plugin-link.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/agent-plugins/soon-lock.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -1500,11 +1425,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/source-control/commit-site.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/features/source-control/provider-registry.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -1595,11 +1515,6 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/platform/db/kernel/stopped-database.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/platform/db/key-dependent-data.ts",
     "rule": "catch-reads-error",
     "value": 2
@@ -1633,11 +1548,6 @@
     "file": "apps/website/src/platform/markdown/frontmatter.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/website/src/platform/server-logs/console-tee.ts",
-    "rule": "catch-reads-error",
-    "value": 3
   },
   {
     "file": "apps/website/src/platform/server-logs/index.ts",
@@ -2391,11 +2301,6 @@
   },
   {
     "file": "apps/website/src/server/runtime/lifecycle/site-idle-park.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/runtime/services/external-mcp-probe.ts",
     "rule": "catch-reads-error",
     "value": 1
   }
