@@ -37,17 +37,22 @@ function formHtml(): string {
 }
 
 test("a successful contact form is hidden by the emitted stylesheet in a browser", async () => {
+  const { sentNoticeHandlers } = await import(import.meta.resolve("@jini-ai/agent-plugins/cloudflare/worker/forms-receiver.mjs"));
+  const [[selector]] = sentNoticeHandlers({ slug: "contact" });
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
     await page.setContent(formHtml());
+    const success = page.locator(selector);
+    assert.equal(await success.count(), 1, "the shipped Worker class selector locates exactly one rendered success slot");
+    assert.equal(await success.getAttribute("hidden"), "", "the Worker's success slot starts hidden");
     const form = page.locator("form.tovu-form");
     assert.equal(await form.isVisible(), true);
     await page.setContent(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }));
     assert.equal(await form.getAttribute("hidden"), "");
     assert.equal(await form.evaluate((el) => getComputedStyle(el).display), "none");
     assert.equal(await form.isVisible(), false);
-    assert.equal(await page.locator(".jini-form-success").isVisible(), true);
+    assert.equal(await success.isVisible(), true, "the same Worker-selected success slot is visible after a successful render");
   } finally {
     await browser.close();
   }
