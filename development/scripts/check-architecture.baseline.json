@@ -299,13 +299,10 @@
   "backEdgesIntoServer": 0,
   "backEdgesIntoServerRuntimeOnly": 0,
   "moduleCycles": {
-    "mutualCycleCount": 5,
-    "largestScc": 22,
+    "mutualCycleCount": 2,
+    "largestScc": 2,
     "pairs": [
-      "assistant <-> features/agent-plugins",
       "assistant <-> features/external-mcp",
-      "features/agent-plugins <-> features/api-connections",
-      "features/custom-credentials <-> features/deployments",
       "features/custom-credentials <-> features/source-control"
     ]
   },
