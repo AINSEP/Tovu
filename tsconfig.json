@@ -21,6 +21,8 @@
     "dist",
     "**/__tests__/**",
     "**/*.test.ts",
-    "apps/website/src/features/webhooks/seal-aad-invariant.ts"
+    "apps/website/src/features/webhooks/seal-aad-invariant.ts",
+    "apps/website/src/features/webhooks/secret-scan-guard.ts",
+    "apps/website/src/features/identity/default-credential-exposure.ts"
   ]
 }
