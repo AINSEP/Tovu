@@ -1,5 +1,6 @@
 /** Admit only the trusted shell's main frame and the existing product catalog. */
 import type { Tracker } from '@jini-ai/diagnostics/observability';
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { PRODUCT_EVENTS } from '../../website/src/server/runtime/composition/product-events.ts';
 import { PRODUCT_TELEMETRY_CHANNEL, type ShellTelemetryPayload } from './contracts/product-telemetry.ts';
 interface Sender { getURL(): string }
@@ -40,12 +41,10 @@ export function shellTelemetryPayload({ input }: { input: unknown }, _options = 
  * throws on `url`/`getURL()`; inside an `ipcMain` listener that is a main-process error, so it reads
  * as untrusted and the message is dropped. O(1). */
 function fromShellMainFrame({ event, isShellPage }: { event: TelemetryEvent; isShellPage: (required: { url: string }) => boolean }, _options = {}): boolean {
-  try {
+  return orFallbackSync({ work: () => {
     const frame = event.senderFrame;
     return !!frame && frame.parent === null && isShellPage({ url: frame.url }) && isShellPage({ url: event.sender.getURL() });
-  } catch {
-    return false;
-  }
+  }, fallback: false, step: 'Verify shell telemetry sender' });
 }
 
 /** Register before the shell opens. One rolling error budget for the whole shell (reloads cannot

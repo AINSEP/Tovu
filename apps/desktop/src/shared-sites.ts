@@ -1,5 +1,6 @@
 /** Tovu's folder/filenames; generic resolution, locking and registry policy belong to Jini. */
 import fs from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { createHash } from "node:crypto";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
@@ -57,9 +58,9 @@ function nestedSitesCompat({ workspace }: { workspace: ReturnType<typeof createN
   const nestedSitesRoot = (_required: Record<string, never>, _options = {}) => nestedRoot({ workspace }, { ports });
   return { nestedSitesRoot, roots: (_required: Record<string, never>, _options = {}) => {
     const roots = workspace.roots({}), nested = nestedSitesRoot({});
-    try {
+    return orFallbackSync({ work: () => {
       return nested && fs.readdirSync(nested).some((name) => fs.existsSync(path.join(nested, name, ".site-meta.json"))) ? [...new Set([...roots, nested])] : roots;
-    } catch { return roots; }
+    }, fallback: roots, step: "Discover shared site roots" });
   } };
 }
 
@@ -81,12 +82,12 @@ function nestedRoot({ workspace }: { workspace: ReturnType<typeof createNodeDire
   if (saved.state === "unreadable") return undefined;
   if (saved.state === "ok" && (saved.value as { sitesHome?: unknown } | null)?.sitesHome !== undefined) return undefined;
   const root = path.join(workspace.home({}), "sites");
-  try {
+  return orFallbackSync({ work: () => {
     if (!fs.lstatSync(root).isDirectory()) return undefined;
     // A real website named "sites" is a website, never a compatibility container.
     if (fs.existsSync(path.join(root, ".site-meta.json"))) return undefined;
     return root;
-  } catch { return undefined; }
+  }, fallback: undefined, step: "Find nested sites root" });
 }
 
 

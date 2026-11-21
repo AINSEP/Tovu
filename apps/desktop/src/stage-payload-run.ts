@@ -11,6 +11,7 @@
  */
 import type * as nodeFs from "node:fs";
 import path from "node:path";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import type { assertDistImportsDeclared } from "./dist-import-check.ts";
 import { shellStalenessFailure } from "./shell-staleness.ts";
@@ -158,10 +159,8 @@ function nestedPackageRoots({ packageDir, fs }: { packageDir: string; fs: StageF
 function materializeLink({ fs, full }: { fs: StageFs; full: string }, _options = {}): number {
   // Node 24.2's native rmSync follows links during its type check: directory links throw EISDIR,
   // and dangling links are left behind. Unlink the known symlink itself on both Node 22 and 24.
-  let target;
-  try {
-    target = fs.realpathSync(full);
-  } catch {
+  const target = orFallbackSync({ work: () => fs.realpathSync(full), fallback: undefined, step: "Resolve staged symlink" });
+  if (target === undefined) {
     fs.unlinkSync(full);
     return 0;
   }

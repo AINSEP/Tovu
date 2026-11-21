@@ -1,4 +1,5 @@
 import { shareSiteDirectories, rememberSharedSiteOpen, type SitesWorkspace } from "./shared-sites.ts";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 /**
  * @file Where the desktop app's site dir — and therefore its `content.db` — lives, and how a user
  * chooses it.
@@ -170,8 +171,7 @@ function classifySiteDir({ dir }: { dir: string }, _options: Record<string, neve
   if (!fs.existsSync(dir)) return "empty";
   const missing = missingSiteMarkers({ dir });
   if (missing.length === 0) {
-    try { readCatalogSite({ siteDir: dir }); return "site"; }
-    catch { return "incomplete"; }
+    return orFallbackSync({ work: (): SiteClassification => { readCatalogSite({ siteDir: dir }); return "site"; }, fallback: "incomplete", step: "Read discovered site" });
   }
   if (missing.length === 1) return "incomplete";
   const directory = fs.opendirSync(dir);
@@ -204,11 +204,7 @@ function classifySiteDir({ dir }: { dir: string }, _options: Record<string, neve
  * @complexity same as {@link classifySiteDir}.
  */
 function classifySiteDirSafely({ dir }: { dir: string }, _options: Record<string, never> = {}): SiteClassification | "unreadable" {
-  try {
-    return classifySiteDir({ dir });
-  } catch {
-    return "unreadable";
-  }
+  return orFallbackSync({ work: () => classifySiteDir({ dir }), fallback: "unreadable", step: "Classify site directory" });
 }
 
 /** Input to {@link initSiteDir}. */

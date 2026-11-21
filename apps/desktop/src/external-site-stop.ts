@@ -30,6 +30,7 @@
  */
 import { resolveOnPath } from '@jini-ai/agent-runtime';
 import { execFileSync } from "node:child_process";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { siteChildProcess } from "./site-child-registry.ts";
 
 /** Who started an externally served site, as far as the card's confirm needs to say. */
@@ -164,12 +165,10 @@ export function readProcessStartMs(
   { platform = process.platform, runPs = runPsInCLocale }: { platform?: NodeJS.Platform; runPs?: (required: { args: string[] }) => string } = {},
 ): number | null {
   if (platform === "win32") return null;
-  try {
+  return orFallbackSync({ work: () => {
     const parsed = Date.parse(runPs({ args: ["-o", "lstart=", "-p", String(pid)] }).trim());
     return Number.isFinite(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
+  }, fallback: null, step: "Read external process start time" });
 }
 
 export const NODE_PORTS: ExternalStopPorts = {
