@@ -494,9 +494,9 @@ test('Tovu consumes agent and provider subpaths and declares no standalone vendo
     assert.deepEqual(Object.keys(manifest[field] ?? {}).filter(name => name.startsWith('@jini-ai/plugin-') && name !== '@jini-ai/plugin-catalog'), []);
   }
   for (const name of ['@jini-ai/plugin-catalog']) {
-    assert.equal(manifest.dependencies[name], '^0.7.0'); // 25ec2e966: Tovu moved onto the published Jini 0.7.0 line
+    assert.equal(manifest.dependencies[name], '^0.7.3-next.1'); // 25ec2e966: Tovu moved onto the published Jini 0.7.0 line; 0740ca85a (lockfile-1120) moved it to 0.7.3-next.1
     assert.equal(lock.packages[''].dependencies[name], manifest.dependencies[name]);
-    assert.equal(lock.packages[`node_modules/${name}`].version, '0.7.0');
+    assert.equal(lock.packages[`node_modules/${name}`].version, '0.7.3-next.1');
     assert.equal(lock.packages[`node_modules/${name}`].dev, undefined);
   }
 });
