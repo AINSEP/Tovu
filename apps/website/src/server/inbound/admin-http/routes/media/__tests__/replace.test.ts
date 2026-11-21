@@ -138,7 +138,7 @@ test('replace reports the stored size of a sanitized SVG, and null when that siz
   assert.ok(blob);
   assert.equal(result.json.media.byteSize, (await deps.blobStore.get({ storageKey: blob.storageKey })).byteLength);
   assert.notEqual(result.json.media.byteSize, Buffer.byteLength(svg));
-  t.mock.method(deps.assetBlobRepo, 'findByHash', async () => null);
+  t.mock.method(deps.assetBlobRepo, 'list', async () => []);
   const unknown = await invoke({ deps, id: media.id, input: { ...input, dataBase64: Buffer.from(svg.replace('10', '20')).toString('base64') } });
   assert.equal(unknown.status, 200);
   assert.equal(unknown.json.media.byteSize, null);

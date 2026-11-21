@@ -38,7 +38,7 @@ test('media trash: success returns the re-read trashed asset with its recorded t
 test('media trash: an unknown stored size and public URL are reported as null', async (t) => {
   const { app, deps } = mediaApp(registerAdminMediaTrashRoute);
   const id = await seedPng(app);
-  t.mock.method(deps.assetBlobRepo, 'findByHash', async () => null);
+  t.mock.method(deps.assetBlobRepo, 'list', async () => []);
   const result = await dispatchJsonRequest(app, 'POST', `${BASE}/media/${id}/trash`);
   const media = (result.body as { media: { publicUrl: string | null; byteSize: number | null } }).media;
   assert.deepEqual({ status: result.status, publicUrl: media.publicUrl, byteSize: media.byteSize }, { status: 200, publicUrl: null, byteSize: null });
