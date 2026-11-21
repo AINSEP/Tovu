@@ -11,7 +11,7 @@ import { type Translate } from '@jini-ai/core/text';
  * "I understand" checkbox, which records consent on the server before enabling them.
  */
 
-/** What an export row shows in place of its download; `message` is a 409's own reason. */
+/** What an export row shows in place of its download; `message` is a 403's own reason. */
 export interface CredentialGate {
   warnings: readonly CredentialWarning[];
   message: string | null;
@@ -32,7 +32,7 @@ function withoutKey<T>({ record, key }: { record: Readonly<Record<string, T>>; k
 
 /**
  * Local consent and refusal state per share id. A local "acknowledged" mark enables the row at once
- * instead of waiting for the list refresh; a 409 overrides any row state, since the server decides.
+ * instead of waiting for the list refresh; a 403 overrides any row state, since the server decides.
  * @complexity O(1) per action; two requests per download check at most, one per acknowledgement.
  */
 export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
@@ -66,7 +66,7 @@ export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
     const refusal = await port.shareDownloadRefusal({ share });
     if (!alive.current) return;
     if (!refusal) { port.downloadShare({ share }); return; }
-    if (refusal.status !== 409) { onDownloadError({ message: refusal.message ?? t("Download failed.") }); return; }
+    if (refusal.status !== 403) { onDownloadError({ message: refusal.message ?? t("Download failed.") }); return; }
     pendingDownload.current = share.shareId;
     setAcknowledged(previous => { const next = new Set(previous); next.delete(share.shareId); return next; });
     setRefusals(previous => ({ ...previous, [share.shareId]: refusal }));

@@ -78,7 +78,7 @@ export interface SiteTransferPort {
   revokeShare(input: { shareId: string }): Promise<SiteShare>;
   /** Records "I understand this export may contain credentials"; answers the updated row. */
   acknowledgeShare(required: { shareId: string }, optional?: Record<string, never>): Promise<SiteShare>;
-  /** `null` when the zip may be downloaded, else the server's refusal (409 = acknowledge first). */
+  /** `null` when the zip may be downloaded, else the server's refusal (403 = acknowledge first). */
   shareDownloadRefusal(required: { share: SiteShare }, optional?: Record<string, never>): Promise<ShareDownloadRefusal | null>;
   /** Absolute admin URL for a share's zip, so a plain link can download it with the session cookie. */
   shareDownloadHref(required: { share: SiteShare }, optional?: Record<string, never>): string;
