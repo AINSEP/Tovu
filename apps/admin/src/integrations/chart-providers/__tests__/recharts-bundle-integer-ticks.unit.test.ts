@@ -12,6 +12,7 @@ import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import rootPackage from "../../../../../../package.json";
 import { act } from "@testing-library/react";
+import { applyChartTheme } from "@jini-ai/ui/charts/browser";
 
 /**
  * The bundle folder is named for the package version, and the root dependency is EXACT so that version
@@ -49,7 +50,7 @@ async function yTicks(kind: "bar" | "line", values: number[]): Promise<string[]>
   const data = values.map((count, i) => ({ status: `s${i}`, count }));
   let instance!: Instance;
   act(() => {
-    instance = mount({ element, spec: { kind, data, categoryKey: "status", series: [{ key: "count" }] }, theme: { mode: "light" } }) as Instance;
+    instance = mount({ element, applyTheme: applyChartTheme, spec: { kind, data, categoryKey: "status", series: [{ key: "count" }] }, theme: { mode: "light" } }) as Instance;
   });
   await instance.ready;
   // The bundle carries its own React, so its passive effects (where ResponsiveContainer measures)
@@ -103,7 +104,7 @@ it.each([180, 240, 375])("keeps middle-dot label separators with a word at %spx"
   const element = document.createElement("div");
   document.body.append(element);
   const labels = ["Pages · Published", "Posts · Drafts", "Media · Active"];
-  const instance = mount({ element, spec: { kind: "bar", data: labels.map(status => ({ status, count: 1 })), categoryKey: "status", series: [{ key: "count" }] }, theme: { mode: "dark" } }) as Instance;
+  const instance = mount({ element, applyTheme: applyChartTheme, spec: { kind: "bar", data: labels.map(status => ({ status, count: 1 })), categoryKey: "status", series: [{ key: "count" }] }, theme: { mode: "dark" } }) as Instance;
   try {
     await instance.ready;
     await vi.waitFor(() => expect(element.querySelector(".recharts-xAxis-tick-labels tspan")).not.toBeNull());

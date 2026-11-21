@@ -24,21 +24,21 @@ export const RECHARTS_DEFAULT_PROVIDER = "plugin.recharts";
 // 194095b1a) and the middle-dot separator wrapping (47b4199e0) that used to be patched into the bundle.
 export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
   pluginId: "charts-recharts",
-  version: "0.7.1",
+  version: "0.7.3-next.2",
   browserProviders: [{ id: RECHARTS_DEFAULT_PROVIDER, kind: "chart", contractVersion: 1,
     kinds: ["bar", "line", "pie"], javascript: "client/provider.js", stylesheet: "client/styles.css" }],
   // The full packaged integrity map (licenses included), copied from the PUBLISHED 0.7.1 package (the registry tarball, not a local build: a local Jini build
   // carries different bytes under the same version and is refused by admission).
+  // 0.7.1 -> 0.7.3-next.2 (combine-11 O1): registry tarball sha512-E9MHldNu…qykNAew==; its 62-entry map was
+  // re-hashed file by file (0 mismatches, 0 unmapped). client/provider.js changed (the bundle no longer
+  // carries @jini-ai/ui or zod, so their license files left the map; mount now takes the host's applyTheme),
+  // and _jini-ai_provider-plugins/package-license.json carries the new version.
   integrity: {
-    "client/provider.js": "sha256-94627633bcbab5f1daa365f4c0285cd6a2bb571dd55265f9a9ee04e950daad4d",
+    "client/provider.js": "sha256-1ac616500dcd27252ddfd996516e461a694c2d035be0adacd9c4c0862930fe2c",
     "client/styles.css": "sha256-8bf7290ed757364db0ab99e55f2ab682647f572fbdda622f1c39937727e8eb3c",
     "licenses/_jini-ai_provider-plugins/LICENSE": "sha256-9d95806a26532623360eb84bb17d298f394b55ef73fb4c0796d99b4319b2b0da",
     "licenses/_jini-ai_provider-plugins/NOTICE": "sha256-41f25c5b9af4c8e8e98e2a7c658b3922253c760686e17e0ef7fa003fae83cb95",
-    "licenses/_jini-ai_provider-plugins/package-license.json": "sha256-e5b0aba2e8ad1bbeae42e9f21e7c67b17c8d86e2ea8e3617f8ee70586b679c31",
-    "licenses/_jini-ai_ui/LICENSE": "sha256-9d95806a26532623360eb84bb17d298f394b55ef73fb4c0796d99b4319b2b0da",
-    "licenses/_jini-ai_ui/LICENSE-SOURCE": "sha256-8bcadf2cd3e1f49204bd9b3a777defe65eda1a1963ffce3e47f77528147d0059",
-    "licenses/_jini-ai_ui/NOTICE": "sha256-41f25c5b9af4c8e8e98e2a7c658b3922253c760686e17e0ef7fa003fae83cb95",
-    "licenses/_jini-ai_ui/package-license.json": "sha256-63c070bb4c6436b796125703a597f9a4eb884fb3318538721fb473b5cdbee2d8",
+    "licenses/_jini-ai_provider-plugins/package-license.json": "sha256-42e35c7000bdebb5d932393aede11c2eb060de2c933d0d7db65551e981cbf9f8",
     "licenses/_reduxjs_toolkit/LICENSE": "sha256-49784961ec6c4941437b7a2c54d8977d0528076a9e7c73dd40f7d0942b8f106d",
     "licenses/_reduxjs_toolkit/package-license.json": "sha256-841f76ddac88a780f1d16a201f72ad529d0b50148fcba84d103a65a8689f95b0",
     "licenses/clsx/license": "sha256-9a9edad7baae52622bddf3c15b2ef8a33d2c89f2d25408ad13e8a7481c6b0c97",
@@ -57,10 +57,10 @@ export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
     "licenses/d3-scale/package-license.json": "sha256-da8dde35c77ac5c672f4184a6b4d6474a6adadb7fc352280ffc7f91b671e0a9a",
     "licenses/d3-shape/LICENSE": "sha256-faa682e3e430941f958d26180458f5934a62f58dac4d70ccdd15608c15d0f884",
     "licenses/d3-shape/package-license.json": "sha256-0d83e82ab9636ecf3e6a1fb4501b9a8a796d99625c42f70b100de36a01e19882",
-    "licenses/d3-time/LICENSE": "sha256-faa682e3e430941f958d26180458f5934a62f58dac4d70ccdd15608c15d0f884",
-    "licenses/d3-time/package-license.json": "sha256-218a0f8b88ddbab89e8cca6b16fae46ff3d8b7608edb6a82b8959192afed6321",
     "licenses/d3-time-format/LICENSE": "sha256-e008c5e25a6be382593089c29bfabbc553c6378eee02895aec46ce396cc404ee",
     "licenses/d3-time-format/package-license.json": "sha256-e41d14702b5db73ca9e76e0e0abae67194e33f92a3fb382a218bb88a9a0e8026",
+    "licenses/d3-time/LICENSE": "sha256-faa682e3e430941f958d26180458f5934a62f58dac4d70ccdd15608c15d0f884",
+    "licenses/d3-time/package-license.json": "sha256-218a0f8b88ddbab89e8cca6b16fae46ff3d8b7608edb6a82b8959192afed6321",
     "licenses/decimal.js-light/LICENCE.md": "sha256-fc0397fbd5c128bec7edef4e8d3f45e15db5fd043cdd0a2edfc4f14d47fbc3e4",
     "licenses/decimal.js-light/package-license.json": "sha256-e3c96d33f14b9645b319a0edc94c832c20d348f6c48a30c4384ac39ec0ddc1c2",
     "licenses/es-toolkit/LICENSE": "sha256-51f3674294d988d89dbebd31273baaeb3c697a15482d9699b14d1fded2e132a7",
@@ -71,20 +71,20 @@ export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
     "licenses/immer/package-license.json": "sha256-0e72a621ea42e771da505e6ac09ccd6b2151c2846cc7e72e05202dc99f42d9e4",
     "licenses/internmap/LICENSE": "sha256-9ea8903938dab5f12c4572d60725069bec2d1b0dc3bcc210b09bae946a5ebb1f",
     "licenses/internmap/package-license.json": "sha256-0de9dc34835acc99743e68facb1eecfd48d4442240853f1e79ce553dd5c92a0d",
-    "licenses/react/LICENSE": "sha256-da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
-    "licenses/react/package-license.json": "sha256-a9e4cd232557d1bdffd10b4c9dc694ee975f250e30bb6641fd17ea3e0d861bb1",
     "licenses/react-dom/LICENSE": "sha256-da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
     "licenses/react-dom/package-license.json": "sha256-3401f979e83126af6eda1348437cf927066a4c49cf64f6c5c958c93e354e6d9e",
     "licenses/react-is/LICENSE": "sha256-52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85",
     "licenses/react-is/package-license.json": "sha256-09e091b983080debc57039eea1eedcda7729ada086fa07e1afbd78f956ac7b2c",
     "licenses/react-redux/LICENSE.md": "sha256-f2da73c752c6b87624755edacf927cbd915fa76555d383e74494bad4a5155ab3",
     "licenses/react-redux/package-license.json": "sha256-1181b7bcf0a314f65281243a9019fc2526c1afa63d698a049625229bb4748d8f",
+    "licenses/react/LICENSE": "sha256-da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+    "licenses/react/package-license.json": "sha256-a9e4cd232557d1bdffd10b4c9dc694ee975f250e30bb6641fd17ea3e0d861bb1",
     "licenses/recharts/LICENSE": "sha256-2d3aa48a8d1d3b93093680e8e68d3a64cfb590c3ade377ffcaefc69dac7c2ce5",
     "licenses/recharts/package-license.json": "sha256-1271b62a556e9ed8b32f2187192c7663fecf60951b5fce53e400862a8616c58b",
-    "licenses/redux/LICENSE.md": "sha256-f2da73c752c6b87624755edacf927cbd915fa76555d383e74494bad4a5155ab3",
-    "licenses/redux/package-license.json": "sha256-ff007f00731f8a9ce406bc94dafe6a325e607329b14c1a5230674595ce4fca3f",
     "licenses/redux-thunk/LICENSE.md": "sha256-635da794c92d278f8355428be0f9922d643f556d4f75f33fe4aca6b98d27affe",
     "licenses/redux-thunk/package-license.json": "sha256-4ac2774ba1453e66cdc18ceb48271aa1cab57553e65b12c756cf8d597829ee85",
+    "licenses/redux/LICENSE.md": "sha256-f2da73c752c6b87624755edacf927cbd915fa76555d383e74494bad4a5155ab3",
+    "licenses/redux/package-license.json": "sha256-ff007f00731f8a9ce406bc94dafe6a325e607329b14c1a5230674595ce4fca3f",
     "licenses/reselect/LICENSE": "sha256-e98047a5dee068b33f82e8c4b7a63037b5108c93393198efd4097753004af5dd",
     "licenses/reselect/package-license.json": "sha256-265373a61edec5d5616e04f2df1f401bc39b1f0f8d1f083435f7ee1447461bf6",
     "licenses/scheduler/LICENSE": "sha256-da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
@@ -95,8 +95,6 @@ export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
     "licenses/use-sync-external-store/package-license.json": "sha256-be330d23f9f8507a3871ea40ac093dfd3cc5dcdf42294599606cc40aac8fcfc7",
     "licenses/victory-vendor/LICENSE.txt": "sha256-909af77588b84d9e557d26c4bd1a26a282aaba7123c4a839c75287c803166955",
     "licenses/victory-vendor/package-license.json": "sha256-c49c483e1ea4b423861fd21dae1b9fb7129a47f8f06cc7a9037b42f0adb0c701",
-    "licenses/zod/LICENSE": "sha256-3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8",
-    "licenses/zod/package-license.json": "sha256-b874b502e45d7154ce82a27bdb9c9b6c1d5f3c0129ff43175b19ecfab2b2fb3b",
     "server/index.mjs": "sha256-49db3039500e0247df3a8f9a31814807afc5a9913fa94219c1cc6a67b040b69f",
   },
 };
@@ -117,7 +115,7 @@ const manifest: PluginManifest = {
  *   would turn a missing pinned version into a boot failure instead of a table fallback.
  * @throws When the declared package is not installed: a packaging defect, never a runtime choice.
  * @complexity O(1) resolver calls.
- * @example rechartsSourceDir({}) // …/node_modules/@jini-ai/provider-plugins/plugins/charts-recharts/0.7.1
+ * @example rechartsSourceDir({}) // …/node_modules/@jini-ai/provider-plugins/plugins/charts-recharts/0.7.3-next.2
  */
 export function rechartsSourceDir(
   _required: Record<string, never> = {},
