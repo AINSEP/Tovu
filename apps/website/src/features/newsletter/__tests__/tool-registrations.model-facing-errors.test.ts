@@ -320,7 +320,7 @@ test("authorized subscription, archive, cancel and pause tools persist and retur
 
 test("newsletter_list_send_log reports completeness at 100 sends and truncates 101 in id order", async () => {
   const deps = makeRouteDeps();
-  await deps.newsletterCampaignRepo.saveCampaignRow({ id: "c-1", workspaceId: WORKSPACE_ID, status: "sent", subject: "Hello", preheader: null, fromName: "Sender", fromEmail: "sender@example.com", replyTo: null, listId: "l-1", scheduledAt: null, sendStartedAt: NOW, audienceSnapshotId: "snap-1", counters: { recipients: 101, delivered: 101, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 }, version: 1, createdByPrincipal: PRINCIPAL_ID, createdAt: NOW, updatedAt: NOW });
+  await deps.newsletterCampaignRepo.saveCampaignRow({ id: "c-1", workspaceId: WORKSPACE_ID, status: "sent", subject: "Hello", preheader: null, fromName: "Sender", fromEmail: "sender@example.com", replyTo: "replies@example.com", listId: "l-1", scheduledAt: null, sendStartedAt: NOW, audienceSnapshotId: "snap-1", counters: { recipients: 101, delivered: 101, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 }, version: 1, createdByPrincipal: PRINCIPAL_ID, createdAt: NOW, updatedAt: NOW });
   const sends = Array.from({ length: 100 }, (_, index) => ({ id: `send-${String(index).padStart(3, "0")}`, subscriberId: `subscriber-${index}`, recipientEmail: "reader@example.com", status: "delivered", attempts: 1, providerMessageId: "pm-1", lastError: null, nextAttemptAt: null, updatedAt: NOW }));
   for (const send of sends) {
     await deps.newsletterSendRepo.save({ ...send, workspaceId: WORKSPACE_ID, campaignId: "c-1", audienceSnapshotId: "snap-1", status: "delivered", idempotencyKey: send.id, createdAt: NOW });
