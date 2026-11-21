@@ -190,23 +190,23 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     return { html, blockingProblems: await problems({ config }), ...diagnostics, sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
   };
   /** Append an immutable draft; invalid CSS rules are diagnosed and dropped by the preview compiler. */
-  const saveDraft = async ({ principalId, config: value, expectedDraftId }: { principalId: string; config: unknown; expectedDraftId: string | null }, _optional = {}) => {
+  const saveDraft = async ({ principalId, config: value, expectedDraftId, signal }: { principalId: string; config: unknown; expectedDraftId: string | null; signal?: AbortSignal }, _optional = {}) => {
     const store = await authorize({ principalId, write: true });
     const config = parseConsentConfig({ value });
     const blockingProblems = await problems({ config });
     const revision = { id: ports.ids.newId(), config, actorId: principalId, createdAt: ports.clock.nowIso() };
-    await store.saveDraft({ revision, expectedDraftId });
+    await store.saveDraft({ revision, expectedDraftId, signal });
     return { revision, blockingProblems };
   };
   /** The stored draft, never caller replacement fields, is what becomes public atomically. */
-  const publish = async ({ principalId, draftId, expectedPublishedId }: { principalId: string; draftId: string; expectedPublishedId: string | null }, _optional = {}) => {
+  const publish = async ({ principalId, draftId, expectedPublishedId, signal }: { principalId: string; draftId: string; expectedPublishedId: string | null; signal?: AbortSignal }, _optional = {}) => {
     const store = await authorize({ principalId, write: true });
     const state = await store.read({});
     if (state.draft?.id !== draftId) throw new SiteConsentConflict();
     const config = parseConsentConfig({ value: state.draft.config });
     const blockingProblems = await problems({ config });
     if (blockingProblems.length) throw new ToolInputError({ message: blockingProblems.map(problem => problem.message).join(' ') });
-    await store.publish({ draftId, expectedPublishedId });
+    await store.publish({ draftId, expectedPublishedId, signal });
     try { await ports.published?.(); }
     catch (error) { console.warn('[consent] Cookie preferences were published, but the public preview could not refresh. A later request will try again.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
     return { published: true, revisionId: draftId };
