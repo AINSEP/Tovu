@@ -135,6 +135,19 @@ test("analytics-ingest: beforeIngest can transform or drop the normalized hit wh
   assert.deepEqual(dropApp.sink.all(), []);
 });
 
+for (const allowed of [false, true]) {
+  test(`analytics-ingest: vendor hook gate ${allowed} preserves first-party ingest`, async t => {
+    let hookCalls = 0;
+    const { app, sink } = buildApp(undefined, {
+      vendorHooksAllowed: async () => allowed,
+      hooks: { beforeIngest: async ({ hit }) => { hookCalls++; return hit; } },
+    });
+    assert.equal((await postBeacon(t, app, { host: "example.com", path: "/hook-gate" })).status, 204);
+    assert.equal(sink.all().length, 1);
+    assert.equal(hookCalls, allowed ? 1 : 0);
+  });
+}
+
 test("analytics-ingest: host absent falls back to the request's own hostname, and the hit still lands", async (t) => {
   let resolvedHost: string | undefined;
   const base = createRouteDeps();

@@ -107,7 +107,7 @@ export function registerAnalyticsIngestRoute({ app, deps }: { app: Express; deps
     try {
       // Never throws (fails toward no vendor); resolved before ingest because consent is per request.
       const forwarders = deps.forwarders ? await deps.forwarders({ request: req }) : [];
-      const binding = createAnalyticsIngestBinding({ deps }, { forwarders, limiter });
+      const binding = createAnalyticsIngestBinding({ deps }, { forwarders, limiter, skipHooks: (await deps.vendorHooksAllowed?.({ request: req })) === false });
       const outcome = await ingestHit({ input: { beacon, context }, deps: binding.deps }, binding.optional);
       if (outcome.accepted && shouldCaptureVisitorPageview({ deps, beacon })) {
         void captureVisitorEvent({ deps, request: req, name: "site_pageview", properties: { routeTemplate: "/:path" } });

@@ -28,6 +28,7 @@ import type { RouteDeps } from '#src/server/routes/types';
 import { isStaticExportRequest } from "../routes/site/pages/request-policy.js";
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';
 import { asyncRoute } from "../../../../platform/express/async-route.js";
+import { browserDiagnosticsEnabled, siteBrowserDiagnosticsBridge, siteBrowserDiagnosticsModule } from '../../../runtime/composition/browser-diagnostics.js';
 
 export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
 
@@ -261,7 +262,7 @@ async function briefPendingRead({ state }: { state: DocumentState }): Promise<vo
 }
 
 /** Document construction consumes data, never a completed response body. */
-export async function siteConsentDocumentAssets({ deps, request, scripts, static: staticDocument }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[]; static?: true }, _optional = {}): Promise<DocumentAssets> {
+export async function siteConsentDocumentAssets({ deps, request, scripts, static: staticDocument }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'> & Partial<Pick<RouteDeps, 'settingsRepo' | 'workspaceId' | 'observability'>>; request: Request; scripts: readonly DeclaredScript[]; static?: true }, _optional = {}): Promise<DocumentAssets> {
   const consent = deps.cookieConsent;
   const config = await documentPolicy({ consent });
   if (staticDocument) return staticDocumentAssets({ config, request, scripts, consent });
@@ -287,7 +288,7 @@ async function staticDocumentAssets({ config, request, scripts, consent }: {
 
 /** Render the shared banner and client assets once a usable snapshot has been selected. */
 async function renderDocumentConsent({ deps, request, consent, config, scripts }: {
-  deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; consent: SiteCookieConsentDeps;
+  deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'> & Partial<Pick<RouteDeps, 'settingsRepo' | 'workspaceId' | 'observability'>>; request: Request; consent: SiteCookieConsentDeps;
   config: ConsentConfig; scripts: readonly DeclaredScript[];
 }): Promise<DocumentAssets> {
   const live = !isStaticExportRequest(request);
@@ -439,14 +440,19 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
     console.warn('[consent] The cookie preferences extensions could not be loaded. Their browser route is disabled.', errorDiagnostic);
   }
   mountStaticThemeLoader({ app, deps });
+  app.get('/_jini/browser-analytics/site/diagnostics.js', async (_req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    if (!(await browserDiagnosticsEnabled({ observability: deps.observability }, deps))) { res.status(404).end(); return; }
+    res.type('text/javascript').send(siteBrowserDiagnosticsModule);
+  });
   mountContext({ app, consent });
   mountReceipts({ app, deps });
   mountPluginHttp({ app, deps });
 }
 
-async function documentPlugins({ deps, live }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; live: boolean }): Promise<readonly RawContribution[]> {
+async function documentPlugins({ deps, live }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'> & Partial<Pick<RouteDeps, 'settingsRepo' | 'workspaceId' | 'observability'>>; live: boolean }): Promise<readonly RawContribution[]> {
   if (!live) return [];
-  return [...deps.consentAdapters?.({ base: PLUGIN_BASE }).map(item => item.adapter) ?? [], ...await deps.cookieConsent?.browserPlugins?.() ?? []];
+  return [...deps.consentAdapters?.({ base: PLUGIN_BASE }).map(item => item.adapter) ?? [], ...await deps.cookieConsent?.browserPlugins?.() ?? [], ...(await browserDiagnosticsEnabled({ observability: deps.observability }, deps) ? [siteBrowserDiagnosticsBridge] : [])];
 }
 
 function requestPrivacy({ deps, req }: { deps: RouteDeps; req: Request }) {

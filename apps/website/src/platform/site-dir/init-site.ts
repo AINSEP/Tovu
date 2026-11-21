@@ -127,6 +127,7 @@ export function cleanupAndRethrow({ err, target, wroteAnything }: { err: unknown
       );
     }
   }
+  if (err instanceof Error && err.name === "AbortError") throw err;
   if (err instanceof ValidationError || err instanceof InitDirNotEmptyError || err instanceof InternalError) {
     throw err;
   }

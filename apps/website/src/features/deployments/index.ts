@@ -88,5 +88,4 @@ export {
 // so unrelated consumers do not inherit its tool/composition dependencies. EXTRA_TO_EXEMPT and
 // TOOL_REGISTRATION_SEAM_TO admit its registration contract tests directly.
 
-export { loadDeployOpsRegistry } from "./deploy-ops/registry.js";
 export type { DeployOpsRegistry } from "@jini-ai/devops/deploy";

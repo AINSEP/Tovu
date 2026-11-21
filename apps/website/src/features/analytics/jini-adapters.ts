@@ -45,6 +45,7 @@ export interface AnalyticsIngestRouteDeps<Request = unknown> extends IngestDeps,
    * Absent or empty → the built-in sink alone, exactly the pre-forwarding path.
    */
   forwarders?: (required: { request: unknown }) => Promise<readonly BoundAnalyticsForwarder[]>;
+  vendorHooksAllowed?: (required: { request: Request }) => Promise<boolean>;
 }
 
 /** Vendor failures are logged by forwarder id and outcome only — never the hit or a payload. */
@@ -63,10 +64,10 @@ const reportForwardFailure: AnalyticsForwardReport = ({ forwarderId, outcome, me
  */
 export function createAnalyticsIngestBinding<Request>(
   required: { deps: AnalyticsIngestRouteDeps<Request> },
-  optional: { forwarders?: readonly BoundAnalyticsForwarder[]; limiter?: AnalyticsForwardLimiter } = {},
+  optional: { forwarders?: readonly BoundAnalyticsForwarder[]; limiter?: AnalyticsForwardLimiter; skipHooks?: boolean } = {},
 ): { deps: IngestHitDeps; optional: IngestHitOptional } {
   const host = required.deps;
-  const hooks = host.hooks;
+  const hooks = optional.skipHooks ? undefined : host.hooks;
   // The host's built-in sink stays the awaited primary; forwarders are detached and isolated.
   const sink = createFanOutAnalyticsSink({
     primary: {

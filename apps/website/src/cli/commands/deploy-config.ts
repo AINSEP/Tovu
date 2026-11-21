@@ -1,5 +1,6 @@
 import path from "node:path";
 import { writeFileSync } from "node:fs";
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 
 import {
   appendHostDeployNotes,
@@ -78,9 +79,10 @@ function writeStderr({ message }: { message: string }, _optional = {}): void {
  * @complexity O(g) in the declared generator count.
  */
 export function deployConfigTargetOptionHelp({ env = process.env }: Pick<DeployConfigCommandPorts, "env"> = {}): string {
-  try {
-    return formatTargetOptionHelp({ ids: readBundledDeployConfigTargetIds({ sourceRoot: bundledDeploySourceRoot(env) }) });
-  } catch { return formatTargetOptionHelp({ ids: [] }); }
+  return orFallbackSync({
+    work: () => formatTargetOptionHelp({ ids: readBundledDeployConfigTargetIds({ sourceRoot: bundledDeploySourceRoot(env) }) }),
+    fallback: undefined, step: 'Read deployment target help',
+  }) ?? formatTargetOptionHelp({ ids: [] });
 }
 
 /** "a", "a or b", "a, b, or c". Pure (exported for its own tests). @complexity O(g). */

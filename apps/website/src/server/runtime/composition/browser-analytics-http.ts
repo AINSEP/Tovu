@@ -7,6 +7,7 @@ import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-lim
 import { resolveSiteConsentOrigin } from '../../inbound/public-http/middleware/site-consent.js';
 import { currentCredential } from '../../inbound/admin-http/dev-auth.js';
 import { TELEMETRY_CONSENT } from './telemetry-consent.js';
+import { receiveBrowserDiagnostics } from './browser-diagnostics.js';
 
 /** Require a same-origin browser POST; never trust a caller's chosen upstream URL. O(1). */
 function sameOrigin({ request }: { request: Request }, _options = {}): boolean {
@@ -23,6 +24,14 @@ export function applyBrowserAnalyticsHttp({ app, deps }: { app: Express; deps: R
     if (surface !== 'site' && surface !== 'admin') { next(); return; }
     response.setHeader('Cache-Control', 'private, no-store');
     try {
+      if (request.path === '/site/diagnostics') await dispatchBrowserDiagnostics({ request, response, deps, limiter });
+      else await dispatchBrowserAnalyticsHttp({ request, response, deps, surface, limiter });
+    } catch { response.status(502).end(); }
+  });
+}
+
+async function dispatchBrowserAnalyticsHttp(required: { request: Request; response: Response; deps: RouteDeps; surface: 'site' | 'admin'; limiter: ReturnType<typeof createRateLimiter> }, _options = {}): Promise<void> {
+  const { request, response, deps, surface, limiter } = required;
       const fullPath = '/_jini/browser-analytics' + request.path;
       const contribution = deps.browserAnalytics?.({ surface }).find(item => item.http && fullPath.startsWith(item.http.path + '/'));
       if (!contribution?.http) { response.status(404).end(); return; }
@@ -32,8 +41,14 @@ export function applyBrowserAnalyticsHttp({ app, deps }: { app: Express; deps: R
         if (!(await limiter.check({ key: resolveClientIp(request) })).allowed) { response.status(429).end(); return; }
       }
       await deliver({ request, response, http: contribution.http, fullPath });
-    } catch { response.status(502).end(); }
-  });
+}
+
+async function dispatchBrowserDiagnostics(required: { request: Request; response: Response; deps: RouteDeps; limiter: ReturnType<typeof createRateLimiter> }, _options = {}): Promise<void> {
+  const { request, response, deps, limiter } = required;
+  if (request.method !== 'POST') { response.status(404).end(); return; }
+  if (!(await collectionAllowed({ request, deps, surface: 'site' }))) { response.status(403).end(); return; }
+  if (!(await limiter.check({ key: resolveClientIp(request) })).allowed) { response.status(429).end(); return; }
+  await deliver({ request, response, http: { path: '/_jini/browser-analytics/site', handle: input => receiveBrowserDiagnostics(input, { deps }) }, fullPath: '/_jini/browser-analytics/site/diagnostics' });
 }
 
 /** No cookie or proof crosses the provider port. Failed policy/setting reads deny delivery. O(1). */

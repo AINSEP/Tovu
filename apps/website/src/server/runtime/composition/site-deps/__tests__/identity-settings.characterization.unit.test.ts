@@ -5,7 +5,7 @@ import ts from "typescript";
 
 // Pins what this slice must not change: its call sits where the moved statements sat, the moved
 // statements keep their order, and inputs that are built later are only read lazily.
-const DEPS = new URL("../../deps.ts", import.meta.url);
+const DEPS = new URL("../boot-phases.ts", import.meta.url);
 const SLICE = new URL("../identity-settings.ts", import.meta.url);
 const parse = (url: URL): ts.SourceFile => ts.createSourceFile(url.pathname, fs.readFileSync(url, "utf8"), ts.ScriptTarget.Latest, true);
 const firstLine = (node: ts.Node): string => node.getText().split("\n")[0].trim();
@@ -15,8 +15,8 @@ function bodyOf(file: ts.SourceFile, name: string): readonly ts.Statement[] {
   return found.body.statements;
 }
 
-test("B05: the call keeps the moved statements' place in composeSiteRouteDeps", () => {
-  const body = bodyOf(parse(DEPS), "composeSiteRouteDeps");
+test("B05: the call keeps the moved statements' place in composeSiteServicesPhase", () => {
+  const body = bodyOf(parse(DEPS), "composeSiteServicesPhase");
   const at = body.findIndex((s) => ts.isVariableStatement(s) && s.declarationList.declarations.some((d) => d.initializer && ts.isCallExpression(d.initializer) && d.initializer.expression.getText() === "composeIdentitySettings"));
   assert.ok(at > 0, "slice call missing");
   assert.ok(firstLine(body[at - 1]).startsWith("const { pluginRuntime } = composeSitePluginRuntime("));

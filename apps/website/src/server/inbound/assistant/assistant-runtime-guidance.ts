@@ -2,6 +2,7 @@
  * The launch resolves every input once, so the guidance and the argv come from one snapshot; every
  * builder below is pure and the one async resolver takes its reads and def lookup as ports. */
 import type { ChatSettingsSnapshot } from "@jini-ai/daemon/chat-settings";
+import { orFallback } from '@jini-ai/core/errors/idioms';
 import { agentSupportsChromeIntegration, agentSupportsSubagents } from "@jini-ai/agent-runtime";
 import { type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/core/contracts/agents";
 import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps, type AssistantRuntimePreferences } from "../../../assistant/runtime-settings.js";
@@ -152,16 +153,14 @@ export interface AssistantChromeProbeDeps {
  */
 export function createAssistantChromeProbe(deps: AssistantChromeProbeDeps, _options = {}): AssistantChromeProbe {
   return async ({ agentId }) => {
-    try {
+    return orFallback({ work: async () => {
       const def = deps.getDef({ id: agentId });
       const launchPath = def ? deps.resolveAgentLaunch({ def }).launchPath : null;
       if (!def || !launchPath) return false;
       // The def's declared env is a default the host env overrides, as in the executor's own launch.
       await deps.ensureAgentCapabilities({ def, launchPath, env: { ...def.env, ...deps.env } });
       return deps.capabilities.get(def.id)?.chrome === true;
-    } catch {
-      return false;
-    }
+    }, fallback: false, step: 'Probe assistant Chrome capability' });
   };
 }
 
