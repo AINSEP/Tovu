@@ -94,10 +94,8 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
   // cannot satisfy this fixture merely because its initializer still exists in the source.
   const executorOptions = evaluateDaemonExpression<{ mcpJsonInjection: McpJsonInjectionOptions }>(daemonInitializer("agentExecutor", statementsFor("agent-daemon-scope-runtime.ts", "createScopeAgentExecutor")), {
     createAgentExecutor: (_required: unknown, optional: unknown) => optional,
-    lifecycle: {}, getAgentDef: () => {}, resolveAgentLaunch: () => {}, assistantRuntime: {},
-    // Why: the scope split moved the definition policies into their own module, imported by the
-    // initializer's file; this fixture only checks the bridge handoff, so they contribute nothing.
-    executorDefinitionPolicies: () => ({}),
+    // The initializer reads the runtime ports and the bound agent runtime only by reference; this fixture checks the bridge handoff.
+    lifecycle: {}, daemonRuntime: {}, agentRuntime: {}, assistantRuntime: {},
     bridgeInjection, assistantPromptAugmenter: {},
   });
   assert.equal(executorOptions.mcpJsonInjection, bridgeInjection);

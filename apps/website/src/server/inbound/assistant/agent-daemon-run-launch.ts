@@ -11,6 +11,7 @@ import { ASSISTANT_SETTING_SOURCES } from "./assistant-system-overlay.js";
 import { resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
 import { claimBrowserForRun, releaseBrowserForRun } from "./assistant-browser-lease.js";
+import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
 
 export function createRunLaunch(ports: RunPorts, _optional = {}) {
   return { launchAgentRun: launchAgentRun.bind(undefined, ports) };
@@ -182,12 +183,12 @@ async function prepareCliLaunch(ports: RunPorts, { def, allowed }: { def: Return
   const { ensureJsonAgentInstall, bridgeInjection, env, homedir, platform, failRunBeforeStart, runLifecycle, run } = ports;
   if (def?.externalMcpInjection === 'env-passthrough') {
     try {
-      await ensureJsonAgentInstall({ agentId: def.id, allowed, spec: { command: bridgeInjection.command,
+      await ensureJsonAgentInstall({ agentId: def.id, allowed, files: { fileLock: nodeFileLock, writer: nodeAtomicWriter }, spec: { command: bridgeInjection.command,
         args: [...(bridgeInjection.args ?? [])], env: { ...bridgeInjection.env } },
         ctx: { home: (env.HOME ?? env.USERPROFILE ?? homedir()), platform, serverName: 'jini' } }, {});
     } catch (error) {
       await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: `${def.name}'s connector could not be installed safely in its personal settings. Choose another available agent for this message.`,
-        startup: { stage: ports.runState.startupStage, error } }, {}); return false;
+        startup: { stage: ports.runState.startupStage, error }, startupMessage: ports.startupMessage }, {}); return false;
     }
   }
   if (def?.fullCliAccessNote) await runLifecycle.emit({ runId: run.id, input: {

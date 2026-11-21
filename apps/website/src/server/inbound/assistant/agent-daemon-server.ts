@@ -2,6 +2,7 @@
 import express from "express";
 import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import { createSupervisorRegistry, createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
+import { nodeAtomicWriter } from "@jini-ai/node-adapters/fs";
 import { createSiteScope } from "./agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { createExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
@@ -25,7 +26,7 @@ const sharedHost = Boolean(process.send) && process.env.TOVU_AGENT_DAEMON_STANDA
 let listenerUrl = "";
 // A standalone manual daemon has no discovery path; the supervisor supplies the scoped path.
 const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
-const daemonRegistry = daemonRegistryPath ? createSupervisorRegistry({ registryPath: daemonRegistryPath }) : undefined;
+const daemonRegistry = daemonRegistryPath ? createSupervisorRegistry({ registryPath: daemonRegistryPath, writer: nodeAtomicWriter }) : undefined;
 let registryPublication: Promise<void> = Promise.resolve();
 let daemonExiting = false;
 let stopIdleMonitor = () => {};

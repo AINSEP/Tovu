@@ -109,16 +109,17 @@ test("createOwnTreeReaper stops this process's own group; a stop that leaves pro
   const adapter = {
     platform: "linux" as const,
     signalProcess: ((pid: number, signal?: string | number) => { groupSignals.push([pid, signal]); return true; }) as typeof process.kill,
-    listProcessSnapshots: async () => [{ pid: 777, ppid: OWNER, command: "node" }],
   };
+  const processes = (stopped: StopProcessesResult) => ({ listProcessSnapshots: async () => [{ pid: 777, ppid: OWNER, command: "node" }],
+    stopProcesses: async () => stopped, waitForProcessExit: async () => true });
   const clean = fakeProcess({});
-  await createOwnTreeReaper({ proc: clean.proc }, { adapter: { ...adapter, stopProcesses: async () => stopResult([]) } })();
+  await createOwnTreeReaper({ proc: clean.proc }, { adapter, processes: processes(stopResult([])) })();
   assert.deepEqual(groupSignals, [[-777, "SIGTERM"]]);
   assert.deepEqual(clean.exits, []);
 
   const stuck = fakeProcess({});
   const throwingGroup = { ...adapter, signalProcess: (() => { throw errno("ESRCH"); }) as typeof process.kill };
-  await createOwnTreeReaper({ proc: stuck.proc }, { adapter: { ...throwingGroup, stopProcesses: async () => stopResult([777]) } })();
+  await createOwnTreeReaper({ proc: stuck.proc }, { adapter: throwingGroup, processes: processes(stopResult([777])) })();
   assert.deepEqual(stuck.signals, [{ pid: 777, signal: "SIGTERM" }], "a failed group signal falls back to the process itself");
   assert.deepEqual(stuck.exits, [1]);
 });

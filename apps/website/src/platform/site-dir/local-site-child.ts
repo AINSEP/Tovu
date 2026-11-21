@@ -1,6 +1,8 @@
 /** Full-site boot, shared with journeys: same static admin bundle + ordinary index entrypoint.
  * The watchdog runs before bundle work too; a killed host cannot strand a Vite build process.
  */
+import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
+import type { ProcessControlPort } from "@jini-ai/core/contracts/runtime";
 import { realpathSync } from "node:fs";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { pathToFileURL } from "node:url";
@@ -85,15 +87,16 @@ export function selfAsDaemonProcess({ proc }: { proc: LocalSiteChildProcess }, _
 
 /** Reaps this process's own tree through Jini's tree stop; a failed stop exits 1.
  * This adapter is used only to reap this process's own tree; it never launches another child.
- * @param optional.adapter - Native effect ports for the tree stop (tests pass fakes).
+ * @param optional.adapter - Native effect options for the tree stop (tests pass fakes).
+ * @param optional.processes - The process control port (default the Node binding; tests pass fakes).
  * @complexity O(p) process snapshots, as the adapter's tree stop.
  */
 export function createOwnTreeReaper(
   { proc }: { proc: LocalSiteChildProcess },
-  { adapter = {} }: { adapter?: NodeDaemonProcessOptions } = {},
+  { adapter = {}, processes = nodeProcessControl }: { adapter?: NodeDaemonProcessOptions; processes?: ProcessControlPort } = {},
 ): () => Promise<void> {
   const reaper = createNodeDaemonProcessAdapter({ command: proc.execPath, args: [], cwd: proc.cwd(), env: proc.env,
-    registry: NO_REGISTRY }, adapter);
+    registry: NO_REGISTRY, process: processes, commandShell: nodeCommandShell({ env: proc.env }) }, adapter);
   return () => reaper.terminateProcess({ child: selfAsDaemonProcess({ proc }) }).catch(() => proc.exit(1));
 }
 

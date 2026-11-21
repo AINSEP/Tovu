@@ -1,3 +1,4 @@
+import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 /** One cold Jini supervisor per desktop instance. Sites retain tools and durable authority. */
@@ -20,6 +21,7 @@ import { createNodeDaemonProcessAdapter, createNodeIpcChannel, createNodeSupervi
 import { daemonControlRequest, daemonEndpoint, siteIdleStopReply, type DaemonSiteRegistration } from "@tovu/contracts/daemon-connection";
 import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import type { CliMode } from "./startup-env.ts";
+import { nodeAtomicWriter } from "@jini-ai/node-adapters/fs";
 
 export interface DesktopAgentServiceOptions {
   readonly spawn?: NodeDaemonProcessOptions["spawn"];
@@ -138,7 +140,8 @@ function createDaemonPorts(
   { state, repoRoot, registry, spawnEnv, args, redact }: { state: ServiceState; repoRoot: string; registry: SupervisorRegistry; spawnEnv: NodeJS.ProcessEnv; args: string[]; redact: ReturnType<typeof createSiteRedactor> },
   optional: DesktopAgentServiceOptions,
 ) {
-  return createNodeDaemonProcessAdapter({ command: process.execPath, args, cwd: repoRoot, env: spawnEnv, registry }, {
+  return createNodeDaemonProcessAdapter({ command: process.execPath, args, cwd: repoRoot, env: spawnEnv, registry,
+    process: nodeProcessControl, commandShell: nodeCommandShell({ env: process.env }) }, {
     ipc: true,
     stdout: daemonOutputSink({ sink: optional.stdout ?? process.stdout, redact }),
     stderr: daemonOutputSink({ sink: optional.stderr ?? process.stderr, redact }),
@@ -346,7 +349,7 @@ function bindOwnedServer({ ctx, child, siteDir }: { ctx: ServiceContext; child: 
 export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "compiled", env = process.env }: {
   repoRoot: string; registryPath: string; cliMode?: CliMode; env?: NodeJS.ProcessEnv;
 }, optional: DesktopAgentServiceOptions = {}) {
-  const registry = optional.registry ?? createSupervisorRegistry({ registryPath });
+  const registry = optional.registry ?? createSupervisorRegistry({ registryPath, writer: nodeAtomicWriter });
   const spawnEnv = buildDaemonSpawnEnv({ env, registryPath });
   const state: ServiceState = {
     channel: undefined, daemonPid: undefined, stopWork: Promise.resolve(), stopping: false,

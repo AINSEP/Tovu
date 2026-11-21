@@ -17,6 +17,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  * that might expose secrets. Registry ownership and production tree cleanup belong to the
  * Node adapter; this host supplies the site-scoped registry path and launch identity.
  */
+import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
 import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
 import { currentAgentDaemonToken, currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '@tovu/contracts/startup-secret-keys';
@@ -414,6 +415,7 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
     delete launch.secrets.JINI_DESKTOP_RENDER_TOKEN;
     return createNodeDaemonProcessAdapter({
       command: process.execPath,
+      process: nodeProcessControl, commandShell: nodeCommandShell({ env: process.env }),
       // Preload awaits pruning before tsx starts; keep the supervisor's synchronous child contract.
       // `--import tsx` instead of `tsx/cli`: the CLI relaunches a second node, one more process per site.
       // Every --import is a file URL; a bare `C:\` path is read as a URL scheme on Windows.

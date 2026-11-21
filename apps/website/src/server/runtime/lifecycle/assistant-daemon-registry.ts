@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
+import { nodeAtomicWriter } from "@jini-ai/node-adapters/fs";
 
 type RegistrySite = { siteDir: string };
 type RegistryEnvironment = { env?: NodeJS.ProcessEnv };
@@ -31,5 +32,5 @@ export function createAssistantDaemonRegistry(
   optional: RegistryEnvironment & { createRegistry?: typeof createSupervisorRegistry } = {},
 ) {
   const registryPath = resolveAssistantDaemonRegistryPath(required, optional);
-  return { registryPath, registry: (optional.createRegistry ?? createSupervisorRegistry)({ registryPath }) };
+  return { registryPath, registry: (optional.createRegistry ?? createSupervisorRegistry)({ registryPath, writer: nodeAtomicWriter }) };
 }

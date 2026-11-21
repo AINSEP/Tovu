@@ -11,8 +11,10 @@ import { formatBridgePreflightLogLine } from "./run-log-lines.js";
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
-import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
-import { executorDefinitionPolicies } from "./executor-definition-policies.js";
+import { createAgentRuntimeBindings, createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
+import type { AgentRuntimePort } from "@jini-ai/daemon/ports/agent-runtime";
+import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
+import { createDaemonRuntimePorts } from "./daemon-runtime-ports.js";
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from "./assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
@@ -127,24 +129,18 @@ const bridgeInjection = {
   return bridgeInjection;
 }
 
-export function createScopeAgentExecutor({ lifecycle, getAgentDef, resolveAgentLaunch, assistantRuntime, cleanupFailures, bridgeInjection, assistantPromptAugmenter }: {
-  lifecycle: RunLifecycle; getAgentDef: ReturnType<typeof createNativeAgentRuntime>['getAgentDef'];
-  resolveAgentLaunch: ReturnType<typeof createNativeAgentRuntime>['resolveAgentLaunch']; assistantRuntime: ReturnType<typeof createNativeAgentRuntime>;
+export function createScopeAgentExecutor({ lifecycle, assistantRuntime, cleanupFailures, bridgeInjection, assistantPromptAugmenter }: {
+  lifecycle: RunLifecycle; assistantRuntime: ReturnType<typeof createNativeAgentRuntime>;
   cleanupFailures: Set<string>; bridgeInjection: ReturnType<typeof createScopeBridge>; assistantPromptAugmenter: PromptAugmenter;
 }, _optional = {}) {
-const agentExecutor = createAgentExecutor({
-  lifecycle,
-}, {
-  // The same registry and launch resolver `assistant/agents.ts` lists the Local CLI picker from.
-  // `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an
-  // older copy; left to its defaults the executor would look agents up there, so a CLI the picker
-  // shows (e.g. one added in a newer agent-runtime) would fail to start with an unknown agent id.
-  getAgentDef,
-  resolveAgentLaunch,
-  runtimeState: assistantRuntime.state,
-  hostEnv: assistantRuntime.hostEnv,
+const daemonRuntime = createDaemonRuntimePorts({ hostEnv: assistantRuntime.hostEnv });
+// The executor takes its agent runtime as one port bound to the same runtime `assistant/agents.ts` lists the Local CLI picker from:
+// `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an older copy, and a runtime of its own
+// would look agents up there, so a CLI the picker shows (e.g. one added in a newer agent-runtime) would fail to start with an unknown
+// agent id. The binding also owns the runtime state and the Codex / Pi definition policies, so none is passed to the executor.
+const agentRuntime = createAgentRuntimeBindings({ runtime: assistantRuntime }) satisfies AgentRuntimePort;
+const agentExecutor = createAgentExecutor({ lifecycle, runtime: daemonRuntime, hostEnv: assistantRuntime.hostEnv, agentRuntime }, {
   onCleanupFailure: ({ runId }) => { cleanupFailures.add(runId); console.error('[agent-daemon] CLI cleanup failed'); },
-  ...executorDefinitionPolicies({ runtime: assistantRuntime }),
   mcpJsonInjection: bridgeInjection,
   promptAugmenter: assistantPromptAugmenter,
   // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —
@@ -167,11 +163,13 @@ const agentExecutor = createAgentExecutor({
   claudeConfigDirIsolationEnabled: false,
 });
 
-  return agentExecutor;
+  return { agentExecutor, agentRuntime, daemonRuntime };
 }
 
-export function startBridgeProbe({ bridgeInjection }: { bridgeInjection: ReturnType<typeof createScopeBridge> }, _optional = {}) {
-void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }) }, {}).then((result) => {
+export function startBridgeProbe({ bridgeInjection, spawn, hostEnv }: {
+  bridgeInjection: ReturnType<typeof createScopeBridge>; spawn: AgentExecutorRuntimePorts['spawn']; hostEnv: NodeJS.ProcessEnv;
+}, _optional = {}) {
+void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }), spawn, hostEnv }, {}).then((result) => {
   const line = formatBridgePreflightLogLine({ result });
   if (result.ok) console.log(line);
   else console.error(line);

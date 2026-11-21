@@ -81,6 +81,7 @@ import { runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
+import { createDaemonRuntimePorts } from "../../apps/website/src/server/inbound/assistant/daemon-runtime-ports.js";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 
 import { createRouteDeps } from "../../apps/website/src/server/runtime/composition/app.js";
