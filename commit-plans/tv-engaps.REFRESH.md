@@ -1,0 +1,12 @@
+# Refresh notes — codex/tv-engaps
+
+- Supplied base: `7801b3d883`; T5 deliberately skipped because it is done on `codex/tv-sharezip`.
+- Named symbol inventory used targeted `git grep -n -F` under `apps/`, `development/`, `packages/`. No graph tools or repo-wide discovery scans used.
+- T1: `markerlessFixture` is local to the named adopt integration file; all 12 calls repointed to await the async fixture. No external test importer needed a repoint.
+- T2: other files have their own local declarations named `initFixture` (serve boot lifecycle, plugin SDK resolver and site-key suites). These are separate helpers, not imports of the named helper; left unchanged. No external test repoints. Sheet stopped for the required callbacks exceeding 50 lines at serve integration lines 595 and 669.
+- T3: `readExplicitOrigin` is private to `agent-daemon-port.ts`; all its consumers remain in the same file. Neither URL validation nor proxy port validation was present on this base. No importer/signature refresh or Jini baseline delta.
+- T4: standalone port validation is absent on this base. Sheet stopped at `agent-daemon-server.ts:207` because `start()` is already at manually counted cyclomatic complexity 10. An authorized replacement sheet must create room without changing listener defaults, explicit-zero behavior, shared-host behavior or existing optional pads. Attempted child/guard edits were fully removed.
+- T6: `exportSiteBound` is an existing injected dependency used across the host. Its declaration, API, imports and production callers remain unchanged. Only the named local success case gained the count witness; no test repoints.
+- Combine: run retained T1/T3/T6 cases on the exact linked Jini artifact; plant the named mutations. T1/T6 are behavior/budget witnesses expected green on the base, not new failing functionality tests. T3 rejection tables are expected red against the permissive base reader. No tests were run here.
+- Cloud: after T2 is unblocked, record paired T1/T2 timings/process counts on the same linked build and complete the run. After T4 is unblocked, perform the packaged Electron daemon-start look and child validation/mutation checks.
+- Diff re-read deletions: only T1's required fixture CLI assignment/exit assertion and T3's replaced permissive expressions remain deleted. The attempted T4 guard and new child case were removed entirely. No extras remain in the reviewed named-file diffs.
