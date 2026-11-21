@@ -138,7 +138,7 @@ function buildImportThemeFileHandler(
             })
           : await importThemeFileFromUrl(
               { ...destination, httpClient: routeDeps.mediaImportHttpClient, url: requireString({ input, key: "url" }) },
-              { plainHttpTestOrigins: routeDeps.outboundTestOrigins },
+              { plainHttpTestOrigins: routeDeps.outboundTestOrigins, signal: ctx.signal },
             );
         const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
         return { themeId, ...imported,
