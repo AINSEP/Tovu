@@ -32,6 +32,13 @@ test('seeding exposes both skills through the installed plugin guidance tool', a
   const authoring = source.skills.find(skill => skill.name === 'build-agent-plugin');
   assert.match(authoring.markdown, /kind:"plugin-provider"/);
   assert.match(authoring.markdown, /Never use Bash/);
+  // Why: a client's uploaded image became widget instances, leaving the page editor's HTML and
+  // Interactive tabs blank; the skill must say designed pages live in page HTML and are pages, not posts.
+  const guidance = source.skills.find(skill => skill.name === 'how-tovu-works');
+  assert.match(guidance.markdown, /put the full layout in the page's HTML/);
+  assert.match(guidance.markdown, /never make widgets the page's main content/);
+  assert.match(guidance.markdown, /A post is a dated article/);
+  assert.match(guidance.markdown, /When unsure, use a page/);
 });
 
 test('the site guide contributions point to packaged explanations', async () => {
@@ -39,4 +46,17 @@ test('the site guide contributions point to packaged explanations', async () => 
   assert.equal(guide.version, 1);
   assert.ok(guide.topics.length > 0);
   for (const topic of guide.topics) assert.ok(topic.id && topic.title);
+});
+
+test('the site guide says designed pages live in page HTML and complex layouts are pages, not posts', async () => {
+  const guide = JSON.parse(await readFile(path.join(packageRoot, 'tovu-site-guide.json'), 'utf8'));
+  const topic = id => guide.topics.find(item => item.id === id);
+  const content = topic('how-tovu-works-content');
+  assert.match(content.explanation, /put the full layout in the page's HTML/);
+  assert.match(content.explanation, /A post is a dated article/);
+  assert.match(content.explanation, /When unsure, use a page/);
+  const widgets = topic('how-tovu-works-widgets');
+  assert.doesNotMatch(widgets.summary, /compose pages/);
+  assert.match(widgets.explanation, /never make widgets the page's main content/);
+  assert.match(topic('how-tovu-works-themes').explanation, /put its layout in the page's HTML/);
 });
