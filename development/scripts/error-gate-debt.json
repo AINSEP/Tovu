@@ -1,66 +1,11 @@
 [
   {
-    "file": "apps/admin/src/admin-themes/apply.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/App.hooks.ts",
     "rule": "catch-reads-error",
     "value": 2
   },
   {
-    "file": "apps/admin/src/components/AssistantDock/hooks/byok-runtime.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/components/AssistantDock/hooks/agents-inventory.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/components/AssistantDock/hooks/assistant-transport.hooks.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/components/AssistantDock/hooks/chat-package-kind.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/components/MailStatusBanner/hooks/use-mail-status-banner.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/components/TemplateSource/use-template-source.hooks.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/analytics/hooks/use-analytics.hooks.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },
@@ -85,11 +30,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/collections/hooks/use-json-field-control.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/collections/hooks/use-new-content-type-dialog.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -98,11 +38,6 @@
     "file": "apps/admin/src/features/content-analysis/hooks/use-content-analysis.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/dashboard/hooks/use-dashboard.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
   },
   {
     "file": "apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts",
@@ -160,11 +95,6 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/fs-files/hooks/use-folder-drop.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/features/integrations/hooks/use-integrations.hooks.ts",
     "rule": "catch-reads-error",
     "value": 3
@@ -183,16 +113,6 @@
     "file": "apps/admin/src/features/media/hooks/use-remote-image-import.hooks.ts",
     "rule": "catch-reads-error",
     "value": 2
-  },
-  {
-    "file": "apps/admin/src/features/media/media-providers-port.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/menus/hooks/use-menus.hooks.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
   },
   {
     "file": "apps/admin/src/features/pages/hooks/page-editor-save.ts",
@@ -233,11 +153,6 @@
     "file": "apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts",
     "rule": "catch-reads-error",
     "value": 3
-  },
-  {
-    "file": "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 1
   },
   {
     "file": "apps/admin/src/features/providers/hooks/use-always-allow.hooks.ts",
@@ -306,11 +221,6 @@
   },
   {
     "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
     "rule": "no-generic-failure-text",
     "value": 1
   },
@@ -330,34 +240,9 @@
     "value": 21
   },
   {
-    "file": "apps/admin/src/features/skills/skill-upload.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/skills/skill-upload.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/skills/use-skill-files.hooks.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/features/skills/use-skill-install.hooks.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 2
-  },
-  {
     "file": "apps/admin/src/features/skills/use-skills.hooks.ts",
     "rule": "catch-reads-error",
     "value": 3
-  },
-  {
-    "file": "apps/admin/src/features/skills/use-skills.hooks.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 2
   },
   {
     "file": "apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts",
@@ -390,57 +275,17 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/features/webmcp/browser-agent-settings.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/admin/src/lib/admin-http/request.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
   {
-    "file": "apps/admin/src/lib/assistant-daemon-activation.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/admin/src/lib/assistant-daemon-activation.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 2
-  },
-  {
-    "file": "apps/admin/src/lib/assistant-daemon-activation.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
     "file": "apps/admin/src/lib/browser-stream.ts",
     "rule": "catch-reads-error",
-    "value": 2
+    "value": 1
   },
   {
     "file": "apps/admin/src/lib/browser-telemetry.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/lib/browser-working-directory-access.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/admin/src/lib/escape-owned-by-inner-layer.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/admin/src/lib/execution-settings.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/admin/src/lib/server-reconnect.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -450,37 +295,17 @@
     "value": 2
   },
   {
-    "file": "apps/admin/src/lib/settings-tabs.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/admin/src/lib/widget-embed-extension.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
   {
-    "file": "apps/admin/src/site-section-availability.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/desktop/src/desktop-agent-inventory.ts",
     "rule": "catch-reads-error",
-    "value": 2
+    "value": 1
   },
   {
     "file": "apps/desktop/src/desktop-agent-service.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/desktop/src/desktop-mcp-http.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/desktop/src/external-site-stop.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -491,11 +316,6 @@
   },
   {
     "file": "apps/desktop/src/main/updates/product-telemetry-boot.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/desktop/src/move-to-applications.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -520,17 +340,7 @@
     "value": 1
   },
   {
-    "file": "apps/desktop/src/product-telemetry-ipc.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/desktop/src/product-telemetry-preference.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/desktop/src/project-ipc.site-lifecycle.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -543,6 +353,16 @@
     "file": "apps/desktop/src/project-ipc.server.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
+  },
+  {
+    "file": "apps/desktop/src/project-ipc.site-lifecycle.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/renderer/find-target.ts",
+    "rule": "catch-reads-error",
+    "value": 2
   },
   {
     "file": "apps/desktop/src/renderer/product-telemetry.ts",
@@ -558,16 +378,6 @@
     "file": "apps/desktop/src/renderer/site-theme-preview.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/desktop/src/renderer/find-target.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/desktop/src/renderer/use-site-list-prefs.hooks.ts",
-    "rule": "catch-reads-error",
-    "value": 2
   },
   {
     "file": "apps/desktop/src/renderer/use-site-preview.hooks.ts",
@@ -600,11 +410,6 @@
     "value": 2
   },
   {
-    "file": "apps/desktop/src/shared-sites.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/desktop/src/site-archive-import.ts",
     "rule": "catch-reads-error",
     "value": 3
@@ -612,26 +417,11 @@
   {
     "file": "apps/desktop/src/site-config.ts",
     "rule": "catch-reads-error",
-    "value": 2
+    "value": 1
   },
   {
     "file": "apps/desktop/src/site-config.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/desktop/src/site-dir-store.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/desktop/src/site-folders.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/desktop/src/site-name.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {
@@ -645,39 +435,9 @@
     "value": 4
   },
   {
-    "file": "apps/desktop/src/smoke-bridge.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
     "file": "apps/desktop/src/smoke-packaged-chat.ts",
     "rule": "catch-reads-error",
     "value": 2
-  },
-  {
-    "file": "apps/desktop/src/stage-payload-lib.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/desktop/src/stage-payload-run.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/desktop/src/tracked-sites.ts",
-    "rule": "catch-reads-error",
-    "value": 4
-  },
-  {
-    "file": "apps/desktop/src/update-check-now.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/desktop/src/verify-package-cli.ts",
-    "rule": "catch-reads-error",
-    "value": 1
   },
   {
     "file": "apps/desktop/src/workspace-chat-ipc.ts",
@@ -685,27 +445,7 @@
     "value": 2
   },
   {
-    "file": "apps/site-chat/src/site-assistant-errors.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/site-chat/src/site-assistant-transport.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/site-chat/src/site-assistant-transport.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
     "file": "apps/site-chat/src/site-chat-comparison.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/site-chat/src/tool-confirmation.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -720,11 +460,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/assistant/assistant-vault.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/assistant/cli-probe-cache.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -735,23 +470,8 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/assistant/external-mcp-connection-source.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/assistant/persistence/run-ledger.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/assistant/persistence/run-ledger.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/assistant/runtime-preferences.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {
@@ -762,7 +482,7 @@
   {
     "file": "apps/website/src/assistant/site/visitor-frontend-control.ts",
     "rule": "catch-reads-error",
-    "value": 3
+    "value": 1
   },
   {
     "file": "apps/website/src/assistant/site/visitor-tool-budgets.ts",
@@ -770,16 +490,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/assistant/tool-approval-policy.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/assistant/tool-search-keywords.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/cli/commands/agent-plugin-tokens.ts",
     "rule": "catch-reads-error",
     "value": 2
@@ -787,21 +497,6 @@
   {
     "file": "apps/website/src/cli/commands/agent-plugin-tokens.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/cli/commands/deploy-config.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/cli/commands/import-local.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/cli/commands/import-local.ts",
-    "rule": "no-generic-failure-text",
     "value": 1
   },
   {
@@ -817,16 +512,11 @@
   {
     "file": "apps/website/src/cli/commands/owner-store.ts",
     "rule": "catch-reads-error",
-    "value": 2
+    "value": 1
   },
   {
     "file": "apps/website/src/cli/commands/reset-owner.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/cli/commands/serve.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {
@@ -835,44 +525,9 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/agent-plugins/capability-projection.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/features/agent-plugins/exports/runtime.ts",
     "rule": "catch-reads-error",
     "value": 4
-  },
-  {
-    "file": "apps/website/src/features/agent-plugins/host-plugin-guidance.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/agent-plugins/install-upload.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/agent-plugins/memory.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/agent-plugins/provider-plugin-link.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/agent-plugins/supersession.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/analytics/forwarding.ts",
-    "rule": "catch-reads-error",
-    "value": 1
   },
   {
     "file": "apps/website/src/features/api-connections/vault-stores.ts",
@@ -905,11 +560,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/custom-credentials/tool-registrations.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/features/database-transfer/destination-store.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -925,18 +575,8 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/deployments/deploy-ops/registry.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/features/deployments/deploy-targets/host-kit.ts",
     "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/deployments/deploy-targets/host-kit.ts",
-    "rule": "failure-text-from-catalog",
     "value": 1
   },
   {
@@ -980,16 +620,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/email-templates/operations.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/email-templates/operations.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/external-mcp/tool-registrations.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -1016,11 +646,6 @@
   },
   {
     "file": "apps/website/src/features/forms/submission-ip-expiry-sweep.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/fs-files/custom-root-store.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -1125,8 +750,8 @@
     "value": 4
   },
   {
-    "file": "apps/website/src/features/members/repo.memory.ts",
-    "rule": "catch-reads-error",
+    "file": "apps/website/src/features/members/member-challenge-request.ts",
+    "rule": "failure-text-from-catalog",
     "value": 1
   },
   {
@@ -1135,8 +760,8 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/members/member-challenge-request.ts",
-    "rule": "failure-text-from-catalog",
+    "file": "apps/website/src/features/members/repo.memory.ts",
+    "rule": "catch-reads-error",
     "value": 1
   },
   {
@@ -1200,11 +825,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/publish-content/composite-blob-source.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/publish-content/connect-destination.ts",
     "rule": "catch-reads-error",
     "value": 2
@@ -1235,21 +855,6 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/website/src/features/publish-content/seed-hash.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/features/publish-content/ui/publish-order.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -1268,16 +873,6 @@
     "file": "apps/website/src/features/publish-trust/publish-trust-revocations.ts",
     "rule": "no-generic-failure-text",
     "value": 4
-  },
-  {
-    "file": "apps/website/src/features/seo/cover-image.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/website/src/contracts/core/operator-locale.ts",
-    "rule": "catch-reads-error",
-    "value": 1
   },
   {
     "file": "apps/website/src/features/settings/site-title-write.ts",
@@ -1380,27 +975,12 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/site-export/public-origin-policy.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/site-guide/facts.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
   {
     "file": "apps/website/src/features/site-inspection/live-url.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-inspection/published-page.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/site-inspection/published-page.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },
@@ -1412,7 +992,7 @@
   {
     "file": "apps/website/src/features/sites/site-preview/site-preview-store.ts",
     "rule": "catch-reads-error",
-    "value": 4
+    "value": 2
   },
   {
     "file": "apps/website/src/features/skills/layout.ts",
@@ -1470,16 +1050,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/theme/theme-preview-image.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/theme/validation/validate-theme-package.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/vendor-credentials/vault-adapter.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -1492,7 +1062,7 @@
   {
     "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
     "rule": "failure-text-from-catalog",
-    "value": 4
+    "value": 3
   },
   {
     "file": "apps/website/src/features/webhooks/secret-scan-guard.ts",
@@ -1501,11 +1071,6 @@
   },
   {
     "file": "apps/website/src/features/webhooks/site-key-ensure.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/features/webhooks/site-key-sources.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -1520,16 +1085,6 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/platform/db/repos/media-repo.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/platform/db/sqlite/content-db.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts",
     "rule": "catch-reads-error",
     "value": 8
@@ -1542,11 +1097,6 @@
   {
     "file": "apps/website/src/platform/express/async-route.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/platform/markdown/frontmatter.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {
@@ -1600,14 +1150,9 @@
     "value": 3
   },
   {
-    "file": "apps/website/src/platform/site-dir/local-admin-bundle.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/platform/site-dir/local-site-child.ts",
     "rule": "catch-reads-error",
-    "value": 2
+    "value": 1
   },
   {
     "file": "apps/website/src/platform/site-dir/local-site-supervisor.ts",
@@ -1615,14 +1160,9 @@
     "value": 5
   },
   {
-    "file": "apps/website/src/platform/site-dir/nested-sites-root.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/platform/site-dir/read-site-dir.ts",
     "rule": "catch-reads-error",
-    "value": 3
+    "value": 1
   },
   {
     "file": "apps/website/src/platform/site-dir/read-site-dir.ts",
@@ -1657,57 +1197,12 @@
   {
     "file": "apps/website/src/platform/site-dir/site-registry.ts",
     "rule": "catch-reads-error",
-    "value": 3
+    "value": 2
   },
   {
     "file": "apps/website/src/platform/site-dir/site-trash.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/admin-static.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/dev-auth.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/dev-auth.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/local-admin-request.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/assistant/put-execution-credential.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/consent/routes.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/consent/routes.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts",
-    "rule": "no-generic-failure-text",
-    "value": 3
   },
   {
     "file": "apps/website/src/server/inbound/admin-http/routes/media/byte-size.ts",
@@ -1717,36 +1212,6 @@
   {
     "file": "apps/website/src/server/inbound/admin-http/routes/media/put-providers.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/pages/get-by-id.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/apply-report.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/import-errors.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/settings/events.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {
@@ -1765,43 +1230,13 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/admin-http/routes/system/observability-status.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/server/inbound/admin-http/routes/system/site-key.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/assign-terms.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/create-term.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts",
-    "rule": "no-generic-failure-text",
-    "value": 3
-  },
-  {
     "file": "apps/website/src/server/inbound/admin-http/routes/users/create.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/routes/widgets/agent-tools.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/admin-http/sea-runtime.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {
@@ -1826,11 +1261,6 @@
   },
   {
     "file": "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -1895,28 +1325,8 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/server/inbound/public-http/routes/mail-feedback.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/members/complete-sign-in.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/members/me.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/members/sign-in.ts",
-    "rule": "no-generic-failure-text",
     "value": 1
   },
   {
@@ -1940,26 +1350,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/feed.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/feed.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/llms.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/llms.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts",
     "rule": "catch-reads-error",
     "value": 2
@@ -1975,53 +1365,8 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-confirm.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-unsubscribe.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/pages/render-context/site-title.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/robots.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/robots.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/server/inbound/public-http/routes/site/search.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/search.ts",
-    "rule": "no-generic-failure-text",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/sitemap.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/sitemap.ts",
-    "rule": "no-generic-failure-text",
     "value": 1
   },
   {
@@ -2080,11 +1425,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/runtime/composition/build-release.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/server/runtime/composition/commerce.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -2097,11 +1437,6 @@
   {
     "file": "apps/website/src/server/runtime/composition/domain-dns-adapters.ts",
     "rule": "failure-text-from-catalog",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/runtime/composition/memory-deps/slices/site-title-settings.ts",
-    "rule": "catch-reads-error",
     "value": 1
   },
   {
@@ -2230,19 +1565,9 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/server/runtime/composition/site-consent.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/server/runtime/composition/site-cookie-consent.ts",
     "rule": "catch-reads-error",
     "value": 2
-  },
-  {
-    "file": "apps/website/src/server/runtime/composition/site-deps/identity-settings.ts",
-    "rule": "catch-reads-error",
-    "value": 1
   },
   {
     "file": "apps/website/src/server/runtime/composition/site-deps/route-deps-site-providers.ts",
