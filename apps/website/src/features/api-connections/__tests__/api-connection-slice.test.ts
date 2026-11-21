@@ -432,7 +432,7 @@ function fixtureCopy(t: { after(fn: () => void): void }, edit: (declaration: Rec
   const root = mkdtempSync(path.join(tmpdir(), "acme-byo-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   cpSync(fixtureRoot, root, { recursive: true });
-  const file = path.join(root, "tovu-connections.json");
+  const file = path.join(root, "jini-connections.json");
   const parsed = JSON.parse(readFileSync(file, "utf8")) as { connections: Record<string, unknown>[] };
   edit(parsed.connections[0]!);
   writeFileSync(file, JSON.stringify(parsed));

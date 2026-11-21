@@ -6754,7 +6754,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    456px ≈ the old 480px viewport minus a phone's page padding. */
 @container admin-content (max-width: 456px) {
   .sites-grid { grid-template-columns: minmax(0, 1fr); }
-  .form-editor-panel .field-row:has(#form-name) { grid-template-columns: minmax(0, 1fr); }
+  .jini-form-editor-panel .field-row:has(#form-name) { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ------------------------------------------------------------------------

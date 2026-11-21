@@ -10,7 +10,7 @@ import { asDeployOpsModule, parseDeployOpsFile as parseDeployOpsDescriptors } fr
 import type { DeployOpsDescriptor, DeployOpsModule, DeployOpsRegistry, LoadedDeployOps } from "@jini-ai/devops/deploy";
 
 /** Installed modules use the same activation, bundled digest and disk containment gates as deploy targets. */
-export const DEPLOY_OPS_FILENAME = "tovu-deploy-ops.json";
+export const DEPLOY_OPS_FILENAME = "jini-deploy-ops.json";
 
 /** Parse data only. Duplicate ids, URL hosts and escaping paths refuse the entire manifest. O(platforms).
  *  The parser lives in `@jini-ai/devops/deploy`; this retains the host's entry point. */

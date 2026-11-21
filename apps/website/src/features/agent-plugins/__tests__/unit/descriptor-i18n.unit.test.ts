@@ -86,13 +86,13 @@ function declaredStrings(entry: Record<string, any>): Set<string> {
 }
 
 /**
- * Each hosting plugin ships its own descriptor file: every shipped `<id>/tovu-deploy-targets.json`,
+ * Each hosting plugin ships its own descriptor file: every shipped `<id>/jini-deploy-targets.json`,
  * read where the build takes each plugin from (Tovu's content folder or its `@jini-ai/agent-plugins` package).
  */
 const DEPLOY_TARGET_FILES = composedBundledPluginDirs()
-  .map(({ pluginId, dir }) => ({ file: `${pluginId}/tovu-deploy-targets.json`, absolute: path.join(dir, "tovu-deploy-targets.json") }))
+  .map(({ pluginId, dir }) => ({ file: `${pluginId}/jini-deploy-targets.json`, absolute: path.join(dir, "jini-deploy-targets.json") }))
   .filter(({ absolute }) => existsSync(absolute));
-const SOURCE_CONTROL_FILE = { file: "github/tovu-source-control.json", absolute: path.join(agentPluginSourceDir({ pluginId: "github" }), "tovu-source-control.json") };
+const SOURCE_CONTROL_FILE = { file: "github/jini-source-control.json", absolute: path.join(agentPluginSourceDir({ pluginId: "github" }), "jini-source-control.json") };
 
 for (const [{ file, absolute }, listKey] of [
   ...DEPLOY_TARGET_FILES.map((descriptorFile) => [descriptorFile, "targets"] as const),

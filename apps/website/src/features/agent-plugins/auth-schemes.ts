@@ -57,7 +57,7 @@ import { type LoadPluginContributions, loadPluginContributionsFromSource, type P
 export type { CredentialSchemeRule, CredentialSchemeRegistry } from "@jini-ai/integrations/credentialed-http";
 
 /** The file a plugin ships at its root to contribute self-describing token scheme rules. */
-export const CREDENTIAL_SCHEMES_FILENAME = "tovu-credential-schemes.json";
+export const CREDENTIAL_SCHEMES_FILENAME = "jini-credential-schemes.json";
 
 /** A package without the file (possible only on the source path) contributes nothing. */
 const schemeContribution: PluginContributionDefinition<CredentialSchemeRule, CredentialSchemeRule> = {

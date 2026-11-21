@@ -67,7 +67,7 @@ test("the descriptor property form: {} when absent, {setup} when valid, the reas
   assert.match(parseMailProviderSetupProperty({ at: AT, credentialKeys: ["token"], value: 1 }) as string, /must be an object/);
 });
 
-test("tovu-mail-adapters.json v2 carries setup through, and a bad setup refuses the file", () => {
+test("jini-mail-adapters.json v2 carries setup through, and a bad setup refuses the file", () => {
   const entry = { id: "acme", label: "Acme", module: "a.mjs", credentialKeys: ["token"], feedback: false };
   const ok = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry, setup: { helpUrl: "https://acme.test/keys" } }] }) });
   assert.ok(ok.ok);

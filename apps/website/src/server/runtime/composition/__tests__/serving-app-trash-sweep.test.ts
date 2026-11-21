@@ -54,7 +54,7 @@ test("a rejected trash sweep fails its trace and reaches the existing error call
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.deepEqual(outcomes, [{ name: "trash.purge", failed: true }]);
     const logged = errors.mock.calls.find((call) => String(call.arguments[0]).startsWith("[trash-sweeper]"));
-    assert.ok(logged);
+    assert.ok(logged, "the trash sweeper logs the rejected sweep");
     assert.equal(logged.arguments[1], failure);
   } finally {
     await webhookDeliveryWorker.stop();

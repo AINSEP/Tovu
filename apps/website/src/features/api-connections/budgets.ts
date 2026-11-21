@@ -8,7 +8,7 @@ import { createRateLimiter } from "../../contracts/core/rate-limit/rate-limit.js
 
 /**
  * @file Per-minute request budgets a plugin declares on one of its API connections (`budgets` in
- * `tovu-connections.json`), parsed, clamped and enforced by the host through the real http-kit
+ * `jini-connections.json`), parsed, clamped and enforced by the host through the real http-kit
  * limiter.
  *
  * The parser, the clamp and the enforcer live in `@jini-ai/integrations/api-connections`; this keeps

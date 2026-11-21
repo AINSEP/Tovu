@@ -100,6 +100,8 @@ test("existing stream emits exact theme frames across writers, reauthorizes and 
   };
   requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }, { revision: "first", path: "/old" });
   await handler(req, res);
+  for (let turn = 0; turn < 20 && !ticks.has(1000); turn++) await new Promise(setImmediate);
+  assert.ok(ticks.has(1000), "the stream scheduled its poll tick before the first tick runs");
   ticks.get(1000)?.();
   await new Promise(setImmediate);
   assert.deepEqual(writes, [

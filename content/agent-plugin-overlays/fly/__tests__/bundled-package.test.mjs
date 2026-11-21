@@ -279,15 +279,15 @@ test("fly-server.md never tells the assistant to handle a secret value itself", 
 test("Fly owns ops, config and FlyV1 scheme with no static publish target, and seeds disabled", async () => {
   const { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../../../apps/website/src/features/agent-plugins/bundled-catalog.ts");
   const manifest = JSON.parse(await readPackageFile("plugin.json"));
-  assert.equal(manifest.extensions.jini.id, "tovu/fly");
+  assert.equal(manifest.extensions.jini.id, "jini/fly", "the bundled Fly plugin retains its Jini publisher identity");
   assert.equal(manifest.extensions.jini.displayName, "Fly.io");
   assert.deepEqual(manifest.extensions.jini.provides, ["deploy-ops:fly", "deploy-config:fly", "credential-scheme:fly-io"]);
-  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-ops.json")).platforms.map((entry) => entry.id), ["fly"]);
-  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-configs.json")).generators.map((entry) => entry.id), ["fly"]);
+  assert.deepEqual(JSON.parse(await readPackageFile("jini-deploy-ops.json")).platforms.map((entry) => entry.id), ["fly"]);
+  assert.deepEqual(JSON.parse(await readPackageFile("jini-deploy-configs.json")).generators.map((entry) => entry.id), ["fly"]);
   const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   assert.ok(packed.files.includes("deploy-ops/fly.mjs"));
   assert.ok(packed.files.includes("deploy-configs/fly.mjs"));
-  assert.ok(packed.files.includes("tovu-credential-schemes.json"));
-  assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
+  assert.ok(packed.files.includes("jini-credential-schemes.json"));
+  assert.ok(!packed.files.includes("jini-deploy-targets.json"));
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("fly"), false);
 });

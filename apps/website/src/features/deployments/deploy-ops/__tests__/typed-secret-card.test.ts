@@ -82,7 +82,7 @@ test("a credential removed while the card is open returns the credential-setup r
 test("a platform without a secrets adapter refuses before any card is shown", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-no-secrets-"));
   try {
-    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "plain", label: "Plain", module: "ops.mjs", hosts: ["api.example-host.dev"] }] }));
+    await writeFile(path.join(root, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "plain", label: "Plain", module: "ops.mjs", hosts: ["api.example-host.dev"] }] }));
     await writeFile(path.join(root, "ops.mjs"), "export default { status() {}, logs() {} };\n");
     const registry = await loadDeployOpsRegistryFromSource({ pluginId: "plain", packageRoot: root });
     const h = await harness({});

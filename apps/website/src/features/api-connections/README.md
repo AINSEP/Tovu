@@ -13,7 +13,7 @@ names no provider.
 | File | What it does |
 |---|---|
 | `vault-stores.ts` | All state in the secrets vault, kind `api-connection` (migration 0020): token sets (Jini's vault token store, fenced `install` for sign-in), connection records (revision CAS), single-use sign-in attempts (revision-checked delete; expired ones swept). Labels are unique per row (key, plus a state digest for attempts); attempt row ids also use the full SHA-256 state digest. |
-| `contribution.ts` | Loads `tovu-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
+| `contribution.ts` | Loads `jini-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
 | `budgets.ts` | Plugin-declared request budgets: `parseConnectionBudgets` (clamps to `HOST_BUDGET_MAXIMUM`, 240/min + burst 40), `createConnectionBudgets({ clock }).charge(target)` over the real http-kit limiter, and `ConnectionBudgetExceededError` (`rate-limited`). |
 | `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability), and `toolConnections` (the same rule as the executable-tool / admin-surface connection port, plus `readAccount`). |
 | `byo-client.ts` | Bring-your-own OAuth client: `byoClientLabel({ pluginId, connectionId })` (the custom-credential label an admin saves it under) and `resolveByoClient({ credentials, workspaceId, connection })` (the saved client, an actionable refusal, or none). |

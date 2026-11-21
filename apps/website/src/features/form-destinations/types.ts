@@ -1,5 +1,5 @@
 /**
- * @file The form destination contract (`tovu-form-destinations.json`, `./registry.ts`). The types live
+ * @file The form destination contract (`jini-form-destinations.json`, `./registry.ts`). The types live
  * in `@jini-ai/cms/forms`; this path keeps every name for the feature's existing importers.
  */
 export type {

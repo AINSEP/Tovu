@@ -15,7 +15,7 @@ import {
 const DEPLOY_PATHS = [
   "mcp.json",
   "plugin.json",
-  "tovu-deploy-targets.json",
+  "jini-deploy-targets.json",
   "deploy-configs/example-host.mjs",
   "deploy-configs/railway.mjs",
   "targets/vercel.mjs",
@@ -37,7 +37,7 @@ describe("buildPackageFileTree", () => {
     expect(outline(buildPackageFileTree({ paths: DEPLOY_PATHS }))).toEqual([
       "mcp.json",
       "plugin.json",
-      "tovu-deploy-targets.json",
+      "jini-deploy-targets.json",
       "deploy-configs/",
       "  example-host.mjs",
       "  railway.mjs",
@@ -111,7 +111,7 @@ describe("visiblePackageFileRows", () => {
     expect(rows.map((row) => row.node.path)).toEqual([
       "mcp.json",
       "plugin.json",
-      "tovu-deploy-targets.json",
+      "jini-deploy-targets.json",
       "deploy-configs",
       "skills",
       "targets",

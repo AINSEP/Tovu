@@ -1,7 +1,7 @@
 # form-destinations
 
 Where a site's form submissions go, as an Agent Plugin contribution category
-(`tovu-form-destinations.json` plus a contained `.mjs` module). No vendor is named here; plugins
+(`jini-form-destinations.json` plus a contained `.mjs` module). No vendor is named here; plugins
 bring the vendors.
 
 ## Two directions

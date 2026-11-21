@@ -4,7 +4,7 @@ import { loadCredentialSchemeRegistryFromSource, type CredentialSchemeRule } fro
 
 /**
  * @file Test fixture: the self-describing token scheme rules read straight from the neutral
- * `example-host` fixture plugin (`fixtures/example-host/tovu-credential-schemes.json`), with no
+ * `example-host` fixture plugin (`fixtures/example-host/jini-credential-schemes.json`), with no
  * install. Core stays vendor-neutral: the real vendor rule this shape is modelled on (Fly.io's
  * `FlyV1`) is tested against the Fly plugin itself (`content/agent-plugin-overlays/fly/__tests__/`). For
  * tests whose subject needs shipped-shaped rules; pass {@link loadFixtureAuthSchemes} as

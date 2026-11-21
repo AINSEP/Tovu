@@ -23,7 +23,7 @@ function fixture(t: TestContext) {
   write('content/agent-plugins/__tests__/shared.test.mjs', '// shared content tests');
   write('content/agent-plugins/fly/plugin.json', JSON.stringify({ name: 'fly' }));
   // `path` and `workflowFile` name files in the operator's site, not payload files: never checked.
-  write('content/agent-plugins/fly/tovu-deploy-configs.json', JSON.stringify({ schemaVersion: 1, generators: [
+  write('content/agent-plugins/fly/jini-deploy-configs.json', JSON.stringify({ schemaVersion: 1, generators: [
     { id: 'fly', module: 'deploy-configs/fly.mjs', candidatePaths: [{ path: 'fly.toml', order: 1 }], workflowFile: 'fly-deploy.yml' },
   ] }));
   write('content/agent-plugins/fly/deploy-configs/fly.mjs', 'export {};');
@@ -97,10 +97,10 @@ test('a selection key that differs from the plugin name its package declares fai
     /\[jev-typo\] differ from the plugin names their packages declare \[jev\]/);
 });
 
-test('every payload path a tovu-*.json contribution names must exist inside that plugin', t => {
+test('every payload path a jini-*.json contribution names must exist inside that plugin', t => {
   const f = fixture(t);
-  f.write('content/agent-plugins/fly/tovu-deploy-ops.json', JSON.stringify({ schemaVersion: 1, platforms: [{ id: 'fly', module: 'deploy-ops/fly.mjs' }] }));
-  f.write('content/agent-plugins/how-tovu-works/tovu-admin-surfaces.json', JSON.stringify({ surfaces: [
+  f.write('content/agent-plugins/fly/jini-deploy-ops.json', JSON.stringify({ schemaVersion: 1, platforms: [{ id: 'fly', module: 'deploy-ops/fly.mjs' }] }));
+  f.write('content/agent-plugins/how-tovu-works/jini-admin-surfaces.json', JSON.stringify({ surfaces: [
     { entry: 'ui/panel.html', handlerModule: 'ui/panel.handler.mjs', files: ['ui/panel.mjs', '../fly/deploy-configs/fly.mjs'] },
   ], href: 'development/docs/guide.md' }));
   for (const file of ['ui/panel.html', 'ui/panel.handler.mjs', 'ui/panel.mjs']) f.write(`content/agent-plugins/how-tovu-works/${file}`, '');
@@ -111,18 +111,18 @@ test('every payload path a tovu-*.json contribution names must exist inside that
   })();
   assert.equal(error.message, [
     'Agent plugin contribution files name payload files that are missing:',
-    'fly/tovu-deploy-ops.json: deploy-ops/fly.mjs',
-    'how-tovu-works/tovu-admin-surfaces.json: ../fly/deploy-configs/fly.mjs',
+    'fly/jini-deploy-ops.json: deploy-ops/fly.mjs',
+    'how-tovu-works/jini-admin-surfaces.json: ../fly/deploy-configs/fly.mjs',
   ].join('\n'));
   assert.equal(fs.existsSync(f.outputRoot), false);
 });
 
 test('a contribution check also covers selected package payloads', t => {
   const f = fixture(t);
-  f.write(`${PACKAGE_DIR}/jev/tovu-agent-tools.json`, JSON.stringify({ tools: [{ module: 'tools/run.mjs' }] }));
-  const listPackageFiles = () => [...f.files, 'jev/tovu-agent-tools.json'];
+  f.write(`${PACKAGE_DIR}/jev/jini-agent-tools.json`, JSON.stringify({ tools: [{ module: 'tools/run.mjs' }] }));
+  const listPackageFiles = () => [...f.files, 'jev/jini-agent-tools.json'];
   assert.throws(() => composeBundledAgentPluginRoot({ repoRoot: f.repoRoot, outputRoot: f.outputRoot }, { ...f.options, listPackageFiles }),
-    /jev\/tovu-agent-tools\.json: tools\/run\.mjs/);
+    /jev\/jini-agent-tools\.json: tools\/run\.mjs/);
 });
 
 test('an empty selection composes Tovu content alone without npm', t => {

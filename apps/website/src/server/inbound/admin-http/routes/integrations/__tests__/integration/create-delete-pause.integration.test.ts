@@ -480,7 +480,7 @@ for (const action of ["pause", "delete"] as const) {
     const { subscription } = await created.json();
     const repo = deps.webhookSubscriptionRepo;
     const original = await repo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
-    assert.ok(original);
+    assert.ok(original, "the created subscription exists before the concurrent edit");
     const newer = { ...original, label: "Newer label", version: original.version + 1 };
     let saves = 0;
     deps.webhookSubscriptionRepo = {

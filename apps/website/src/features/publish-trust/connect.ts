@@ -44,7 +44,7 @@ import {
 
 /* Deploy-config files a repo may carry, in the order they are consulted for a candidate address.
  *  The vendor paths and their order are declared as plain data by the bundled deploy-config
- *  plugins (`candidatePaths` in `tovu-deploy-configs.json`); core adds only the neutral `app.json`.
+ *  plugins (`candidatePaths` in `jini-deploy-configs.json`); core adds only the neutral `app.json`.
  *  Operator repos may commit generated configs; this repo keeps generation inputs in its workflow.
  *
  *  This is a SUGGESTION mechanism, never a trust decision: whatever it finds is shown to the owner

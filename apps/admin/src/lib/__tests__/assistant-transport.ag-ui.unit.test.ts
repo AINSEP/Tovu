@@ -381,9 +381,9 @@ describe("startAgUiRun — request shape", () => {
     fetchMock = vi.fn(async () => new Response("agent daemon rejected the run", { status: 502 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow(
-      /^HTTP 502: agent daemon rejected the run$/,
-    );
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(HTTP 502, /));
+    expect(failure).toHaveProperty("cause.message", "HTTP 502: agent daemon rejected the run");
   });
 
   test("a network-level fetch rejection is rethrown as an Error", async () => {
@@ -392,7 +392,9 @@ describe("startAgUiRun — request shape", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow("Failed to fetch");
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(/));
+    expect(failure).toHaveProperty("cause.message", "Failed to fetch");
   });
 
   test("a network-level fetch rejection with a non-Error value is wrapped in a real Error", async () => {
@@ -401,14 +403,18 @@ describe("startAgUiRun — request shape", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow("connection reset");
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(/));
+    expect(failure).toHaveProperty("cause", "connection reset");
   });
 
   test("a non-ok response with an empty body still carries the 'HTTP <status>: ' prefix with an empty detail", async () => {
     fetchMock = vi.fn(async () => new Response("", { status: 500 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow(/^HTTP 500: $/);
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(HTTP 500, /));
+    expect(failure).toHaveProperty("cause.message", "HTTP 500: ");
   });
 
   test("a non-ok response whose body stream errors while reading detail surfaces the raw read error unwrapped — @ag-ui/client does not status-wrap it", async () => {
@@ -420,9 +426,9 @@ describe("startAgUiRun — request shape", () => {
     fetchMock = vi.fn(async () => new Response(brokenBody, { status: 503 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow(
-      /^body read failed$/,
-    );
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(/));
+    expect(failure).toHaveProperty("cause.message", "body read failed");
   });
 
   test("mints a timestamp-based fallback id when crypto.randomUUID is unavailable", async () => {
@@ -537,7 +543,8 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
     await flushMicrotasks();
     await flushMicrotasks();
 
-    expect(h.errors.map((e) => e.message)).toEqual(["connection reset"]);
+    expect(h.errors.map((e) => e.message)).toEqual([expect.stringMatching(/^The agent run stream stopped with an error \(/)]);
+    expect(h.errors[0]).toHaveProperty("cause.message", "connection reset");
     expect(h.done).toEqual([
       { kind: "status", code: "step_start", label: "", data: { messageId: "m1" } },
       { kind: "text", text: "partial" },

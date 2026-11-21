@@ -10,14 +10,14 @@ import { loadBundledDeployTargets } from "./bundled-deploy-targets.fixture.js";
 /**
  * @file The descriptor fields that let core stay vendor-free (deploy plan T7 slice a): per-target
  * publish config fields and the server-environment credential fallback, both DATA in the plugin's
- * `tovu-deploy-targets.json`, parsed and validated by the registry.
+ * `jini-deploy-targets.json`, parsed and validated by the registry.
  */
 
 
 /** Every shipped hosting plugin's descriptor file, parsed and merged (each host is its own plugin). */
 function parseShippedDescriptors(): ReturnType<typeof parseDeployTargetsFile> {
   // The hosts ship from @jini-ai/agent-plugins/<id> (D-W2/D-W3): every shipped plugin folder, in id order.
-  const files = composedBundledPluginDirs().map(({ dir }) => path.join(dir, "tovu-deploy-targets.json")).filter((file) => existsSync(file));
+  const files = composedBundledPluginDirs().map(({ dir }) => path.join(dir, "jini-deploy-targets.json")).filter((file) => existsSync(file));
   const parsed = files.map((file) => parseDeployTargetsFile({ raw: readFileSync(file, "utf8") }));
   const failed = parsed.find((result) => !result.ok);
   return failed ?? { ok: true, descriptors: parsed.flatMap((result) => (result.ok ? result.descriptors : [])) };
@@ -247,7 +247,7 @@ test("a source directory's targets load through loadDeployTargetRegistryFromSour
   const root = await mkdtemp(pathModule.join(tmpdir(), "tovu-targets-source-"));
   try {
     await mkdir(pathModule.join(root, "targets"));
-    await writeFile(pathModule.join(root, "tovu-deploy-targets.json"), file([{ ...BASE, module: "targets/ok.mjs" }, { ...BASE, id: "other-host", module: "targets/bad.mjs" }]));
+    await writeFile(pathModule.join(root, "jini-deploy-targets.json"), file([{ ...BASE, module: "targets/ok.mjs" }, { ...BASE, id: "other-host", module: "targets/bad.mjs" }]));
     await writeFile(pathModule.join(root, "targets", "ok.mjs"), "export default { create() { return {}; } };\n");
     await writeFile(pathModule.join(root, "targets", "bad.mjs"), "export default 7;\n");
     const registry = await loadDeployTargetRegistryFromSource({ pluginId: "source-plugin", packageRoot: root }, {});

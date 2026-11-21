@@ -1,7 +1,7 @@
 import path from 'node:path';
 /**
  * @file OAuth contract for the Google Workspace plugin: the plugin's real connection declaration
- * (`tovu-connections.json`) and hooks (`lib/auth.mjs`) run inside the real Jini API-connection
+ * (`jini-connections.json`) and hooks (`lib/auth.mjs`) run inside the real Jini API-connection
  * service over the real sealed vault token store, against a local fake of Google. One vertical-slice
  * proof plus phase-A security pins: state + PKCE, consent denial, partial scopes, missing refresh
  * token, refresh rotation, invalid_grant, revoke honesty, desktop re-consent, hosted incremental
@@ -49,7 +49,7 @@ beforeEach(() => { fake.reset(); });
 
 /** The plugin's declaration, split the way the host loader splits it. */
 async function declaredDescriptor() {
-  const file = JSON.parse(await readFile(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8'));
+  const file = JSON.parse(await readFile(path.join(PLUGIN_ROOT, 'jini-connections.json'), 'utf8'));
   const { id, module: _module, clients: _clients, ...descriptor } = file.connections[0];
   return parseApiConnectionDescriptor({ callbackFieldRules: apiConnectionCallbackFieldRules, value: { ...descriptor, pluginId: 'google-workspace', connectionId: id } });
 }

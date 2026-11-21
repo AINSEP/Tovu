@@ -404,7 +404,7 @@ describe("theme card preview", () => {
     // first in the grid instead of the one actually clicked.
     const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: "Expand preview for signal" }));
-    const dialog = card.querySelector("dialog.image-preview-modal")!;
+    const dialog = card.querySelector("dialog.jini-image-preview-modal")!;
     expect(dialog.hasAttribute("open")).toBe(true);
     expect(dialog.querySelector("img")).toHaveAttribute("src", "/theme-assets/signal/screenshots/index.jpg");
   });
@@ -415,7 +415,7 @@ describe("theme card preview", () => {
     const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: "Expand preview for signal" }));
     await user.click(within(card).getByRole("button", { name: "Close preview" }));
-    const dialog = card.querySelector("dialog.image-preview-modal")!;
+    const dialog = card.querySelector("dialog.jini-image-preview-modal")!;
     expect(dialog.hasAttribute("open")).toBe(false);
   });
 
@@ -434,7 +434,7 @@ describe("theme card preview", () => {
     render(<Themes useThemesHook={() => baseController({ t })} />);
     const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: "Expand preview for signal" }));
-    const dialog = card.querySelector("dialog.image-preview-modal") as HTMLElement;
+    const dialog = card.querySelector("dialog.jini-image-preview-modal") as HTMLElement;
 
     expect(within(dialog).getByRole("button", { name: "[es] Close preview" })).toBeInTheDocument();
     expect(dialog.querySelector("img")).toHaveAttribute("alt", "[es] signal vista previa");

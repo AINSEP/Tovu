@@ -165,7 +165,7 @@ async function runPinSite(
       // Preview/publish pins must stay credential-free, including every descriptor env alias:
       // a runner's real token would turn the expected local refusal into an outbound publish.
       // Each hosting plugin ships its own targets file; both ship from @jini-ai/agent-plugins/<id> (D-W2).
-      const targets = ["github-pages", "vercel"].map(pluginId => path.join(agentPluginSourceDir({ pluginId }), "tovu-deploy-targets.json")).filter(file => existsSync(file))
+      const targets = ["github-pages", "vercel"].map(pluginId => path.join(agentPluginSourceDir({ pluginId }), "jini-deploy-targets.json")).filter(file => existsSync(file))
         .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; env?: { tokenVars: string[] } }> }).targets);
       for (const target of targets) {
         if (target.id !== "github-pages" && target.id !== "vercel") continue;

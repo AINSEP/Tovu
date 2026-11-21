@@ -12,7 +12,7 @@ import { processComposedBundledSourceRoot } from "../../../../apps/website/src/f
 const PLUGIN_DIR = agentPluginSourceDir({ pluginId: "fly" });
 
 test("Fly declares deploy candidates and its workflow as data, usable before activation", async () => {
-  const declaration = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "tovu-deploy-configs.json"), "utf8")).generators[0];
+  const declaration = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "jini-deploy-configs.json"), "utf8")).generators[0];
   assert.deepEqual(declaration.candidatePaths, [{ path: "fly.toml", order: 1 }, { path: ".github/workflows/fly-deploy.yml", order: 5 }]);
   assert.equal(declaration.workflowFile, "fly-deploy.yml");
   const required = { sourceRoot: await processComposedBundledSourceRoot() };

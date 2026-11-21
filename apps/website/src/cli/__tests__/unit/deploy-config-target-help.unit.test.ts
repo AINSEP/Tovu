@@ -36,7 +36,7 @@ test("CLI help discovers all contributing packages through the same bundled sour
   for (const [pluginId, id] of [["zeta", "last"], ["alpha", "first"], ["tovu-deploy-fly", "retired"]]) {
     await mkdir(path.join(sourceRoot, pluginId!));
     await writeFile(path.join(sourceRoot, pluginId!, "plugin.json"), JSON.stringify({ name: pluginId, version: "1.0.0" }));
-    await writeFile(path.join(sourceRoot, pluginId!, "tovu-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id, label: id, module: "missing.mjs" }] }));
+    await writeFile(path.join(sourceRoot, pluginId!, "jini-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id, label: id, module: "missing.mjs" }] }));
   }
   process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = sourceRoot;
   assert.equal(deployConfigTargetOptionHelp(), "deploy platform: first or last");

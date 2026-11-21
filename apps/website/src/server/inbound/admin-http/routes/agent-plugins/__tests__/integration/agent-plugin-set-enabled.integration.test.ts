@@ -172,7 +172,7 @@ function patch(baseUrl: string, cookie: string, pluginId: string, body: unknown)
 
 test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and returns the updated row", async (t) => {
   await withAgentPluginsDir(async () => {
-    await installReal("site-compliance", "seed-set-enabled-a", { version: "1.0.0", extensions: { tovu: { id: "tovu/site-compliance", provides: ["outbound-mail"], displayName: "Example Mail", summary: "Send site mail." } } });
+    await installReal("site-compliance", "seed-set-enabled-a", { version: "1.0.0", extensions: { jini: { id: "jini/site-compliance", provides: ["outbound-mail"], displayName: "Example Mail", summary: "Send site mail." } } });
     const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: false, actor: "test" });
 
@@ -182,7 +182,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
     assert.equal(response.status, 200);
     const body = (await response.json()) as { agentPlugin: { pluginId: string; id: string; provides: string[]; displayName: string; summary: string; enabled: boolean; version: string | null; skills: Array<{ name: string }> } };
     assert.equal(body.agentPlugin.pluginId, "site-compliance");
-    assert.equal(body.agentPlugin.id, "tovu/site-compliance");
+    assert.equal(body.agentPlugin.id, "jini/site-compliance", "the enabled plugin retains its Jini publisher identity");
     assert.deepEqual(body.agentPlugin.provides, ["outbound-mail"]);
     assert.equal(body.agentPlugin.displayName, "Example Mail");
     assert.equal(body.agentPlugin.summary, "Send site mail.");
@@ -668,7 +668,7 @@ for (const failure of [new Error("layout unavailable"), "layout unavailable"]) {
     await withAgentPluginsDir(async () => {
       const { setAgentPluginEnabled } = await import("#src/features/agent-plugins/set-enabled");
       // A qualified identity avoids unrelated legacy-manifest warnings during discovery.
-      await installReal("site-compliance", "seed-discovery-failure", { extensions: { tovu: { id: "test/site-compliance" } } });
+      await installReal("site-compliance", "seed-discovery-failure", { extensions: { jini: { id: "test/site-compliance" } } });
       const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A }).root;
       const warnings = t.mock.method(console, "warn", () => {});
       const { app } = buildTestApp({ setAgentPluginEnabled: async (input) => {

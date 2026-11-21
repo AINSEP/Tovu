@@ -17,7 +17,7 @@ import { bundledAgentPluginsDir, resolveProductRoot, resolveSiteRoot, Validation
 /**
  * @file `tovu deploy config --target <id> --region <region> [--out <file>]` — wires parsed argv to
  * `features/deployments`'s single `DeploymentDescriptor` and the platform generators the bundled
- * hosting Agent Plugins ship (`content/agent-plugins/<id>/tovu-deploy-configs.json`, loaded by
+ * hosting Agent Plugins ship (`content/agent-plugins/<id>/jini-deploy-configs.json`, loaded by
  * `features/deployments/deploy-config-registry.ts`). `features/deployments/deploy-config.ts`'s own
  * header explains why there is exactly one descriptor and thin generators, never independent ones.
  *

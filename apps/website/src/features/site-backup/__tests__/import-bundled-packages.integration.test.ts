@@ -18,7 +18,7 @@ const sourceDigest = "b".repeat(64), recipientDigest = "a".repeat(64);
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const pluginFiles = new Map([
   ["agent-plugins/github/package/source-control/write-files.mjs", Buffer.from("/** @param {{ authorization: string }} input */\nexport const write = () => {};\n")],
-  ["agent-plugins/github/package/locales/tovu-source-control.json", Buffer.from('{"API token":"Token de API","Access token":"Token de acceso","Personal access token":"Token personal"}')],
+  ["agent-plugins/github/package/locales/jini-source-control.json", Buffer.from('{"API token":"Token de API","Access token":"Token de acceso","Personal access token":"Token personal"}')],
   ["agent-plugins/fly/package/plugin.json", Buffer.from('{"name":"fly","tools":["deployment_ops_set_secret"]}')],
   ["agent-plugins/fly/package/skills/deploy/SKILL.md", Buffer.from("Use Authorization: Bearer <API_KEY> to authenticate.")],
   ["agent-plugins/github/package/NOTES.md", Buffer.from("Authorization: Bearer <ACCESS_TOKEN>")],
@@ -112,7 +112,7 @@ for (const file of ["agent-plugins/unknown/package/locales/es.json", "agent-plug
 
 test("package labels stay included independently of bundled identity", { timeout }, () => {
   const file = `agent-plugins/ws/w/github/package/sha256/${sourceDigest}/locales/es.json`;
-  assert.equal(requireShareSecretFree({ path: file, bytes: pluginFiles.get("agent-plugins/github/package/locales/tovu-source-control.json")! }), true);
+  assert.equal(requireShareSecretFree({ path: file, bytes: pluginFiles.get("agent-plugins/github/package/locales/jini-source-control.json")! }), true);
 });
 
 test("an unknown import id cannot borrow a bundled digest and file hash to relax its scan", { timeout }, () => {

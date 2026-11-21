@@ -12,7 +12,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-workspace' });
 
 const raw = readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8');
-const connection = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8')).connections[0];
+const connection = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'jini-connections.json'), 'utf8')).connections[0];
 const products = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'products.json'), 'utf8'));
 
 test('Google sign-in card matches the existing OAuth connection and its selected-file permission', () => {

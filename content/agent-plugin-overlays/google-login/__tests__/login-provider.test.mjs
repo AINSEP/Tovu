@@ -10,7 +10,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-login' });
 
 const manifest = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8'));
-const data = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'tovu-login-providers.json'), 'utf8'));
+const data = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'jini-login-providers.json'), 'utf8'));
 
 test('the bundled Google preset pins the identity protocol without API permissions or offline access', () => {
   assert.deepEqual(data, { schemaVersion: 1, providers: [{
@@ -28,13 +28,13 @@ test('the bundled Google preset pins the identity protocol without API permissio
 
 test('Google Login is discoverable as a bundled opt-in member provider and marked soon', () => {
   assert.equal(manifest.name, 'google-login');
-  assert.equal(manifest.extensions.jini.id, 'tovu/google-login');
+  assert.equal(manifest.extensions.jini.id, 'jini/google-login', "the bundled Google Login plugin retains its Jini publisher identity");
   assert.equal(manifest.extensions.jini.maturity, 'soon');
   assert.deepEqual(manifest.extensions.jini.provides, ['member-login:google']);
   assert.deepEqual(manifest.keywords, ['google-login', 'sign-in-with-google', 'member-login', 'oidc']);
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has('google-login'), false);
   const sources = bundledContributionSources({
-    sourceRoot: path.dirname(PLUGIN_ROOT), filename: 'tovu-login-providers.json',
+    sourceRoot: path.dirname(PLUGIN_ROOT), filename: 'jini-login-providers.json',
   });
   assert.ok(sources.some(source => source.pluginId === 'google-login'));
 });

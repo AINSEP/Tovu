@@ -15,7 +15,7 @@ function sources(t: TestContext, manifests: Record<string, unknown>): string {
     writeFileSync(path.join(dir, "plugin.json"), "{}");
     // This file must never be imported by data discovery.
     writeFileSync(path.join(dir, "generator.mjs"), 'throw new Error("no preboot execution");');
-    const file = path.join(dir, "tovu-deploy-configs.json");
+    const file = path.join(dir, "jini-deploy-configs.json");
     if (manifest === null) mkdirSync(file);
     else writeFileSync(file, typeof manifest === "string" ? manifest : JSON.stringify({ schemaVersion: 1, generators: manifest }));
   }

@@ -16,7 +16,7 @@ these through declared action results; no additional browser capability endpoint
 ## How it fits
 
 ```
-plugin root: tovu-admin-surfaces.json + surface files
+plugin root: jini-admin-surfaces.json + surface files
    │  admitted by Jini's contribution loader (active plugin, shipped digest, contained paths)
    ▼
 surfaces.ts  createAgentPluginAdminSurfaceSource ── list / readFile ──┐
@@ -35,7 +35,7 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 
 | export | file | what it is |
 |---|---|---|
-| `ADMIN_SURFACES_FILENAME` | `surfaces.ts` | `tovu-admin-surfaces.json`, the file a plugin ships |
+| `ADMIN_SURFACES_FILENAME` | `surfaces.ts` | `jini-admin-surfaces.json`, the file a plugin ships |
 | `createAgentPluginAdminSurfaceSource({ lifecycle })` | `surfaces.ts` | the lifecycle-backed `AdminSurfaceSource` |
 | `findAdminSurface`, `readSurfaceFile`, `adminSurfaceFileUrl` | `surfaces.ts` | lookup by id, contained read with headers, the public file URL |
 | `AdminSurfaceHost`, `NO_ADMIN_SURFACE_HOST` | `surfaces.ts` | the port that supplies action handlers and bootstrap data (none by default) |
@@ -48,7 +48,7 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 
 ## Extension points
 
-- A second provider plugin adds a surface by shipping `tovu-admin-surfaces.json` and its static
+- A second provider plugin adds a surface by shipping `jini-admin-surfaces.json` and its static
   files; no Tovu change is needed to list, serve and mount it.
 - Action handlers and bootstrap data come from an `AdminSurfaceHost` passed as
   `AgentPluginsRouteDeps.adminSurfaceHost`. Both composition roots pass `handlers.ts`'s host (built
@@ -67,7 +67,7 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
     `_BROWSER_KEY` or `_PUBLIC_KEY` names are read (never the site's other settings).
   - `deliveryBindings` (only for a surface that declares `deliveryAdapters`; `delivery-bindings.ts`):
     list/save/remove of the site's form-delivery bindings whose adapter THIS plugin contributes
-    (`tovu-form-destinations.json`) on one of ITS connections. The plugin names a connection by id and
+    (`jini-form-destinations.json`) on one of ITS connections. The plugin names a connection by id and
     forms by slug; the host stores its own connection ref and the forms' row ids, assigns binding ids,
     and re-reads ownership inside every write (a binding that changed hands after the session's list
     is never overwritten or removed). Writes go through the forms build's binding owner

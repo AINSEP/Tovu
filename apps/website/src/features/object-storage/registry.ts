@@ -23,7 +23,7 @@ import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deplo
 
 /** The file a plugin ships at its root to contribute object-store providers: `{ schemaVersion: 1, providers: [{ id, module, label? }] }`,
  * parsed by `@jini-ai/platform/object-store`; ids are checked against the shared grammar before any module is imported. */
-export const OBJECT_STORES_FILENAME = "tovu-object-stores.json";
+export const OBJECT_STORES_FILENAME = "jini-object-stores.json";
 
 /** What a plain-JS provider module cannot import: SigV4 signing, plus optional request tracing. */
 export interface ObjectStoreHost {

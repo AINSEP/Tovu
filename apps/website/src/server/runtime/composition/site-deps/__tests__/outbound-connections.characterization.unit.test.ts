@@ -20,7 +20,7 @@ test("B23: the call keeps the moved statements' place in composePublishingPhase"
   const at = body.findIndex((s) => ts.isVariableStatement(s) && s.declarationList.declarations.some((d) => d.initializer && ts.isCallExpression(d.initializer) && d.initializer.expression.getText() === "composeOutboundConnections"));
   assert.ok(at > 0, "slice call missing");
   assert.ok(firstLine(body[at - 1]).startsWith("const { publishContentApplyPort } = composePublishContentApplyPort("));
-  assert.ok(ts.isReturnStatement(body[at + 1]));
+  assert.ok(ts.isReturnStatement(body[at + 1]), "the publishing phase returns immediately after outbound composition");
 });
 
 test("B23: the moved statements keep their order", () => {

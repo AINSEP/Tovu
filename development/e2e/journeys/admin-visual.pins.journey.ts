@@ -139,7 +139,7 @@ function readVisualPublishTargets() {
 // Each hosting plugin ships its own targets file: read every shipped one (Tovu content plus selected
 // @jini-ai/agent-plugins/<id> packages), in plugin-id order.
 const publishTargets = composedBundledPluginDirs()
-  .map(({ dir }) => path.join(dir, "tovu-deploy-targets.json")).filter(file => existsSync(file))
+  .map(({ dir }) => path.join(dir, "jini-deploy-targets.json")).filter(file => existsSync(file))
   .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; label: string }> }).targets);
   return { publishTargets };
 }

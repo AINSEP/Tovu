@@ -105,7 +105,7 @@ test("counter: token lookup (contribution reload, credential opens) per getAcces
   // The loader reads each contribution file through a `readFile` bound when the lifecycle was built,
   // so a file-system spy cannot see it; it then parses the file's text. A load is counted as one
   // parse of a contribution file's exact text (no production change).
-  const contributionTexts = new Map(["tovu-connections.json", "tovu-agent-tools.json", "tovu-admin-surfaces.json", "tovu-form-destinations.json"]
+  const contributionTexts = new Map(["jini-connections.json", "jini-agent-tools.json", "jini-admin-surfaces.json", "jini-form-destinations.json"]
     .map((name) => [readFileSync(path.join(ACME_PACKAGE_ROOT, name), "utf8"), name] as const));
   const lookup = async () => {
     const loads: string[] = [];

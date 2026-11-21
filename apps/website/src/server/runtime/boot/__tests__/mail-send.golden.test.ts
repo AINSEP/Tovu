@@ -23,7 +23,7 @@ const GOLDEN = new URL('./fixtures/mail-send.golden.json', import.meta.url);
 const WS = 'mail-golden';
 const AT = '2026-11-07T00:00:00.000Z';
 const KEY = 'golden-resend-key-1234';
-const raw = readFileSync(new URL(import.meta.resolve('@jini-ai/agent-plugins/resend/tovu-mail-adapters.json')), 'utf8');
+const raw = readFileSync(new URL(import.meta.resolve('@jini-ai/agent-plugins/resend/jini-mail-adapters.json')), 'utf8');
 const parsed = parseMailAdaptersFile({ raw });
 assert.ok(parsed.ok);
 const descriptor = parsed.descriptors[0]!;

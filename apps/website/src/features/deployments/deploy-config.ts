@@ -9,7 +9,7 @@ import type { DeploymentSecret, DeploymentDescriptor, RenderedDeployConfig, Depl
  * @file The ONE `DeploymentDescriptor` every platform config generator is a thin, pure function over —
  * `tovu deploy config --target <id>`'s single source of truth (`cli/commands/deploy-config.ts`). The
  * generators themselves are plugin modules (the bundled hosting plugins'
- * `deploy-configs/*.mjs`, declared in each one's `tovu-deploy-configs.json`, loaded by `./deploy-config-registry.ts`); this file
+ * `deploy-configs/*.mjs`, declared in each one's `jini-deploy-configs.json`, loaded by `./deploy-config-registry.ts`); this file
  * keeps only the vendor-neutral half: the descriptor, the injection guard, the migrations note, and
  * the {@link DeployConfigGeneratorModule} port with the {@link DeployConfigKit} the host passes in.
  *

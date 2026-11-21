@@ -36,7 +36,7 @@ export type { DeployConfigGeneratorDescriptor, DeployConfigGeneratorRegistry, Lo
  */
 
 /** The file a plugin ships at its root to contribute deploy-config generators. */
-export const DEPLOY_CONFIGS_FILENAME = "tovu-deploy-configs.json";
+export const DEPLOY_CONFIGS_FILENAME = "jini-deploy-configs.json";
 
 const configContribution = defineExecutablePluginContribution<DeployConfigGeneratorDescriptor, DeployConfigGeneratorModule>({
   filename: DEPLOY_CONFIGS_FILENAME, contribution: "deploy configs",

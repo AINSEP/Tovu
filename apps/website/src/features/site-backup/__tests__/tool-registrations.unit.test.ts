@@ -466,7 +466,7 @@ test("a folder inside '.github' is refused (GitHub reads workflows there)", asyn
 });
 
 // 2026-09-29: '.github' is no longer a core rule; the github plugin declares it in
-// tovu-source-control.json (reservedPaths), checked once the credential names the host.
+// jini-source-control.json (reservedPaths), checked once the credential names the host.
 test("the github plugin's reserved '.github' folder is refused case-insensitively, naming the reserved folder, before any GitHub call", async (t) => {
   const h = harness(t);
   await h.seed();

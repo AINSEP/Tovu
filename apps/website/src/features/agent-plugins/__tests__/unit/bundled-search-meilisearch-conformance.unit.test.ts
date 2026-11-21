@@ -14,7 +14,7 @@ import { agentPluginSourceDir } from "../../../../../../../development/test-supp
  * @file The bundled `meilisearch` provider clears the generic search-provider conformance kit
  * (`@jini-ai/search/testkit`) unchanged, against the Meilisearch emulator in
  * `../fixtures/meilisearch-emulator.ts`. The provider is loaded the way production loads it: from the
- * plugin's own `tovu-search-providers.json` through the search-provider registry, so the manifest,
+ * plugin's own `jini-search-providers.json` through the search-provider registry, so the manifest,
  * the contained `.mjs` import and Jini's contribution validation are all on the path.
  *
  * A real Meilisearch server is not available here; conformance against a real v1.x container is a

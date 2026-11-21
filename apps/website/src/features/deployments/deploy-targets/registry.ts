@@ -32,7 +32,7 @@ import type { InstalledDeployTarget, InstalledDeployTargetInventory, DeployTarge
  */
 
 /** The file a plugin ships at its root to contribute deploy targets. */
-export const DEPLOY_TARGETS_FILENAME = "tovu-deploy-targets.json";
+export const DEPLOY_TARGETS_FILENAME = "jini-deploy-targets.json";
 
 /** Every trust gate is the installed CALLER's job, or the hermetic source registry's trust basis. */
 const targetContribution = defineExecutablePluginContribution<DeployTargetDescriptor, DeployTargetModule>({

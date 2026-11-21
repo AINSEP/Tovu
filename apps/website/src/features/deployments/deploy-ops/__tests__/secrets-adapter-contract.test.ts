@@ -19,7 +19,7 @@ const CAPS = 'secretCapabilities: { appliesOn: "immediately", supportsStaging: f
 async function withAdapters(modules: Record<string, string>, run: (deps: Record<string, unknown>) => Promise<void>) {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-secrets-contract-"));
   try {
-    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: Object.keys(modules).map(MANIFEST) }));
+    await writeFile(path.join(root, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: Object.keys(modules).map(MANIFEST) }));
     for (const [id, body] of Object.entries(modules)) await writeFile(path.join(root, `${id}.mjs`), body);
     const registry = await loadDeployOpsRegistryFromSource({ pluginId: "contract", packageRoot: root });
     assert.deepEqual(registry.refusals, []);

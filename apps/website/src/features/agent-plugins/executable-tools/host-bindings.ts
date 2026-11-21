@@ -16,7 +16,7 @@ import { APPROVAL_FAMILY_BY_EFFECT } from './approval.js';
 import { agentPluginDisclosureMessages } from './approval-bindings.js';
 
 /** The file a plugin ships at its package root to contribute executable tools. */
-export const AGENT_PLUGIN_TOOLS_FILENAME = 'tovu-agent-tools.json';
+export const AGENT_PLUGIN_TOOLS_FILENAME = 'jini-agent-tools.json';
 const toolContribution = defineAgentPluginToolContribution({ filename: AGENT_PLUGIN_TOOLS_FILENAME });
 
 /** Host ports the composition root binds once per site (see this folder's README). */

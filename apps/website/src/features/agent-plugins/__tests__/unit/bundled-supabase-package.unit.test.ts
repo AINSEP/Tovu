@@ -92,17 +92,7 @@ test("mcp.json offers the access-token fallback: Supabase's tokens page, probed 
     probeUrl: "https://api.supabase.com/v1/projects",
     // 2026-09-29: the retired env preset's token is copied onto this plugin's row at boot.
     importFromEnv: "JINI_SUPABASE_MCP_ACCESS_TOKEN",
-    retiredEnv: [
-      "TOVU_SUPABASE_MCP_ENABLED",
-      "TOVU_SUPABASE_MCP_PROJECT_REF",
-      "TOVU_SUPABASE_MCP_ALLOWED_TOOLS",
-      "TOVU_SUPABASE_MCP_FEATURES",
-      "TOVU_SUPABASE_MCP_PACKAGE",
-      "TOVU_SUPABASE_MCP_CONNECT_TIMEOUT_MS",
-      "TOVU_SUPABASE_MCP_CALL_TIMEOUT_MS",
-      "TOVU_SUPABASE_MCP_MAX_RESULT_BYTES",
-    ],
-  });
+  }, "the token fallback matches the bundled Supabase token settings");
 });
 
 test("mcp.json carries saved selections across Supabase's get_logs -> query_logs rename, and defaults use the new name", async () => {

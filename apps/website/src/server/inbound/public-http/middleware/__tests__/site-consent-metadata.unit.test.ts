@@ -61,12 +61,12 @@ test('unmanaged tracker scripts are diagnostics, never an implied resource conve
 test('metadata precedes assistant assets, which precede host consent assets in both slots', t => {
   useSiteChatBuild({ test: t, ready: true });
   const leading = siteAssistantMarkup({ enabled: true });
-  assert.ok(leading.head && leading.body);
+  assert.ok(leading.head && leading.body, "the assistant contributes assets to both document slots");
   const head = '<link rel="canonical" href="/ordered">';
   const assets = { head: '<!-- consent head -->', body: '<!-- consent body -->' };
   const html = pageShell({ title: 'Order', theme: null, body: '<p>Body</p>', extraHead: head,
     siteAssistantEnabled: true, documentAssets: assets });
-  assert.ok(html.includes(leading.head + '\n' + assets.head + '\n</head>'));
-  assert.ok(html.includes(leading.body + '\n' + assets.body + '\n</body>'));
-  assert.ok(html.indexOf(head) < html.indexOf(leading.head));
+  assert.ok(html.includes(leading.head + '\n' + assets.head + '\n</head>'), "the head places assistant assets before consent assets");
+  assert.ok(html.includes(leading.body + '\n' + assets.body + '\n</body>'), "the body places assistant assets before consent assets");
+  assert.ok(html.indexOf(head) < html.indexOf(leading.head), "the page metadata precedes the assistant head assets");
 });

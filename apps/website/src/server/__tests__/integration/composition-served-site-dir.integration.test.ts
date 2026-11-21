@@ -172,11 +172,11 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     fs.mkdirSync(pluginRoot);
     const files = {
       "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "github", version: "1.0.0" }),
-      "tovu-source-control.json": JSON.stringify({ schemaVersion: 1, providers: [{ id: "bound-git", label: "Bound Git", apiOrigin: "https://git.fixture.test", module: "fixture.mjs" }] }),
-      "tovu-deploy-targets.json": JSON.stringify({ schemaVersion: 1, targets: [{ id: "bound-target", label: "Bound Target", module: "fixture.mjs", config: [] }] }),
-      "tovu-deploy-ops.json": JSON.stringify({ schemaVersion: 1, platforms: [{ id: "bound-ops", label: "Bound Ops", module: "fixture.mjs", hosts: ["api.fixture.test"] }] }),
-      "tovu-mail-adapters.json": JSON.stringify({ schemaVersion: 1, adapters: [{ id: "bound_mail", label: "Bound Mail", module: "fixture.mjs", credentialLabel: "Fixture Mail Key" }] }),
-      "tovu-credential-schemes.json": JSON.stringify({ schemaVersion: 1, schemes: [{ id: "bound-scheme", prefix: "FixtureV1", scheme: "FixtureV1" }] }),
+      "jini-source-control.json": JSON.stringify({ schemaVersion: 1, providers: [{ id: "bound-git", label: "Bound Git", apiOrigin: "https://git.fixture.test", module: "fixture.mjs" }] }),
+      "jini-deploy-targets.json": JSON.stringify({ schemaVersion: 1, targets: [{ id: "bound-target", label: "Bound Target", module: "fixture.mjs", config: [] }] }),
+      "jini-deploy-ops.json": JSON.stringify({ schemaVersion: 1, platforms: [{ id: "bound-ops", label: "Bound Ops", module: "fixture.mjs", hosts: ["api.fixture.test"] }] }),
+      "jini-mail-adapters.json": JSON.stringify({ schemaVersion: 1, adapters: [{ id: "bound_mail", label: "Bound Mail", module: "fixture.mjs", credentialLabel: "Fixture Mail Key" }] }),
+      "jini-credential-schemes.json": JSON.stringify({ schemaVersion: 1, schemes: [{ id: "bound-scheme", prefix: "FixtureV1", scheme: "FixtureV1" }] }),
       "fixture.mjs": "export default { create() { return {}; }, validateConfig() { return null; }, async status() {}, async logs() {} };",
     };
     for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(pluginRoot, name), content);

@@ -368,7 +368,7 @@ test("disable cleanup recovers an inactive plugin's provider ownership after a f
   const pluginDir = path.join(workspace.pluginPackagesDir({ pluginId: PLUGIN_TOGGLE.pluginId }), digest);
   await mkdir(pluginDir, { recursive: true });
   await writeFile(path.join(pluginDir, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: PLUGIN_TOGGLE.pluginId, version: '1.0.0', extensions: { tovu: { id: 'test/mail-package' } } }));
-  await writeFile(path.join(pluginDir, 'tovu-mail-adapters.json'), JSON.stringify({ schemaVersion: 1, adapters: [{ id: 'firstadapter', label: 'Mail', module: 'mail.mjs', credentialLabel: 'Mail key' }, { id: 'sharedid', label: 'Shared', module: 'mail.mjs', credentialLabel: 'Shared key' }] }));
+  await writeFile(path.join(pluginDir, 'jini-mail-adapters.json'), JSON.stringify({ schemaVersion: 1, adapters: [{ id: 'firstadapter', label: 'Mail', module: 'mail.mjs', credentialLabel: 'Mail key' }, { id: 'sharedid', label: 'Shared', module: 'mail.mjs', credentialLabel: 'Shared key' }] }));
   await writeFile(path.join(workspace.root, 'bundled-digests.json'), JSON.stringify({ schemaVersion: 1, plugins: { [PLUGIN_TOGGLE.pluginId]: { archiveDigest: digest } } }));
   await writeFile(path.join(workspace.root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { [PLUGIN_TOGGLE.pluginId]: { enabled: false, origin: 'bundled', updatedAt: '2026-10-21T00:00:00Z', updatedBy: 'owner' } } }));
   const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;

@@ -328,7 +328,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       if (scenario.emitBootToken === true) {
         assert.equal(stdout.length, 1);
         assert.match(stdout[0], /^tovu serve: bootToken=\S+\n$/);
-        assert.ok(stdoutSequence[0] < loggedSequence[startupIndex]);
+        assert.ok(stdoutSequence[0] < loggedSequence[startupIndex], "the boot token is written before the startup line");
       } else assert.deepEqual(stdout, []);
       const widened = stderr.filter(line => line.includes("this site is reachable from other machines"));
       if (scenario.expected === "127.0.0.1") assert.deepEqual(widened, []);

@@ -116,7 +116,7 @@ test("credential filenames remain included; malformed plugin identity still refu
   const cases: { runtime: string; archive: string; plugin?: PackageRecord; code: string; exportedPath?: string }[] = [
     { runtime: "themes/site/mcp.json", archive: "themes/site/mcp.json", code: "UNSAFE_FILE" },
     { runtime: "plugins/portable/package/mcp.json", archive: "plugins/portable/package/mcp.json", plugin: { kind: "site", id: "portable" }, code: "UNSAFE_FILE" },
-    { runtime: "themes/site/tovu-credential-schemes.json", archive: "themes/site/tovu-credential-schemes.json", code: "UNSAFE_FILE" },
+    { runtime: "themes/site/jini-credential-schemes.json", archive: "themes/site/jini-credential-schemes.json", code: "UNSAFE_FILE" },
     ...["a".repeat(63), "a".repeat(65), "g".repeat(64)].map(digest => ({
       runtime: `agent-plugins/ws/ws/portable/package/sha256/${digest}/mcp.json`, archive: "agent-plugins/portable/package/mcp.json",
       plugin: { ...agent, digest }, code: "INVALID_ARCHIVE",
@@ -145,7 +145,7 @@ test("credential filenames remain included; malformed plugin identity still refu
 
 test("import and export retain credential-looking files in site plugin packages", { timeout: 120000 }, async t => {
   // Both package variants preserve their bytes; only their original layout and trust contracts differ.
-  for (const filename of ["mcp.json", "tovu-credential-schemes.json", "vendor-credentials.json"]) await t.test(filename, { timeout: 120000 }, async t => {
+  for (const filename of ["mcp.json", "jini-credential-schemes.json", "vendor-credentials.json"]) await t.test(filename, { timeout: 120000 }, async t => {
     const h = await importFixture(t);
     const name = `plugins/portable/package/${filename}`;
     const bytes = Buffer.from("{}");
@@ -196,7 +196,7 @@ test("a supplied site plugin manifest is installed as given: a stale integrity h
 });
 
 test("package manifest filename exceptions preserve secret scanning on export and import", { timeout: 120000 }, async t => {
-  for (const filename of ["mcp.json", "tovu-credential-schemes.json"]) await t.test(filename, { timeout: 120000 }, async t => {
+  for (const filename of ["mcp.json", "jini-credential-schemes.json"]) await t.test(filename, { timeout: 120000 }, async t => {
     const h = await importFixture(t);
     const name = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}/${filename}`;
     const bytes = Buffer.from(JSON.stringify({ token: "ghp_" + "x".repeat(36) }));
