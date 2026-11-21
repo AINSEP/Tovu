@@ -30,19 +30,21 @@ export function createSiteConsentStore({ kernel, workspaceId }: { kernel: Pick<K
   return {
     read,
     readPublished,
-    saveDraft: async ({ revision: next, expectedDraftId }, _optional = {}) => kernel.transaction(async () => {
+    saveDraft: async ({ revision: next, expectedDraftId, signal }, _optional = {}) => kernel.transaction(async () => {
       await kernel.lockKey(`site-consent:${workspaceId}`);
       const state = await read();
       if ((state.draft?.id ?? null) !== expectedDraftId) throw new SiteConsentConflict();
       const config = JSON.stringify(next.config);
       if (config.length > 32_768) throw new Error('Consent configuration exceeds 32 KiB.');
+      signal?.throwIfAborted();
       await kernel.execute(sql`INSERT INTO site_consent_revisions (workspace_id, id, config_json, actor_id, created_at) VALUES (${workspaceId}, ${next.id}, ${config}, ${next.actorId}, ${next.createdAt})`);
       await kernel.execute(sql`INSERT INTO site_consent_heads (workspace_id, draft_id, published_id) VALUES (${workspaceId}, ${next.id}, NULL) ON CONFLICT (workspace_id) DO UPDATE SET draft_id = ${next.id}`);
     }),
-    publish: async ({ draftId, expectedPublishedId }, _optional = {}) => kernel.transaction(async () => {
+    publish: async ({ draftId, expectedPublishedId, signal }, _optional = {}) => kernel.transaction(async () => {
       await kernel.lockKey(`site-consent:${workspaceId}`);
       const state = await read();
       if (state.draft?.id !== draftId || (state.published?.id ?? null) !== expectedPublishedId) throw new SiteConsentConflict();
+      signal?.throwIfAborted();
       await kernel.execute(sql`UPDATE site_consent_heads SET published_id = ${draftId} WHERE workspace_id = ${workspaceId}`);
     }),
   };
