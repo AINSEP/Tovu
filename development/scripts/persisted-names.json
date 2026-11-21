@@ -1,0 +1,13 @@
+{
+  "names": {
+    "tovu.content.ledger": "tovu_migrations",
+    "tovu.content.database": "content.db",
+    "tovu.deploy.descriptor": "jini-deploy-targets.json",
+    "cloudflare.plugin.id": "jini/cloudflare",
+    "cloudflare.forms.binding": "JINI_FORMS",
+    "cloudflare.forms.privateRoute": "/_jini/*",
+    "sheets.submission.id": "_jini_submission_id",
+    "resend.credential.label": "Mail — Resend API"
+  },
+  "changes": []
+}
