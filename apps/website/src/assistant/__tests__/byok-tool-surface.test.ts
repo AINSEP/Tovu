@@ -24,6 +24,7 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import { createNoopObservabilityPort, type OperationTrackingInput, type OperationTrackingOutcome } from "@jini-ai/core/contracts/observability";
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -489,6 +490,38 @@ test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is du
   assert.equal(requested.runId, RUN.id);
   assert.equal(requested.principalId, PRINCIPAL.id);
   assert.equal(final.phase, "unknown-tool", "ToolExecutor.execute throws 'unknown tool' for an id it does not know");
+});
+
+test("a registered BYOK call settles one tool.call and the live gate suppresses the next observation", async () => {
+  const started: OperationTrackingInput[] = [];
+  const settled: OperationTrackingOutcome[] = [];
+  let enabled = true;
+  const s = createByokToolSurface({
+    ...fakeRouteDeps(),
+    observability: {
+      ...createNoopObservabilityPort({}),
+      trackOperation: (input) => {
+        started.push(input);
+        return {
+          run: (work) => work(),
+          end: (outcome) => { settled.push(outcome); },
+        };
+      },
+    },
+    observabilityEnabled: () => enabled,
+  }, { installExtensions: false, contributions });
+  s.registry.register(fakeAllowedRegistration("probe_observed_success", async () => ({ saved: true })));
+  const observed = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "probe_observed_success", input: {} }) });
+  assert.deepEqual(JSON.parse(textOf(observed)), { saved: true }, "observation preserves the registered tool's return");
+  assert.deepEqual(started, [{ name: "tool.call", attributes: {
+    "tool.id": "probe_observed_success", "agent.run.id": RUN.id, "user.id": PRINCIPAL.id,
+  } }], "one registered BYOK call starts exactly one tool.call");
+  assert.deepEqual(settled, [{ outcome: "completed", failed: false }], "the observed tool.call settles exactly once");
+  enabled = false;
+  const unobserved = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "probe_observed_success", input: {} }) });
+  assert.deepEqual(JSON.parse(textOf(unobserved)), { saved: true }, "disabling observation preserves the next tool's return");
+  assert.equal(started.length, 1, "the live gate suppresses observation on the next call");
+  assert.equal(settled.length, 1, "the disabled call produces no additional settled observation");
 });
 
 test("ordinary successful and throwing delegated handlers record their complete audit trail", async () => {

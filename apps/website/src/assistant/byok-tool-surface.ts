@@ -45,7 +45,7 @@ import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "./permanent-delete
 import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
-import { createAssistantToolExecutor } from "./tool-recovery-preset.js";
+import { createAssistantToolExecutor, type AssistantToolExecutorDeps } from "./tool-recovery-preset.js";
 import { err, isRecord, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "./byok-meta-tool-result.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -408,6 +408,7 @@ async function runTypedTool(
  *  see that module's own comment) can cast to a named type instead of repeating this `Omit`. */
 export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter" | "listCatalogTools"> & {
   readonly federatedMcpPresetRegistry?: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
+  readonly observabilityEnabled?: AssistantToolExecutorDeps["observabilityEnabled"];
 };
 
 /** The optional half of {@link createByokToolSurface}'s arguments. */
@@ -564,13 +565,16 @@ function attachSurfaceExtensions(
 // `undefined`, in which case no toolId here can be `mcp__`-prefixed either — this decorator is
 // then a no-op passthrough, never a behavior change for `installExtensions: false`.
 function composeSurfaceExecutor(
-  required: { readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore; readonly federation: FederationRuntime | undefined },
+  required: { readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore; readonly federation: FederationRuntime | undefined;
+    readonly observability?: AssistantToolExecutorDeps["observability"]; readonly observabilityEnabled?: AssistantToolExecutorDeps["observabilityEnabled"] },
   options: Pick<ByokToolSurfaceOptions, "prepareGuidance" | "toolAttemptAudit">,
 ): ToolExecutor {
-  const { registry, surfaceExchanges, federation } = required;
+  const { registry, surfaceExchanges, federation, observability, observabilityEnabled } = required;
   return withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
       registry,
       surfaceExchanges,
+      observability,
+      observabilityEnabled,
       ...(options.prepareGuidance ? { prepareGuidance: options.prepareGuidance } : {}),
       ...(options.toolAttemptAudit ? { toolAttemptAudit: options.toolAttemptAudit } : {}),
     }, {}), getSnapshot: () => federation?.reports() ?? [], getBootStatus: () =>
@@ -798,7 +802,8 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     } }, { bearerToken: desktop.bearerToken }) },
   );
   const federation: FederationRuntime | undefined = extensions?.federation;
-  const executor = composeSurfaceExecutor({ registry, surfaceExchanges, federation }, options);
+  const executor = composeSurfaceExecutor({ registry, surfaceExchanges, federation,
+    observability: routeDeps.observability, observabilityEnabled: routeDeps.observabilityEnabled }, options);
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names
   // that non-drift property as the reason it takes the registry rather than a separate catalog.
