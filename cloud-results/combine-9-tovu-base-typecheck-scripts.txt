@@ -1,0 +1,17 @@
+
+> tovu@0.1.0 typecheck:scripts
+> tsc -p development/tsconfig.scripts.json --noEmit
+
+apps/website/src/features/agent-plugins/lifecycle.ts(24,46): error TS2307: Cannot find module '@jini-ai/agent-plugins/lifecycle/node' or its corresponding type declarations.
+apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  Property 'requirePermission' is missing in type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' but required in type '{ requirePermission: RequireHostToolPermission; }'.
+apps/website/src/server/runtime/composition/plugin-runtime.ts(81,5): error TS2741: Property 'fileLock' is missing in type '{ pluginSdkBinding: PluginSdkBinding<Readonly<Record<string, unknown>>>; capabilityVocabulary: (SharedExtensionCapability | "http.route.register" | "tools.register" | "render.contribute" | "providers.register")[]; ... 7 more ...; createInvocationCoreDeps: RunTier2CallRequired["createInvocationCoreDeps"]; }' but required in type 'PluginRuntimeHostBinding'.
+apps/website/src/server/runtime/lifecycle/assistant-daemon-registry.ts(34,90): error TS2345: Argument of type '{ registryPath: string; }' is not assignable to parameter of type '{ registryPath: string; writer: JsonFileWriter; }'.
+  Property 'writer' is missing in type '{ registryPath: string; }' but required in type '{ registryPath: string; writer: JsonFileWriter; }'.
+apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts(415,43): error TS2345: Argument of type '{ command: string; args: string[]; cwd: string; env: { TOVU_AGENT_DAEMON_STANDALONE: string; TOVU_AGENT_DAEMON_REGISTRY_PATH: string; }; registry: SupervisorRegistry; }' is not assignable to parameter of type 'NodeDaemonProcessRequired'.
+  Type '{ command: string; args: string[]; cwd: string; env: { TOVU_AGENT_DAEMON_STANDALONE: string; TOVU_AGENT_DAEMON_REGISTRY_PATH: string; }; registry: SupervisorRegistry; }' is missing the following properties from type 'NodeDaemonProcessRequired': process, commandShell
+apps/website/src/server/runtime/lifecycle/local-site-process.ts(200,52): error TS2345: Argument of type '{ command: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv; registry: { readLive: () => Promise<null>; write: () => Promise<void>; removeIfCurrent: () => Promise<void>; }; }' is not assignable to parameter of type 'NodeDaemonProcessRequired'.
+  Type '{ command: string; args: string[]; cwd: string; env: ProcessEnv; registry: { readLive: () => Promise<null>; write: () => Promise<void>; removeIfCurrent: () => Promise<void>; }; }' is missing the following properties from type 'NodeDaemonProcessRequired': process, commandShell
+development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.

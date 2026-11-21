@@ -202,12 +202,3 @@ Found while merging combine-9 against Jini `integ/merge-10-2026-11-21` `de4e555b
   `npm ci --ignore-scripts` in `apps/site-chat` fails: `EUSAGE … lock file's @jini-ai/agentic@0.7.0 does not
   satisfy @jini-ai/agentic@0.7.3-next.1` (also chat, core, protocol). Root/admin/desktop `npm ci`: 0.
   Fix: `npm install` in `apps/site-chat` against the published 0.7.3-next.1 and commit the lockfile.
-
-### `C9-automatic-plugin-note-jini-merge10` — suspected (Jini merge-10 behaviour vs Tovu expectations)
-- `assistant/__tests__/automatic-agent-plugins.integration.test.ts` 3 red on the tip and identically on the
-  relinked base (merge-8 + lockfile pair, i.e. caused by Jini merge-10, not by a Tovu branch; green in combine-8
-  against Jini merge-8): "50 relevant ids are discoverable…" (the automatic note is over its 600-byte budget),
-  "explicit loader and guarded write refuse ask through the real executor" (a plugin whose preference is Ask is
-  still listed in the "Enabled agent plugins (load one before acting on its part)" note; the test expects no
-  note), "accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true)" (the delivered
-  preflight text differs). If the Ask-listing is real, the model is told to load a plugin the person has set to Ask.

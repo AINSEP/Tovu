@@ -1,0 +1,1 @@
+check:test-safety — 110 changed .ts file(s) vs origin/integ/merge-8-2026-11-21: no new message-less assertions. OK
