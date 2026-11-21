@@ -6,7 +6,7 @@ Unattended cloud run. Node 24.22.3 (`/opt/node24`), pnpm 10.33.2 (corepack). No 
 
 Bases: Tovu `origin/integ/merge-7-2026-11-20` `8d1a4c2742`, Jini `origin/integ/merge-7-2026-11-20` `06559affb`. Input: `origin/plan/culls-1120` → `cloud-bugs/list.md` (46 rows), `cloud-bugs/design-r62t-bugs.md`, `cloud-bugs/open-bugs-snapshot.md` (row ID = its line number), plus `cloud-results/combine-7-tovu.md`.
 
-**Result: 46 rows → FIX-HERE 2 (1 FIXED, 1 confirmed and LEFT as minor), ALREADY-FIXED 17, LOCKFILE-RUN 8, NOT-RUNNABLE 19.** Most of the cloud-only rows were already repaired in code on the merge-7 bases: they stayed open only for a check that needs a packaged app, a real model/provider, or a registry release. The one reproducible defect still present was 552 (repo-scanning check scripts compiled into the server build that the desktop payload ships). It is fixed with a test that fails first. Jini is unchanged, so there is no Jini fix branch.
+**Result: 46 rows → FIX-HERE 2 (1 FIXED, 1 confirmed and LEFT as minor), ALREADY-FIXED 14, LOCKFILE-RUN 6, NOT-RUNNABLE 24.** Most of the cloud-only rows were already repaired in code on the merge-7 bases: they stayed open only for a check that needs a packaged app, a real model/provider, or a registry release. The one reproducible defect still present was 552 (repo-scanning check scripts compiled into the server build that the desktop payload ships). It is fixed with a test that fails first. Jini is unchanged, so there is no Jini fix branch.
 
 ## Setup
 - Jini (`06559affb`): `pnpm install --frozen-lockfile` exit 0, `pnpm --no-bail -r build` exit 0.
@@ -75,7 +75,24 @@ Buckets follow the dispatch. Where the code repair is already on the base and on
 4. Gate deltas vs the combine-7 final tree: see Gates.
 
 ## Gates (final Tovu tree)
-GATES_PLACEHOLDER
+Every gate is identical to the combine-7 FINAL column (`cloud-results/combine-7-tovu.md`). This branch adds no red. The only source change is `tsconfig.json`'s exclude list.
+
+| gate | result | vs combine-7 final |
+|---|---|---|
+| `npm run typecheck` (incl. `typecheck:e2e`) | exit 0 | same |
+| `npm run typecheck:tests` | exit 0 | same |
+| `npm run typecheck:scripts` | exit 2, the 3 base-red lines | same |
+| admin `npx tsc --noEmit -p .` | exit 0 | same |
+| `check:size` | exit 1: New `dev-auth.ts` 508, New `modules/assistant-byok.ts` 531, Worsened `SiteGrid.tsx` 502, Worsened `publish-agent-tools.ts` 775 (+ an informational "delete stale debt entry" for `theme/publish-content.ts`) | same 4 lines |
+| `check:complexity` | ok, 0 entries | same |
+| `check:architecture` | exit 1: 60 NEW cross-feature edges (incl. `site-backup/plan-content.ts → source-control/provider-module.ts`), API surface 684, runtime propagation 3.06 → 3.41 warning | same |
+| `check:boundaries` | exit 20 (20 errors, 111 warnings) | same 20 errors |
+| `check:hooks` | ok, 41 | same |
+| `check:why-comments` | exit 1, 165 blocks (after fetching `origin/refactor/terra`, depth 1) | same |
+| `check:errors` | WARN, 1 New `[failure-text-from-catalog] assistant/subagent-settings.ts` | same. **No `--update`** |
+| `check:test-safety` vs `origin/integ/merge-7-2026-11-20` | OK: 1 changed .ts file, no new message-less assertions | — |
+| desktop tsc / desktop tests | not re-run: nothing under `apps/desktop` changed | — |
+| Jini | unchanged; suites run for triage: plugins 1015/1015, platform 3353 pass / 6 skipped, ui 8816/8816, agent-plugins content 1391/1391, chat picker 57/57, mcp-isolation 5/5; `optional-peer-contract` 148/151 and `infra-retirement` 3/6 (Red lines 1–2) | — |
 
 ## Tests run for the changed files
 - `development/scripts/__tests__/app-runtime-dependencies.test.ts` (the only changed test; `tsconfig.json` has no other test importer): base **5 pass / 1 fail** (the new case lists `secret-scan-guard.ts` and `default-credential-exposure.ts`), after `f57b409e0` **6/6**. Both files still type-check through `tsconfig.tests.json` (`typecheck:tests` exit 0), and `check:secret-scan` / `check:default-credential` still run them from source with tsx.
