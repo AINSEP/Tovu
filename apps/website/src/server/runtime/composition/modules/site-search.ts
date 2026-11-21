@@ -38,8 +38,8 @@ import type { HttpClientPort } from "#src/platform/http/index";
  * `registered: false` instead of pretending nothing was chosen.
  *
  * **Vendor credentials.** No new table: a vendor's key is a saved custom credential (Access Tokens →
- * "Add custom provider") labeled exactly {@link searchCredentialLabel} — `Jini Search — <Provider
- * label>`, e.g. `Jini Search — Meilisearch` — with `baseUrl` = the vendor's HTTPS endpoint (passed to
+ * "Add custom provider") labeled exactly {@link searchCredentialLabel} — `Search — <Provider
+ * label>`, e.g. `Search — Meilisearch` — with `baseUrl` = the vendor's HTTPS endpoint (passed to
  * the provider as `host`) and the API key as the token (passed as `apiKey`). The same fixed-label
  * convention `boot/resolve-mailer.ts` uses for mail providers, for the same reason: the credential
  * store has no purpose column to key on. A provider receives only the keys it declares in
@@ -57,13 +57,13 @@ import type { HttpClientPort } from "#src/platform/http/index";
  */
 
 /** Exact prefix of the custom-credential label a vendor search provider's key is saved under. */
-export const SEARCH_CREDENTIAL_LABEL_PREFIX = "Jini Search — ";
+export const SEARCH_CREDENTIAL_LABEL_PREFIX = "Search — ";
 
 /** Hard per-request budget handed to every provider (and the service's own deadline). */
 export const SEARCH_PROVIDER_TIMEOUT_MS = 3000;
 
 /**
- * The custom-credential label for a provider, e.g. `Jini Search — Meilisearch`.
+ * The custom-credential label for a provider, e.g. `Search — Meilisearch`.
  * @complexity O(label length).
  */
 export function searchCredentialLabel(required: { readonly providerLabel: string }, _optional: Record<string, never> = {}): string {
@@ -442,6 +442,8 @@ async function searchCredentialsFor(required: Parameters<typeof createSearchCont
     let saved: SearchVaultCredential | null;
     try {
       saved = await required.resolveCredential({ label });
+      if (saved === null) saved = await required.resolveCredential({ label: `Jini Search — ${provider.label}` });
+      if (saved === null) saved = await required.resolveCredential({ label: `Tovu Search — ${provider.label}` });
     } catch (error) {
       log(`[site-search] the "${label}" credential could not be read (${errorText({ error })})`);
       return null;

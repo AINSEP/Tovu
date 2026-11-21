@@ -75,7 +75,7 @@ the plugin’s card: `credential_save {kind:"plugin-provider",target:"github"}`.
   where a credential labelled `github` lives.
 - `source_control_*` reads a **separate** table, connected with `credential_save {kind:"plugin-provider",target:"github-source-control"}`.
 
-Ownership is recorded at `<folder>/.tovu/managed-files.json`. Changing folders creates an independent
+Ownership is recorded at `<folder>/.jini/managed-files.json`. Changing folders creates an independent
 destination, preserving the previous root export and sibling folders. A folder commit never reads
 the root manifest as a fallback.
 

@@ -109,7 +109,7 @@ export function wireFormsAndSearch(required: WireFormsAndSearchRequired, _option
   // Site search (lots S4-S6): registry, query service and indexer, built once per composition so the
   // public route, the bus subscription (`app.ts`), the serving loop (`serving-app.ts`) and the
   // assistant's search tools share one registry. See `modules/site-search.ts`'s header for the vendor
-  // credential labels (`Tovu Search — <Provider label>`), index names and the empty built-in slot.
+  // credential labels (`Search — <Provider label>`), index names and the empty built-in slot.
   // Vendor calls go through the shared single-hop public-HTTPS policy, like hosted mail adapters.
   routeDeps.siteSearch = createSiteSearchRuntime(bindSiteSearchPorts({
     workspaceId, kernel, now: clock.nowMs, settingsRepo,

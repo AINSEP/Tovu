@@ -96,12 +96,12 @@ test("v2 preserves the credential card and setup together under an explicit or d
     assert.ok(parsed.ok);
     assert.deepEqual(parsed.descriptors[0], {
       schemaVersion: 2, id: "acme", label: "Acme", module: "a.mjs", credentialKeys: ["token"], feedback: false,
-      credentialLabel: credentialLabel ?? "Tovu Mail — Acme API", credentialCard,
+      credentialLabel: credentialLabel ?? "Mail — Acme API", credentialCard,
       setup: { fields: [
         { key: "baseUrl", label: "Endpoint", type: "url", required: true, defaultValue: "https://api.acme.test" },
         { key: "token", label: "API key", type: "secret", required: true },
       ] },
-    });
+    }, "setup retains an explicit saved label and otherwise uses the canonical default");
   }
 });
 

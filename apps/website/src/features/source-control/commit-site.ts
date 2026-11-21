@@ -131,7 +131,7 @@ function commitArgs({ deps, input }: { deps: CommitSiteDeps; input: CommitSiteIn
       const saved = await credentialDeps.resolveSavedApiKey?.({ workspaceId: input.workspaceId, providerId });
       return saved ? { providerId, token: saved.token } : null;
     } },
-    adapter: { commitSite: async (required, optional = {}) => deps.gitAdapter?.commit({ ...required, folder: required.folder ?? "", ...optional })
+    adapter: { commitSite: async (required, optional = {}) => deps.gitAdapter?.commit({ ...required, folder: required.folder ?? "", ...optional, ...(providerId === "github" ? { previousManagedManifestPath: ".tovu/managed-files.json" } : {}) })
       ?? { ok: false, code: "provider-error", message: "no source control commit adapter is configured — this is a wiring bug, not a credential or network problem" } }, // Production always supplies the adapter (`tool-registrations.ts`): absent is refused loudly, never a silent no-op commit.
   };
 }

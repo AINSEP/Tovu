@@ -128,6 +128,12 @@ function unconfiguredMessage({ lane }: { lane: MailDeliveryLane }): string {
   );
 }
 
+function mailCredentialLabels({ label }: { label: string | undefined }): string[] {
+  if (label === undefined) return [];
+  if (!/^Mail — .+ API$/.test(label)) return [label];
+  return [label, `Jini ${label}`, `Tovu ${label}`];
+}
+
 /** Project vault metadata into Jini's fingerprint facts without decrypting or copying the row.
  * Fingerprint BEFORE reading the key: Jini owns metadata → key → metadata ordering and retries.
  * An unreadable store leaves key lookup to report why; cached mailers survive metadata faults.
@@ -138,8 +144,20 @@ async function readCredentialFact(
 ): Promise<MailCredentialFact | undefined> {
   const { deps, label } = required;
   const rows = await deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  const record = rows.find(row => row.label === label);
+  const record = mailCredentialLabels({ label }).map(candidate => rows.find(row => row.label === candidate)).find(row => row !== undefined);
   return record ? { id: record.id, label: record.label, updatedAt: record.updatedAt, vaultRevision: record.vaultRecord?.revision } : undefined;
+}
+
+function describeMailProvidersWithLegacyLabels(required: Parameters<typeof describeMailProviders>[0]) {
+  const { catalog } = required;
+  const records = [...required.records];
+  for (const { id } of catalog.registry.list()) {
+    const [label, ...legacyLabels] = mailCredentialLabels({ label: catalog.credentialLabelFor({ id }) });
+    if (label === undefined || records.some(row => row.label === label)) continue;
+    const record = legacyLabels.map(candidate => records.find(row => row.label === candidate)).find(row => row !== undefined);
+    if (record) records.push({ id: record.id, label, updatedAt: record.updatedAt, username: record.username });
+  }
+  return describeMailProviders({ ...required, records });
 }
 
 /**
@@ -158,14 +176,14 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     providerSetting: { read: () => deps.providerSetting.read(), write: ({ setting }) => deps.providerSetting.write({ value: setting }) },
     credentials: {
       readFact: ({ label }) => readCredentialFact({ deps, label }),
-      resolve: ({ catalog, id }) => resolveMailCredential({ deps, catalog, id }),
+      resolve: ({ catalog, id }) => resolveMailCredential({ deps, labels: mailCredentialLabels({ label: catalog.credentialLabelFor({ id }) }), id }),
     },
     // The configuration projection still needs Tovu's row (e.g. SMTP username presence).
     listCredentialFacts: () => deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId }),
     loadCatalog: () => loadMailProviderCatalog(deps),
     httpClient,
     createProviderMailer: ({ provider, credential }) => toJiniMailer({ mailer: createProviderMailer({ deps, provider, credential }) }),
-    describeProviders: describeMailProviders,
+    describeProviders: describeMailProvidersWithLegacyLabels,
     unconfiguredMessage,
     missingCredentialReason: ({ label }) => `has no saved credential "${label}" under Access Tokens (category "${MAIL_CREDENTIAL_CATEGORY}")`,
     credentialFailureReason,

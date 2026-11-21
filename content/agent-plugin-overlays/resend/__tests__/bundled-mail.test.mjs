@@ -60,7 +60,8 @@ test("the credential label is byte-identical to the one sites already saved (no 
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(
     registry.list().map((adapter) => [adapter.descriptor.id, adapter.descriptor.credentialLabel]),
-    [["resend", "Jini Mail — Resend API"]],
+    [["resend", "Mail — Resend API"]],
+    "the bundled Resend descriptor saves under the canonical mail label",
   );
 });
 
