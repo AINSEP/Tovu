@@ -44,3 +44,11 @@ it.each([
   expect(container.querySelector("p")?.textContent).toBe(deletion);
   expect(container.querySelector("script")).toBeNull();
 });
+
+it("translates Jini's wildcard-capacity notice and keeps the English source as the fallback", () => {
+  // Reject: drop the overlay (the notice falls back to English in every locale).
+  const notice = "Only the first 500 active wildcard redirects are used. Turn off or merge some.";
+  expect(t({ locale: "es", key: notice })).toBe("Solo se usan las primeras 500 redirecciones comodín activas. Desactiva o combina algunas.");
+  expect(t({ locale: "zh-TW", key: notice })).toBe("僅使用前 500 條啟用的萬用字元重新導向。請停用或合併部分重新導向。");
+  expect(t({ locale: "unlisted-locale", key: notice })).toBe(notice);
+});
