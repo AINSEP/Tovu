@@ -1,3 +1,4 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
@@ -16,7 +17,8 @@ async function pagePluginEmbeds(required: { html: string; workspaceId: string; r
   if (!required.runtime) return [];
   const markers = markersOfType({ html: required.html, type: "plugin" });
   if (!markers.length) return [];
-  const catalog = await required.runtime.catalog({ workspaceId: required.workspaceId }).catch(() => new Map<string, readonly PluginExportCatalogRow[]>());
+  const catalogPromise = required.runtime.catalog({ workspaceId: required.workspaceId });
+  const catalog = await orFallback({ work: () => catalogPromise, fallback: new Map<string, readonly PluginExportCatalogRow[]>(), step: "Read page plugin catalog" });
   const rows = new Map<string, PluginExportCatalogRow>([...catalog.values()].flat().map(row => [JSON.stringify([row.plugin, row.component]), row]));
   return markers.map(({ config }) => {
     const plugin = typeof config.plugin === "string" ? config.plugin : "";

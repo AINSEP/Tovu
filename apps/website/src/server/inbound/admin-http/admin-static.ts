@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import express from "express";
@@ -20,14 +21,12 @@ const MIME: Record<string, string> = {
 };
 
 function sendSeaAsset({ sea, key, res }: { sea: SeaApi; key: string; res: Response }, _optional = {}): boolean {
-  try {
+  return orFallbackSync({ work: () => {
     const asset = sea.getAsset(key);
     res.setHeader("Content-Type", MIME[path.extname(key)] ?? "application/octet-stream");
     res.end(Buffer.from(asset));
     return true;
-  } catch {
-    return false;
-  }
+  }, fallback: false, step: "Serve bundled admin asset" });
 }
 
 /**

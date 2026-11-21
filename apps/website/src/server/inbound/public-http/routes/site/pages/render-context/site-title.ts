@@ -1,3 +1,4 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import { resolveSiteTitle } from "#src/features/settings/site-title";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -24,7 +25,8 @@ export async function resolveSiteTitleForRender(
   if (options.preserveAuthoredFallback) {
     // Read the marker before the value: a pin can land between reads, never disappear between them.
     // A failed marker read delegates to the render resolver's legacy-safe error policy.
-    const pending = await deps.siteTitlePreservationStore.isPending({ workspaceId: deps.workspaceId }).catch(() => true);
+    const pendingPromise = deps.siteTitlePreservationStore.isPending({ workspaceId: deps.workspaceId });
+    const pending = await orFallback({ work: () => pendingPromise, fallback: true, step: "Read title preservation marker" });
     if (!pending) return deps.seoDeps.siteTitle({ workspaceId: deps.workspaceId });
   }
   return resolveSiteTitle(

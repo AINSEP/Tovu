@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { isNonArrayRecord } from "@jini-ai/core";
 import { load, FAILSAFE_SCHEMA } from "js-yaml";
 
@@ -50,12 +51,8 @@ export function readFrontmatterField({ markdown, key }: { markdown: string; key:
   if (!closing || closing.index === undefined) return undefined;
   const frontmatter = markdown.slice(3, 3 + closing.index);
 
-  const parsed = { value: undefined as unknown };
-  try {
-    parsed.value = load(frontmatter, { schema: FAILSAFE_SCHEMA });
-  } catch {
-    return readFieldByRegex({ frontmatter, key });
-  }
+  const parsed = orFallbackSync({ work: () => ({ value: load(frontmatter, { schema: FAILSAFE_SCHEMA }) }), fallback: null, step: "Decode frontmatter" });
+  if (parsed === null) return readFieldByRegex({ frontmatter, key });
 
   if (!isNonArrayRecord(parsed)) return undefined;
   const raw = parsed.value[key];

@@ -1,3 +1,4 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { spawn } from "node:child_process";
 import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -137,7 +138,7 @@ export async function journeyAdminBundle(
   await mkdir(root, { recursive: true });
   // The builder bounds inactivity; a contender must not impose a shorter total-work deadline.
   return lock({ lockPath: path.join(root, "build.lock"), run: async () => {
-    if (await readFile(path.join(root, "ready"), "utf8").catch(() => "")) return output;
+    if (await orFallback({ work: () => readFile(path.join(root, "ready"), "utf8"), fallback: "", step: "Read local admin ready marker" })) return output;
     const env: NodeJS.ProcessEnv = { ...launchEnv, NODE_ENV: "production" };
     // A shared bundle must resolve public links against its serving origin, not the API port of
     // whichever site won the build lock. The static admin proxy forwards these public routes.
