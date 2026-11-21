@@ -36,7 +36,7 @@ export const seededWorkspace: WorkspaceRecord = {
 };
 
 // --- Tiny doc-authoring helpers (build TipTap-style bodyJson without raw JSON) ---
-// Only nodes/marks the renderer supports (apps/website/src/server/inbound/public-http/http/site/render.ts).
+// Only nodes/marks the renderer supports (apps/website/src/server/inbound/public-http/http/site/render/doc/doc-nodes.ts).
 
 type Node = JsonObject;
 

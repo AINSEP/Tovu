@@ -12,7 +12,7 @@ import type { Express } from "express";
  * different shapes: an SPA with client-side routing vs. one self-mounting script). `vite build`
  * there emits `dist/site-assistant.js` (+ `.css`) in library/IIFE mode — a single file meant to be
  * loaded with a plain `<script defer src="/site-chat/site-assistant.js">`, not navigated to as a
- * page. `apps/website/src/server/inbound/public-http/http/site/render.ts` injects that tag on every themed page.
+ * page. `apps/website/src/server/inbound/public-http/http/site/render-site.ts` injects that tag on every themed page.
  *
  * No SPA fallback (unlike `admin-static.ts`'s `index.html` catch-all): there is no client-side
  * routing here to fall back for, and `express.static` 404ing a request for an unbuilt asset is the

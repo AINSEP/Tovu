@@ -14,7 +14,7 @@ type IsAuthenticatedPreviewRevision = (required: { revision: string }, optional:
 
 /**
  * @file Serves a theme's own files at `/theme-assets/{themeId}/...` — originally `static`-tier only
- * (`css/`/`js/`, for `apps/website/src/server/inbound/public-http/http/site/render.ts`'s static-tier branch, which rewrites a page's
+ * (`css/`/`js/`, for `apps/website/src/server/inbound/public-http/http/site/render-site.ts`'s static-tier branch, which rewrites a page's
  * `../css/`/`../js/` references to this prefix), EXTENDED 2026-08-12 to also cover `templated`-tier
  * theme folders (`content/themes/templated/`) so a Liquid theme's own images/screenshots — previously
  * unreachable at any URL, the reason `storefront` ships zero images and `fashion-modern`'s hero photo

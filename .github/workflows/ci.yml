@@ -84,6 +84,20 @@ jobs:
         # `daa74a65`) -- no sibling Jini checkout, no pnpm, no build step needed first.
         run: npm ci
 
+      - name: Dependency audit (root)
+        run: npm audit --package-lock-only
+        continue-on-error: true
+
+      - name: Dependency audit (admin)
+        working-directory: apps/admin
+        run: npm audit --package-lock-only
+        continue-on-error: true
+
+      - name: Dependency audit (site chat)
+        working-directory: apps/site-chat
+        run: npm audit --package-lock-only
+        continue-on-error: true
+
       # ---------------------------------------------------------------------------------------
       # GATES BELOW ARE `continue-on-error: true` + `id:` ON PURPOSE (2026-08-19). They are NOT
       # non-blocking: the "Gate summary" step at the end of this job reads every outcome and fails

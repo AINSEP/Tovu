@@ -22,6 +22,7 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
 import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import {
+  getMediaProviderCredentials,
   resolveMediaProviderCredential,
   sniffContentType,
   TOVU_MAX_UPLOAD_BYTES,
@@ -206,6 +207,7 @@ async function resolveCredentialForProvider({ routeDeps, providerId }: { routeDe
  * {@link DEFAULT_MODEL} only when NO provider anywhere has a resolvable credential; the caller then
  * gets the same "no credential configured" rejection as always, just for whichever provider was
  * actually tried rather than a provider hardcoded independent of what this workspace has configured.
+ * A saved credential's own image model (Admin -> Media providers) wins first, in catalog order.
  *
  * Each DISTINCT provider is checked at most once ({@link checkedProviders}) rather than once per
  * model — `IMAGE_MODEL_IDS` spans ~20 distinct providers, so re-checking a provider that already
@@ -215,6 +217,12 @@ async function resolveCredentialForProvider({ routeDeps, providerId }: { routeDe
  *   `IMAGE_MODEL_IDS` — a fixed, catalog-bounded count, never caller-controlled.
  */
 async function resolveDefaultImageModel({ routeDeps, imageModelIds }: { routeDeps: MediaGenerationToolDeps; imageModelIds: readonly string[] }, _optional = {}): Promise<string> {
+  const saved = await getMediaProviderCredentials({ repo: routeDeps.mediaProviderCredentialRepo }, { workspaceId: routeDeps.workspaceId });
+  const savedModel = imageModelIds.find((id) => {
+    const entry = saved[routeDeps.mediaProviderRegistry.findModel({ id })?.provider ?? ""];
+    return entry?.apiKeyConfigured === true && entry.model === id;
+  });
+  if (savedModel) return savedModel;
   const checkedProviders = new Set<string>();
   for (const modelId of imageModelIds) {
     // Non-null: every id in imageModelIds is derived from this same registry (agent-tools.ts).

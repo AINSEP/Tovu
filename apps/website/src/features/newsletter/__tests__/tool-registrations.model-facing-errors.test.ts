@@ -315,7 +315,26 @@ test("authorized subscription, archive, cancel and pause tools persist and retur
   assert.deepEqual(await output("newsletter_pause_campaign", { campaignId: "c-2" }), { campaign: { ...view, id: "c-2", status: "paused" } });
   assert.equal((await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: "c-2" }))?.status, "paused");
   await deps.newsletterSendRepo.save({ id: "send-1", workspaceId: WORKSPACE_ID, campaignId: "c-1", audienceSnapshotId: "snap-1", subscriberId: "subscriber-1", recipientEmail: "reader@example.com", status: "delivered", attempts: 1, idempotencyKey: "key-1", providerMessageId: "pm-1", lastError: null, nextAttemptAt: null, createdAt: NOW, updatedAt: NOW });
-  assert.deepEqual(await output("newsletter_list_send_log", { campaignId: "c-1" }), { sends: [{ id: "send-1", subscriberId: "subscriber-1", recipientEmail: "reader@example.com", status: "delivered", attempts: 1, providerMessageId: "pm-1", lastError: null, nextAttemptAt: null, updatedAt: NOW }] });
+  assert.deepEqual(await output("newsletter_list_send_log", { campaignId: "c-1" }), { sends: [{ id: "send-1", subscriberId: "subscriber-1", recipientEmail: "reader@example.com", status: "delivered", attempts: 1, providerMessageId: "pm-1", lastError: null, nextAttemptAt: null, updatedAt: NOW }], truncated: false }, "one send is a complete log");
+});
+
+test("newsletter_list_send_log reports completeness at 100 sends and truncates 101 in id order", async () => {
+  const deps = makeRouteDeps();
+  await deps.newsletterCampaignRepo.saveCampaignRow({ id: "c-1", workspaceId: WORKSPACE_ID, status: "sent", subject: "Hello", preheader: null, fromName: "Sender", fromEmail: "sender@example.com", replyTo: null, listId: "l-1", scheduledAt: null, sendStartedAt: NOW, audienceSnapshotId: "snap-1", counters: { recipients: 101, delivered: 101, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 }, version: 1, createdByPrincipal: PRINCIPAL_ID, createdAt: NOW, updatedAt: NOW });
+  const sends = Array.from({ length: 100 }, (_, index) => ({ id: `send-${String(index).padStart(3, "0")}`, subscriberId: `subscriber-${index}`, recipientEmail: "reader@example.com", status: "delivered", attempts: 1, providerMessageId: "pm-1", lastError: null, nextAttemptAt: null, updatedAt: NOW }));
+  for (const send of sends) {
+    await deps.newsletterSendRepo.save({ ...send, workspaceId: WORKSPACE_ID, campaignId: "c-1", audienceSnapshotId: "snap-1", status: "delivered", idempotencyKey: send.id, createdAt: NOW });
+  }
+  const harness = await buildHarness(deps);
+  const atCap = await call(harness, "newsletter_list_send_log", { campaignId: "c-1" });
+  assert.equal(atCap.ok, true, "the at-cap send log succeeds");
+  if (!atCap.ok) return;
+  assert.deepEqual(atCap.value.result.output, { sends, truncated: false }, "exactly 100 sends are complete and projected in id order");
+  await deps.newsletterSendRepo.save({ ...sends[0], id: "send-100", workspaceId: WORKSPACE_ID, campaignId: "c-1", audienceSnapshotId: "snap-1", status: "delivered", idempotencyKey: "send-100", createdAt: NOW });
+  const aboveCap = await call(harness, "newsletter_list_send_log", { campaignId: "c-1" });
+  assert.equal(aboveCap.ok, true, "the above-cap send log succeeds");
+  if (!aboveCap.ok) return;
+  assert.deepEqual(aboveCap.value.result.output, { sends, truncated: true }, "101 sends return the first 100 projected rows in id order and report truncation");
 });
 
 test("campaign updates replace supplied fields and preserve omitted fields", async () => {

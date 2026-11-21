@@ -103,7 +103,7 @@ describe("site capability registry", () => {
       ]);
       const outcome = await registry.invoke({ name: "search_published_entries", input: {}, caller: "anonymous-visitor" });
       assert.equal(outcome.kind, "ok");
-      const results = (outcome as { result: readonly { slug: string }[] }).result;
+      const results = (outcome as { result: { entries: readonly { slug: string }[] } }).result.entries;
       assert.deepEqual(
         results.map((r) => r.slug),
         ["public-post"],

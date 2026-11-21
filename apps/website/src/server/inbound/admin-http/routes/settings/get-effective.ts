@@ -5,7 +5,7 @@ import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, c
 const NAMESPACE_REQUIRED_MESSAGE = "Say which group of settings to read: add ?namespace=<group> to the address, for example ?namespace=core.language.";
 
 /**
- * Resolution and rationale now live in Jini packages/core/src/settings/express/cms-adapter.ts:
+ * Resolution and rationale now live in Jini packages/core/src/settings/cms-adapter.ts:
  * Resolves every effective value for a namespace across the keys registered on either the
  * platform partition (`workspaceId=null`) or this workspace's own site-owned partition — see the
  * route doc above for why both partitions are enumerated.

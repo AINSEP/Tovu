@@ -13,7 +13,7 @@ function parseGetRawQuery(query: Record<string, unknown>): { namespace: string; 
 }
 
 /**
- * Layer resolution and rationale: Jini packages/core/src/settings/express/cms-adapter.ts.
+ * Layer resolution and rationale: Jini packages/core/src/settings/cms-adapter.ts.
  * `state === "set"` yields stored data; cleared or absent layers read as null.
  *
  * GET the per-layer raw values of one setting key (SPEC-007 api.spec.md

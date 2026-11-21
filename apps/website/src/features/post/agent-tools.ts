@@ -94,7 +94,7 @@ import { TIPTAP_DOC_SCHEMA } from "./tiptap-doc-schema.js";
  * (ADR-021 §2), because no such self-enforcement exists here to duplicate.
  *
  * `bodyJson`'s published schema (see `TIPTAP_DOC_SCHEMA` below) describes the TipTap/ProseMirror
- * document vocabulary this codebase's own renderer (`apps/website/src/server/inbound/public-http/http/site/render.ts`'s `renderDocNode`)
+ * document vocabulary this codebase's own renderer (`apps/website/src/server/inbound/public-http/http/site/render/content-html.ts`'s `renderDocNode`)
  * actually interprets: `doc`/`paragraph` (attrs.textAlign)/`heading` (attrs.level/textAlign)/`text`
  * (with `bold`/`italic`/`code`/`strike`/`underline`/`subscript`/`superscript`/`textStyle`/`highlight`/
  * `link` marks)/`bulletList`/`orderedList`/`listItem`/`taskList`/`taskItem`/`blockquote`/`codeBlock`

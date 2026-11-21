@@ -142,7 +142,7 @@ export async function refuseDedicatedSettingClear(required: {
  * A namespace reset loops `clear` over every key its scope's partition lists for the namespace, alias
  * rows included, without this host's chokepoint, so the same keys are resolved here first and the
  * whole reset is refused before any write when one has a dedicated writer. The partition rule is the
- * CMS adapter's own (Jini `packages/core/src/settings/express/cms-adapter.ts`).
+ * CMS adapter's own (Jini `packages/core/src/settings/cms-adapter.ts`).
  *
  * @throws {ForbiddenError} When a key the reset would clear has a dedicated writer.
  * @complexity O(d) over the partition's definitions, plus one bounded alias resolution per namespace key.
