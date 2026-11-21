@@ -68,6 +68,33 @@ async function reserveFreePort(): Promise<number> {
   return port;
 }
 
+test("the standalone daemon rejects an invalid listener port without echoing it", async (t) => {
+  const suppliedPort = "70000";
+  const child = spawn(process.execPath, ["--import", TSX_LOADER, DAEMON_ENTRY], {
+    env: {
+      ...childProcessCoverageEnv(WORKER_COVERAGE_DIR),
+      JINI_AGENT_DAEMON_PORT: suppliedPort,
+      TOVU_DB: "memory",
+      TOVU_DAEMON_LIFECYCLE_LOG: "on",
+    },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  let output = "";
+  child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()));
+  child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()));
+  t.after(() => {
+    if (child.exitCode === null) child.kill("SIGKILL");
+  });
+
+  const [code] = await once(child, "close", { signal: AbortSignal.timeout(45_000) });
+  assert.equal(code, 1, "an invalid listener port must exit with a startup failure before the deadline");
+  assert.match(output, /JINI_AGENT_DAEMON_PORT/, "the startup error must name the listener port setting");
+  assert.match(output, /0.*1.*65535/, "the startup error must explain the allowed listener port range");
+  assert.ok(!output.includes(suppliedPort), "the startup error must not disclose the supplied port value");
+  assert.doesNotMatch(output, /listening on/i, "an invalid listener port must not announce a listener");
+});
+
 for (const stopOnEnd of [false, true]) {
 test(stopOnEnd
   ? "the real agent daemon closes gracefully on the sidecar's stdin EOF"

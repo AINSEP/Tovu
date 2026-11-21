@@ -204,10 +204,21 @@ const control = createScopeControl({ tables: { scopes, scopeEnvironments, scoped
   createScope: input => createSiteScope(input, { idlePark, browserLease }), hold: () => idlePark.hold({}, {}),
   listenerUrl: () => listenerUrl, pid: process.pid, isExiting: () => daemonExiting }, {});
 
+function standaloneListenerPort(): number {
+  const raw = process.env.JINI_AGENT_DAEMON_PORT;
+  if (raw === undefined) return 4319;
+  if (raw === "0") return 0;
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("JINI_AGENT_DAEMON_PORT must be 0 or an integer from 1 to 65535");
+  }
+  return port;
+}
+
 async function start(): Promise<void> {
   await initializeStartupSecrets({}, {});
   // Shared hosts bind first so no runtime snapshots port 0 into its bridge injection.
-  const port = sharedHost ? 0 : Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
+  const port = sharedHost ? 0 : standaloneListenerPort();
   const server = app.listen(port, "127.0.0.1");
   stopDaemonServing = () => stopServingWithinGrace({ server, workers: [] });
   await new Promise<void>((resolve, reject) => { server.once("listening", resolve); server.once("error", reject); });
