@@ -17,6 +17,13 @@ describe("chat Jump to latest button colours", () => {
     expect(button).toContain("color: var(--jini-chat-muted);");
     expect(button).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|white/i);
   });
+
+  // Owner 2026-11-13: 40px like the site chat's arrow, a comfortable phone tap target (was 32px).
+  it("is a 40px round target", () => {
+    const button = effectiveDeclarationsFor(assistantStyles, ".jini-chat-pane .jini-message-list__jump-btn");
+    expect(button).toContain("width: 40px;");
+    expect(button).toContain("height: 40px;");
+  });
 });
 
 /**
@@ -31,8 +38,8 @@ describe("dock Jump to latest placement", () => {
   it("straddles the composer's top edge instead of floating over the last transcript row", () => {
     const jump = effectiveDeclarationsFor(assistantStyles, ".admin-chat-dock .jini-chat-pane .jini-message-list__jump");
     expect(jump).toContain("position: absolute;");
-    // Controls' measured content height + their 14px bottom padding = the seam; minus half the 32px button.
-    expect(jump).toContain("bottom: calc(var(--jini-chat-controls-height, 240px) + 14px - 16px);");
+    // Controls' measured content height + their 14px bottom padding = the seam; minus half the 40px button.
+    expect(jump).toContain("bottom: calc(var(--jini-chat-controls-height, 240px) + 14px - 20px);");
     expect(jump).toContain("z-index: 5;");
   });
 

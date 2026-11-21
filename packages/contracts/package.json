@@ -18,11 +18,11 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "@jini-ai/agent-runtime": "^0.7.3-next.1",
-    "@jini-ai/analytics": "^0.7.3-next.1",
-    "@jini-ai/chat": "^0.7.3-next.1",
-    "@jini-ai/diagnostics": "^0.7.3-next.1",
-    "@jini-ai/platform": "^0.7.3-next.1",
+    "@jini-ai/agent-runtime": "^0.7.3-next.2",
+    "@jini-ai/analytics": "^0.7.3-next.2",
+    "@jini-ai/chat": "^0.7.3-next.2",
+    "@jini-ai/diagnostics": "^0.7.3-next.2",
+    "@jini-ai/platform": "^0.7.3-next.2",
     "zod": "^4.6.6"
   }
 }
