@@ -99,6 +99,20 @@ test("a key saved only on site A is listed on site B and usable there after appr
   } finally { await f.close(); }
 });
 
+test("picker keeps fifty per source and reports each omitted count", async () => {
+  const f = await fixture();
+  try {
+    for (let index = 0; index < 51; index++) await f.save(f.a, `key-${index}`, `A key ${index}`);
+    for (let index = 0; index < 52; index++) await f.save(f.b, `key-${index}`, `B key ${index}`);
+    const rows = await f.keysOnB.listChoices({});
+    for (const { site, count } of [{ site: f.a, count: 1 }, { site: f.b, count: 2 }]) {
+      const choices = rows.filter(row => row.siteName === site.id);
+      assert.equal(choices.length, 50, "each source offers fifty actual saved keys");
+      assert.deepEqual(choices.filter(row => row.omittedCount !== undefined).map(row => row.omittedCount), [count], "each source reports its omitted count exactly once");
+    }
+  } finally { await f.close(); }
+});
+
 test("an approved saved key remains usable after fifty earlier keys are inserted on its source site", async () => {
   const f = await fixture();
   try {

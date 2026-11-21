@@ -14,13 +14,13 @@ export const isSharedOAuthKey = ({ row }: { row: Pick<VaultRecord, 'kind' | 'met
   row.kind === 'api-connection' && row.meta.credentialFormat === 'oauth-token-set';
 export interface ProjectKeyRow { keyId: string; name: string; kind: string; usedByThisSite: boolean; usedBy: readonly string[];
   /** Set for a key still saved only on a site; absent for a Shared Key. */
-  siteName?: string;
+  siteName?: string; omittedCount?: number;
   /** Plain words: why this site key can't be used yet and what to do. A locked row is never approved. */
   locked?: string }
 /** Marks a picker choice as a key still saved only on a site; never a Shared Keys row id. */
 export const SITE_KEY_ID_PREFIX = "saved-on-site:";
 /** Keys saved in site vaults on this install. Host-provided; deployed single sites have none. */
-export interface SiteKeyChoice { keyId: string; name: string; kind: string; siteName: string; locked?: string }
+export interface SiteKeyChoice { keyId: string; name: string; kind: string; siteName: string; locked?: string; omittedCount?: number }
 export interface SiteKeySource {
   list(required: Record<string, never>, optional?: Record<string, never>): Promise<SiteKeyChoice[]>;
   /** Metadata only: the row a permission check needs. Never opens the key. */

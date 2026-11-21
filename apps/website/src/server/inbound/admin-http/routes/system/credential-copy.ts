@@ -56,6 +56,7 @@ export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express;
     res.json({ sources: [{ siteId: "shared-keys", name: "Shared Keys", keys: rows.map(row => ({
       kind: row.kind, id: row.keyId, label: row.name, provider: null, worksFor: [],
       ...(row.siteName ? { siteName: row.siteName } : {}), ...(row.locked ? { locked: row.locked } : {}),
+      ...(row.omittedCount !== undefined ? { omittedCount: row.omittedCount } : {}),
     })) }] });
   }));
   app.post(BASE, handle(async (req, res, projectKeys) => {

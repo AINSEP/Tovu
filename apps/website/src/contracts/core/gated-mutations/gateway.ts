@@ -180,7 +180,7 @@ export function plan(required: { deps: GatewayDeps; principalId: string; princip
  * @complexity O(1) plus one `authorize()` call and one token store write.
  * @overallScore 100
  */
-export function confirm(required: { deps: GatewayDeps; principalId: string; principalKind: PrincipalKind; hooks: GatedMutationHooks<unknown, unknown>; planId: string; planHash: string }, _optional: Record<string, never> = {}): Promise<ConfirmationTokenRecord> {
+export function confirm(required: { deps: GatewayDeps; principalId: string; principalKind: PrincipalKind; hooks: GatedMutationHooks<unknown, unknown>; planId: string; planHash: string; signal?: AbortSignal }, _optional: Record<string, never> = {}): Promise<ConfirmationTokenRecord> {
   return confirmApproval({ ...required, deps: approvalDeps(required.deps) });
 }
 
@@ -208,6 +208,6 @@ export function confirm(required: { deps: GatewayDeps; principalId: string; prin
  * racing on the same token loses here (TokenAlreadyRedeemedError) before ever reaching the
  * mutation, even if it passed every check above.
  */
-export function execute<TResult>(required: { deps: GatewayDeps; principalId: string; principalKind: PrincipalKind; hooks: GatedMutationHooks<unknown, TResult>; confirmationToken: string }, _optional: Record<string, never> = {}): Promise<TResult> {
+export function execute<TResult>(required: { deps: GatewayDeps; principalId: string; principalKind: PrincipalKind; hooks: GatedMutationHooks<unknown, TResult>; confirmationToken: string; signal?: AbortSignal }, _optional: Record<string, never> = {}): Promise<TResult> {
   return executeApproval({ ...required, deps: approvalDeps(required.deps) });
 }

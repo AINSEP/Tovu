@@ -66,6 +66,7 @@ export function useCopyKeys({ t }: { t: Translate }, { port = securityApi }: { p
     empty: !loading && !source?.keys.length,
     error: error ? t(error) : '',
     keys: copyKeyRows({ source, credentialId }),
+    omissions: source?.keys.flatMap(key => key.siteName && key.omittedCount !== undefined ? [{ id: key.id, siteName: key.siteName, count: key.omittedCount }] : []) ?? [],
     results: results.map((result, index) => ({ key: `${result.id}:${index}`,
       text: result.status === 'granted' ? t('Granted to this site') : t(GRANT_FAILED) })),
   };
