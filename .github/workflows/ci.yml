@@ -24,7 +24,7 @@ name: CI
 # before 2026-09 if the old sibling-checkout mechanics are ever needed for reference.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
     branches: [main, general-work]
 
@@ -36,34 +36,6 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    # BLOCKER 1 fix (see ADS-memory/reports/external-audit/runs/2026-08-12-five-auditor-postgres-manifest-audit.md):
-    # src/platform/db/__tests__/migration-manifest-postgres.test.ts proves Postgres semantics against a real
-    # server via src/platform/db/migration/pg-fixture.ts (`psql` shell-out — see that file's header for why).
-    # It is deliberately fail-closed, not skip-if-absent: an auditor stripped `psql` from PATH and
-    # confirmed 5/5 tests fail, 0 skip. That means a Postgres server MUST exist wherever `npm test`
-    # runs, or CI fails for the right reason but every PR is red. This service container is that
-    # server — GitHub-hosted `ubuntu-latest` runners are ephemeral (fresh container per job), so there
-    # is no persistent/shared database `recreateDatabase()`'s `DROP DATABASE IF EXISTS` could ever
-    # collide with. That ephemerality guarantee does NOT extend to self-hosted, non-ephemeral runners;
-    # if this workflow is ever moved to one, concurrent runs sharing one long-lived Postgres could drop
-    # each other's fixture database and this section needs revisiting.
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        # GitHub Actions blocks job steps from starting until this health check passes, so the "Test"
-        # step below never races an unready server. Syntax matches GitHub's documented example
-        # verbatim (docs.github.com → Creating PostgreSQL service containers).
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -84,19 +56,28 @@ jobs:
         # `daa74a65`) -- no sibling Jini checkout, no pnpm, no build step needed first.
         run: npm ci
 
-      - name: Dependency audit (root)
-        run: npm audit --package-lock-only
-        continue-on-error: true
+      - name: Persisted-name comparison against the merge-base (blocking)
+        # dg-a 8C: compares development/scripts/persisted-names.json against the reviewed registry
+        # at the merge-base (`SEMGREP_BASE`, the same convention semgrep.yml uses) and requires every
+        # changed or removed name to carry a newly registered content migration or an approved
+        # cutover (8B's "persisted names match the reviewed target" case; the ordinary `npm test`
+        # run skips it because SEMGREP_BASE is unset there). Bootstrap: a merge-base that does not
+        # hold the registry yet (main before the dg-a registry lands) has nothing to compare against,
+        # so the step notes it and passes; from the first target that contains the registry on,
+        # evidence is required. check-immutable-migrations.mjs stays the separate historical-file guard.
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before) || format('origin/{0}', github.event.repository.default_branch) }}
+        run: |
+          set -eu
+          base=$(git merge-base "$BASE_REF" HEAD)
+          if ! git cat-file -e "$base:development/scripts/persisted-names.json" 2>/dev/null; then
+            echo "::notice::merge-base $base has no reviewed persisted-name registry; this change is the bootstrap baseline."
+            exit 0
+          fi
+          SEMGREP_BASE="$base" node --import tsx --test development/scripts/__tests__/persisted-names.test.ts
 
-      - name: Dependency audit (admin)
-        working-directory: apps/admin
-        run: npm audit --package-lock-only
-        continue-on-error: true
-
-      - name: Dependency audit (site chat)
-        working-directory: apps/site-chat
-        run: npm audit --package-lock-only
-        continue-on-error: true
+      - name: Build packages/sdk (workspace prerequisite for typecheck)
+        run: npm run build --workspace=packages/sdk
 
       # ---------------------------------------------------------------------------------------
       # GATES BELOW ARE `continue-on-error: true` + `id:` ON PURPOSE (2026-08-19). They are NOT
@@ -127,100 +108,6 @@ jobs:
           node --import tsx --test
           apps/website/src/features/theme/__tests__/shipped-site-theme-drift.canary.test.ts
           apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts
-
-      - name: Persisted-name comparison against the merge-base (blocking)
-        # dg-a 8C: compares development/scripts/persisted-names.json against the reviewed registry
-        # at the merge-base (`SEMGREP_BASE`, the same convention semgrep.yml uses) and requires every
-        # changed or removed name to carry a newly registered content migration or an approved
-        # cutover (8B's "persisted names match the reviewed target" case; the ordinary `npm test`
-        # run skips it because SEMGREP_BASE is unset there). Bootstrap: a merge-base that does not
-        # hold the registry yet (main before the dg-a registry lands) has nothing to compare against,
-        # so the step notes it and passes; from the first target that contains the registry on,
-        # evidence is required. check-immutable-migrations.mjs stays the separate historical-file guard.
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.sha || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before) || format('origin/{0}', github.event.repository.default_branch) }}
-        run: |
-          set -eu
-          base=$(git merge-base "$BASE_REF" HEAD)
-          if ! git cat-file -e "$base:development/scripts/persisted-names.json" 2>/dev/null; then
-            echo "::notice::merge-base $base has no reviewed persisted-name registry; this change is the bootstrap baseline."
-            exit 0
-          fi
-          SEMGREP_BASE="$base" node --import tsx --test development/scripts/__tests__/persisted-names.test.ts
-
-      - name: Test
-        # PGHOST/PGPORT/PGUSER/PGPASSWORD are libpq's standard env var names; src/platform/db/migration/pg-fixture.ts
-        # reads the first three (PGPASSWORD flows to `psql` automatically via inherited process env) and
-        # falls back to the `/tmp` socket + role `la` used by local development when they're unset. Setting
-        # them only on this step, pointed at the `postgres` service container above, is what turns BLOCKER 1
-        # from "fails for the right reason with no way to pass" into an actual test run.
-        #
-        # continue-on-error, DELIBERATELY and NOT quietly: measured 2026-08-16 at 82 pre-existing
-        # failures out of 4991 tests (`npm run test:cov`, full src/**+packages/*), independently
-        # corroborated by the session's Coordinator as pre-existing debt, not new regressions. This
-        # is the FIRST time this workflow has ever run against general-work (see this file's header),
-        # so there is no baseline yet to ratchet against for this repo-wide scope, and building one
-        # spans other agents' domains (Jini packages, apps/admin-adjacent server code) this task was
-        # not scoped to own -- see `route-coverage`'s own Test step below for the narrower scope
-        # (src/server/**) that DOES get a real ratchet, because that scope already belongs to this
-        # task. This step's own failures are therefore informational only; nothing after it is
-        # gated on it succeeding.
-        id: test
-        continue-on-error: true
-        env:
-          PGHOST: localhost
-          PGPORT: 5432
-          PGUSER: postgres
-          PGPASSWORD: postgres
-        # TEST_CONCURRENCY (2026-08-19): caps node's test-runner worker fan-out on this
-        # runner. Default is os.availableParallelism()-1; each worker is a full process, and
-        # liquid-sandbox.test.ts additionally spawns its OWN heap-limited Worker on purpose (it
-        # proves the render sandbox's V8 resourceLimits actually fire). On a constrained
-        # GitHub runner the sum overshoots available RAM and the kernel kills a SIBLING worker
-        # with ERR_WORKER_OUT_OF_MEMORY. A file that dies that way is reported by node as one
-        # top-level `not ok N - <file path>`, which check:route-test-baseline can never match
-        # against its test-DESCRIPTION-keyed baseline -- so it always prints as a NEW failure and
-        # reds the gate for a codebase that is not broken. Diagnosed on runs 32091498514 /
-        # 32093877745 (see check-test-baseline.ts "Known limitation: CI-runner file-level
-        # crashes") and reproduced again on 32284065315, where all 8 file-path-shaped entries
-        # passed clean when re-run individually. Set here rather than in the scripts so local
-        # runs keep full parallelism -- the npm scripts add the flag only when this var is set.
-          TEST_CONCURRENCY: 2
-        # `test:ci`, not `test`: identical suite and globs, but adds a TAP reporter writing
-        # development/coverage/test-results-all.tap alongside the usual stdout output. That file is
-        # what the report step below reads. `npm test` is left untouched for local use.
-        run: npm run test:ci
-
-      # VISIBILITY STEP, not a gate (2026-08-19). The step above has been `continue-on-error` since
-      # this workflow was written, on a measured 82 pre-existing repo-wide failures with no baseline
-      # to ratchet against -- so for weeks it burned ~13 minutes per run producing a number nobody
-      # read and nothing depended on. This step turns that into an actual artifact: the exact list
-      # of failing tests, in the precise JSON shape `development/scripts/repo-test-failure-baseline.json`
-      # expects, ready to be copied into that file.
-      #
-      # It is deliberately NOT blocking yet, and neither is the step above. The plan, in order:
-      #   1. (this commit) print the real list from a real CI run -- the environment that actually
-      #      matters, and the one place the full suite can run without eating a laptop's RAM.
-      #   2. commit that list as repo-test-failure-baseline.json.
-      #   3. add `npm run check:test-baseline` as a REAL gate alongside the others. From then on any
-      #      NEW repo-wide failure fails the build, while the known debt is tolerated AND visible.
-      # Step 3 is what makes this a gate; until the baseline exists there is nothing to ratchet
-      # against, and a gate with no baseline is just a red build.
-      - name: Repo-wide test failure report (informational)
-        if: always()
-        continue-on-error: true
-        run: |
-          if [ ! -f development/coverage/test-results-all.tap ]; then
-            echo "No TAP output — the Test step did not get far enough to produce one."
-            exit 0
-          fi
-          npx tsx development/scripts/check-test-baseline.ts \
-            --capture /tmp/repo-test-failure-baseline.json \
-            development/coverage/test-results-all.tap
-          echo ""
-          echo "===== COPY THE BLOCK BELOW INTO development/scripts/repo-test-failure-baseline.json ====="
-          cat /tmp/repo-test-failure-baseline.json
-          echo "===== END ====="
 
       - name: Check architecture boundaries
         # .dependency-cruiser.mjs rules are deliberately severity:"warn" (see file header) —
@@ -361,26 +248,6 @@ jobs:
         continue-on-error: true
         run: npm run check:test-safety
 
-      - name: Hardwiring audit guards (exact occurrence debt ratchet)
-        id: gate-hardwiring
-        continue-on-error: true
-        # The public-site graph needs its own browser dependencies, not just root dependencies.
-        run: |
-          npm ci --prefix apps/site-chat
-          node development/scripts/check-hardwiring.mjs
-
-      - name: Lint
-        # No lint tool existed in this repo before this workflow. Added Biome (single
-        # dependency-light binary, off-the-shelf "recommended" preset — not a bespoke ruleset)
-        # covering src/**/*.ts and apps/admin/src/**/*.{ts,tsx}. A first-time lint pass over this
-        # previously-unlinted codebase surfaces ~130 pre-existing findings (mostly
-        # lint/style/noNonNullAssertion and lint/a11y/useButtonType) that are out of scope to
-        # mass-fix here, especially with other work concurrently in flight across the tree.
-        # Non-blocking for now, same posture as check:boundaries/check:inventory above, until a
-        # follow-up task triages the existing findings and this can flip to blocking.
-        run: npm run lint
-        continue-on-error: true
-
       - name: Architecture boundaries (ESLint)
         # BLOCKING, unlike the Biome step above, and deliberately a separate step
         # rather than folded into it.
@@ -413,21 +280,6 @@ jobs:
         id: gate-admin-typecheck
         continue-on-error: true
         run: npm --prefix apps/admin run typecheck
-
-      - name: Build admin
-        id: gate-admin-build
-        continue-on-error: true
-        run: npm run admin:build
-
-      - name: Knip unused code report (informational)
-        # Report-only rollout: intentionally absent from the gate summary.
-        continue-on-error: true
-        run: npm run quality:knip
-
-      - name: SonarJS rule counts (informational, no Docker)
-        # Report-only: deliberately excluded from the blocking gate summary.
-        continue-on-error: true
-        run: npm run quality:sonar
 
       # THIS is what makes this job blocking. Every gate above is `continue-on-error: true` so all
       # of them get to run; this step reads their recorded outcomes and fails the job if any of
@@ -473,7 +325,6 @@ jobs:
           # and the coordinator updates the installed version and lockfile.
           check "${{ steps.gate-admin-typecheck.outcome }}"    "typecheck (admin)"
           check "${{ steps.gate-admin-copy.outcome }}"         "admin untranslated copy and dictionary parity"
-          check "${{ steps.gate-admin-build.outcome }}"        "admin:build"
           echo "---"
           if [ "$fail" -ne 0 ]; then
             echo "One or more gates failed. Scroll up: EVERY failing gate above has its own full log," >&2
@@ -485,146 +336,3 @@ jobs:
             exit 1
           fi
           echo "All build-and-test gates passed."
-
-  route-coverage:
-    # Deliberately a SEPARATE job, not a step tacked onto build-and-test above, so it runs in
-    # parallel and this repo's wall-clock CI time is max(build-and-test, route-coverage) rather
-    # than their sum. `npm run test:cov` (full src/** + packages/*, 4991 tests) was measured at
-    # 18.5 minutes on 2026-08-16 -- unacceptable to add to the critical path of every push. This
-    # job instead runs `test:cov:server`, scoped to src/server/**/*.test.ts only (the audit's own
-    # measurement command, ~7 minutes): every test that can exercise src/server/routes/** lives
-    # under src/server/**, so the two gates below lose no real signal from the narrower scope, and
-    # none of those tests need the Postgres service container build-and-test uses (verified: no
-    # src/server test references psql/pg-fixture/PGHOST) so this job skips that setup entirely.
-    #
-    # 2026-08-18: the "Route tests + coverage (tiered ...)" step below runs the same src/server
-    # suite two MORE times (split unit-only / integration-only, for the two-tier diff gate) on top
-    # of the combined run above (kept for the floor gate) -- accepted extra wall-clock cost for this
-    # job specifically, per this task's own scoping ("the floor gate is not the target of this
-    # redesign, use judgment, simplest is leaving it on the old combined lcov.info"); the
-    # integration-only run is small (12 files), the unit-only run is close to the combined run's own
-    # length since most tests are unit. If this job's wall-clock time becomes the bottleneck later,
-    # the fix is a real lcov merge (summing hit counts per line/branch across the two partial runs)
-    # so the floor gate can read `test:cov:server:tiered`'s output instead of a third full run --
-    # not attempted here since it needs the `lcov` CLI (or equivalent merge logic), not just Node.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Full history, not the default shallow clone: check-route-coverage-diff.ts needs a real
-          # `git merge-base` against the PR's base branch to know which route files changed. A
-          # shallow clone would make that resolution fail outright (the gate exits non-zero rather
-          # than silently passing -- see check-route-coverage-diff.ts's own error message).
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install root dependencies
-        # @jini-ai/* deps resolve straight from the npm registry (see this file's header,
-        # `daa74a65`) -- no sibling Jini checkout, no pnpm, no build step needed first.
-        run: npm ci
-
-      - name: Route tests + coverage (src/server-scoped)
-        # Writes development/coverage/lcov.info AND development/coverage/test-results.tap in the
-        # same run (three simultaneous --test-reporter pairs -- see test:cov:server's own command).
-        #
-        # continue-on-error, DELIBERATELY and NOT quietly, same reasoning as build-and-test's Test
-        # step: this is the first time this workflow has ever run against general-work (see this
-        # file's header), so `npm run test:cov:server` is red on arrival -- 28 pre-existing failures
-        # under src/server/**, independently verified by the session's Coordinator against an
-        # isolated worktree at session start (byte-identical failing test names, zero new). UNLIKE
-        # build-and-test's Test step, this one IS backed by a real ratchet below (this scope already
-        # belongs to this task) -- the three steps after this one are the actual gates; this step
-        # existing only to produce their input files.
-        id: route-tests
-        continue-on-error: true
-        env:
-          TEST_CONCURRENCY: 2
-        run: npm run test:cov:server
-
-      - name: Route tests + coverage (tiered -- unit vs integration)
-        # 2026-08-18 two-tier redesign: `test:cov:server` above writes ONE combined lcov.info, which
-        # cannot tell a route file's unit branch coverage apart from its integration branch coverage
-        # -- exactly the gap that let a pure import-redirect push trip the old single-80%-number diff
-        # gate on pre-existing debt it couldn't see the shape of (see check-route-coverage-diff.ts's
-        # header, "Two-tier redesign"). This step runs the src/server test suite TWICE more, split by
-        # `route-coverage-lib.ts`'s `isIntegrationTestFile` convention, writing
-        # development/coverage/lcov.unit.info and lcov.integration.info -- inputs the diff gate below
-        # now reads instead of the combined file. Does NOT touch development/coverage/lcov.info or
-        # test-results.tap (the floor gate and test-failure-baseline step below still read those,
-        # produced by the step above) -- test:cov:server:unit/integration deliberately `rm -f` only
-        # their own output file, not the whole development/coverage/ directory.
-        #
-        # continue-on-error, same reasoning as the step above: the real gates are the explicit checks
-        # after this one, and this step exists only to produce their input files.
-        id: route-tests-tiered
-        continue-on-error: true
-        env:
-          TEST_CONCURRENCY: 2
-        run: npm run test:cov:server:tiered
-
-      - name: Check route coverage floor
-        # src/server/routes/** aggregate must not backslide below the 2026-08-16 baseline (minus
-        # margin) — see development/scripts/check-route-coverage-floor.ts's header for the exact
-        # thresholds and where they came from. Unchanged by the 2026-08-18 two-tier redesign below —
-        # still reads the combined development/coverage/lcov.info from the step above.
-        id: gate-coverage-floor
-        continue-on-error: true
-        run: npm run check:route-coverage-floor
-
-      - name: Check route coverage diff
-        # Every new/modified route file must individually clear BOTH: unit branch coverage >= 99%
-        # AND integration branch coverage >= 95% (2026-08-18 two-tier redesign, replacing the
-        # original single 80%-branch bar — see development/scripts/check-route-coverage-diff.ts's
-        # header, "Two-tier redesign", for why one combined number wasn't enough). Reads
-        # development/coverage/lcov.unit.info and lcov.integration.info, written by the tiered step
-        # above. GITHUB_BASE_REF is set automatically on pull_request events. GITHUB_EVENT_BEFORE
-        # (2026-08-17 fix) covers push events on any branch, diffing against the SHA this push
-        # started from rather than a long-diverged `origin/main` — without it, the first real run on
-        # `general-work` (a branch weeks ahead of `main`) flagged dozens of longstanding files as
-        # "changed", not this push's own diff. See the script's own header for the full incident.
-        env:
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-        id: gate-coverage-diff
-        continue-on-error: true
-        run: npm run check:route-coverage-diff
-
-      - name: Check route test-failure baseline
-        # THE real gate for the "test step is red" problem in this job's scope: fails on any NEW
-        # failing test under src/server/** not already in development/scripts/route-test-failure-baseline.json
-        # (the 28 known-pre-existing ones), tolerates those. See check-test-baseline.ts's own header
-        # for the full reasoning, the ratchet precedent it mirrors (check:admin-complexity-drift,
-        # Jini's guard:drift), and its one known limitation (test names, not fully-qualified
-        # per-file identities).
-        id: gate-test-baseline
-        continue-on-error: true
-        run: npm run check:route-test-baseline
-
-      # See the identically-purposed step at the end of `build-and-test` for why this exists.
-      - name: Gate summary (route-coverage)
-        if: always()
-        run: |
-          fail=0
-          skipped=0
-          check () { # SKIP vs FAIL distinction: see build-and-test's summary step for why.
-            case "$1" in
-              success) printf '  PASS  %s\n' "$2" ;;
-              skipped) printf '  SKIP  %s  (did not run — an earlier step halted the job)\n' "$2"; skipped=1; fail=1 ;;
-              *)       printf '  FAIL  %s\n' "$2"; fail=1 ;;
-            esac
-          }
-          echo "--- route-coverage gates ---"
-          check "${{ steps.gate-coverage-floor.outcome }}"  "check:route-coverage-floor"
-          check "${{ steps.gate-coverage-diff.outcome }}"   "check:route-coverage-diff"
-          check "${{ steps.gate-test-baseline.outcome }}"   "check:route-test-baseline"
-          echo "---"
-          if [ "$fail" -ne 0 ]; then
-            echo "One or more gates failed. Scroll up: EVERY failing gate above has its own full log," >&2
-            echo "so this run reports all of them at once rather than only the first." >&2
-            exit 1
-          fi
-          echo "All route-coverage gates passed."

@@ -12,7 +12,7 @@ import type { AdminSurfacePublicConfig } from "@jini-ai/agent-plugins/admin-surf
  * `TOVU_…_APP_ID`, `…_CLIENT_ID`, `…_BROWSER_KEY` or `…_PUBLIC_KEY`, and never one with a secret word.
  */
 
-const PUBLIC_NAME_PATTERN = /^TOVU_[A-Z0-9_]{1,48}_(APP_ID|CLIENT_ID|BROWSER_KEY|PUBLIC_KEY)$/;
+const PUBLIC_NAME_PATTERN = /^(TOVU_[A-Z0-9_]{1,48}_(APP_ID|CLIENT_ID|BROWSER_KEY|PUBLIC_KEY)|JINI_GOOGLE_PICKER_APP_ID|JINI_GOOGLE_PICKER_BROWSER_KEY)$/;
 const SECRET_WORDS = /SECRET|TOKEN|PASSWORD|PASSWD|PRIVATE|CREDENTIAL|COOKIE|SESSION|SIGNING/;
 export const PUBLIC_CONFIG_REFUSED_MESSAGE = "This setting is not public configuration, so a plugin surface cannot read it.";
 
