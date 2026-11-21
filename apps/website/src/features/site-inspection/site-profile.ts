@@ -317,11 +317,7 @@ export const MAX_PAGE_ITEMS = 200;
 
 /** A setting value serializing beyond this is reported as `truncated` with `value: null` rather
  *  than inlined. Bounds a single misconfigured JSON setting from dominating the whole snapshot. */
-export const MAX_SETTING_VALUE_CHARS = 2_000;
-
-/** Default per-section wall clock. Owned by `section-collector.ts`; re-exported here under the name
- *  this module has always published. */
-export { DEFAULT_SECTION_TIMEOUT_MS };
+const MAX_SETTING_VALUE_CHARS = 2_000;
 
 /**
  * The inventory-safe settings this profile reports, as an explicit allowlist of `(namespace, key)`

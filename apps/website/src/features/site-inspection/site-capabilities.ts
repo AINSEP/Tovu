@@ -62,7 +62,7 @@ export const SITE_CAPABILITIES_SECTION_PERMISSIONS: Readonly<Record<SiteCapabili
 export const MAX_TOOL_SUMMARY_CHARS = 120;
 
 /** The `tools` section's `reason` when the composition root supplied no registry reader. */
-export const TOOLS_NOT_WIRED_REASON = "not-wired";
+const TOOLS_NOT_WIRED_REASON = "not-wired";
 
 const TOOLS_NOTE =
   "Each tool is listed by id with the first line of its description. Call describe_tool with an id for its full description and input schema, or search_tools to find a tool by what it does. A listed tool still checks its own permission when you run it.";

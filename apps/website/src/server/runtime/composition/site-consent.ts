@@ -15,6 +15,7 @@ import { findPublishedPostBySlug } from "#src/features/post/post-read";
 import { isBarePageChoice } from '#src/features/theme/index';
 import { isFullHtmlDocument } from '@jini-ai/cms/presentation/html';
 import type { ConsentProblem } from '#src/contracts/core/consent-refusal';
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { resolveActiveTheme } from '#src/features/theme/active-theme';
 
@@ -36,9 +37,10 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     published: async () => { await deps.cookieConsent?.refresh?.(); },
     declarationEvidence: async ({ path }) => {
       const theme = resolveActiveTheme({ deps, activeThemeId: await deps.resolveActiveThemeId() });
-      const plugins = await deps.cookieConsent?.scriptDeclarations?.().catch(() => ({
-        scripts: [], problems: ['Active plugin script declarations could not be read; optional plugin scripts will remain stopped.'],
-      })) ?? { scripts: [], problems: [] };
+      const plugins = await deps.cookieConsent?.scriptDeclarations?.().catch((err: unknown) => {
+        console.error('[consent] plugin script declarations could not be read', describeErrorForLog({ err }));
+        return { scripts: [], problems: ['Active plugin script declarations could not be read; optional plugin scripts will remain stopped.'] };
+      }) ?? { scripts: [], problems: [] };
       const page = await publishedPageSlot({ deps, path });
       const active = theme && theme !== NO_THEME_ID ? theme : null;
       return { scripts: [...(active?.manifest.scripts ?? []), ...plugins.scripts], problems: [...plugins.problems, ...page.problems],
@@ -69,7 +71,7 @@ async function publishedPageSlot({ deps, path }: { deps: RouteDeps; path: string
   const slug = pathname === '/' ? '/' : decodeURIComponent(pathname.slice(1).replace(/\/$/, ''));
   let post;
   try { post = await findPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug } }); }
-  catch { return unavailable(); }
+  catch (err) { console.error('[consent] published entry could not be read', describeErrorForLog({ err })); return unavailable(); }
   if (!post) return { slot: null, problems: [] };
   if (!isBarePageChoice(post)) return { slot: null, problems: [] };
   if (post.bodyFormat === 'doc') return { slot: true, problems: [] };

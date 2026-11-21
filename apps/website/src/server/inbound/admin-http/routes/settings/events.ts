@@ -76,6 +76,7 @@ import {
   type ChangeFeedBatch,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { Express, Request, Response } from "express";
 import type { SettingsRouteDeps } from "./deps.js";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
@@ -170,7 +171,8 @@ async function admitSubscriber(required: { req: Request; res: Response; deps: Se
   try {
     await deps.settingsReady;
     principal = getAuthedPrincipal(res);
-  } catch {
+  } catch (err) {
+    console.error("[settings] change feed admission failed", describeErrorForLog({ err }));
     res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
     return null;
   }

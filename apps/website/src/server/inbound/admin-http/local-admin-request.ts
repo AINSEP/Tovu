@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import { isLoopbackHost } from "#src/server/runtime/boot/bind-host";
-import { isLocalAdminUrl } from "#src/server/runtime/boot/local-owner-signin";
+import { isLocalAdminUrl } from "../../runtime/boot/local-owner-signin.js";
 
 /**
  * @file Whether one admin request came from a browser on this same machine. Shared by the routes
