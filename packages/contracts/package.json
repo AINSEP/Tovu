@@ -23,6 +23,6 @@
     "@jini-ai/chat": "^0.7.3-next.1",
     "@jini-ai/diagnostics": "^0.7.3-next.1",
     "@jini-ai/platform": "^0.7.3-next.1",
-    "zod": "^3.25.76"
+    "zod": "^4.6.6"
   }
 }

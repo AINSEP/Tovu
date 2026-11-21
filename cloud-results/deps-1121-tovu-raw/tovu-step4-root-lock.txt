@@ -1,0 +1,66 @@
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: tovu@0.1.0
+npm warn Found: zod@3.25.76
+npm warn node_modules/zod
+npm warn   zod@"^4.6.6" from the root project
+npm warn   6 more (@ag-ui/core, @jini-ai/agentic, @jini-ai/protocol, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional zod@"^3.25.76" from @jini-ai/ui@0.7.3-next.1
+npm warn node_modules/@jini-ai/ui
+npm warn   @jini-ai/ui@"^0.7.3-next.1" from the root project
+npm warn   1 more (@jini-ai/chat)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: tovu@0.1.0
+npm warn Found: zod@3.25.76
+npm warn node_modules/zod
+npm warn   zod@"^4.6.6" from the root project
+npm warn   6 more (@ag-ui/core, @jini-ai/agentic, @jini-ai/protocol, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional zod@"^3.25.76" from @jini-ai/ui@0.7.3-next.1
+npm warn node_modules/@jini-ai/ui
+npm warn   @jini-ai/ui@"^0.7.3-next.1" from the root project
+npm warn   1 more (@jini-ai/chat)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: tovu@0.1.0
+npm warn Found: zod@3.25.76
+npm warn node_modules/zod
+npm warn   zod@"^4.6.6" from the root project
+npm warn   6 more (@ag-ui/core, @jini-ai/agentic, @jini-ai/protocol, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional zod@"^3.25.76" from @jini-ai/ui@0.7.3-next.1
+npm warn node_modules/@jini-ai/ui
+npm warn   @jini-ai/ui@"^0.7.3-next.1" from the root project
+npm warn   1 more (@jini-ai/chat)
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: tovu@0.1.0
+npm warn Found: zod@3.25.76
+npm warn node_modules/zod
+npm warn   zod@"^4.6.6" from the root project
+npm warn   6 more (@ag-ui/core, @jini-ai/agentic, @jini-ai/protocol, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional zod@"^3.25.76" from @jini-ai/ui@0.7.3-next.1
+npm warn node_modules/@jini-ai/ui
+npm warn   @jini-ai/ui@"^0.7.3-next.1" from the root project
+npm warn   1 more (@jini-ai/chat)
+
+up to date, audited 813 packages in 8s
+
+229 packages are looking for funding
+  run `npm fund` for details
+
+34 vulnerabilities (20 moderate, 14 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues possible (including breaking changes), run:
+  npm audit fix --force
+
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.

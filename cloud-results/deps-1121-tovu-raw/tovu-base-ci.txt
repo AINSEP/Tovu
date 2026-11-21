@@ -1,0 +1,20 @@
+== .
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+EXIT 0
+== apps/admin
+a different dependency.
+
+Run `npm audit` for details.
+EXIT 0
+== apps/desktop
+a different dependency.
+
+Run `npm audit` for details.
+EXIT 0
+== apps/site-chat
+a different dependency.
+
+Run `npm audit` for details.
+EXIT 0

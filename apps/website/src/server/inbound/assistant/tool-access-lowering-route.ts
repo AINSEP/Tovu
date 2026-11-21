@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import type { ToolAccessChange, ToolAccessStopResult } from '@jini-ai/daemon';
 import { sendAdminFailure } from '#src/server/inbound/shared/admin-failure';
 

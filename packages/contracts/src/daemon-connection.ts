@@ -1,5 +1,5 @@
 /** Private inherited-IPC grammar between the desktop agent service and the site server; both ends parse with these schemas. Never persisted. */
-import { z } from "zod";
+import { z } from "zod/v3";
 
 // `siteId` is the site's workspace id and stays its data identity inside the scope. It is NOT
 // unique: every local site is `workspace-local`. The shared desktop daemon routes scopes by
