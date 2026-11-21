@@ -1,4 +1,4 @@
-import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from '#src/features/media/access-evidence';
+import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from "#src/platform/media-access-evidence";
 import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "#src/features/publish-content/media-references";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { readRequestCookie } from "#src/server/http/request-cookie";

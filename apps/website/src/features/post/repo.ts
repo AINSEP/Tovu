@@ -1,4 +1,4 @@
-import { invalidateMediaAccessEvidence } from '../media/access-evidence.js';
+import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";

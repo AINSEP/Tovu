@@ -7,7 +7,8 @@ import { createPublicPostReader } from "#src/features/post/post-read";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 // Keep request rendering separate from theme installation, imports, and agent tools.
 import { renderStaticPage } from "#src/features/theme/static-render";
-import { injectCurrentEntityContentId, injectPageTitle, resolveTemplate } from "#src/features/theme/index";
+import { injectCurrentEntityContentId, injectPageTitle } from "#src/features/theme/static-render-content";
+import { resolveTemplate } from "#src/features/theme/static-template-resolution";
 import { tokenStylesheetSentinel } from "#src/features/theme/static-asset-contract";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { expandPartials } from "@jini-ai/cms/widgets/markers";

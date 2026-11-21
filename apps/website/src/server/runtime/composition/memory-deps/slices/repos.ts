@@ -7,7 +7,7 @@ import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { InMemoryAssetRenditionRepo } from "#src/features/media/index";
 import { InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
-import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";
+import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
 import { seededWorkspace } from "../../../configuration/seed.js";
 import { type ContentDb, openContentDb } from "#src/platform/db/sqlite/content-db";
 import { type TrashDb } from "#src/features/trash/index";

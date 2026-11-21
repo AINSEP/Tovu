@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
-import { getMediaAccessEvidenceCache } from "../../media/access-evidence.js";
+import { getMediaAccessEvidenceCache } from "#src/platform/media-access-evidence";
 import type { EntryRecord } from "../index.js";
 import { EntrySlugConflictError, VersionConflictError } from "../index.js";
 import { SqliteEntryRepo } from "../repo.sqlite.js";
