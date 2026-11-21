@@ -1,4 +1,4 @@
-`integ/merge-9-2026-11-21` @ `SHA_PLACEHOLDER` (report commit; the branch tip is the next commit, which only fills in this line). Code tip: `a963e5a78` (+ docs/raw-output commits `f7d697c04`, `f0cdc00cc`). Jini: `origin/integ/merge-10-2026-11-21` `de4e555b9` at start; re-fetched before the final gates: unchanged.
+`integ/merge-9-2026-11-21` @ `39418fa891` (report commit; the branch tip is the next commit, which only fills in this line). Code tip: `a963e5a78` (+ docs/raw-output commits `f7d697c04`, `f0cdc00cc`). Jini: `origin/integ/merge-10-2026-11-21` `de4e555b9` at start; re-fetched before the final gates: unchanged.
 
 # combine-9 TOVU (2026-11-21) — `integ/merge-9-2026-11-21`
 
