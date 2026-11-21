@@ -163,7 +163,7 @@ async function signalGroupUntilGone({ deps, pid }: { deps: ChatGateDeps; pid: nu
 async function stopGroup({ deps, pid, siteDir }: { deps: ChatGateDeps; pid: number; siteDir: string }, _optional = {}): Promise<void> {
   const snapshots = await deps.processes.listProcessSnapshots();
   const daemon = await findDaemonRoot({ deps, snapshots, siteDir });
-  const pids = deps.processes.collectProcessTreePids(snapshots, daemon.pid === undefined ? [pid] : [pid, daemon.pid]);
+  const pids = deps.processes.collectProcessTreePids({ processes: snapshots, rootPids: daemon.pid === undefined ? [pid] : [pid, daemon.pid] });
   try {
     await signalGroupUntilGone({ deps, pid });
   } finally {

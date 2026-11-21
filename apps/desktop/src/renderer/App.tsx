@@ -94,7 +94,7 @@ export function App({
   useThemeHook = useTheme,
   useSiteRescanHook = useSiteRescan,
   useApplySiteRecordHook = useApplySiteRecord,
-  sitesSettings = {}, ...props,
+  sitesSettings = {}, ...props
 }: {
   useProjects?: typeof useSitesPolling;
   useTabs?: typeof useProjectTabs;

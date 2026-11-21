@@ -179,7 +179,7 @@ function base() {
     randomUUID: () => { uuid += 1; return `uuid-${uuid}`; },
     processes: {
       listProcessSnapshots: async () => s.snapshots,
-      collectProcessTreePids: (_snapshots, roots) => roots.filter((pid): pid is number => typeof pid === "number"),
+      collectProcessTreePids: ({ rootPids: roots }) => roots.filter((pid): pid is number => typeof pid === "number"),
       stopProcesses: async (pids) => {
         stopped.push(pids.filter((pid): pid is number => typeof pid === "number"));
         return { alreadyStopped: false, forcedPids: [], matchedPids: [], remainingPids: s.remaining, stoppedPids: [] };

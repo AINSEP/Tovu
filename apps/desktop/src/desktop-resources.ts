@@ -78,7 +78,7 @@ function ownedUsages({ usages, desktopPid, platform }: {
   const rows = withoutUsageProbe({ usages, desktopPid, platform });
   if (!rows.some(row => row.pid === desktopPid)) return [];
   const tree = rows.map(row => ({ pid: row.pid, ppid: row.ppid, command: '' }));
-  const owned = new Set(collectProcessTreePids(tree, [desktopPid]));
+  const owned = new Set(collectProcessTreePids({ processes: tree, rootPids: [desktopPid] }));
   return rows.filter(row => owned.has(row.pid));
 }
 
@@ -113,7 +113,7 @@ function groupSample({ usages, sites, desktopPid, previous, at, totalMemoryBytes
   const readings = new Map(rows.map((usage) => [usage.pid, cpuReading({ usage, previous, at })]));
   const claimed = new Set<number>();
   const groups = sites.map((site): ResourceGroup => {
-    const pids = new Set(collectProcessTreePids(tree, [site.pid]));
+    const pids = new Set(collectProcessTreePids({ processes: tree, rootPids: [site.pid] }));
     const members = rows.filter((row) => pids.has(row.pid) && !claimed.has(row.pid));
     for (const row of members) claimed.add(row.pid);
     const processes = processRows({ usages: members, rootPid: site.pid, rootRole: 'site-server', readings });

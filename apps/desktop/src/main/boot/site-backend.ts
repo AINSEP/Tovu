@@ -172,7 +172,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
   return { authenticateSiteSession, startSiteBackend, openSiteServer };
 }
 
-function createSiteServerOpener<TServer extends SiteBackendServer>(ports: SiteBackendPorts<TServer>, startSiteBackend: ReturnType<typeof createSiteBackendStarter>) {
+function createSiteServerOpener<TServer extends SiteBackendServer>(ports: SiteBackendPorts<TServer>, startSiteBackend: ReturnType<typeof createSiteBackendStarter<TServer>>) {
   return async function openSiteServer(
     { siteDir, ctx }: { siteDir: string; ctx: SiteBackendCtx }, { port }: { port?: number } = {},
   ): Promise<TServer> {
@@ -185,7 +185,7 @@ function createSiteServerOpener<TServer extends SiteBackendServer>(ports: SiteBa
   };
 }
 
-function createSiteBackendStarter<TServer extends SiteBackendServer>(ports: SiteBackendPorts<TServer>, spawnSiteServer: ReturnType<typeof createSiteServerSpawner>, adoptSpawnedServer: ReturnType<typeof createSpawnedServerAdopter>) {
+function createSiteBackendStarter<TServer extends SiteBackendServer>(ports: SiteBackendPorts<TServer>, spawnSiteServer: ReturnType<typeof createSiteServerSpawner<TServer>>, adoptSpawnedServer: ReturnType<typeof createSpawnedServerAdopter<TServer>>) {
   return async function startSiteBackend(
     { siteDir, ctx }: { siteDir: string; ctx: SiteBackendCtx }, { port }: { port?: number } = {},
   ): Promise<{ server: TServer; partition: string }> {
@@ -202,7 +202,7 @@ function createSiteBackendStarter<TServer extends SiteBackendServer>(ports: Site
   };
 }
 
-function createSpawnedServerAdopter<TServer extends SiteBackendServer>(ports: SiteBackendPorts<TServer>, authenticateSiteSession: ReturnType<typeof createSiteSessionAuthenticator>) {
+function createSpawnedServerAdopter<TServer extends SiteBackendServer>(ports: SiteBackendPorts<TServer>, authenticateSiteSession: ReturnType<typeof createSiteSessionAuthenticator<TServer>>) {
   return async function adoptSpawnedServer({ siteDir, ctx, server, partition }: { siteDir: string; ctx: SiteBackendCtx; server: TServer; partition: string }, _optional = {}): Promise<void> {
     ports.rememberOpen({ siteDir });
     ports.recordSiteOpened({ registryPath: ctx.registryPath, row: {
