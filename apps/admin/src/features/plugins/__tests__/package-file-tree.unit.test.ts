@@ -35,9 +35,9 @@ function outline(nodes: readonly PackageFileTreeNode[], indent = ""): string[] {
 describe("buildPackageFileTree", () => {
   it("groups paths into folders, files first then folders, each alphabetical", () => {
     expect(outline(buildPackageFileTree({ paths: DEPLOY_PATHS }))).toEqual([
+      "jini-deploy-targets.json",
       "mcp.json",
       "plugin.json",
-      "jini-deploy-targets.json",
       "deploy-configs/",
       "  example-host.mjs",
       "  railway.mjs",
@@ -109,9 +109,9 @@ describe("visiblePackageFileRows", () => {
   it("shows only root entries while every folder is collapsed", () => {
     const rows = visiblePackageFileRows({ nodes: tree, isExpanded: () => false });
     expect(rows.map((row) => row.node.path)).toEqual([
+      "jini-deploy-targets.json",
       "mcp.json",
       "plugin.json",
-      "jini-deploy-targets.json",
       "deploy-configs",
       "skills",
       "targets",
@@ -149,12 +149,12 @@ describe("packageFileTreeKeyAction", () => {
   it("moves down and up, stopping at the ends", () => {
     expect(act("deploy-configs", "ArrowDown")).toEqual({ focus: "skills" });
     expect(act("skills", "ArrowUp")).toEqual({ focus: "deploy-configs" });
-    expect(act("mcp.json", "ArrowUp")).toEqual({ focus: "mcp.json" });
+    expect(act("jini-deploy-targets.json", "ArrowUp")).toEqual({ focus: "jini-deploy-targets.json" });
     expect(act("targets", "ArrowDown")).toEqual({ focus: "targets" });
   });
 
   it("jumps with Home and End", () => {
-    expect(act("skills", "Home")).toEqual({ focus: "mcp.json" });
+    expect(act("skills", "Home")).toEqual({ focus: "jini-deploy-targets.json" });
     expect(act("skills", "End")).toEqual({ focus: "targets" });
   });
 
@@ -186,7 +186,7 @@ describe("packageFileTreeKeyAction", () => {
   });
 
   it("treats an unknown current path as the first row", () => {
-    expect(act("gone.md", "ArrowDown")).toEqual({ focus: "plugin.json" });
+    expect(act("gone.md", "ArrowDown")).toEqual({ focus: "mcp.json" });
   });
 });
 

@@ -275,7 +275,7 @@
     },
     {
       "id": "190d29e2184f",
-      "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/__tests__/assistant-ag-ui.wire.unit.test.ts (62% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+      "reason": "wording survived at apps/website/src/server/runtime/composition/modules/__tests__/assistant-ag-ui.wire.unit.test.ts (62% shared word triples) until tv-w2 AG0-T deleted that wire suite (its nine assertions are covered by Jini's AG-UI wire tests); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
     },
     {
       "id": "1936a01b7298",

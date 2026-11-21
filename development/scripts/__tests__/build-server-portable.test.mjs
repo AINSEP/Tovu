@@ -111,8 +111,8 @@ test('D0a: the runtime assets carry the composed plugin root and the Tovu overla
 test('D0a: a composition refusal fails the asset step instead of shipping a partial plugin root', () => {
   const { repoRoot, write } = packagedRepo('tovu-build-compose-fail-');
   try {
-    write('content/agent-plugins/tovu-theme/tovu-site-guide.json', JSON.stringify({ module: 'guide/missing.mjs' }));
-    assert.throws(() => stageServerRuntimeAssets({ repoRoot }, { selection: new Map() }), /tovu-theme\/tovu-site-guide\.json: guide\/missing\.mjs/);
+    write('content/agent-plugins/tovu-theme/jini-site-guide.json', JSON.stringify({ module: 'guide/missing.mjs' }));
+    assert.throws(() => stageServerRuntimeAssets({ repoRoot }, { selection: new Map() }), /tovu-theme\/jini-site-guide\.json: guide\/missing\.mjs/);
     assert.equal(existsSync(path.join(repoRoot, 'dist/content/agent-plugins')), false);
   } finally { rmSync(repoRoot, { recursive: true, force: true }); }
 });

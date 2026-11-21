@@ -18,15 +18,15 @@ test('hook discards expiry, repeated clicks and teardown without posting an appr
   }
   t.after(async () => { await act(async () => root.unmount()); restore(); });
   await act(async () => root.render(React.createElement(Host)));
-  act(() => control.decide({ allow: true }));
+  act(() => { void control.decide({ allow: true }); });
   act(() => control.receive({ directive }));
   assert.equal(dom.window.document.activeElement?.textContent, 'Cancel');
   act(() => t.mock.timers.tick(60_000));
   assert.equal(control.pending, null);
-  act(() => control.decide({ allow: true }));
+  act(() => { void control.decide({ allow: true }); });
   assert.deepEqual(decisions, []);
   act(() => control.receive({ directive }));
-  act(() => { control.decide({ allow: false }); control.decide({ allow: true }); });
+  act(() => { void control.decide({ allow: false }); void control.decide({ allow: true }); });
   assert.deepEqual(decisions, [{ challengeId: directive.challengeId, allow: false }]);
   act(() => control.receive({ directive }));
   await act(async () => root.render(null));
