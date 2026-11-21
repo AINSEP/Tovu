@@ -1,7 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { getEntryMeta, SeoEntryNotFoundError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/index";
+import { withContentImageSource, withCoverReadDeps } from "@jini-ai/cms/seo/cover-image";
 import type { SeoRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";

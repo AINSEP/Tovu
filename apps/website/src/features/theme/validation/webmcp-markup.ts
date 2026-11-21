@@ -1,5 +1,5 @@
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5';
-import type { ThemeValidationIssue } from './profiles.js';
+import type { ThemeValidationIssue } from "@jini-ai/cms/themes/manifest-v2";
 
 type Node = DefaultTreeAdapterMap['childNode'];
 type Element = DefaultTreeAdapterMap['element'];

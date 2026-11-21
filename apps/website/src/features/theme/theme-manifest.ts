@@ -6,7 +6,7 @@ import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 // Layout constants live in @jini-ai/cms/themes/layout so discovery and file I/O do not import each other.
 import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "./theme-file-policy.js";
 import { parseTemplateFor } from "@jini-ai/cms/themes/template-applicability";
-import { rejectTemplateFor } from "./template-applicability-errors.js";
+import { rejectTemplateFor } from "@jini-ai/cms/themes/template-applicability";
 import { isObject, parseOptionalStringArray, parseTier, parseOptionalString, parseThemeBuildInfo, resolveThemeScripts, readJson } from "./theme-manifest-fields.js";
 
 

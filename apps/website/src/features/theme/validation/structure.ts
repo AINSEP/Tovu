@@ -4,7 +4,7 @@ import { join, relative, sep } from "node:path";
 import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "../theme-file-policy.js";
 import { TRASH_DIR_NAME } from "@jini-ai/cms/themes/layout";
 import type { ThemeBuildInfo } from "../render-contract.js";
-import type { ThemeValidationIssue } from "./profiles.js";
+import type { ThemeValidationIssue } from "@jini-ai/cms/themes/manifest-v2";
 
 /**
  * @file Package-tree shape checks: file-count/depth/size/symlink ceilings (every schema version),

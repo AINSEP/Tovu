@@ -27,15 +27,6 @@ export type ThemeValidationProfile = "author" | "publish" | "install";
 
 export type ThemeValidationSeverity = "error" | "warning";
 
-/** One finding from any check module — a rule id (grep-able, stable across message rewording), a
- * human-readable message, and the package-relative path it concerns, when the finding is
- * file-scoped rather than manifest- or package-wide. */
-export interface ThemeValidationIssue {
-  readonly ruleId: string;
-  readonly message: string;
-  readonly path?: string;
-}
-
 /**
  * Rule IDs that are advisory (`warning`) outside the `publish` profile, and a hard `error` only when
  * publishing. Every rule ID NOT in this set is an `error` in every profile — the default is strict;

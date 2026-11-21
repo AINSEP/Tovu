@@ -6,15 +6,16 @@ import { loadTheme } from "../theme.js";
 import { checkApprovedRoots, checkSourceDirContainment, walkThemePackage, type PackageWalkEntry } from "./structure.js";
 import { checkDeclaredReferences } from "./references.js";
 import { checkMarkupFile } from "./markup.js";
-import { validateManifestV2 } from "./manifest-v2.js";
+import { validateManifestV2, type ThemeValidationIssue } from "@jini-ai/cms/themes/manifest-v2";
+import { validateScripts } from "@jini-ai/cookie-consent/policy";
+import { isSourceDirGeneratedConflict } from "../theme-file-policy.js";
 import {
   resolveSeverity,
-  type ThemeValidationIssue,
   type ThemeValidationProfile,
   type ThemeValidationSeverity,
 } from "./profiles.js";
 
-export type { ThemeValidationProfile, ThemeValidationIssue, ThemeValidationSeverity } from "./profiles.js";
+export type { ThemeValidationProfile, ThemeValidationSeverity } from "./profiles.js";
 
 /**
  * @file The one public entry point for theme package validation — orchestrates the sibling check
@@ -175,7 +176,7 @@ function runV2StrictChecks(
 ): ThemeValidationIssue[] {
   return [
     ...checkApprovedRoots({ themeDir }),
-    ...validateManifestV2({ raw }),
+    ...validateManifestV2({ raw, validateScripts, isSourceDirGeneratedConflict }),
     ...checkV2ManifestIdMatch({ raw, id }),
     ...checkV2BuildContainment(raw),
     ...checkV2References({ raw, themeDir }),

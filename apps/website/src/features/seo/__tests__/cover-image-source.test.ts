@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SeoMeta } from "@jini-ai/cms/seo";
 import { buildPostRecord } from "../../post/__tests__/post-record.fixture.js";
-import { withContentImageSource, withCoverSeoDefaults } from "../cover-image.js";
+import { withContentImageSource, withCoverSeoDefaults } from "@jini-ai/cms/seo/cover-image";
 
 function meta(openGraph: Partial<SeoMeta["openGraph"]> = {}): SeoMeta {
   return {

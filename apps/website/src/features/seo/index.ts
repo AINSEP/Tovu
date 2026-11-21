@@ -23,7 +23,7 @@ import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { getSeoSettings, isDefaultRobotsNoindexExplicitlySet } from "./settings.js";
 
-export { withCoverReadDeps, withContentImageSource } from "./cover-image.js";
+export { createSeoPageHeadHook } from "./page-head-contributor.js";
 
 export {
   ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings, isDefaultRobotsNoindexExplicitlySet,

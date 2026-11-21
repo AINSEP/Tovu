@@ -858,7 +858,7 @@ async function prepareApiLaunch({ selectedSite, scheme, lite, extraCaCerts }) {
     apiEnv.TOVU_ADMIN_DIST = await prepareLiteAdmin({ repoRoot: REPO_ROOT, env: process.env });
     apiEnv.TOVU_ADMIN_DEV_PROXY_URL = "";
   }
-  const runtime = selectNodeRuntime({ searchFrom: [REPO_ROOT, path.join(REPO_ROOT, "apps/desktop")], nodePath: process.execPath });
+  const runtime = selectNodeRuntime({ searchFrom: [REPO_ROOT, path.join(REPO_ROOT, "apps/desktop")], nodePath: process.execPath, env: process.env });
   if (runtime.fallback) console.log("tovu dev: Electron unavailable; using stock Node for the API.");
   Object.assign(apiEnv, runtime.env);
   apiEnv.TOVU_DEV_WARM_SITES = "1";

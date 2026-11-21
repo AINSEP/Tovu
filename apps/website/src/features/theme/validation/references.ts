@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import type { ThemeValidationIssue } from "./profiles.js";
+import type { ThemeValidationIssue } from "@jini-ai/cms/themes/manifest-v2";
 
 /**
  * @file Manifest-to-file consistency: every file path a manifest DECLARES must resolve to a real file
