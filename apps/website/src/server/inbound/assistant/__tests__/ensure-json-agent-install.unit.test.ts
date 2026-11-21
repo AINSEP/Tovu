@@ -5,11 +5,12 @@ import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { planAgentInstall, type AgentSlug } from "@jini-ai/mcp";
 import { installOwnedJsonAgent } from "@jini-ai/mcp";
+import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
 
 async function fixture(t: test.TestContext, agentId: AgentSlug = "antigravity") {
   const home = await mkdtemp(join(tmpdir(), "tovu-owned-mcp-"));
   t.after(() => rm(home, { recursive: true, force: true }));
-  const required = { agentId, allowed: true, spec: { command: "node", args: ["/bridge/serve.js"], env: {} as Record<string,string> },
+  const required = { agentId, allowed: true, files: { fileLock: nodeFileLock, writer: nodeAtomicWriter }, spec: { command: "node", args: ["/bridge/serve.js"], env: {} as Record<string,string> },
     ctx: { home, platform: "linux" as const, serverName: "jini" } };
   const plan = planAgentInstall({ ...required, slug: agentId });
   if (plan.kind !== "json") throw new Error("Expected JSON installer");

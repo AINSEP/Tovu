@@ -34,9 +34,13 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { Principal, ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
-import type { NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createAgentRuntimeBindings, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import type { AgentRuntimePort } from "@jini-ai/daemon/ports/agent-runtime";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { delegatedToolRoutes, toolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
+import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
+import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
+import { nodeCommandShell, nodeProcessControl, nodeSpawnPort } from "@jini-ai/node-adapters/process";
 import { daemonRouteHost, mountJiniRoutes } from "../../website/src/server/runtime/composition/jini-routes.ts";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
@@ -258,8 +262,18 @@ function desktopBridgeLaunch(optional: Pick<DesktopAgentRuntimeOptions, "mcpServ
 /** Personal registry setup stays in Jini's existing installer and requires the same MCP grant. */
 async function prepareDesktopConnector({ agentId, runtime, allowed }: { agentId: string; runtime: NativeAgentRuntime; allowed: boolean }, optional: DesktopAgentRuntimeOptions): Promise<void> {
   if (runtime.getAgentDef({ id: agentId })?.externalMcpInjection !== "env-passthrough") return;
-  await (optional.installOwnedJsonAgent ?? installOwnedJsonAgent)({ agentId, allowed, spec: desktopBridgeLaunch(optional),
+  await (optional.installOwnedJsonAgent ?? installOwnedJsonAgent)({ agentId, allowed, files: { fileLock: nodeFileLock, writer: nodeAtomicWriter }, spec: desktopBridgeLaunch(optional),
     ctx: { home: runtime.hostEnv.HOME ?? runtime.hostEnv.USERPROFILE ?? os.homedir(), platform: process.platform, serverName: "jini" } });
+}
+
+/**
+ * The Node implementations of the OS-facing ports the daemon's agent executor needs. The daemon has no
+ * default for any of them, so the desktop host states them once, from the env snapshot its runtime owns.
+ * @param required.hostEnv The runtime's env snapshot; only its `ComSpec` is read, for the Windows `.cmd` fallback.
+ * @returns The ports to pass as `runtime`. @complexity O(1).
+ */
+function desktopDaemonRuntimePorts({ hostEnv }: { hostEnv: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): AgentExecutorRuntimePorts {
+  return { spawn: nodeSpawnPort, processes: nodeProcessControl, fileLock: nodeFileLock, writer: nodeAtomicWriter, commandShell: nodeCommandShell({ env: hostEnv }) };
 }
 
 /**
@@ -277,13 +291,9 @@ function defaultAgentExecutor(
   optional: Pick<DesktopAgentRuntimeOptions, "mcpServeScript" | "createAgentExecutor"> = {},
 ): Pick<AgentExecutor, "run"> {
   const runtime = ports.agentRuntime;
-  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle }, {
-    getAgentDef: runtime.getAgentDef,
-    resolveAgentLaunch: runtime.resolveAgentLaunch,
-    runtimeState: runtime.state,
-    hostEnv: runtime.hostEnv,
-    codexDisablePlugins: runtime.codex.disablePlugins === true,
-    piGracefulShutdownMs: runtime.pi.gracefulShutdownMs ?? 5000,
+  // One port bound to the app runtime desktop detection also uses; it owns the runtime state, the host env names and the Codex / Pi policies.
+  const agentRuntime = createAgentRuntimeBindings({ runtime }) satisfies AgentRuntimePort;
+  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle, hostEnv: runtime.hostEnv, runtime: desktopDaemonRuntimePorts({ hostEnv: runtime.hostEnv }), agentRuntime }, {
     mcpJsonInjection: {
       toolApprovalOwner: "host",
       ...desktopBridgeLaunch(optional),
@@ -298,7 +308,7 @@ function defaultAgentExecutor(
     // Same reason as the site daemon: an isolated CLAUDE_CONFIG_DIR loses the operator's Keychain
     // login on macOS and every run fails "Not logged in". See `agent-daemon-server.ts`'s own note.
     claudeConfigDirIsolationEnabled: false,
-  } as Parameters<typeof createAgentExecutor>[1]);
+  });
 }
 
 /**

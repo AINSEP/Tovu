@@ -19,6 +19,7 @@ import { createNodeDaemonProcessAdapter, createNodeIpcChannel, createNodeSupervi
 import { daemonControlRequest, daemonEndpoint, siteIdleStopReply, type DaemonSiteRegistration } from "@tovu/contracts/daemon-connection";
 import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import type { CliMode } from "./startup-env.ts";
+import { nodeAtomicWriter } from "@jini-ai/node-adapters/fs";
 
 export interface DesktopAgentServiceOptions {
   readonly spawn?: NodeDaemonProcessOptions["spawn"];
@@ -344,7 +345,7 @@ function bindOwnedServer({ ctx, child, siteDir }: { ctx: ServiceContext; child: 
 export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "compiled", env = process.env }: {
   repoRoot: string; registryPath: string; cliMode?: CliMode; env?: NodeJS.ProcessEnv;
 }, optional: DesktopAgentServiceOptions = {}) {
-  const registry = optional.registry ?? createSupervisorRegistry({ registryPath });
+  const registry = optional.registry ?? createSupervisorRegistry({ registryPath, writer: nodeAtomicWriter });
   const spawnEnv = buildDaemonSpawnEnv({ env, registryPath });
   const state: ServiceState = {
     channel: undefined, daemonPid: undefined, stopWork: Promise.resolve(), stopping: false,

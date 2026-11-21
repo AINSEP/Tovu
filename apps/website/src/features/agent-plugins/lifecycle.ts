@@ -21,7 +21,7 @@ import {
   type LoadPluginContributionsOptional,
   type FilesystemPort,
 } from "@jini-ai/agent-plugins/lifecycle";
-import { createNodeAgentPluginEffects } from "@jini-ai/agent-plugins/lifecycle/node";
+import { createNodeAgentPluginEffects } from "@jini-ai/node-adapters/agent-plugins";
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryCloudflareActivation } from "./deploy-split-activation.js";

@@ -22,6 +22,7 @@ import { homedir } from "node:os";
 import { type Principal } from "@jini-ai/core";
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
 import { createAgentExecutor } from "@jini-ai/daemon";
+import type { AgentRuntimePort } from "@jini-ai/daemon/ports/agent-runtime";
 import { createAgentSelectionResolver, createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createFrontendControl } from "@jini-ai/daemon/http";
 import type { AttachmentStore, RunStartHandler } from "@jini-ai/daemon/http";
@@ -61,6 +62,8 @@ export type RunStartRequired = {
   };
   siteId: string; env: NodeJS.ProcessEnv; routeDeps: AgentDaemonCoreDeps;
   siteTools: ReturnType<typeof createDaemonSiteTools>; agentExecutor: Pick<ReturnType<typeof createAgentExecutor>, 'run'>;
+  /** The bound agent runtime's startup-failure formatter (daemon R8b: `failRunBeforeStart` with a startup exception needs it). */
+  startupMessage: AgentRuntimePort['failures']['startupMessage'];
   customInstructionsCache: Pick<ReturnType<typeof createCustomInstructionsCache>, 'refresh'>;
   idlePark: Pick<ReturnType<typeof createAgentDaemonIdlePark>, 'hold'>;
   getAgentDef: ReturnType<typeof createNativeAgentRuntime>['getAgentDef'];
@@ -173,7 +176,7 @@ function onStarted(ports: RunStartPorts, { request, run: startedRun, lifecycle: 
       console.error(`[agent-daemon] run ${run.id} failed to start`, error);
       // A startup rejection must terminalize its attempt so its slot and credentials release.
       void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt.",
-        startup: { stage: runState.startupStage, error } }, {});
+        startup: { stage: runState.startupStage, error }, startupMessage: ports.startupMessage }, {});
     }).finally(releasePreparation);
 }
 

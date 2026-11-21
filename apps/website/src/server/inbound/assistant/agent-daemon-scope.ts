@@ -216,7 +216,7 @@ const assistantRuntimeGuidanceContext = new AsyncLocalStorage<AssistantRuntimeGu
 const assistantPromptAugmenter = createScopePromptAugmenter({ getAgentDef, bashProhibitionEnabled, assistantNativeToolsContext, assistantCliCapabilitiesContext, assistantRuntimeGuidanceContext, customInstructionsCache });
 
 const bridgeInjection = createScopeBridge({ daemonUrl, env, registry, visibleRegistry, mintRunCredential: (runId) => runCredentials.mint({ runId: runId }, {}) });
-const agentExecutor = createScopeAgentExecutor({ lifecycle, getAgentDef, resolveAgentLaunch, assistantRuntime, cleanupFailures, bridgeInjection, assistantPromptAugmenter });
+const { agentExecutor, agentRuntime, daemonRuntime } = createScopeAgentExecutor({ lifecycle, assistantRuntime, cleanupFailures, bridgeInjection, assistantPromptAugmenter });
 
 // Initialize needs no callback credential; probe the real launch without minting a run token.
 // The run-scoped startup tool fetch is left out of it — see bridge-preflight-entry.ts.
@@ -236,7 +236,7 @@ const resolveAttachmentRunFields = createAttachmentRunFieldsResolver({ getAttach
 
 const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agentSessions, durable: routeDeps.chatRunLedger.durable, readStart: readProcessStart }, {});
 
-const onStarted = createRunStartHandler({ state, siteId, env, routeDeps, siteTools, agentExecutor, customInstructionsCache, idlePark, getAgentDef, resolveAgentLaunch, resolveAssistantAgentId, assistantInventory, visibleRegistry, surfaceExchanges, frontendControl, captureEarlySession, bridgeInjection, resolvePermissionMode, probeAssistantChrome, tracing, runActiveContexts, assistantCliCapabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext, getAttachmentStore: () => attachmentStore, isDisposed: lifetime.isDisposed }, { browserLease: optional.browserLease, resolveAttachmentRunFields, ownerRetentionMs: RUN_OWNER_RETENTION_MS });
+const onStarted = createRunStartHandler({ state, siteId, env, routeDeps, siteTools, agentExecutor, startupMessage: agentRuntime.failures.startupMessage, customInstructionsCache, idlePark, getAgentDef, resolveAgentLaunch, resolveAssistantAgentId, assistantInventory, visibleRegistry, surfaceExchanges, frontendControl, captureEarlySession, bridgeInjection, resolvePermissionMode, probeAssistantChrome, tracing, runActiveContexts, assistantCliCapabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext, getAttachmentStore: () => attachmentStore, isDisposed: lifetime.isDisposed }, { browserLease: optional.browserLease, resolveAttachmentRunFields, ownerRetentionMs: RUN_OWNER_RETENTION_MS });
 
 const deliverRunUserMessage = createRunUserMessageDelivery({ principalByRunId, ATTACHMENT_UPLOAD_DIRECTORY, agentExecutor });
 const { app, routeHost } = createScopeApp({ env, authEnv, port, isDisposed: lifetime.isDisposed, responses, idlePark, lifecycle, principalByRunId, runCredentials, runOwners, agentExecutor, toolAccessRuns, revokedToolRuns, cleanupFailures, siteTools, routeDeps, onStarted, deliverRunUserMessage, assistantInventory, runActiveContexts, toolExecutor, surfaceExchanges, frontendControl, durableMessageIdsByRunId });
@@ -245,7 +245,7 @@ const { app, routeHost } = createScopeApp({ env, authEnv, port, isDisposed: life
   mountScopeAttachments({ app, attachmentStore, routeHost, authEnv, idlePark });
 
   if (optional.probeBridge) await optional.probeBridge();
-  else startBridgeProbe({ bridgeInjection });
+  else startBridgeProbe({ bridgeInjection, spawn: daemonRuntime.spawn, hostEnv: assistantRuntime.hostEnv });
   return { app, lifecycle, hasExchanges: () => surfaceExchanges.size() > 0, dispose: lifetime.dispose };
 } catch (error) {
   return unwindScope({ error, disposeAiTracing, assistantInventory, daemonStore });
