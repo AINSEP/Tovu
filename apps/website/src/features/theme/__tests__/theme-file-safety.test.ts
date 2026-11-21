@@ -237,7 +237,7 @@ test('a URL replacement committed before cancellation retains its successful res
   const destination = fs.realpathSync(path.join(f.themeDir, 'a.woff2'));
   const replacement = Buffer.concat([font, Buffer.from('new')]);
   const rename = fs.renameSync;
-  const committed = t.mock.method(fs, 'renameSync', (oldPath, newPath) => {
+  const committed = t.mock.method(fs, 'renameSync', (oldPath: fs.PathLike, newPath: fs.PathLike) => {
     rename(oldPath, newPath);
     if (String(newPath) === destination) f.controller.abort(new Error('cancelled after theme replacement'));
   });
