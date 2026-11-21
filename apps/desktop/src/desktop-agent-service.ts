@@ -1,3 +1,4 @@
+import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** One cold Jini supervisor per desktop instance. Sites retain tools and durable authority. */
 import { spawn as nodeSpawn } from "node:child_process";
@@ -137,7 +138,8 @@ function createDaemonPorts(
   { state, repoRoot, registry, spawnEnv, args, redact }: { state: ServiceState; repoRoot: string; registry: SupervisorRegistry; spawnEnv: NodeJS.ProcessEnv; args: string[]; redact: ReturnType<typeof createSiteRedactor> },
   optional: DesktopAgentServiceOptions,
 ) {
-  return createNodeDaemonProcessAdapter({ command: process.execPath, args, cwd: repoRoot, env: spawnEnv, registry }, {
+  return createNodeDaemonProcessAdapter({ command: process.execPath, args, cwd: repoRoot, env: spawnEnv, registry,
+    process: nodeProcessControl, commandShell: nodeCommandShell({ env: process.env }) }, {
     ipc: true,
     stdout: daemonOutputSink({ sink: optional.stdout ?? process.stdout, redact }),
     stderr: daemonOutputSink({ sink: optional.stderr ?? process.stderr, redact }),

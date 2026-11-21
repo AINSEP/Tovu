@@ -1,3 +1,4 @@
+import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { formatErrorForLog } from "@jini-ai/core";
 import { listSites, runningSiteUrl } from "#src/platform/site-dir/index";
@@ -198,7 +199,8 @@ function createLocalSiteLauncher(context: LocalSiteLaunchContext, getBuildRoot: 
     const { args, childEnv, siteDir } = prepared;
     const diagnostics = localSiteProcessLog({ name, siteDir });
     const adapter = createNodeDaemonProcessAdapter({ command: process.execPath,
-      args, cwd: repoRoot, env: childEnv, registry }, { ...processOptions, stderr: diagnostics.stderr });
+      args, cwd: repoRoot, env: childEnv, registry, process: nodeProcessControl, commandShell: nodeCommandShell({ env: process.env }) },
+      { ...processOptions, stderr: diagnostics.stderr });
     const child = adapter.spawnDaemonProcess();
     diagnostics.observe({ child });
     if (child.pid === undefined) throw new LocalSiteError({ code: "SITE_START_FAILED" });
