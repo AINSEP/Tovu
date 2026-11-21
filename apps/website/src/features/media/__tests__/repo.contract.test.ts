@@ -579,7 +579,19 @@ function runAssetBlobSuite(label: string, makeRepo: () => AssetBlobRepoPort) {
 }
 
 runAssetBlobSuite("memory", () => new InMemoryAssetBlobRepo({}));
-for (const each of eachDialect({ tables: ["asset_blobs"], make: (kernel) => new SqlAssetBlobRepo(kernel) })) runAssetBlobSuite(each.name, each.make);
+for (const each of eachDialect({ tables: ["asset_blobs"], make: (kernel) => new SqlAssetBlobRepo(kernel) })) {
+  runAssetBlobSuite(each.name, each.make);
+  test(`[${each.name}] blob list filters hashes within the requested workspace`, async () => {
+    const repo = each.make();
+    const sha256 = "b".repeat(64);
+    const own = makeAssetBlob({ id: "own", sha256 });
+    await repo.save(own);
+    await repo.save(makeAssetBlob({ id: "other-workspace", workspaceId: "workspace-2", sha256, storageKey: "other/blob" }));
+    await repo.save(makeAssetBlob({ id: "other-hash", sha256: "c".repeat(64) }));
+    const rows = await repo.list({ workspaceId: WORKSPACE_ID }, { sha256s: [sha256] });
+    assert.deepEqual(rows, [own], "the supplied hash excludes both foreign-workspace and unrelated blob rows");
+  });
+}
 
 function makeRendition(overrides: Partial<AssetRenditionRecord> = {}): AssetRenditionRecord {
   return {

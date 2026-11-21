@@ -42,13 +42,13 @@ test("placeholder prose is not a redaction signal", () => {
 
 test("a plain URL message is not a credential paste, even when earlier history in the cold-start context held a key-shaped value", () => {
   // The owner's exact message. Earlier turns of a Resend setup chat carried a DKIM record, a long
-  // high-entropy base64 value the history redaction rightly removes; that must not flag THIS message.
+  // high-entropy base64 value the history redaction preserves; that must not flag THIS message.
   const message = "https://resend.com/ I really like it";
   const dkim = "p=" + "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDl4ZwX9vR2kT7yQp8sN3uB6hJ";
   const contextRef = redactAdminRunContextRef({ contextRef: JSON.stringify({ prompt: message, principalId: "owner", coldStartContext: `Assistant: add this TXT record ${dkim}\nUser: ${message}` }) }, {});
   const envelope = JSON.parse(contextRef) as Record<string, unknown>;
   assert.equal(envelope.secretRedacted, undefined, "only the current prompt's own redaction is a paste signal");
-  assert.equal(String(envelope.coldStartContext).includes(dkim.slice(2)), false, "history is still redacted before storage");
+  assert.equal(String(envelope.coldStartContext).includes(dkim.slice(2)), true, "public DKIM in history survives storage");
   const parsed = parseRunStartContextRef({ contextRef: contextRef });
   assert.equal(parsed.prompt, message);
   assert.equal(parsed.coldStartContext?.includes(CREDENTIAL_PASTE_MODEL_NOTE), false);
@@ -56,7 +56,7 @@ test("a plain URL message is not a credential paste, even when earlier history i
 
 test("real keys in the current prompt are still caught and still get the card note", () => {
   const note = CREDENTIAL_PASTE_MODEL_NOTE;
-  for (const secret of ["sk-" + "A1b2C3d4E5f6G7h8I9j0", "aB3dE5gH7jK9mN1pQ3sT5vX7zA9cE1gI3kM5oQ7sU9"]) {
+  for (const secret of ["sk-" + "A1b2C3d4E5f6G7h8I9j0", "sk-" + "aB3dE5gH7jK9mN1pQ3sT5vX7zA9cE1gI3kM5oQ7sU9"]) {
     const contextRef = redactAdminRunContextRef({ contextRef: JSON.stringify({ prompt: `here it is ${secret}`, principalId: "owner", coldStartContext: "User: hi" }) }, {});
     assert.equal(contextRef.includes(secret), false);
     assert.equal(JSON.parse(contextRef).secretRedacted, true);

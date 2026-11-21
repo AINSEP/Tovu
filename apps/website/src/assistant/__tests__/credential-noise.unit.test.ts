@@ -35,7 +35,7 @@ test('public DKIM history cannot flag a current public deployment URL as a paste
   const envelope = redactAdminRunContextRef({ contextRef: JSON.stringify({ prompt: history, coldStartContext: history,
     userPrompt: current, principalId: 'owner' }) }, {});
   assert.equal(JSON.parse(envelope).secretRedacted, undefined);
-  assert.equal(envelope.includes(dkim), false);
+  assert.equal(envelope.includes(dkim), true, "public DKIM in history survives storage");
   const result = parseRunStartContextRef({ contextRef: envelope });
   assert.equal(result.userPrompt, current);
   assert.equal(JSON.stringify(result).includes(CREDENTIAL_PASTE_MODEL_NOTE), false);

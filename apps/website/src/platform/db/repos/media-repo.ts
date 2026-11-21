@@ -488,8 +488,12 @@ export class SqlAssetBlobRepo implements AssetBlobRepoPort {
     return row ? toAssetBlobRecord(row) : null;
   }
 
-  async list(required: { workspaceId: UUID }): Promise<AssetBlobRecord[]> {
-    const rows = await this.kernel.run((db) => db.selectFrom("asset_blobs").selectAll().where("workspace_id", "=", required.workspaceId).execute());
+  async list(required: { workspaceId: UUID }, optional: { sha256s?: readonly string[] } = {}): Promise<AssetBlobRecord[]> {
+    const rows = await this.kernel.run((db) => {
+      let query = db.selectFrom("asset_blobs").selectAll().where("workspace_id", "=", required.workspaceId);
+      if (optional.sha256s) query = query.where("sha256", "in", [...optional.sha256s]);
+      return query.execute();
+    });
     return rows.map(toAssetBlobRecord);
   }
 
