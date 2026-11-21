@@ -16,7 +16,7 @@ import { registerAgentDaemonCoreRoutes } from "./agent-daemon-core-rpc.js";
 import { basename, dirname } from "node:path";
 import { openFsFileForRead } from "#src/features/fs-files/fs-files";
 import { json, type Response } from "express";
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { RequestHandler } from "express";
 import type { RememberedApprovalPort, ToolRegistration } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";

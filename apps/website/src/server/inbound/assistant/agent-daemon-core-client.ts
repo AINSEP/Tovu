@@ -1,6 +1,6 @@
 /** Private Tovu retained-state client. No retry or acceptance mirror: a lost mutation response
  * remains uncertain in the server's real ledger. Provider plugins also have that single owner. */
-import { z } from "zod";
+import { z } from "zod/v3";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";

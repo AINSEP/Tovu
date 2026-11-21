@@ -1,6 +1,6 @@
 /** Site RPC adapter for the daemon. Remote descriptors never acquire executable registrations. */
 import { AsyncLocalStorage } from "node:async_hooks";
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { ToolDescriptor, ToolRegistry } from "@jini-ai/core";
 import { createRemoteToolExecutor } from "@jini-ai/daemon";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";

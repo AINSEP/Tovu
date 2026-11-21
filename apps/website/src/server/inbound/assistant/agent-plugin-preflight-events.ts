@@ -2,7 +2,7 @@
 import { json, type Express } from "express";
 import type { RunLifecycle } from "@jini-ai/daemon";
 import { isTerminalRunState, type RunAgentPayload } from "@jini-ai/protocol";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { requireAgentDaemonToken } from "#src/assistant/daemon-access";
 
 const pluginEvent = z.object({
