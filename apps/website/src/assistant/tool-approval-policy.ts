@@ -1,4 +1,5 @@
 import { applyApprovalPolicy, isNonArrayRecord, type ApprovalContextPort, type ToolRegistration, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
+import { orFallback } from '@jini-ai/core/errors/idioms';
 import { requireHumanConfirm, notConfirmedResult, toolApprovalConfirmation, type HumanConfirmSpec, type HumanConfirmOutcome } from '../contracts/core/human-confirm.js';
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, directPageAction, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
@@ -54,8 +55,8 @@ export function applyToolApprovalPolicy(
     classify: ({ input }) => approvalClassFor({ toolId, input }, { policy }),
     asks: ({ class: actionClass }) => approvalClassAsks({ class: actionClass }),
     describe: async ({ ctx, class: actionClass }) => {
-      let locale = 'en';
-      try { locale = await localeFor({ ctx }); } catch { /* Copy failure must never bypass a safety gate. */ }
+      /* Copy failure must never bypass a safety gate. */
+      const locale = await orFallback({ work: () => localeFor({ ctx }), fallback: 'en', step: 'Read approval locale' });
       const disclosed = disclose ? await disclose({ ctx }) : [];
       return toolApprovalConfirmation({ descriptor: registration.descriptor, input: ctx.input, locale, details: disclosed,
         danger: actionClass === 'trash' || actionClass === 'delete' || actionClass === 'restore-over-existing' });

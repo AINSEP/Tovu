@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { join } from "node:path";
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -135,12 +136,8 @@ function legacyVolumeFilePath({ cwd }: { cwd: string }, _optional = {}): string 
  * @complexity O(1) — one small, bounded-size file read.
  */
 export function readSiteMetaJson({ siteDir }: { siteDir: string }, _optional = {}): Record<string, unknown> | undefined {
-  let raw: string;
-  try {
-    raw = readFileSync(join(siteDir, ".site-meta.json"), "utf8");
-  } catch {
-    return undefined;
-  }
+  const raw = orFallbackSync({ work: () => readFileSync(join(siteDir, ".site-meta.json"), "utf8"), fallback: undefined, step: "Read site key metadata" });
+  if (raw === undefined) return undefined;
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

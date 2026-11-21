@@ -1,4 +1,5 @@
 import { executeCommand } from "@jini-ai/cms/core";
+import { orFallback, orFallbackSync } from "@jini-ai/core/errors/idioms";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { BackstopRefusal, checkRawTable, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
 import type { RawColumn, RawRowPort, RawRowSnapshot, RawValue } from "@jini-ai/cms/publish/transfer";
@@ -11,7 +12,7 @@ export function rawRowId({ table, pk }: { table: string; pk: Readonly<Record<str
 }
 
 function decodeId({ id }: { id: string }, _optional = {}): { table: string; pk: Readonly<Record<string, RawValue>> } | null {
-  try {
+  return orFallbackSync({ work: () => {
     const split = id.indexOf(":");
     if (split < 1) return null;
     const table = id.slice(0, split);
@@ -22,7 +23,7 @@ function decodeId({ id }: { id: string }, _optional = {}): { table: string; pk: 
       return typeof value === "number" && (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value)));
     })) return null;
     return { table, pk };
-  } catch { return null; }
+  }, fallback: null, step: "Decode publish row address" });
 }
 
 function rowState(row: RawRowSnapshot): Record<string, unknown> {
@@ -161,8 +162,7 @@ async function inspectRawRow({ env, id }: { env: RawRowEnv; id: string }, _optio
   const { port } = env;
   const address = decodeId({ id });
   if (!address || !port || blockedTable({ env, table: address.table })) return null;
-  let row: RawRowSnapshot | null;
-  try { row = await port.read(address); } catch { return null; }
+  const row = await orFallback({ work: () => port.read(address), fallback: null, step: "Inspect publish row" });
   if (!row) return null;
   // Inspect never exposes values; it still refuses private columns and scans live data.
   if (checkRawTable({ table: row.table, columns: row.columns.map((c) => c.name) })) return null;

@@ -4,6 +4,7 @@ import {
   type BoundAnalyticsForwarder,
 } from "@jini-ai/analytics";
 import type { Clock as ClockPort, HttpClientPort as EngineHttpClientPort } from "@jini-ai/core/primitives";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { ProviderRegistry } from "@jini-ai/core/provider-registry";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { AnalyticsConfigPort, AnalyticsHooks } from "./ports.js";
@@ -112,12 +113,8 @@ export function createPluginAnalyticsHooks(
   const report = ({ index, message }: { index: number; message: string }) => warn(`[analytics] beforeIngest hook #${index} failed and was skipped: ${message}`);
   return {
     beforeIngest: async ({ hit }, _optional = {}) => {
-      let hooks: readonly EngineAnalyticsHooks[];
-      try {
-        hooks = (await required.loadProviders()).hooks;
-      } catch {
-        return hit;
-      }
+      const hooks = await orFallback({ work: async () => (await required.loadProviders()).hooks, fallback: null, step: "Read analytics enrichment hooks" });
+      if (hooks === null) return hit;
       const chain = composeBeforeIngestHooks({ hooks }, { report });
       return chain ? chain.beforeIngest({ hit }) : hit;
     },

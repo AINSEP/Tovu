@@ -20,6 +20,7 @@
  * file inside the tracked `sites/<name>/` would.
  */
 import nodeFs from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import path from "node:path";
 import { SITE_NAME_PATTERN, type SiteBinding } from "#src/platform/site-dir/index";
 
@@ -65,21 +66,13 @@ export function createSitePreviewStore(
     version({ name }) {
       const file = fileFor({ name });
       if (file === null) return null;
-      try {
-        return fs.statSync(file).mtimeMs;
-      } catch {
-        // No capture yet is the ordinary state for every new or never-started site.
-        return null;
-      }
+      // No capture yet is the ordinary state for every new or never-started site.
+      return orFallbackSync({ work: () => fs.statSync(file).mtimeMs, fallback: null, step: "Read preview cache timestamp" });
     },
     read({ name }) {
       const file = fileFor({ name });
       if (file === null) return null;
-      try {
-        return fs.readFileSync(file);
-      } catch {
-        return null;
-      }
+      return orFallbackSync({ work: () => fs.readFileSync(file), fallback: null, step: "Read preview cache image" });
     },
     write({ name, bytes }) {
       const file = fileFor({ name });

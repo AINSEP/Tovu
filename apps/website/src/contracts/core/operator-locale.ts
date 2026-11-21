@@ -1,4 +1,5 @@
 import { getEffective as settingsGetEffective, LANGUAGE_NAMESPACE } from "@jini-ai/core/settings";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
 /**
  * @file The calling operator's admin language, for the Agent Plugin confirmation dialogs.
@@ -30,13 +31,11 @@ export async function resolveOperatorLocale(
 ): Promise<string> {
   const { settingsRepo } = required.deps;
   if (!settingsRepo) return FALLBACK_LOCALE;
-  try {
+  return orFallback({ work: async () => {
     const resolved = await getEffective({
       deps: { repo: settingsRepo }, namespace: LANGUAGE_NAMESPACE, key: "locale",
       scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId },
     });
     return typeof resolved?.value === "string" && resolved.value ? resolved.value : FALLBACK_LOCALE;
-  } catch {
-    return FALLBACK_LOCALE;
-  }
+  }, fallback: FALLBACK_LOCALE, step: "Read operator locale" });
 }

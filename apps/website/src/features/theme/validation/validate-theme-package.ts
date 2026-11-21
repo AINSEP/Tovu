@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { join } from "node:path";
 
 import { loadTheme } from "../theme.js";
@@ -199,12 +200,8 @@ function checkMarkupFiles(files: readonly PackageWalkEntry[]): ThemeValidationIs
     const dot = file.relativePath.lastIndexOf(".");
     const ext = dot === -1 ? "" : file.relativePath.slice(dot).toLowerCase();
     if (!MARKUP_EXTENSIONS.has(ext)) continue;
-    let content: string | undefined;
-    try {
-      content = readFileSync(file.absolutePath, "utf8");
-    } catch {
-      // A concurrently removed or unreadable file is skipped.
-    }
+    // A concurrently removed or unreadable file is skipped.
+    const content = orFallbackSync({ work: () => readFileSync(file.absolutePath, "utf8"), fallback: undefined, step: "Read theme markup for validation" });
     if (content !== undefined) issues.push(...checkMarkupFile({ relativePath: file.relativePath, content }));
   }
   return issues;
