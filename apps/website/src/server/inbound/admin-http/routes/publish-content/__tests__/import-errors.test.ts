@@ -32,14 +32,14 @@ test("the shared backup-route failure sender preserves typed disk refusals and t
   const body = actual?.body as { code: string; message: string; errorId: string };
   assert.equal(body.code, "INSUFFICIENT_STORAGE");
   assert.equal(body.message, error.message);
-  assert.match(body.errorId, /^[a-f0-9-]{36}$/);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/, "the shared disk refusal returns a standard correlated incident ID");
 });
 
 test("disk budget refusal is HTTP 507 with its actionable typed message", t => {
   t.mock.method(console, "error", () => {});
   const err = new DatabaseDiskSpaceError({ freeBytes: 12 * 1024 * 1024, requiredBytes: 62 * 1024 * 1024 });
   const response = importErrorResponse({ err });
-  assert.match(response.body.errorId!, /^[a-f0-9-]{36}$/);
+  assert.match(response.body.errorId!, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/, "the import disk refusal returns a standard correlated incident ID");
   assert.deepEqual(response, { status: 507, body: { error: err.message, code: "INSUFFICIENT_STORAGE", errorId: response.body.errorId } });
 });
 

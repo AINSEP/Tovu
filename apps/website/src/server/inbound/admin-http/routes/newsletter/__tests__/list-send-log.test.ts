@@ -117,12 +117,22 @@ test("list-send-log: an existing campaign in the right workspace returns 200 wit
     status: "delivered" as const, attempts: 1, idempotencyKey: "key-1", providerMessageId: "pm-1",
     lastError: null, nextAttemptAt: null, createdAt: now, updatedAt: now,
   };
-  await deps.newsletterSendRepo.save(row);
+  const rows = Array.from({ length: 101 }, (_, index) => ({ ...row, id: `send-${String(index + 1).padStart(3, "0")}`, idempotencyKey: `page-key-${index + 1}` }));
+  for (const send of rows.slice(0, 100)) await deps.newsletterSendRepo.save(send);
   await deps.newsletterSendRepo.save({ ...row, id: "send-2", campaignId: "other-campaign", idempotencyKey: "key-2", recipientEmail: "other@example.com" });
   await deps.newsletterSendRepo.save({ ...row, id: "send-3", workspaceId: "other-workspace", idempotencyKey: "key-3" });
   const baseUrl = await startTestServer(app, t);
-  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}/sends`);
-  assert.equal(res.status, 200, await res.clone().text());
-  const body = (await res.json()) as { data: unknown[] };
-  assert.deepEqual(body.data, [row]);
+  const url = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}/sends`;
+  const exact = await fetch(url);
+  assert.equal(exact.status, 200, "an exact page succeeds");
+  assert.deepEqual(await exact.json(), { data: rows.slice(0, 100), nextCursor: null }, "exactly 100 campaign rows have no next page");
+  await deps.newsletterSendRepo.save(rows[100]!);
+  const res = await fetch(url);
+  assert.equal(res.status, 200, "the first overfetched page succeeds");
+  const body = await res.json();
+  assert.deepEqual(body.data, rows.slice(0, 100), "the first page contains 100 ordered rows from this campaign and workspace");
+  assert.equal(typeof body.nextCursor, "string", "the extra row produces a usable cursor");
+  const next = await fetch(`${url}?cursor=${encodeURIComponent(body.nextCursor)}`);
+  assert.equal(next.status, 200, "the cursor can request the remaining page");
+  assert.deepEqual(await next.json(), { data: [rows[100]], nextCursor: null }, "the second page contains the final row and no further cursor");
 });

@@ -1,4 +1,6 @@
 import { NewsletterCampaignNotFoundError } from "#src/features/newsletter/index";
+import { ToolInputError } from "@jini-ai/core";
+import { decodeListCursor, pageFromOverfetch, parseListPageRequest } from "@jini-ai/core/list-page";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { NewsletterRouteDeps } from "./deps.js";
@@ -20,9 +22,17 @@ export const registerAdminNewsletterListSendLogRoute: RouteRegistrar = ({ app, d
       const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
       if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
 
-      const rows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: deps.workspaceId, campaignId });
-      res.status(200).json(toDataResponse({ data: rows }));
+      const { limit, cursor } = parseListPageRequest({ value: req.query }, { defaultLimit: 100, maxLimit: 100 });
+      const after = cursor != null ? decodeListCursor({ cursor, shape: ["string"] }) : null;
+      const afterId = after ? String(after[0]) : undefined;
+      const rows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: deps.workspaceId, campaignId, afterId, limit: limit + 1 });
+      const page = pageFromOverfetch({ rows, limit, positionOf: row => [row.id] });
+      res.status(200).json({ ...toDataResponse({ data: page.items }), nextCursor: page.nextCursor });
     } catch (err) {
+      if (err instanceof ToolInputError) {
+        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+        return;
+      }
       mapNewsletterErrorToResponse({ err, res });
     }
   });

@@ -46,6 +46,16 @@ async function serve(t: import("node:test").TestContext, registry?: SiteShareReg
 
 const DOWNLOAD = `/_share/${"a".repeat(16)}/main.tovu.zip`;
 
+test("an acknowledged credential-warned ZIP is refused by the public token route", async t => {
+  const registry = new SiteShareRegistry({ directory: shareDir(t) });
+  const row = await receiveSiteShareArtifact({ registry, site: "main", token: "a".repeat(16), file: "main.tovu.zip", archive: Buffer.from("PK\u0003\u0004zip") },
+    { credentialWarnings: [{ path: "themes/site/config.js", kind: "provider key shape" }] });
+  await registry.put({ record: { ...row, needsAcknowledgement: false } });
+  const res = await fetch((await serve(t, registry)) + DOWNLOAD);
+  assert.equal(res.status, 404, "acknowledgement never makes warned bytes available through a public token");
+  assert.equal(res.headers.get("content-disposition"), null, "the refused warned ZIP has no attachment header");
+});
+
 test("a found share streams its archive as a no-store attachment", async (t) => {
   const dir = shareDir(t);
   writeFileSync(path.join(dir, `${SHARE_ID}.tovu.zip`), "zip");

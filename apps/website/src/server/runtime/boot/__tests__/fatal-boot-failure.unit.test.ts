@@ -107,9 +107,12 @@ test("installUnhandledRejectionGuard's default logger writes the rejection to co
   assert.equal(added.length, 1);
   const logged: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
-  const reason = new Error("stray rejection");
+  const reason = new Error("identity seed failed password=seed-log-canary-4829");
   (added[0] as (reason: unknown) => void)(reason);
   uninstall();
   assert.equal(process.listeners("unhandledRejection").includes(added[0]!), false);
-  assert.deepEqual(logged, [["[unhandledRejection] an async operation rejected with no catch anywhere in its chain — logged, not fatal:", reason]]);
+  assert.equal(logged.length, 1, "the rejection produces one console call");
+  assert.equal(logged[0]?.[0], "[unhandledRejection] an async operation rejected with no catch anywhere in its chain — logged, not fatal:", "the rejection keeps its existing log prefix");
+  assert.match(String(logged[0]?.[1]), /identity seed failed/, "the diagnostic retains the identity seed failure");
+  assert.doesNotMatch(String(logged[0]?.[1]), /seed-log-canary-4829/, "the diagnostic redacts the password canary");
 });

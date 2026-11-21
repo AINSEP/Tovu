@@ -144,19 +144,19 @@ function blockKeys(node, consts, depth = 0) {
   node = unwrap(node);
   if (ts.isIdentifier(node) && consts.get(node.text) && typeof consts.get(node.text) !== "string" && depth < 3) return blockKeys(consts.get(node.text), consts, depth + 1);
   // `helper([..values..])` / `helper({..})` locale blocks (e.g. auditTranslationEntries([...])): read the literal argument
-  if (ts.isCallExpression(node) && node.arguments.length === 1 && (ts.isArrayLiteralExpression(unwrap(node.arguments[0])) || ts.isObjectLiteralExpression(unwrap(node.arguments[0])))) return blockKeys(node.arguments[0], consts, depth + 1);
+  if (literalLocaleArgument({ node })) return blockKeys(node.arguments[0], consts, depth + 1);
   if (ts.isArrayLiteralExpression(node)) { out.len = node.elements.length; out.emptyIdx = node.elements.flatMap((e, i) => (strOf(unwrap(e))?.trim() === "" ? [i] : [])); return out; }
   if (!ts.isObjectLiteralExpression(node)) { out.unresolved++; return out; }
+  readLocaleObject({ node, consts, depth, out });
+  return out;
+}
+function literalLocaleArgument({ node }, _optional = {}) {
+  return ts.isCallExpression(node) && node.arguments.length === 1 && (ts.isArrayLiteralExpression(unwrap(node.arguments[0])) || ts.isObjectLiteralExpression(unwrap(node.arguments[0])));
+}
+function readLocaleObject({ node, consts, depth, out }, _optional = {}) {
   for (const p of node.properties) {
     if (ts.isSpreadAssignment(p)) {
-      const e = unwrap(p.expression);
-      if (ts.isCallExpression(e) && /translationEntry$/.test(e.expression.getText()) && strOf(unwrap(e.arguments[0])) !== undefined) {
-        out.keys.set(strOf(unwrap(e.arguments[0])), strOf(unwrap(e.arguments[1]))?.trim() === "");
-      } else if (ts.isIdentifier(e) && consts.get(e.text) && typeof consts.get(e.text) !== "string" && depth < 3) {
-        const inner = blockKeys(consts.get(e.text), consts, depth + 1);
-        for (const [k, v] of inner.keys) out.keys.set(k, v);
-        out.unresolved += inner.unresolved;
-      } else out.unresolved++;
+      readLocaleSpread({ expression: p.expression, consts, depth, out });
       continue;
     }
     const k = propName(p, consts);
@@ -165,7 +165,29 @@ function blockKeys(node, consts, depth = 0) {
     const s = strOf(v);
     out.keys.set(k, s !== undefined ? s.trim() === "" : (v && (v.kind === ts.SyntaxKind.NullKeyword || (ts.isIdentifier(v) && v.text === "undefined"))) || false);
   }
-  return out;
+}
+function readLocaleSpread({ expression, consts, depth, out }, _optional = {}) {
+  const e = unwrap(expression);
+  const entry = readTranslationEntrySpread({ node: e });
+  if (entry) {
+    out.keys.set(entry.key, entry.empty);
+  } else if (ts.isIdentifier(e) && consts.get(e.text) && typeof consts.get(e.text) !== "string" && depth < 3) {
+    const inner = blockKeys(consts.get(e.text), consts, depth + 1);
+    for (const [k, v] of inner.keys) out.keys.set(k, v);
+    out.unresolved += inner.unresolved;
+  } else out.unresolved++;
+}
+function readTranslationEntrySpread({ node }, _optional = {}) {
+  if (!ts.isCallExpression(node) || !/translationEntry$/.test(node.expression.getText())) return;
+  const argument = unwrap(node.arguments[0]);
+  let key = strOf(argument), translated = strOf(unwrap(node.arguments[1]));
+  if (argument && ts.isObjectLiteralExpression(argument)) {
+    const source = argument.properties.find((p) => ts.isPropertyAssignment(p) && propName(p, new Map()) === "source");
+    const value = argument.properties.find((p) => ts.isPropertyAssignment(p) && propName(p, new Map()) === "translated");
+    key = strOf(unwrap(source?.initializer));
+    translated = strOf(unwrap(value?.initializer));
+  }
+  if (key !== undefined) return { key, empty: translated?.trim() === "" };
 }
 function findDicts(sf, file, consts) {
   const dicts = [];

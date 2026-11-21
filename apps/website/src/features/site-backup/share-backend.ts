@@ -162,7 +162,6 @@ async function exportStaticShare({ ctx, input, bounded, stage }: { ctx: ShareBac
   const credentialWarnings: CredentialWarning[] = [];
   stage.step = "archive";
   const archive = await buildStaticSiteZip({ ...selection, zip: required.zip }, { signal: bounded, progress: input.progress, notices, credentialWarnings });
-  requireNoShareCredentialWarnings({ credentialWarnings });
   stage.step = "delivery";
   return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename, notices, credentialWarnings });
 }
@@ -182,10 +181,10 @@ async function exportBackupShare({ ctx, input, bounded, stage }: { ctx: ShareBac
   Object.assign(progress, { filesTotal: content.files.length + (content.bufferedFiles?.length ?? 0) + 1, bytesTotal: content.totalBytes });
   stage.step = "archive";
   const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress, notices, credentialWarnings });
-  requireNoShareCredentialWarnings({ credentialWarnings });
   stage.step = "delivery";
   const delivery = await required.delivery({});
   bounded.throwIfAborted();
+  if (delivery) requireNoShareCredentialWarnings({ credentialWarnings });
   const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded, identity, sealedPassword: content.sealedPassword, notices, notes, credentialWarnings });
   // Plugins left out of the archive are told to the exporter, never dropped silently.
   return notes.length > 0 ? { ...record, notes } : record;
@@ -238,7 +237,7 @@ async function acknowledgeShare({ ctx, shareId }: { ctx: ShareBackendContext; sh
   try {
     const row = await required.registry.get({ site: required.site, shareId });
     if (!row || row.status === "revoked") throw new SiteShareRefusal({ code: "NOT_FOUND", message: "This export is missing or was revoked." });
-    const delivery = row.needsAcknowledgement && row.storage ? await required.delivery({ provider: row.storage.provider, binding: row.storage.binding }) : undefined;
+    const delivery = row.needsAcknowledgement && row.storage && !row.credentialWarnings?.length ? await required.delivery({ provider: row.storage.provider, binding: row.storage.binding }) : undefined;
     return view(await acknowledgeSiteShare({ registry: required.registry, site: required.site, shareId }, { delivery }));
   } finally { lane.active = null; }
 }
