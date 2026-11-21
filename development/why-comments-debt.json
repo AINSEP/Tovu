@@ -2672,6 +2672,14 @@
     {
       "id": "f3ea2058f2f7",
       "reason": "Moved to Jini packages/cms/src/widgets/content-markers.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "554c2ea02b01",
+      "reason": "code deleted by R8b step 6"
+    },
+    {
+      "id": "e2f8783dbd23",
+      "reason": "code deleted by R8b step 6"
     }
   ]
 }
