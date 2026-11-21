@@ -140,6 +140,7 @@ const EVENTS_SCRIPTS: Record<Exclude<EventsBehavior, "http-failure" | "delayed-t
     // progress when the client (the "Stop" button) aborts, so a test can prove `res.on("close")`
     // reaching the daemon's own `/cancel` endpoint, not merely the local SSE reader being torn down.
     res.writeHead(200, { "content-type": "text/event-stream" });
+    res.on("close", () => subscribeGate?.arrive());
     res.write(`event: agent\ndata: ${wireFrame("agent", { type: "text_delta", delta: "partial" })}\n\n`);
   },
   "socket-reset-mid-stream": (req, res) => {
@@ -765,9 +766,11 @@ async function assertExactlyOneCancel(daemonRunId: string): Promise<void> {
  * while the daemon kept executing the run — including tool calls with real side effects — to
  * completion, unobserved.
  */
-test("Stop (the client aborting mid-stream) calls the daemon's own /cancel endpoint, not just the local SSE reader", async (t) => {
+test("Stop (the client aborting mid-stream) calls the daemon's own /cancel endpoint, not just the local SSE reader", { timeout: 5_000 }, async (t) => {
   const { baseUrl, cookie } = await bootAgUi(t);
   eventsBehavior = "stays-open-until-aborted";
+  subscribeGate = requestGate();
+  t.after(async () => (await harness()).daemon.closeAllConnections());
 
   const controller = new AbortController();
   const res = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
@@ -791,6 +794,7 @@ test("Stop (the client aborting mid-stream) calls the daemon's own /cancel endpo
   assert.equal(cancelCall?.headers[RUN_PRINCIPAL_HEADER], expectedPrincipalId);
   assert.equal(runCanceled, true, "the daemon accepted cancellation as the run owner");
   await assertExactlyOneCancel("daemon-run-1");
+  await assert.doesNotReject(subscribeGate.arrived, "disconnect closes the retained daemon event subscription");
 });
 
 /**

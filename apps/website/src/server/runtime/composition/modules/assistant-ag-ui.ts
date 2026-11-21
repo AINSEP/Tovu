@@ -1,5 +1,5 @@
 import type { TrackerSpan } from "@jini-ai/diagnostics/observability";
-import type { AgentRunTrackingOutcome, AgentRunStatus } from "@jini-ai/core/contracts/observability";
+import type { AgentRunTrackingOutcome } from "@jini-ai/core/contracts/observability";
 /**
  * @file ADR-059 — the admin assistant's AG-UI canary transport (Agent-User Interaction Protocol,
  * https://ag-ui.com). Additive only: the existing Local CLI (`assistant.ts`) and BYOK
@@ -51,14 +51,11 @@ import type { Express, NextFunction, Request, Response } from "express";
 import { EventType } from "@ag-ui/core";
 import { EventEncoder } from "@ag-ui/encoder";
 
-import { readSseFrames, readTerminalReason, translateRunFrame, type RunFrameCarry, type RunFrameOutcome } from "@jini-ai/chat/core/run-events";
 import { resolveAgUiRunInput, type AgUiChatMessage, type AgUiRunBody, type AgUiRunInput } from "@jini-ai/chat/server/ag-ui/run-input";
 import {
   createAgUiTranslationState,
-  translateAgentEventToAgUi,
-  closeAgUiRun,
+  drainRunFramesToAgUi,
   type AgUiEvent,
-  type AgUiTranslationState,
   type CustomEventNames,
   type EventIdGenerator,
 } from "@jini-ai/chat/core/ag-ui";
@@ -153,75 +150,6 @@ function beginAgUiStream(req: Request, res: Response, requestId: string): void {
   res.flushHeaders?.();
 }
 
-/**
- * Hands Jini's `readSseFrames` the daemon response as a stream while this route keeps the reader.
- *
- * `readSseFrames` takes a stream and holds its only reader until the frames end. The route needs
- * its own handle on the daemon response too: the `res.on("close", ...)` hook cancels that reader so
- * a client that leaves stops the upstream read at once, not at the daemon's next frame. A
- * `ReadableStream` can only have one active reader at a time — a second `body.getReader()` throws
- * `TypeError: ReadableStream is locked` — so the route keeps the one reader and Jini pulls through
- * it. Cancelling the reader resolves the pending pull as done, which ends the frames the same way
- * a daemon close does.
- *
- * `id:` lines are ignored by the frame reader: this path has no reattach story to resume a cursor
- * for.
- */
-function streamFromReader({ reader }: { reader: ReadableStreamDefaultReader<Uint8Array> }, _optional = {}): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      const { done, value } = await reader.read();
-      if (done) controller.close();
-      else controller.enqueue(value);
-    },
-    cancel: (reason) => reader.cancel(reason),
-  });
-}
-
-interface AgUiFrameContext {
-  res: Response;
-  threadId: string;
-  runId: string;
-  state: AgUiTranslationState;
-}
-
-/** Writes every event in `events` to `res`, in order — the repeated `for (const e of events)
- *  writeAgUiEvent(res, e)` pattern below, named once so each caller is a flat sequence of
- *  statements rather than its own loop. */
-function writeAllAgUiEvents({ res, events }: { res: Response; events: AgUiEvent[] }, _optional = {}): void {
-  for (const event of events) writeAgUiEvent(res, event);
-}
-
-/**
- * Writes one translated daemon frame as AG-UI events. Every daemon SSE frame's `data:` line is the
- * FULL `RunProtocolEventWire` envelope, not the inner payload; Jini's `translateRunFrame` unwraps
- * it, and a frame it cannot read yields no events instead of failing the run.
- *
- * A terminal frame (`error`, or `end`) first writes its own notices, then closes any open
- * message/reasoning segment, then the one terminal event: `RUN_ERROR` for an `error` frame and for
- * an `end` the daemon classified as failed, else `RUN_FINISHED` — with reason `cancelled` for an
- * `end` the daemon classified as canceled, else the frame's own reason (`stop` when it names none).
- *
- * @returns the run's final status once a terminal frame has closed it — the caller stops reading
- *   further frames and ends the response — else `null`.
- */
-function writeFrameOutcome(
-  { frame, outcome, ctx }: { frame: { data: string }; outcome: RunFrameOutcome; ctx: AgUiFrameContext },
-  _optional = {},
-): AgentRunStatus | null {
-  for (const event of outcome.events) writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi({ event, state: ctx.state }) });
-  if (!outcome.error && !outcome.terminal) return null;
-  writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun({ state: ctx.state }) });
-  if (outcome.error) {
-    writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: outcome.error.message });
-    return "failed";
-  }
-  const canceled = outcome.terminal === "canceled";
-  const reason = canceled ? "cancelled" : readTerminalReason({ raw: frame.data, wrapped: true }) || "stop";
-  writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason } });
-  return canceled ? "canceled" : "succeeded";
-}
-
 /** Starts the real daemon run for one AG-UI request — the identical `POST /api/runs` shape
  *  `assistant.ts`'s `proxyRunStart` uses. Split out of `handleAgUiRun` so its own two failure shapes
  *  (transport-level via `fetchAgentDaemon`, and a non-ok daemon status) don't add to that function's
@@ -275,38 +203,6 @@ async function subscribeToDaemonEvents(req: Request, res: Response, daemonRunId:
   return eventsUpstream.body.getReader();
 }
 
-/** Drains one AG-UI run's daemon frames to completion, writing translated events directly to
- *  `ctx.res` and ending the response either on an explicit terminal frame, on the stream simply
- *  closing (same dual-completion posture `consumeByokStream` uses for the identical case), or on a
- *  read error. Split out of `handleAgUiRun` so the try/catch and its loop don't add to that
- *  function's own branch count.
- *  @returns How the run ended, for its agent-run span: a terminal frame's own status (an `end` the
- *  daemon classified as failed or canceled is that, not `succeeded`); a natural close counts as
- *  `succeeded`, like the `RUN_FINISHED` it writes; a read error is `failed` with that error. */
-async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, ctx: AgUiFrameContext): Promise<{ status: AgentRunStatus; error?: unknown }> {
-  // One carry per daemon connection, so the later chunks of a split echo line are dropped too.
-  const carry: RunFrameCarry = {};
-  try {
-    for await (const frame of readSseFrames({ body: streamFromReader({ reader }) })) {
-      const outcome = translateRunFrame({ kind: frame.event, raw: frame.data, notices: RUN_NOTICES }, { carry });
-      const status = writeFrameOutcome({ frame, outcome, ctx });
-      if (status) {
-        ctx.res.end();
-        return { status };
-      }
-    }
-    writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun({ state: ctx.state }) });
-    writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: "stop" } });
-    ctx.res.end();
-    return { status: "succeeded" };
-  } catch (error) {
-    writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun({ state: ctx.state }) });
-    writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: error instanceof Error ? error.message : String(error) });
-    ctx.res.end();
-    return { status: "failed", error };
-  }
-}
-
 /** Stands in for the run's tracker until the daemon run exists, so `runTracker` is never null. Never
  *  ended: the close handler only ends a tracker once a daemon run exists. */
 const UNSTARTED_RUN: TrackerSpan<AgentRunTrackingOutcome> = { setOutcome() {} };
@@ -326,7 +222,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   // (1) a client abort while either of those `await`s was still pending was missed permanently,
   // since nothing was listening for `"close"` yet; (2) a subscribe HTTP failure (the 502 branch
   // below) ends this response NORMALLY from the server's own point of view, so it looked identical
-  // to a successful `drainAgUiStream` finish and never triggered a cancel either.
+  // to a successful `drainRunFramesToAgUi` finish and never triggered a cancel either.
   //
   // The handler is registered here, before either daemon call, so no window is uncovered. It cannot
   // cancel before a daemon run actually exists, so `daemonRunId` starts `null`; if `"close"` fires
@@ -338,7 +234,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   // `runFinished` (not `res.writableEnded`) is what distinguishes "the run reached its own terminal
   // state" from "this response ended early while the run is still executing" — both leave
   // `writableEnded === true`, which is exactly why the previous fix's guard missed case (2) above.
-  // It is set `true` only once `drainAgUiStream` has actually driven the run to completion (terminal
+  // It is set `true` only once `drainRunFramesToAgUi` has actually driven the run to completion (terminal
   // frame, natural stream close, or a read error that already unwound the daemon side), synchronously
   // before this function returns and therefore strictly before the async `"close"` event can fire —
   // so an ordinary successful run still issues zero cancel calls, per this fix's own regression test.
@@ -386,8 +282,10 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
     writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
 
     const state = createAgUiTranslationState(AG_UI_TRANSLATION);
-    const outcome = await drainAgUiStream(subscribedReader, { res, threadId: run.threadId, runId: run.runId, state });
+    const outcome = await drainRunFramesToAgUi({ reader: subscribedReader, threadId: run.threadId, runId: run.runId, state,
+      notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) });
     runFinished = true;
+    res.end();
     runTracker.setOutcome(outcome);
   } }, { agent: { runId: daemonRunId, conversationId: run.threadId, agentName: run.agentId } });
 }
