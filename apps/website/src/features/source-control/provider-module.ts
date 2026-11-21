@@ -43,6 +43,7 @@ export type SourceControlCommitResult =
 
 export interface CommitSiteInput {
   readonly folder?: string;
+  readonly previousManagedManifestPath?: string;
   readonly token: string;
   readonly owner: string;
   readonly repo: string;

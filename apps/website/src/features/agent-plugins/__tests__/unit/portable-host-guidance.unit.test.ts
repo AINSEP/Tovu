@@ -20,7 +20,7 @@ const overlayRoot = path.resolve(import.meta.dirname, '../../../../../../../cont
 const requiredTools: Record<string, readonly string[]> = {
   'higgsfield-media': ['agent_plugin_connect', 'media_import_from_url'],
   resend: ['agent_plugin_connect', 'system_get_mail_status', 'mail_set_provider', 'mail_send_test'], supabase: ['agent_plugin_connect'],
-  composio: ['agent_plugin_connect'], 'github-pages': ['credential_save'], meilisearch: ['credential_save', 'Jini Search — Meilisearch'],
+  composio: ['agent_plugin_connect'], 'github-pages': ['credential_save'], meilisearch: ['credential_save', 'Search — Meilisearch'],
   'google-workspace': ['_tovu_submission_id', '_tovu_submitted_at', 'JINI_GOOGLE_PICKER_BROWSER_KEY', 'JINI_GOOGLE_PICKER_APP_ID'],
   github: ['site_backup_plan', 'site_backup_push', 'source_control_get_capabilities', 'source_control_execute_commit'],
   'site-compliance': ['site_get_profile', 'site_collect_page_evidence'],

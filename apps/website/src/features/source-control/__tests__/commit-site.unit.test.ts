@@ -337,6 +337,23 @@ test("commitSiteToSourceControl: a vault repo throwing a non-Error value produce
   assert.doesNotMatch(JSON.stringify(result), /fixture_adapter_detail/);
 });
 
+test("commitSiteToSourceControl: GitHub receives the predecessor manifest with the selected folder and branch", async () => {
+  const deps = testRouteDeps();
+  const gitAdapter: SourceControlCommitAdapter = {
+    commit: async input => {
+      assert.equal(input.previousManagedManifestPath, ".tovu/managed-files.json", "GitHub receives the Tovu predecessor ownership path");
+      assert.equal(input.folder, "nested/site", "the selected folder reaches GitHub unchanged");
+      assert.equal(input.branch, "release/site", "the selected branch reaches GitHub unchanged");
+      return { ok: true, branch: "release/site", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: input.files.length, filesDeleted: 0 };
+    },
+  };
+  const result = await commitSiteToSourceControl(
+    { providerId: "github", supportsFolder: true, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, resolveSavedApiKey: async () => ({ token: "fixture_fake_token_never_real" }) }, gitAdapter },
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", folder: "nested/site", branch: "release/site", commitMessage: "content update" }
+  );
+  assert.equal(result.ok, true, "the confirmed GitHub export reaches its typed adapter");
+});
+
 test("commitSiteToSourceControl: a real export runs and its files reach the git adapter, deploy-relative and forward-slashed", async () => {
   const deps = await withExampleGitCredential(testRouteDeps());
   const originalExport = deps.exportSiteBound;
@@ -371,6 +388,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   assert.equal(passedInput.repo, "demo");
   assert.equal(passedInput.branch, "main");
   assert.equal(passedInput.commitMessage, "content update");
+  assert.equal(Object.hasOwn(passedInput, "previousManagedManifestPath"), false, "Example Git receives no GitHub predecessor ownership option");
 });
 
 /**
