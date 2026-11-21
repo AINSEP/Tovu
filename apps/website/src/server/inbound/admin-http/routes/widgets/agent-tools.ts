@@ -159,7 +159,7 @@ function resolveWidgetStatus(entry: Awaited<ReturnType<RouteDeps["entryRepo"]["f
   // widget instance (wrong content type, or a widget row with a malformed payload) used to 500 via
   // an uncaught `parseWidgetInstancePayload` throw — `getWidgetInstance` already guards the same
   // case with an `entry.type` check; this mirrors it instead of parsing blind.
-  return orFallbackSync({ work: () => {
+  return orFallbackSync<{ exists: boolean; status: string | null }>({ work: () => {
     return { exists: true, status: parseWidgetInstancePayload({ fieldsJson: entry.fieldsJson }).status };
   }, fallback: { exists: true, status: null }, step: "Read saved widget status" });
 }

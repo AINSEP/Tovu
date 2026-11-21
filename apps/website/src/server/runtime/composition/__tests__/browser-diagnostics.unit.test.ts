@@ -19,7 +19,7 @@ test('site diagnostics waits for full consent, reports one buffered navigation a
   const api = { get: () => ({ analyticsLevel: 'none' }), subscribe: ({ listener }: { listener: typeof notify }) => { notify = listener; return () => { unsubscribed++; }; } };
   const unmount = bridge.mount({ api, doc: { defaultView: target } });
   target.dispatchEvent(new Event('error'));
-  assert.equal(observers, 0); assert.deepEqual(sent, []);
+  assert.equal(observers, 0); assert.equal(sent.length, 0, 'nothing is sent before full consent');
   notify({ analyticsLevel: 'full' }); notify({ analyticsLevel: 'full' });
   assert.equal(observers, 1);
   observe({ getEntries: () => [{ duration: 0 }, { duration: 12 }, { duration: 34 }] });
