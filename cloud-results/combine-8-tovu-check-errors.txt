@@ -1,0 +1,6 @@
+
+> tovu@0.1.0 check:errors
+> node development/scripts/check-error-gate.mjs
+
+Error gate passed: 590 findings in 326 file/rule entries.
+EXIT 0
