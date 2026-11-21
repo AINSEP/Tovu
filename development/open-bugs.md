@@ -72,3 +72,53 @@ the object-request wrapping from the adapter makes that regression red again; so
 restored and platform rebuilt. The refusal and HTTP-header mutations each make the frozen
 pre-move mail golden red. No plugin edits; no fixture regeneration. Full A2 results are recorded
 in `cloud/reports/extract-s2.md`; this note supersedes the unfinished mutation status above.
+
+## Found at combine-7 (Tovu `integ/merge-7-2026-11-20`, 2026-11-21) — listed, not fixed
+
+### `C7-plugin-contribution-filenames`
+
+Jini merge-7 (jy-pay K9) renamed every bundled agent-plugin contribution file from `tovu-*.json` to
+`jini-*.json` (`cloudflare/jini-deploy-targets.json`, `github/jini-source-control.json`, …), but the
+Tovu host still loads the old names through 14 filename constants (`DEPLOY_TARGETS_FILENAME`,
+`DEPLOY_OPS_FILENAME`, `DEPLOY_CONFIGS_FILENAME`, `SOURCE_CONTROL_PROVIDERS_FILENAME`,
+`MAIL_ADAPTERS_FILENAME`, `LOGIN_PROVIDERS_FILENAME`, `SEARCH_PROVIDERS_FILENAME`,
+`OBJECT_STORES_FILENAME`, `CONSENT_CONTRIBUTIONS_FILENAME`, `API_CONNECTIONS_FILENAME`,
+`AGENT_PLUGIN_TOOLS_FILENAME`, `ADMIN_SURFACES_FILENAME`, `CREDENTIAL_SCHEMES_FILENAME`,
+`FORM_DESTINATIONS_FILENAME`), the three literals in `composition/plugin-credential-cards.ts:71-73`
+and `site-backup/share-file-policy.ts:9`. Against Jini merge-7 the bundled plugins' contributions
+do not load (e.g. `site-backup/__tests__/tool-registrations.unit.test.ts` 62/84 fail with ENOENT
+`…/agent-plugins/github/tovu-source-control.json`). Red since the relink. Full list:
+`cloud-results/combine-7-tovu-renamed-plugin-file-refs.txt`. Owner 11-20 accepted the rename; the
+Tovu repoint (and whether third-party `tovu-*.json` keeps loading) is a decision.
+
+### `C7-jini-directory-trash-exdev-cause`
+
+tv-xd5-publish deleted Tovu's `features/trash/adapters/directory.ts` in favour of Jini's
+`@jini-ai/cms/trash/adapters/directory` (`directory.node.ts:82`). Merge-6 had added
+`{ cause: error }` to the cross-filesystem (`EXDEV`) error in the Tovu copy (04d030b5a); Jini's copy
+throws without the cause, so the original errno is lost. Needs the fix in Jini.
+
+### `C7-theme-preview-refresh-public-barrel`
+
+`server/inbound/public-http/middleware/theme-preview-refresh.ts` (tv-xd5-publish) imports
+`themeRosterPorts` from `#src/features/theme/index`, so the public request path loads feature-wide
+barrels (`worker-import-graph.test.ts` new failing case "…theme-preview-refresh.ts keeps public reads
+separate from feature-wide write/tool barrels").
+
+### `C7-y1-credential-label-prefix`
+
+tv-y1 T5 changed `server/runtime/composition/modules/site-search.ts` `SEARCH_CREDENTIAL_LABEL_PREFIX`
+to `"Jini Search — "`; the prefix builds the credential label the search vendor lookup uses, so a site
+that saved `Tovu Search — <vendor>` before may no longer resolve it (not verified end to end).
+`site-search.unit.test.ts` ×2 still expect `Tovu Search — …`. Opposite drift in the same sheet:
+`mail-provider-contribution.unit.test.ts` expects `Jini Mail — Resend API` while
+`agent-plugins/mail-adapter-registry.ts:10 defaultCredentialLabel` still returns `Tovu Mail — …`.
+
+### Fixed during combine-7 (for the record)
+
+- `apps/desktop/src/renderer/App.tsx:97` `...props,` (rest element with a trailing comma, from
+  7b4fea84a) — the desktop renderer did not compile; fixed `8ec117a4a` together with the desktop's
+  positional `collectProcessTreePids` calls (Jini takes one object) and `site-backend.ts` generic
+  `ReturnType`s.
+- `@tovu/contracts` imported `@jini-ai/agent-runtime` undeclared (tv-ext-rs-c a52) — the packaged
+  desktop would miss it; declared in `196e536c8`.

@@ -1,0 +1,28 @@
+JiniMediaPicker.hooks.unit.test.tsx > useJiniMediaPicker > reports an error when the picked media is no longer active :: AssertionError: expected { …(5) } to be 'Unable to choose media. Please try ag…' // Object.is equality
+JiniMediaPicker.hooks.unit.test.tsx > useJiniMediaPicker > reports an error when the media list cannot be read :: AssertionError: expected { …(5) } to be 'Unable to choose media. Please try ag…' // Object.is equality
+JiniMediaPicker.hooks.unit.test.tsx > MediaPickerDialog under the host picker > renders nothing of its own while the host picker is open,  :: TestingLibraryElementError: Found multiple elements with the role "alert"
+admin-literal-copy.unit.test.ts > production admin features and shared components add no untranslated JSX copy :: AssertionError: Translate new copy through its owner:
+assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a non-ok response throws in @ag-ui/client's own 'HTTP <status>: <body :: AssertionError: expected [Function] to throw error matching /^HTTP 502: agent daemon rejected the …/ but got 'The agent run stream stopped with an …'
+assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a network-level fetch rejection is rethrown as an Error :: AssertionError: expected [Function] to throw error including 'Failed to fetch' but got 'The agent run stream stopped with an …'
+assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a network-level fetch rejection with a non-Error value is wrapped in  :: AssertionError: expected [Function] to throw error including 'connection reset' but got 'The agent run stream stopped with an …'
+assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a non-ok response with an empty body still carries the 'HTTP <status> :: AssertionError: expected [Function] to throw error matching /^HTTP 500: $/ but got 'The agent run stream stopped with an …'
+assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a non-ok response whose body stream errors while reading detail surfa :: AssertionError: expected [Function] to throw error matching /^body read failed$/ but got 'The agent run stream stopped with an …'
+assistant-transport.ag-ui.unit.test.ts > startAgUiRun — SSE frame streaming end to end > a transport failure after the run started reports th :: AssertionError: expected [ Array(1) ] to deeply equal [ 'connection reset' ]
+credential-input-autocomplete.unit.test.ts > Jini UI credential inputs the admin renders (linked checkout only) > every credential-shaped input h :: AssertionError: expected [ Array(1) ] to deeply equal []
+dictionary-lookup-sinks.unit.test.ts > apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N > every locale dictionary is consum :: AssertionError: expected [ …(2) ] to deeply equal []
+Themes.unit.test.tsx > theme card preview > opens the ImagePreviewModal at the same image when the thumbnail is clicked :: TypeError: Cannot read properties of null (reading 'hasAttribute')
+Themes.unit.test.tsx > theme card preview > closes the modal on the close button, dropping the dialog's open attribute :: TypeError: Cannot read properties of null (reading 'hasAttribute')
+Themes.unit.test.tsx > theme card preview > translates the expanded preview's close button and alt text through the screen' :: TypeError: Expected container to be an Element, a Document or a DocumentFragment but got null.
+recharts-bundle-integer-ticks.unit.test.ts > a bar chart of whole counts gets whole-number y ticks :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > a line chart of whole counts gets whole-number y ticks :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > a bar chart with fractional values keeps fractional y ticks :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > a line chart with fractional values keeps fractional y ticks :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > a bar chart of small whole counts ends its y axis at the largest count :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > a line chart of small whole counts ends its y axis at the largest count :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > a bar chart of all-zero counts still draws whole-number ticks :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > a line chart of all-zero counts still draws whole-number ticks :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > a bar chart of large whole counts keeps at most 5 ticks :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > a line chart of large whole counts keeps at most 5 ticks :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > keeps middle-dot label separators with a word at 180px :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > keeps middle-dot label separators with a word at 240px :: TypeError: t is not a function
+recharts-bundle-integer-ticks.unit.test.ts > keeps middle-dot label separators with a word at 375px :: TypeError: t is not a function

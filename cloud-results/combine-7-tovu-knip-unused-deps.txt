@@ -1,0 +1,71 @@
+Unused dependencies (10)
+micromark                  apps/admin/package.json:75:6        
+micromark-extension-gfm    apps/admin/package.json:76:6        
+@jini-ai/integrations      apps/desktop/package.json:38:6      
+@modelcontextprotocol/sdk  apps/desktop/package.json:45:6      
+jszip                      apps/desktop/package.json:55:6      
+@jini-ai/plugin-catalog    package.json:158:6                  
+jszip                      package.json:186:6                  
+mammoth                    package.json:189:6                  
+unpdf                      package.json:200:6                  
+@jini-ai/analytics         packages/contracts/package.json:21:6
+Unused devDependencies (8)
+jsdom                                    apps/desktop/package.json:76:6
+micromark                                apps/desktop/package.json:77:6
+micromark-extension-gfm                  apps/desktop/package.json:78:6
+npm                                      apps/desktop/package.json:79:6
+@opentelemetry/exporter-trace-otlp-http  package.json:208:6            
+@types/js-yaml                           package.json:217:6            
+astro                                    package.json:223:6            
+drizzle-kit                              package.json:225:6            
+Configuration hints (49)
+.                                                      …tmp.json  Add entry and/or refine project files in workspaces["…
+apps/admin                                             …tmp.json  Add entry and/or refine project files in workspaces["…
+apps/desktop                                           …tmp.json  Add entry and/or refine project files in workspaces["…
+content/agent-plugins/*/scripts/*.mjs                  …tmp.json  Refine entry pattern (no matches)                     
+src/index.ts                             …s/contracts  …tmp.json  Refine entry pattern (no matches)                     
+[src/**/*.ts]                            …s/contracts  …tmp.json  Refine project pattern (no matches)                   
+[src/**/*.ts]                            packages/sdk  …tmp.json  Refine project pattern (no matches)                   
+apps/website/src/cli/main.ts                           …tmp.json  Remove redundant entry pattern                        
+…ent/scripts/agent-plugin-activation.ts                …tmp.json  Remove redundant entry pattern                        
+development/scripts/build-server.mjs                   …tmp.json  Remove redundant entry pattern                        
+…elopment/scripts/check-architecture.ts                …tmp.json  Remove redundant entry pattern                        
+…/scripts/check-capability-inventory.ts                …tmp.json  Remove redundant entry pattern                        
+…nt/scripts/check-coverage-integrity.ts                …tmp.json  Remove redundant entry pattern                        
+…nt/scripts/check-embed-marker-drift.ts                …tmp.json  Remove redundant entry pattern                        
+…ts/check-governance-adr-scope-drift.ts                …tmp.json  Remove redundant entry pattern                        
+…velopment/scripts/check-hardwiring.mjs                …tmp.json  Remove redundant entry pattern                        
+…velopment/scripts/check-idle-motion.ts                …tmp.json  Remove redundant entry pattern                        
+…/scripts/check-jini-registry-drift.mjs                …tmp.json  Remove redundant entry pattern                        
+…ipts/check-menu-href-allowlist-sync.ts                …tmp.json  Remove redundant entry pattern                        
+…pment/scripts/check-no-linked-jini.mjs                …tmp.json  Remove redundant entry pattern                        
+…ment/scripts/check-openapi-contract.ts                …tmp.json  Remove redundant entry pattern                        
+…/scripts/check-openapi-secret-leaks.ts                …tmp.json  Remove redundant entry pattern                        
+…lopment/scripts/check-outbox-bridge.ts                …tmp.json  Remove redundant entry pattern                        
+…t/scripts/check-route-coverage-diff.ts                …tmp.json  Remove redundant entry pattern                        
+…/scripts/check-route-coverage-floor.ts                …tmp.json  Remove redundant entry pattern                        
+…/scripts/check-src-complexity-drift.ts                …tmp.json  Remove redundant entry pattern                        
+…lopment/scripts/check-test-baseline.ts                …tmp.json  Remove redundant entry pattern                        
+…ripts/check-theme-replaced-elements.ts                …tmp.json  Remove redundant entry pattern                        
+…ment/scripts/classify-coverage-gaps.ts                …tmp.json  Remove redundant entry pattern                        
+…pment/scripts/deploy-html-snapshot.mjs                …tmp.json  Remove redundant entry pattern                        
+development/scripts/dev-desktop.mjs                    …tmp.json  Remove redundant entry pattern                        
+development/scripts/dev.mjs                            …tmp.json  Remove redundant entry pattern                        
+…ts/diagnose-jini-typecheck-failure.mjs                …tmp.json  Remove redundant entry pattern                        
+…pment/scripts/generate-seed-content.ts                …tmp.json  Remove redundant entry pattern                        
+development/scripts/link-jini.mjs                      …tmp.json  Remove redundant entry pattern                        
+…velopment/scripts/measure-idle-cpu.mjs                …tmp.json  Remove redundant entry pattern                        
+…opment/scripts/package-agent-plugin.ts                …tmp.json  Remove redundant entry pattern                        
+…ment/scripts/prepare-desktop-hooks.mjs                …tmp.json  Remove redundant entry pattern                        
+development/scripts/prepare-start.mjs                  …tmp.json  Remove redundant entry pattern                        
+…pment/scripts/report-churn-hotspots.ts                …tmp.json  Remove redundant entry pattern                        
+development/scripts/seed-site.mjs                      …tmp.json  Remove redundant entry pattern                        
+development/scripts/sites-move-home.ts                 …tmp.json  Remove redundant entry pattern                        
+development/scripts/start.mjs                          …tmp.json  Remove redundant entry pattern                        
+development/scripts/theme-tool.ts                      …tmp.json  Remove redundant entry pattern                        
+development/scripts/unlink-jini.mjs                    …tmp.json  Remove redundant entry pattern                        
+src/main/index.ts                        apps/desktop  …tmp.json  Remove redundant entry pattern                        
+src/speech/preload-speech.cts            apps/desktop  …tmp.json  Remove redundant entry pattern                        
+src/__tests__/setup.ts                   apps/admin    …tmp.json  Remove redundant entry pattern                        
+src/index.ts                             packages/sdk  …tmp.json  Remove redundant entry pattern                        
+exit=1
