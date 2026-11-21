@@ -142,3 +142,33 @@ belong to the lockfile/release run, or need a packaged app / real provider (see 
   `ui → lexical` and `daemon → express` (neither manifest nor source has them any more) and four
   `jini.optionalPeers` texts that do not name their opt-in subpath (agentic → protocol, platform → parse5,
   user-management → ui-kit / react-dom). The other two parts of row 1280 are green after a clean install.
+
+## combine-8 (Tovu `integ/merge-8-2026-11-21`, 2026-11-21)
+
+Found while merging combine-8 against Jini `integ/merge-8-2026-11-21` `3ad0c5671`. Listed, not fixed
+(none blocks build or typecheck). Details: `cloud-results/combine-8-tovu.md`.
+
+### `C8-github-managed-manifest-path` — confirmed (Jini rename, no migration)
+- Jini `d9c625e6` changed the GitHub commit-site adapter's ownership manifest from
+  `<folder>/.tovu/managed-files.json` to `<folder>/.jini/managed-files.json`
+  (`packages/agent-plugins/github/source-control/commit-site.mjs:35`), with no read of the old path.
+  A repository that Tovu already published to keeps its record under `.tovu/`; after the upgrade the
+  adapter cannot see which files it owns (orphaned/unowned files on the next commit).
+- Tovu `content/agent-plugin-overlays/github/GUIDANCE.md:78` still tells the agent `.tovu/managed-files.json`.
+- Witness: `apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-commit-site.unit.test.ts`
+  goes 1 → 37 red now that tv-c7a makes the bundled plugin load (fetch `…/static_sites/.jini/managed-files.json`
+  where the test expects `.tovu/`). Decision needed: dual-read/migrate in Jini, or accept and repoint the tests.
+
+### `C8-dev-select-node-runtime-env` — confirmed (dev tooling)
+- Jini merge-8 made `@jini-ai/devops/local-dev#selectNodeRuntime({ searchFrom, nodePath, env })` require
+  `env` (the option default was removed). `development/scripts/dev.mjs:861` still passes only
+  `{ searchFrom, nodePath }`, so the desktop-Electron probe spawns with `{ ELECTRON_RUN_AS_NODE: '1' }` and
+  no PATH/HOME; a probe that needs them fails and `npm run dev` silently falls back to stock Node.
+  `.mjs`, so no typecheck catches it. Fix: pass `env: process.env` (owed by the Jini combine-8 notes).
+
+### `C8-css-unrenamed-jini-classes` — confirmed (visual, admin)
+- Tovu styles Jini components through `.jini-*` selectors that Jini never emits (jy-cls skipped them):
+  `apps/admin/src/integrations/jini-admin/jini-media.css:601` `.jini-tab-bar-tag` and `:613` `.jini-tab-bar-dot`
+  (Jini `ui/…/tab-strip/react/components/TabBar.tsx:108,116` emits `tab-bar-dot` / `tab-bar-tag`), and `:781`
+  `.jini-row-menu-popup-above` (Jini `admin/…/RowMenu/RowMenu.tsx:106` template literal ` row-menu-popup-above`).
+  Those rules never match. Full reverse-check list (26 selectors): `cloud-results/combine-8-tovu-class-audit.txt`.
