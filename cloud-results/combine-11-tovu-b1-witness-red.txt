@@ -1,0 +1,26 @@
+/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts:11
+import { holdRealPostgresChatDatabase } from "./chat-dialect-matrix.js";
+         ^
+SyntaxError: The requested module './chat-dialect-matrix.js' does not provide an export named 'holdRealPostgresChatDatabase'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.3
+✖ apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts (971.443246ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 979.932653
+
+✖ failing tests:
+
+test at apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts:1:1
+✖ apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts (971.443246ms)
+  'test failed'
+1|0|1 apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts

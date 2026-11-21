@@ -161,7 +161,7 @@ test("templated route: a failure while gathering render data answers a plain 500
   assert.equal(response.status, 500);
   const text = await response.text();
   assert.match(text, /The preview could not be rendered/);
-  assert.match(text, /report error [0-9a-f-]{36}/);
+  assert.match(text, /report error ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}/);
   assert.doesNotMatch(text, /content store offline/);
 });
 

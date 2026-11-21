@@ -87,7 +87,7 @@ test("a handler failure is a redacted 500 whose error ID matches one redacted se
   assert.equal(response.status, 500);
   const body = await response.json() as { ok: boolean; error: string; errorId: string };
   assert.deepEqual({ ...body, errorId: "ID" }, { ok: false, error: "The mail provider's delivery report could not be recorded. The provider retries it.", errorId: "ID" });
-  assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
   // The caller is unauthenticated: the reply carries the ID only, never the cause.
   assert.doesNotMatch(JSON.stringify(body), /store failed/);
   assert.equal(logged.mock.callCount(), 1);

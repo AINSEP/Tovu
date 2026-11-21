@@ -1,0 +1,57 @@
+✔ Q4 durable replay: after a restart at day 31 the same request returns the stored outcome; a changed source conflicts before any effect (3569.232253ms)
+✖ Q4 expiry: terminal history leaves the list after 30 days, replay still works, replaying does not extend it, and the key is reusable after 365 days (3882.99777ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11781.048348
+
+✖ failing tests:
+
+test at apps/website/src/features/site-backup/__tests__/import-history-retention.unit.test.ts:1:2067
+✖ Q4 expiry: terminal history leaves the list after 30 days, replay still works, replaying does not extend it, and the key is reusable after 365 days (3882.99777ms)
+  AssertionError [ERR_ASSERTION]: terminal detail is gone from history after 30 days, even though it was replayed at day 29
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/trial/apps/website/src/features/site-backup/__tests__/import-history-retention.unit.test.ts:48:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+## mutation bypass replay lookup
+✖ Q4 durable replay: after a restart at day 31 the same request returns the stored outcome; a changed source conflicts before any effect (4064.595429ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7313.349532
+
+✖ failing tests:
+
+test at apps/website/src/features/site-backup/__tests__/import-history-retention.unit.test.ts:1:967
+✖ Q4 durable replay: after a restart at day 31 the same request returns the stored outcome; a changed source conflicts before any effect (4064.595429ms)
+  SiteShareRefusal: Upload not found or expired. Upload the ZIP again.
+      at SiteImportRegistry.getUpload (/home/user/trial/apps/website/src/features/site-backup/import-registry.ts:101:111)
+      at consumeUpload (/home/user/trial/apps/website/src/features/site-backup/import-backend-steps.ts:90:36)
+      at fetchArchive (/home/user/trial/apps/website/src/features/site-backup/import-backend.ts:80:20)
+      at verifyAndStage (/home/user/trial/apps/website/src/features/site-backup/import-backend.ts:92:27)
+      at run (/home/user/trial/apps/website/src/features/site-backup/import-backend.ts:168:65)
+      at traced (/home/user/trial/apps/website/src/features/site-backup/import-backend.ts:150:77)
+      at run (/home/user/trial/apps/website/src/features/site-backup/import-backend.ts:168:12)
+      at run (/home/user/trial/apps/website/src/features/site-backup/import-backend.ts:71:136)
+      at async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:293:19) {
+    code: 'NOT_FOUND',
+    [cause]: undefined
+  }

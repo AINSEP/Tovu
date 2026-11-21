@@ -21,7 +21,7 @@ test("templated preview failure references its redacted server incident", async 
   assert.equal(status, 500);
   assert.equal(type, "text/plain");
   assert.match(body, /The preview could not be rendered/);
-  const match = /report error ([0-9a-f-]{36})/.exec(body); assert.ok(match, "the preview includes an error reference");
+  const match = /report error (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/.exec(body); assert.ok(match, "the preview includes an error reference");
   assert.doesNotMatch(body, /boom|SECRETSECRETSECRETSECRET/);
   const entry = logs.find(args => args[0] === "[theme-preview:render]"); assert.ok(entry, "the incident is logged");
   const detail = entry[1] as { errorId: string; diagnostic: string };

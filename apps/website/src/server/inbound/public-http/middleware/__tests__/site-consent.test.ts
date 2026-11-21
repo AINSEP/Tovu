@@ -157,7 +157,7 @@ test('a receipt write failure issues no cookie; foreign Origin is refused before
   assert.equal(await fs.readFile(blocker, 'utf8'), 'not a directory');
   const body = JSON.parse(failed.body) as { error: string; errorId: string };
   assert.equal(body.error, 'Your choice could not be saved. Try again.');
-  assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
   const report = errors.mock.calls.find(call => call.arguments[0] === '[consent:save]');
   assert.ok(report, 'the save failure is reported');
   assert.equal((report.arguments[1] as { errorId: string }).errorId, body.errorId);

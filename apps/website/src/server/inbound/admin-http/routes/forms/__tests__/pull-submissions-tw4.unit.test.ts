@@ -62,7 +62,7 @@ for (const [cause, detail] of [[stackError, 'private stack'], [messageError, 'pr
     const result = await dispatchJsonRequest(app, 'POST', PATH);
     assert.equal(result.status, 500);
     const body = result.body as any;
-    assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+    assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
     assert.equal(body.code, 'INTERNAL_ERROR');
     assert.equal(body.error, `Form submission retrieval stopped before any published host was read. Try pulling submissions again. If it still fails, copy details and report this problem. (error ${body.errorId})`);
     assert.equal(body.details.failure.message, "Form submission retrieval stopped before any published host was read.");
@@ -80,7 +80,7 @@ test('pull characterization: logger failure cannot prevent the private error res
   const result = await dispatchJsonRequest(app, 'POST', PATH);
   const body = result.body as any;
   assert.equal(result.status, 500);
-  assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
   assert.equal(body.code, 'INTERNAL_ERROR');
   assert.equal(body.error, `Form submission retrieval stopped before any published host was read. Try pulling submissions again. If it still fails, copy details and report this problem. (error ${body.errorId})`);
   assert.equal(body.details.failure.errorId, body.errorId);
@@ -100,6 +100,6 @@ test('pull characterization: missing principal falls back before authorization',
     code: 'INTERNAL_ERROR', errorId: body.errorId,
     error: `The form submission pull could not be completed. Check the result before repeating this operation. Report this error ID. (error ${body.errorId})`,
   } });
-  assert.match(body.errorId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
   assert.equal(authorizations, 0);
 });

@@ -43,8 +43,8 @@ test("boot redemption rejects an invalid token before reading the boot owner or 
 function assertAnonymousFailure(body: unknown): void {
   const reply = body as { code?: string; errorId?: string; error?: string; details?: unknown };
   assert.equal(reply.code, "INTERNAL_ERROR");
-  assert.match(String(reply.errorId), /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/);
-  assert.match(String(reply.error), /Report this error ID\. \(error [0-9a-f-]{36}\)$/);
+  assert.match(String(reply.errorId), /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
+  assert.match(String(reply.error), /Report this error ID\. \(error ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}\)$/);
   assert.equal(reply.details, undefined, "an anonymous reply never discloses the failure step or cause");
   assert.doesNotMatch(JSON.stringify(body), /Boot owner is unavailable|Boot session confirmation failed/);
 }

@@ -92,7 +92,7 @@ test('forms submissions pull: a thrown pull is a private 500 that names a refere
   const body = result.body as any;
   assert.deepEqual({ status: result.status, code: body.code }, { status: 500, code: 'INTERNAL_ERROR' });
   assert.ok(!body.error.includes('secret detail'), 'the cause stays in the log');
-  assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
   assert.equal(body.error, `Form submission retrieval stopped before any published host was read. Try pulling submissions again. If it still fails, copy details and report this problem. (error ${body.errorId})`);
   assert.equal(body.details.failure.message, "Form submission retrieval stopped before any published host was read.");
   assert.equal(body.details.failure.errorId, body.errorId);

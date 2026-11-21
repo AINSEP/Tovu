@@ -3,7 +3,7 @@ import test from "node:test";
 import { assertAdminResponse } from "./assert-admin-response.js";
 
 test("share incident snapshots require a valid correlated ID, exact public text and no leaked fields", () => {
-  const errorId = "00000000-0000-4000-8000-000000000001";
+  const errorId = "ERR-0000-0000-0000-0001";
   const expected = { code: "SHARE_FAILED", message: "Share operation failed. Check storage configuration and retry." };
   const actual = { ...expected, errorId, message: `${expected.message} (error ${errorId})` };
   assert.doesNotThrow(() => assertAdminResponse({ actual, expected }));
@@ -13,7 +13,7 @@ test("share incident snapshots require a valid correlated ID, exact public text 
   ]) assert.throws(() => assertAdminResponse({ actual: invalid, expected }));
 });
 
-const incidentId = "00000000-0000-4000-8000-000000000001";
+const incidentId = "ERR-0000-0000-0000-0001";
 const incidentTime = "2026-11-05T18:00:00.000Z";
 const failureCopy = { message: "The pages could not be loaded.", action: "Try loading them again.", step: "Load pages" };
 const expectedFailure = {

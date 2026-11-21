@@ -33,7 +33,7 @@ for (const row of ranked) {
     const response = await dispatchJsonRequest(app, row.method, `/api/admin/v1/workspaces/ws/${row.path}`, {});
     assert.equal(response.status, 500);
     const body = response.body as any;
-    assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+    assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
     assert.equal(body.error, `${row.message} (error ${body.errorId})`);
     assert.equal(body.details.failure.errorId, body.errorId);
     assert.match(body.details.failure.copyText, new RegExp(body.errorId));

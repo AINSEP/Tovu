@@ -30,7 +30,7 @@ test("product failures reference the same redacted server incident", async (t) =
     await handler({ params: { id: "item" } }, res);
     assert.equal(status, 500);
     assert.match(body, new RegExp(message));
-    const match = /Reference: ([0-9a-f-]{36})/.exec(body); assert.ok(match, `${route} must return an incident reference`);
+    const match = /Reference: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/.exec(body); assert.ok(match, `${route} must return an incident reference`);
     assert.doesNotMatch(body, /boom|SECRETSECRETSECRETSECRET/);
     const entry = logs.find(args => args[0] === `[${operation}]`);
     assert.ok(entry, `${operation} must log the incident`);

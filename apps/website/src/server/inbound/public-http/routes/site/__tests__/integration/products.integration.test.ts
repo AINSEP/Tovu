@@ -166,9 +166,9 @@ test("products: unexpected catalog and detail exceptions return specific safe er
   } }));
   const list = await dispatchHttpRequest({ app, method: 'GET', url: '/products' });
   assert.equal(list.status, 500);
-  assert.match(list.body, /^<h1>The product catalog could not be loaded<\/h1><p>Please try again shortly\.<\/p><p>Reference: [0-9a-f-]{36}<\/p>$/);
+  assert.match(list.body, /^<h1>The product catalog could not be loaded<\/h1><p>Please try again shortly\.<\/p><p>Reference: ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}<\/p>$/);
 
   const detail = await dispatchHttpRequest({ app, method: 'GET', url: '/products/anything' });
   assert.equal(detail.status, 500);
-  assert.match(detail.body, /^<h1>This product could not be loaded<\/h1><p>Please try again shortly\.<\/p><p>Reference: [0-9a-f-]{36}<\/p>$/);
+  assert.match(detail.body, /^<h1>This product could not be loaded<\/h1><p>Please try again shortly\.<\/p><p>Reference: ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}<\/p>$/);
 });

@@ -19,7 +19,7 @@ test('storefront readiness failure returns its redacted incident reference', asy
   await handler({ path: '/products' }, res, () => assert.fail('the failure must be answered'));
   assert.equal(status, 503);
   assert.match(body, /The shop catalog is temporarily unavailable/);
-  const match = /Reference: ([0-9a-f-]{36})/.exec(body); assert.ok(match, 'the visitor receives an incident reference');
+  const match = /Reference: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/.exec(body); assert.ok(match, 'the visitor receives an incident reference');
   assert.doesNotMatch(body, /boom|SECRETSECRETSECRETSECRET/);
   const entry = logs.find(args => args[0] === '[commerce:storefront]'); assert.ok(entry, 'the incident is logged');
   const detail = entry[1] as { errorId: string; diagnostic: string };

@@ -357,7 +357,7 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   assert.equal(failed.capture.statusCode, 500);
   const body = failed.capture.jsonBody as { error: string; errorId: string };
   assert.match(body.error, /The preview could not be reloaded/);
-  assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
   assert.doesNotMatch(JSON.stringify(body), /SECRETSECRETSECRETSECRET/);
   const entry = logs.find(args => args[0] === "[theme-preview:refresh]"); assert.ok(entry, "the failure is logged");
   const detail = entry[1] as { errorId: string; diagnostic: string };

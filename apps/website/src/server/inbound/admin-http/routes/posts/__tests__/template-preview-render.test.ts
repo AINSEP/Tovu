@@ -191,7 +191,7 @@ test("route (direct invoke): an unexpected repository failure is a plain 500 'pr
   const invoke = previewHandler(deps);
   const response = await invoke({ params: { workspaceId: 'w', postId: 'draft-1' }, query: {}, body: {} });
   assert.equal(response.status, 500);
-  assert.match(response.text, /^preview render failed \(error [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\)$/);
+  assert.match(response.text, /^preview render failed \(error ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}\)$/);
   assert.deepEqual(Object.keys(response).sort(), ["status", "text"]);
 });
 

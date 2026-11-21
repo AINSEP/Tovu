@@ -1,0 +1,64 @@
+HEAD 8162b422e7
+size exit=1 secs=31
+boundaries exit=0 secs=41
+admin-tsc exit=0 secs=43
+desktop-tsc-preload exit=0 secs=2
+desktop-tsc-live-verify exit=0 secs=1
+desktop-tsc-renderer exit=0 secs=6
+desktop-tsc-main exit=0 secs=15
+typecheck exit=0 secs=41
+worker-import-graph exit=0 secs=13
+errors exit=0 secs=21
+complexity exit=1 secs=24
+hooks exit=0 secs=1
+typecheck-scripts exit=2 secs=20
+why-comments exit=1 secs=24
+typecheck-tests exit=0 secs=59
+architecture exit=1 secs=75
+DONE
+
+admin-tsc exit=0 exit=0
+architecture exit=1 exit=1
+boundaries exit=0 exit=0
+complexity exit=0 exit=1  <-- CHANGED
+desktop-tsc-live-verify exit=0 exit=0
+desktop-tsc-main exit=0 exit=0
+desktop-tsc-preload exit=0 exit=0
+desktop-tsc-renderer exit=0 exit=0
+errors exit=0 exit=0
+hooks exit=0 exit=0
+size exit=1 exit=1
+typecheck exit=0 exit=0
+typecheck-scripts exit=2 exit=2
+typecheck-tests exit=0 exit=0
+why-comments exit=1 exit=1
+worker-import-graph exit=1 exit=0  <-- CHANGED
+why: why-comments: 2954
+why-comments: 77 (base why-comments: 2939
+why-comments: 77)
+worker: ℹ fail 0 (base ℹ fail 7)
+errors: Error gate passed: 590 findings in 326 file/rule entries.
+boundaries: x 111 dependency violations (0 errors, 111 warnings). 6769 modules, 47115 dependencies cruised.
+4a5
+> Worsened violation: apps/website/src/features/site-backup/backup-service.ts:738 <file> [max-lines] 547 (baseline 535)
+tc-scripts: same
+55c55,59
+<   NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/index.ts
+---
+>   NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/contracts.ts
+>   NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post-read.ts
+>   NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post-trash.ts
+>   NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post-update.ts
+>   NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post.ts
+57,58c61
+<   module cycles — 1 pair(s) removed since baseline:
+<   WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.33
+---
+>   WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.26
+60,61c63
+<   regressed: propagation cost (runtime-only)     3.06 → 3.33  (+0.27 pts, +8.82%)
+<   improved:  module cycles / SCC (runtime-only)  -1 cycle pair(s)
+---
+>   regressed: propagation cost (runtime-only)     3.06 → 3.26  (+0.2 pts, +6.54%)
+New violation: apps/admin/src/features/security/hooks/use-copy-keys.hooks.ts:24 useCopyKeys#1 [complexity] 11
+New violation: apps/website/src/features/site-backup/backup-service.ts:681 pushPlannedBackup#1 [complexity] 11

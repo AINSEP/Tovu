@@ -138,7 +138,7 @@ for (const [name, map] of Object.entries({
       const body = failure.body as Record<string, unknown>;
       assert.equal(failure.status, 500);
       assert.equal(body.code, "INTERNAL_ERROR");
-      assert.match(String(body.errorId), /^[0-9a-f-]{36}$/);
+      assert.match(String(body.errorId), /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
       assert.equal(body.error, name === "publishing"
         ? `The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem. (error ${body.errorId})`
         : `The ${({ newsletter: "newsletter", widgets: "widget", peers: "publishing", installation: "agent plugin" } as Record<string, string>)[name]} operation could not be completed. Check the result before repeating this operation. Copy details and report this problem. (error ${body.errorId})`);

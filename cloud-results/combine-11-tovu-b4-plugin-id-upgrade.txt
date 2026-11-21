@@ -1,0 +1,60 @@
+## npm pack @jini-ai/agent-plugins@0.7.2
+@jini-ai/agent-plugins@0.7.2 sha512-3awhB0LhIfm2YZrfjX1AIl9XLhisW1MvgiOerWHkFXuC2ybDMiTs0VVzpV6wXSWi9zI0P8BWTEdJcryYIu+t2g== 4e8b9cce947bd23165ddf7e7b125ecefabe58884
+## renamed bundled ids 0.7.2 -> 0.7.3-next.2 (Jini 1ac1cbbd1)
+calendly: 0.7.2 tovu/calendly 0.1.0 -> next.2 jini/calendly 0.1.1
+cloudflare: 0.7.2 tovu/cloudflare 0.3.3 -> next.2 jini/cloudflare 0.3.4
+composio: 0.7.2 tovu/composio 1.0.1 -> next.2 jini/composio 1.0.2
+fly: 0.7.2 tovu/fly 1.0.1 -> next.2 jini/fly 1.0.2
+github-pages: 0.7.2 tovu/github-pages 0.1.1 -> next.2 jini/github-pages 0.1.2
+github: 0.7.2 tovu/github 1.1.1 -> next.2 jini/github 1.1.2
+google-login: 0.7.2 tovu/google-login 0.1.1 -> next.2 jini/google-login 0.1.2
+google-workspace: 0.7.2 tovu/google-workspace 0.1.1 -> next.2 jini/google-workspace 0.1.2
+higgsfield-media: 0.7.2 tovu/higgsfield-media 1.1.1 -> next.2 jini/higgsfield-media 1.1.2
+jev: 0.7.2 tovu/jev 1.0.1 -> next.2 jini/jev 1.0.2
+meilisearch: 0.7.2 tovu/meilisearch 0.1.1 -> next.2 jini/meilisearch 0.1.2
+netlify: 0.7.2 tovu/netlify 0.1.1 -> next.2 jini/netlify 0.1.2
+opentelemetry: 0.7.2 tovu/opentelemetry 0.1.1 -> next.2 jini/opentelemetry 0.1.2
+posthog: 0.7.2 tovu/posthog 0.1.1 -> next.2 jini/posthog 0.1.2
+railway: 0.7.2 tovu/railway 1.0.1 -> next.2 jini/railway 1.0.2
+render: 0.7.2 tovu/render 1.0.1 -> next.2 jini/render 1.0.2
+resend: 0.7.2 tovu/resend 0.2.2 -> next.2 jini/resend 0.2.3
+s3-compatible: 0.7.2 tovu/s3-compatible 0.1.1 -> next.2 jini/s3-compatible 0.1.2
+sentry: 0.7.2 tovu/sentry 0.1.1 -> next.2 jini/sentry 0.1.2
+shopify: 0.7.2 tovu/shopify 0.1.1 -> next.2 jini/shopify 0.1.2
+site-compliance: 0.7.2 tovu/site-compliance 1.0.1 -> next.2 jini/site-compliance 1.0.2
+site-import: 0.7.2 tovu/site-import 1.0.1 -> next.2 jini/site-import 1.0.2
+supabase: 0.7.2 tovu/supabase 1.1.1 -> next.2 jini/supabase 1.1.2
+vercel: 0.7.2 tovu/vercel 0.1.1 -> next.2 jini/vercel 0.1.2
+wordpress: 0.7.2 tovu/wordpress 0.1.1 -> next.2 jini/wordpress 0.1.2
+## failing proof run
+[agent-plugins:migration-complete] /tmp/tovu-plugin-id-upgrade-iF2r8W/ws/workspace-local
+✖ a site installed from the pre-rename 0.7.2 bundle reaches jini/cloudflare with its owner activation kept, and a second run is stable (360.363751ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1336.556209
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/installed-plugin-id-upgrade.unit.test.ts:1:1429
+✖ a site installed from the pre-rename 0.7.2 bundle reaches jini/cloudflare with its owner activation kept, and a second run is stable (360.363751ms)
+  AssertionError [ERR_ASSERTION]: first upgrade run: the installed revision carries the canonical qualified ID
+  + actual - expected
+  
+  + 'tovu/cloudflare'
+  - 'jini/cloudflare'
+  
+      at TestContext.<anonymous> (/home/user/trial/apps/website/src/features/agent-plugins/__tests__/unit/installed-plugin-id-upgrade.unit.test.ts:51:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'tovu/cloudflare',
+    expected: 'jini/cloudflare',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
