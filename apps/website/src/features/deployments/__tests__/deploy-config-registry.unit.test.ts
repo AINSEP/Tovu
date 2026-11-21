@@ -135,7 +135,7 @@ test("bundled config discovery skips missing categories, non-packages and retire
     assert.deepEqual(registry.list().map(item => item.descriptor.id), ["first", "last"]);
     assert.equal(registry.get("shared"), undefined);
     assert.deepEqual(registry.refusals, [
-      "deploy configs from 'bad' were not loaded: tovu-deploy-configs.json is invalid: not valid JSON",
+      "deploy configs from 'bad' were not loaded: jini-deploy-configs.json is invalid: not valid JSON",
       "deploy config 'shared' was not loaded: declared more than once",
     ]);
     assert.deepEqual(readBundledDeployConfigTargetIds({ sourceRoot }), ["first", "last"]);

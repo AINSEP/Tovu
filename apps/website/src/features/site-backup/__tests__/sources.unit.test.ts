@@ -369,7 +369,7 @@ test("an unreadable snapshot artifact is removed even on failure; failed cleanup
 // Limits — the host's declared per-file ceiling (GitHub: 100 MiB), plus count/total bounds
 // ---------------------------------------------------------------------------
 
-/** What the bundled github plugin declares in tovu-source-control.json. */
+/** What the bundled github plugin declares in jini-source-control.json. */
 const GITHUB_HOST = { label: "GitHub", maxFileBytes: 100 * 1024 * 1024 };
 
 test("a file over GitHub's 100 MiB limit is refused, naming the host, the file and its size — never truncated", () => {

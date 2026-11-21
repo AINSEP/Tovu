@@ -13,7 +13,7 @@ test("over-cap stdin yields a flag-specific ValidationError without stream text"
     input.end(Buffer.alloc(DEFAULT_MAX_READ_BYTES + 1, "private-stream-text"));
     await assert.rejects(reading, (error: unknown) => {
       assert.ok(error instanceof ValidationError);
-      assert.ok(error.cause instanceof PayloadTooLargeError);
+      assert.ok(error.cause instanceof PayloadTooLargeError, "the stdin refusal preserves the payload size error as its cause");
       assert.equal(error.message, `init: ${flag} payload is too large`);
       assert.equal(error.message.includes("private-stream-text"), false);
       return true;

@@ -10,7 +10,7 @@ import { processComposedBundledSourceRoot } from '../../../../apps/website/src/f
 // s3-compatible ships from @jini-ai/agent-plugins/s3-compatible: read it where Tovu takes it from.
 const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 's3-compatible' });
 
-const { id, env: declaration } = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "tovu-object-stores.json"), "utf8")).providers[0];
+const { id, env: declaration } = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "jini-object-stores.json"), "utf8")).providers[0];
 const names = ["JINI_S3_BUCKET", "JINI_S3_REGION", "JINI_S3_ACCESS_KEY_ID", "JINI_S3_SECRET_ACCESS_KEY"];
 const complete = { TOVU_MEDIA_BLOB_STORE: "s3", JINI_S3_BUCKET: "bucket", JINI_S3_REGION: "region", JINI_S3_ACCESS_KEY_ID: "id", JINI_S3_SECRET_ACCESS_KEY: "secret", JINI_S3_KEY_PREFIX: "prefix/", JINI_S3_ENDPOINT: "https://objects.example.test" };
 const envDeclarations = readBundledObjectStoreEnvDeclarations({ sourceRoot: await processComposedBundledSourceRoot() });

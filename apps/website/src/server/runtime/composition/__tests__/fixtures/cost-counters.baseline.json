@@ -30,13 +30,13 @@
   "tokenLookup": {
     "first": {
       "contributionLoads": [
-        "tovu-connections.json"
+        "jini-connections.json"
       ],
       "credentialOpens": 4
     },
     "second": {
       "contributionLoads": [
-        "tovu-connections.json"
+        "jini-connections.json"
       ],
       "credentialOpens": 4
     }

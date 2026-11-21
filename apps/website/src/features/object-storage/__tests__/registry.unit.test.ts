@@ -12,7 +12,7 @@ import { parseObjectStoresFile } from "@jini-ai/platform/object-store";
 import { loadBundledObjectStoreRegistry, loadObjectStoreRegistry, OBJECT_STORES_FILENAME, type TovuObjectStoreProvider } from "../registry.js";
 
 /**
- * @file Tovu's object-store provider registry: the `tovu-object-stores.json` manifest parser, the
+ * @file Tovu's object-store provider registry: the `jini-object-stores.json` manifest parser, the
  * installed-plugin loader (with a fake contribution loader standing in for the lifecycle owner), and
  * the bundled-source loader run against the REAL shipped bundle (Tovu content plus selected
  * `@jini-ai/agent-plugins/<id>` packages, composed as the build composes it) and a temp tree of
@@ -108,7 +108,7 @@ test("loadObjectStoreRegistry: local is seeded and default; plugin items are con
         { contract: OBJECT_STORE_CONTRACT, pluginId: "gcs", definition: { id: "gcs_bucket", provider: pluginProvider, label: "GCS" } },
         { contract: OBJECT_STORE_CONTRACT, pluginId: "rogue", definition: { id: "local", provider: fakeProvider() } },
       ],
-      refusals: ["object_store providers from 'broken' were not loaded: tovu-object-stores.json is invalid: not valid JSON"],
+      refusals: ["object_store providers from 'broken' were not loaded: jini-object-stores.json is invalid: not valid JSON"],
     };
   }) as unknown as LoadPluginContributions;
 
@@ -122,7 +122,7 @@ test("loadObjectStoreRegistry: local is seeded and default; plugin items are con
   assert.equal(registry.get({ id: "gcs_bucket" })?.pluginId, "gcs");
   assert.deepEqual(registry.list().map((entry) => entry.id), ["local", "gcs_bucket"]);
   assert.equal(refusals.length, 2);
-  assert.equal(refusals[0], "object_store providers from 'broken' were not loaded: tovu-object-stores.json is invalid: not valid JSON");
+  assert.equal(refusals[0], "object_store providers from 'broken' were not loaded: jini-object-stores.json is invalid: not valid JSON");
   assert.match(refusals[1]!, /local/);
   assert.match(refusals[1]!, /rogue/);
 });
@@ -193,7 +193,7 @@ test("loadBundledObjectStoreRegistry: a bad manifest and a non-provider module b
   const { registry, refusals } = await loadBundledObjectStoreRegistry({ uploadsDir: "/nonexistent-uploads", sourceRoot: root });
 
   assert.deepEqual(refusals, [
-    "object_store providers from 'a-bad-manifest' were not loaded: tovu-object-stores.json is invalid: not valid JSON",
+    "object_store providers from 'a-bad-manifest' were not loaded: jini-object-stores.json is invalid: not valid JSON",
     "object_store provider 'broken_store' from 'b-not-a-provider' was not loaded: an object-store provider must define create()",
   ]);
   assert.deepEqual(registry.list().map((entry) => entry.id), ["local", "good_store"]);

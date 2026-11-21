@@ -3,7 +3,7 @@
 ## Purpose
 
 An installed, active Agent Plugin can ship assistant tools as plain-JS `.mjs` modules, declared in
-`tovu-agent-tools.json` at its package root. Jini admits and projects them
+`jini-agent-tools.json` at its package root. Jini admits and projects them
 (`@jini-ai/agent-plugins/lifecycle/tools`, see its README); this folder is Tovu's thin adapter that
 puts them on the assistant's ToolRegistry, confirms external changes on Tovu's existing approval
 owner, and supplies the host capabilities a tool module receives. Nothing here names a provider.
@@ -45,7 +45,7 @@ handler runs; a plugin disabled during confirmation is refused.
 |---|---|
 | `registerAgentPluginExecutableTools(required)` | Loads, projects and registers; returns `{ refusals, dispose }`. |
 | `AgentPluginExecutableToolHost` | The ports the composition root binds: `loadContributions`, `connections`, `http`, `limiter`, `state` (the plugin settings reader, `api-connections/plugin-state.ts`), `apiOrigins` (each plugin's declared API origins), `issuedTokens` (the site's one `createIssuedTokenMemories()`, shared with the admin-surface handler host), optional `artifacts`. Tools get `state.get` only. |
-| `AGENT_PLUGIN_TOOLS_FILENAME` | `tovu-agent-tools.json`. |
+| `AGENT_PLUGIN_TOOLS_FILENAME` | `jini-agent-tools.json`. |
 | `createAgentPluginToolCapabilities(required, optional)` | Tovu's `AgentPluginToolCapabilitiesPort`. |
 | `AgentPluginConnectionAccess` | Port over the API-connection service: `readAccount`, `getAccessToken(…, { expectedAccountId })`. |
 | `createAgentPluginDisclosure(required)` | Card rows + account freeze for one confirming call. |
@@ -68,7 +68,7 @@ agentPluginTools: {
 ```
 
 A plugin's `http` reaches only the https origins its own connections declare in
-`tovu-connections.json` (`apiOrigins`); any other origin is refused before anything is sent, so a
+`jini-connections.json` (`apiOrigins`); any other origin is refused before anything is sent, so a
 URL built from tool input can never carry the plugin's token elsewhere. A plugin with no declared
 origin can make no HTTP call from a tool or surface.
 
@@ -79,7 +79,7 @@ hooks receive.
 
 ## Extension points
 
-A second provider plugin needs no change here: it ships its own `tovu-agent-tools.json`, modules and
+A second provider plugin needs no change here: it ships its own `jini-agent-tools.json`, modules and
 connection, and receives the same ports. Provider endpoints, scopes and parsing stay in the plugin.
 
 ## Known limits (phase A)
@@ -89,5 +89,5 @@ connection, and receives the same ports. Provider endpoints, scopes and parsing 
 - No host artifact store is bound yet, so tools and surfaces get no `artifacts` capability at all (Jini's port is optional); a tool that needs one checks `capabilities.artifacts` first.
 - One limiter profile (`AGENT_PLUGIN_OUTBOUND_BUDGET`, 240/min per plugin key) backs the `limiter`
   capability. Plugin-declared request budgets (per connection / per instance, `budgets` in
-  `tovu-connections.json`) are charged by the host on every token read
+  `jini-connections.json`) are charged by the host on every token read
   (`../../api-connections/budgets.ts`).

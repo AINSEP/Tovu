@@ -23,7 +23,7 @@ import { defineExecutablePluginContribution, type LoadPluginContributions } from
  * use their own OAuth client, `byo-client.ts`), which only the host reads.
  */
 
-export const API_CONNECTIONS_FILENAME = "tovu-connections.json";
+export const API_CONNECTIONS_FILENAME = "jini-connections.json";
 /** This host's client-setting namespace: every plugin's client settings are named `TOVU_<PLUGIN>_OAUTH_<RUNTIME>_CLIENT_*`. */
 const CLIENT_NAMESPACE = "TOVU_";
 

@@ -1,6 +1,6 @@
 /**
  * @file The saved-credential form a git-host plugin declares for its host, under `credential` in its
- * `tovu-source-control.json` entry (`./provider-registry.ts`): what a person is asked for on the
+ * `jini-source-control.json` entry (`./provider-registry.ts`): what a person is asked for on the
  * admin Source Control page, the scope guidance shown beside it and where to create the token. Data
  * only, so the admin renders a host's form without core naming the host. Field names are the keys
  * of the saved connection (`token`, and e.g. `username` for a host that authenticates the pair).

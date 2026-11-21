@@ -169,8 +169,8 @@ test("inject: a one-second rate limit says 'second', not 'seconds'", () => {
 test("encode flash: multibyte values obey the byte budget and preserve the earliest fields", () => {
   const value = "界".repeat(300);
   const json = encodeFormFlashCookieValue({ payload: { slug: "contact", values: { first: value, second: value, third: value, fourth: value } } });
-  assert.ok(json);
-  assert.ok(Buffer.byteLength(json, "utf8") <= 3000);
+  assert.ok(json, "the flash cookie preserves the earliest values");
+  assert.ok(Buffer.byteLength(json, "utf8") <= 3000, "the flash cookie stays within its byte budget");
   assert.equal(json, JSON.stringify({ slug: "contact", values: { first: value, second: value, third: value } }));
 });
 

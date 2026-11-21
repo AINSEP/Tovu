@@ -24,7 +24,7 @@ const healthy = (summary = "ok"): DeployOpsStatus => ({ platform: "scripted", ta
 async function scripted(script: Script, run: (deps: ReturnType<typeof withRegistry>) => Promise<void>) {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-run-ops-contract-"));
   try {
-    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "scripted", label: "Scripted", module: "ops.mjs", hosts: ["api.example-host.dev"] }] }));
+    await writeFile(path.join(root, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "scripted", label: "Scripted", module: "ops.mjs", hosts: ["api.example-host.dev"] }] }));
     await writeFile(path.join(root, "ops.mjs"), MODULE);
     const registry = await loadDeployOpsRegistryFromSource({ pluginId: "scripted", packageRoot: root });
     assert.deepEqual(registry.refusals, []);

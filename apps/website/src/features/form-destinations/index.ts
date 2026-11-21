@@ -1,6 +1,6 @@
 /**
  * @file Public surface of the form destinations category: where a published static site's form
- * submissions go, contributed by Agent Plugins (`tovu-form-destinations.json`). See `./types.ts`.
+ * submissions go, contributed by Agent Plugins (`jini-form-destinations.json`). See `./types.ts`.
  */
 export type {
   FormDeliveryConnectionPort,

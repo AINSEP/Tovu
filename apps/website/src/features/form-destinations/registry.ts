@@ -21,7 +21,7 @@ import type { FormDestinationDescriptor, FormDestinationModule, FormDestinationR
  */
 
 /** The file a plugin ships at its root to contribute form destinations. */
-export const FORM_DESTINATIONS_FILENAME = "tovu-form-destinations.json";
+export const FORM_DESTINATIONS_FILENAME = "jini-form-destinations.json";
 
 const destinationContribution = defineExecutablePluginContribution<FormDestinationDescriptor, FormDestinationModule>({
   filename: FORM_DESTINATIONS_FILENAME, contribution: "form destinations",

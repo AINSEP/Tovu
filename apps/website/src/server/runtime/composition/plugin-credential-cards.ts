@@ -68,9 +68,9 @@ async function linkedProviderOf({ plugin, readFile }: { plugin: TrustedPluginPac
 async function readOwnedIdentities({ plugin, readFile }: { plugin: TrustedPluginPackage; readFile: ReadFile }, _options = {}): Promise<Set<string>> {
   const identities = new Set([plugin.pluginId]);
   const sources = [
-    { filename: 'tovu-deploy-targets.json', parse: parseDeployTargetsFile },
-    { filename: 'tovu-source-control.json', parse: ({ raw }: { raw: string }, _options = {}) => parseSourceControlProvidersFile({ raw }) },
-    { filename: 'tovu-mail-adapters.json', parse: parseMailAdaptersFile },
+    { filename: 'jini-deploy-targets.json', parse: parseDeployTargetsFile },
+    { filename: 'jini-source-control.json', parse: ({ raw }: { raw: string }, _options = {}) => parseSourceControlProvidersFile({ raw }) },
+    { filename: 'jini-mail-adapters.json', parse: parseMailAdaptersFile },
   ];
   for (const source of sources) {
     let parsed: ReturnType<typeof source.parse> | undefined;

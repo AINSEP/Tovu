@@ -32,7 +32,7 @@ Where a plugin lives:
   use `skills/<name>/SKILL.md` with `name` and `description` frontmatter. All skill
   folders are discovered automatically; link extra skills from the default guide.
 - [ ] Declare only the contributions the plugin implements. Mail uses
-  `tovu-mail-adapters.json` schemaVersion **2** and a relative `.mjs` module.
+  `jini-mail-adapters.json` schemaVersion **2** and a relative `.mjs` module.
   Inspect `mail-adapter-registry.ts` and Resend's adapter/default export for the
   actual ABI; inject the guarded HTTP client through `kit`, never construct a
   credentialed network client. New public functions take `(required, optional = {})`.
@@ -147,7 +147,7 @@ resend/
   plugin.json
   mcp.json
   skills/resend/SKILL.md
-  tovu-mail-adapters.json
+  jini-mail-adapters.json
   adapters/resend.mjs
   lib/domains.mjs
   lib/feedback.mjs
@@ -173,7 +173,7 @@ resend/
 }}}
 ```
 
-`tovu-mail-adapters.json`:
+`jini-mail-adapters.json`:
 
 ```json
 {"schemaVersion":2,"adapters":[{

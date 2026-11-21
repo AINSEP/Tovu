@@ -112,7 +112,7 @@ export interface AgentPluginConnectToolDeps {
   /** Injectable for tests, so a fixture plugin needs no real install on disk. A real composition
    *  root omits this and gets {@link defaultResolveInstalledAgentPlugin}. */
   readonly resolveInstalledPlugin?: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
-  /** Plugin-declared OAuth API connections (`tovu-connections.json`). Absent: only MCP servers connect. */
+  /** Plugin-declared OAuth API connections (`jini-connections.json`). Absent: only MCP servers connect. */
   readonly apiConnections?: AgentPluginApiConnectionsPort;
 }
 

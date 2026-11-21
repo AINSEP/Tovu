@@ -15,7 +15,7 @@
  *
  * The build fails, rather than the server booting without a plugin, on: a selected package that
  * does not resolve, a payload without `plugin.json`, a plugin id present twice, a selection key that
- * differs from its package's plugin name, and a `tovu-*.json` contribution that names a payload file
+ * differs from its package's plugin name, and a `jini-*.json` contribution that names a payload file
  * the folder does not carry. Production boot only warns (`bootstrap.ts`).
  */
 import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
@@ -33,7 +33,7 @@ export const skipTestFolders = source => path.basename(source) !== '__tests__';
 export const DEV_COMPOSED_AGENT_PLUGINS_DIR = '.generated/bundled-agent-plugins';
 
 /**
- * `tovu-*.json` keys whose string values are paths inside the plugin's own folder. Other path-like
+ * `jini-*.json` keys whose string values are paths inside the plugin's own folder. Other path-like
  * values are not payload files: `path`/`candidatePaths` name files in the operator's site,
  * `workflowFile` names a generated workflow, and `href` links to documentation.
  */
@@ -115,7 +115,7 @@ function listPluginIds({ root }) {
     .sort();
 }
 
-/** Every payload path named by a plugin's top-level `tovu-*.json` files must be a regular file inside it.
+/** Every payload path named by a plugin's top-level `jini-*.json` files must be a regular file inside it.
  * @throws One error naming every missing or escaping path. @complexity O(j) for j JSON nodes read.
  */
 function assertContributionPaths({ root }) {
@@ -126,7 +126,7 @@ function assertContributionPaths({ root }) {
 
 /** @returns `{ file, ref }` for each referenced payload path absent from `pluginDir`. @complexity O(j). */
 function missingPayloadPaths({ pluginDir }) {
-  const contributionFiles = readdirSync(pluginDir).filter(name => /^tovu-.+\.json$/.test(name)).sort();
+  const contributionFiles = readdirSync(pluginDir).filter(name => /^jini-.+\.json$/.test(name)).sort();
   return contributionFiles.flatMap(file => {
     const refs = collectPayloadRefs({ value: JSON.parse(readFileSync(path.join(pluginDir, file), 'utf8')), key: undefined, refs: [] });
     return refs.filter(ref => !isPayloadFile({ pluginDir, ref })).map(ref => ({ file, ref }));

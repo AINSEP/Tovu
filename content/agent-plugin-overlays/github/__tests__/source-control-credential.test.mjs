@@ -14,7 +14,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'github' });
 
 const packageRoot = PLUGIN_ROOT;
-const raw = readFileSync(path.join(PLUGIN_ROOT, 'tovu-source-control.json'), 'utf8');
+const raw = readFileSync(path.join(PLUGIN_ROOT, 'jini-source-control.json'), 'utf8');
 
 test('GitHub owns its token form and reuses its existing source-control credential card', () => {
   const parsed = parseSourceControlProvidersFile({ raw });

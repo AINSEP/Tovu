@@ -22,7 +22,7 @@ import type { HostSignInLink, IssuedSignInCollector } from "@jini-ai/agent-plugi
  */
 
 /** The contribution file a plugin ships at its package root. Host-named, as for every seam. */
-export const ADMIN_SURFACES_FILENAME = "tovu-admin-surfaces.json";
+export const ADMIN_SURFACES_FILENAME = "jini-admin-surfaces.json";
 /** The screen route and assistant adapter enforce the same workspace permission. */
 export const ADMIN_SURFACE_ACTION_PERMISSION = "admin.plugins.enable";
 

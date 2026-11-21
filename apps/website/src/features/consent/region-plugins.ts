@@ -14,7 +14,7 @@ import type { DeclaredScript, RawContribution, RegionResolver } from '@jini-ai/c
 import type { LoadPluginContributions, PluginContributionDefinition } from '../agent-plugins/lifecycle.js';
 
 /** The file a plugin ships at its root to contribute cookie-consent pieces. */
-export const CONSENT_CONTRIBUTIONS_FILENAME = 'tovu-consent.json';
+export const CONSENT_CONTRIBUTIONS_FILENAME = 'jini-consent.json';
 
 /** Parse one schema-2 file into region readers and browser bridge declarations. Pure. @complexity O(entries).
  * The rules live in `@jini-ai/cookie-consent/plugins`; this keeps the host's name and signature. */

@@ -24,7 +24,7 @@ async function install(required) {
   const archive = Buffer.from(`fixture-${pluginId}`);
   const entries = [entry('plugin.json', JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: pluginId, version: '1.0.0' })),
     entry(`skills/${pluginId}/SKILL.md`, `---\nname: ${pluginId}\n---\n# ${pluginId}\n`),
-    entry('tovu-deploy-targets.json', JSON.stringify({ schemaVersion: 1, targets: [{ id: 'cloudflare-pages', label: 'Pages', module: 'target.mjs' }] })),
+    entry('jini-deploy-targets.json', JSON.stringify({ schemaVersion: 1, targets: [{ id: 'cloudflare-pages', label: 'Pages', module: 'target.mjs' }] })),
     entry('target.mjs', 'export default { create: (required, optional = {}) => ({ id: "cloudflare-pages" }) };'),
   ];
   const installed = await owner.installAgentPlugin({ layout, workspaceId, archive, expectedSha256: createHash('sha256').update(archive).digest('hex'), archiveReader: { async *entries() { yield* entries; } } });

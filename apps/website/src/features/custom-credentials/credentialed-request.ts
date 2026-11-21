@@ -52,7 +52,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * self-describing, e.g. `<Scheme>fm2_...` (a macaroon), and the leading scheme word is not incidental
  * content — it IS the correct `Authorization` HTTP scheme name, with the rest of the token string as
  * the value. The live verification is recorded with the rule itself, in the contributing plugin's
- * `tovu-credential-schemes.json` (`note`).
+ * `jini-credential-schemes.json` (`note`).
  *
  * {@link resolveAuthorizationScheme} is the one place THIS module decides which of the three shapes
  * (self-describing, Basic, Bearer) to send; {@link buildAuthorizationHeader} and
@@ -60,7 +60,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * scheme a 401/403 diagnostic REPORTS can never drift from the scheme that was actually SENT.
  * RECOGNIZING a self-describing scheme, however, is deliberately NOT this module's own logic, and
  * core names no vendor: the scheme rules are data that bundled Agent Plugins ship
- * (`tovu-credential-schemes.json`), loaded once per call at each entry point
+ * (`jini-credential-schemes.json`), loaded once per call at each entry point
  * ({@link verifyCustomCredential}, {@link makeCredentialedRequest}) through
  * `CredentialedRequestDeps.loadAuthSchemes` and passed down to {@link detectSelfDescribingAuthScheme}
  * (`Jini packages/integrations/src/credentialed-http/auth-schemes.ts` / `apps/website/src/features/agent-plugins/auth-schemes.ts`). See that file's header for the rule format, the trust gates, and why

@@ -6,7 +6,7 @@ import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 /** The seven-segment root of an installed plugin package payload (matched against the lowercased path). */
 const PACKAGE_CONTENT_ROOT = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/[a-f0-9]{64}\//;
 /** Names an installed package ships as content (MCP declarations, credential schemes), never runtime secrets. */
-const PACKAGE_MANIFEST_NAMES = ["mcp.json", "tovu-credential-schemes.json"];
+const PACKAGE_MANIFEST_NAMES = ["mcp.json", "jini-credential-schemes.json"];
 
 /** Archive digest -> (package-relative path -> SHA-256 of the bytes) for every package THIS build
  *  ships (`package-file-inventory.ts`). The only proof a package-shaped path is the installer's. */

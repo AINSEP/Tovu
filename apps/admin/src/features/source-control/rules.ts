@@ -8,7 +8,7 @@ import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSum
  * `rules.ts`-holds-the-logic convention `deployment/rules.ts`/`integrations/rules.ts` follow.
  *
  * This page is a CONNECTION page, not git integration — see `SourceControl.tsx`'s own header for
- * the scope boundary. The hosts are data: each comes from a plugin's `tovu-source-control.json`
+ * the scope boundary. The hosts are data: each comes from a plugin's `jini-source-control.json`
  * (`GET .../system/source-control/providers`), which also declares its credential form and guidance.
  * This file turns those descriptors into rows and holds the same connect/validate/build trio the
  * publish credential form needs.

@@ -23,7 +23,7 @@ import { type LoadPluginContributions, loadPluginContributionsFromSource, type T
  */
 
 /** The file a plugin ships at its root to contribute search providers. */
-export const SEARCH_PROVIDERS_FILENAME = "tovu-search-providers.json";
+export const SEARCH_PROVIDERS_FILENAME = "jini-search-providers.json";
 
 export type LoadedSearchProviders = PluginContributionResult<LoadedProviderContribution<SearchProvider>>;
 

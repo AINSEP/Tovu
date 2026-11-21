@@ -5,7 +5,7 @@ import { bundledContributionSources } from "./bundled-contribution-sources.js";
 export type { MailAdapterDescriptor, MailCredentialCard, LoadedMailAdapter, MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { LoadedMailAdapter, MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 /** The file a plugin ships at its root to contribute mail adapters. */
-export const MAIL_ADAPTERS_FILENAME = "tovu-mail-adapters.json";
+export const MAIL_ADAPTERS_FILENAME = "jini-mail-adapters.json";
 /** The credential label a v2 descriptor without one uses; matches the v1 bundled label shape (`Tovu Mail — <label> API`). */
 export function defaultCredentialLabel({ label }: { label: string }, _optional: Record<string, never> = {}): string { return `Tovu Mail — ${label} API`; }
 const contributions = createMailContributions({ filename: MAIL_ADAPTERS_FILENAME, parseSetup: parseMailProviderSetupProperty,

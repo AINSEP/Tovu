@@ -17,7 +17,7 @@ async function loadDeclaredCards({ sources, mailCards = [] }: { sources: readonl
   const refusals: string[] = [];
   const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => mailCards }, {
     readFile: async ({ plugin, filename }) => {
-      assert.ok(['plugin.json', 'tovu-deploy-targets.json', 'tovu-source-control.json', 'tovu-mail-adapters.json'].includes(filename));
+      assert.ok(['plugin.json', 'jini-deploy-targets.json', 'jini-source-control.json', 'jini-mail-adapters.json'].includes(filename));
       return filename === 'plugin.json' ? sources.find(entry => entry.pluginId === plugin.pluginId)?.raw ?? '{}' : '{}';
     },
     onRefusal: message => refusals.push(message),
@@ -174,7 +174,7 @@ test('trusted contribution materialization tags ownership and refuses cross-plug
     { ...manifest, providerId: 'own-dns', saveKind: 'publish-host' as const },
   ];
   const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => [] }, {
-    readFile: async ({ filename }) => filename === 'tovu-deploy-targets.json' ? JSON.stringify({ schemaVersion: 1, targets: [{ id: 'own-dns', label: 'DNS', module: 'dns.mjs', config: [] }] }) : '{}',
+    readFile: async ({ filename }) => filename === 'jini-deploy-targets.json' ? JSON.stringify({ schemaVersion: 1, targets: [{ id: 'own-dns', label: 'DNS', module: 'dns.mjs', config: [] }] }) : '{}',
     loadContributions: async ({ definition }) => {
       const items = [];
       for (const descriptor of declarations) {

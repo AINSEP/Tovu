@@ -67,7 +67,7 @@ for (const namespace of ["jini", "tovu"]) {
     const pluginRoot = path.join(root, "google-login");
     await mkdir(pluginRoot);
     await writeFile(path.join(pluginRoot, "plugin.json"), JSON.stringify({ extensions: { [namespace]: { id: "tovu/google-login" } } }));
-    await writeFile(path.join(pluginRoot, "tovu-login-providers.json"), file());
+    await writeFile(path.join(pluginRoot, "jini-login-providers.json"), file());
     const pins = await loadBundledLoginProviders({ sourceRoot: root });
     assert.equal(pins.length, 1);
     assert.equal(pins[0]?.issuer, provider.issuer);
@@ -81,7 +81,7 @@ test("portable identity takes precedence over an unrelated legacy login identity
   const pluginRoot = path.join(root, "google-login");
   await mkdir(pluginRoot);
   await writeFile(path.join(pluginRoot, "plugin.json"), JSON.stringify({ extensions: { jini: { id: "another/google-login" }, tovu: { id: "tovu/google-login" } } }));
-  await writeFile(path.join(pluginRoot, "tovu-login-providers.json"), file());
+  await writeFile(path.join(pluginRoot, "jini-login-providers.json"), file());
   assert.deepEqual(await loadBundledLoginProviders({ sourceRoot: root }), []);
 });
 

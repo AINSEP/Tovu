@@ -47,7 +47,7 @@ import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 /**
  * The budget behind the `limiter` capability a plugin calls itself: per plugin key, one shared
  * window per site, sized to the largest per-instance budget a bundled provider needs (~240/min).
- * Budgets a plugin DECLARES on a connection (`budgets` in `tovu-connections.json`) are enforced by
+ * Budgets a plugin DECLARES on a connection (`budgets` in `jini-connections.json`) are enforced by
  * the host on every token read instead (`features/api-connections/budgets.ts`), whatever the plugin
  * calls here.
  */

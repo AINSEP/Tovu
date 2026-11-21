@@ -130,7 +130,7 @@ export interface CommitBackupTreeInput extends CredentialedRepositoryTarget {
   readonly entries: readonly BackupTreeEntry[];
 }
 
-/** The host facts a plugin DECLARES in `tovu-source-control.json` (`provider-registry.ts`), carried
+/** The host facts a plugin DECLARES in `jini-source-control.json` (`provider-registry.ts`), carried
  *  on every built provider so core copy and checks can name the host without hard-coding one. */
 export interface SourceControlHostFacts {
   /** The `source_control_credential_sets.provider_id` this host serves. */

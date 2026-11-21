@@ -209,7 +209,7 @@ test("registry refuses a half secrets adapter and missing capabilities", async (
       ["readonly.mjs", `${base} export default { status, logs, readSecret: f };`, "secretCapabilities and readSecret need listSecrets(), setSecret() and unsetSecret()"],
     ] as const) {
       await writeFile(path.join(root, "m", file), body);
-      await writeFile(path.join(root, "tovu-deploy-ops.json"), manifest(`m/${file}`));
+      await writeFile(path.join(root, "jini-deploy-ops.json"), manifest(`m/${file}`));
       assert.deepEqual((await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root })).refusals, [`deploy ops platform 'example' was not loaded: ${refusal}`]);
     }
   } finally { await forceRemove(root); }

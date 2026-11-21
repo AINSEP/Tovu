@@ -140,7 +140,7 @@ async function saveAccountKey({ toolId }, _optional = {}) {
   const parsed = parsePluginCredentialCards({ raw: await readFile(path.join(PACKAGE_ROOT, "plugin.json"), "utf8") });
   assert.equal(parsed.ok, true);
   const card = { ...parsed.descriptors.find(entry => entry.providerId === "resend-mcp"), pluginId: "resend" };
-  const mail = await readJson("tovu-mail-adapters.json");
+  const mail = await readJson("jini-mail-adapters.json");
   const label = mail.adapters[0].credentialLabel;
   const workspaceId = "resend-key-test";
   const repo = new InMemoryExternalMcpServerRepo();

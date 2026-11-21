@@ -1,5 +1,5 @@
 /**
- * @file Phase-C unit tests for `contribution.ts`: every refusal of the `tovu-connections.json`
+ * @file Phase-C unit tests for `contribution.ts`: every refusal of the `jini-connections.json`
  * parser (each names the field the plugin author must fix), the host-read fields' defaults, and the
  * loader over the lifecycle's real contained-import gate (missing file, unreadable file, a module
  * with no `createHooks`, a descriptor Jini refuses).

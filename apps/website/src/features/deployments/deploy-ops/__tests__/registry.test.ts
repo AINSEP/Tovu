@@ -32,9 +32,9 @@ test("a bundled ops manifest loads every contained module and refuses unknown id
 test("malformed manifests and missing modules are reported refusals, never thrown", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "t01-ops-"));
   try {
-    await writeFile(path.join(root, "tovu-deploy-ops.json"), "{");
-    assert.deepEqual((await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root })).refusals, ["deploy ops from 'deploy' were not loaded: tovu-deploy-ops.json is invalid: not valid JSON"]);
-    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", hosts: ["api.example.com"], module: "missing.mjs" }] }));
+    await writeFile(path.join(root, "jini-deploy-ops.json"), "{");
+    assert.deepEqual((await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root })).refusals, ["deploy ops from 'deploy' were not loaded: jini-deploy-ops.json is invalid: not valid JSON"]);
+    await writeFile(path.join(root, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", hosts: ["api.example.com"], module: "missing.mjs" }] }));
     assert.deepEqual((await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root })).refusals, ["deploy ops platform 'example' was not loaded: module could not be imported"]);
   } finally { await forceRemove(root); }
 });
@@ -58,10 +58,10 @@ test("invalid descriptor fields return exact refusals and load no platforms", as
       try {
         const raw = JSON.stringify({ schemaVersion: 1, platforms });
         assert.deepEqual(parseDeployOpsFile({ raw }), { ok: false, reason });
-        await writeFile(path.join(root, "tovu-deploy-ops.json"), raw);
+        await writeFile(path.join(root, "jini-deploy-ops.json"), raw);
         await writeFile(path.join(root, "ops.mjs"), "export default { status() {}, logs() {} };\n");
         const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root });
-        assert.deepEqual(registry.refusals, [`deploy ops from 'deploy' were not loaded: tovu-deploy-ops.json is invalid: ${reason}`]);
+        assert.deepEqual(registry.refusals, [`deploy ops from 'deploy' were not loaded: jini-deploy-ops.json is invalid: ${reason}`]);
         assert.deepEqual(registry.list(), []);
       } finally { await forceRemove(root); }
     });
@@ -77,7 +77,7 @@ test("invalid module and secrets-adapter shapes return exact refusals and are no
     await t.test(name, async () => {
       const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-invalid-module-"));
       try {
-        await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] }] }));
+        await writeFile(path.join(root, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] }] }));
         await writeFile(path.join(root, "ops.mjs"), body);
         const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root });
         assert.deepEqual(registry.refusals, [`deploy ops platform 'example' was not loaded: ${reason}`]);
@@ -90,7 +90,7 @@ test("invalid module and secrets-adapter shapes return exact refusals and are no
 
 // The owner gate needs a package this build really ships, so the case runs once per shipped ops package
 // rather than naming vendors; each package's files and platform ids come from its own manifest.
-for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot: SHIPPED.root, filename: "tovu-deploy-ops.json" })) {
+for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot: SHIPPED.root, filename: "jini-deploy-ops.json" })) {
   test(`installed ${pluginId} package must be active and match the bundled digest`, async () => {
     const { createHash } = await import("node:crypto");
     const { readFile } = await import("node:fs/promises");
@@ -101,10 +101,10 @@ for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot:
     const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
     const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: SHIPPED.root });
     try {
-      const parsed = parseDeployOpsFile({ raw: await readFile(path.join(packageRoot, "tovu-deploy-ops.json"), "utf8") });
+      const parsed = parseDeployOpsFile({ raw: await readFile(path.join(packageRoot, "jini-deploy-ops.json"), "utf8") });
       assert.equal(parsed.ok, true);
       const descriptors = parsed.ok ? parsed.descriptors : [];
-      const files = Object.fromEntries(await Promise.all(["plugin.json", "tovu-deploy-ops.json", ...descriptors.map(d => d.module)].map(async name => [name, await readFile(path.join(packageRoot, name), "utf8")])));
+      const files = Object.fromEntries(await Promise.all(["plugin.json", "jini-deploy-ops.json", ...descriptors.map(d => d.module)].map(async name => [name, await readFile(path.join(packageRoot, name), "utf8")])));
       const archive = new Uint8Array(Buffer.from(JSON.stringify(files)));
       const installed = await installAgentPlugin({ archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), archiveReader: { async *entries() { for (const [entryPath, content] of Object.entries(files)) { const bytes = Buffer.from(content as string); yield { kind: "file" as const, entryPath, declaredSize: bytes.length, executable: false, async *openReadStream() { yield bytes; } }; } } }, layout, workspaceId: "ws" });
       const workspaceRoot = layout.forWorkspace({ workspaceId: "ws" }).root;
@@ -127,7 +127,7 @@ test("bundled ops discovery unions categories, skips missing/non-package/retired
       const packageRoot = path.join(sourceRoot, pluginId!);
       await mkdir(packageRoot);
       if (pluginId !== "scratch") await writeFile(path.join(packageRoot, "plugin.json"), JSON.stringify({ name: pluginId, version: "1.0.0" }));
-      await writeFile(path.join(packageRoot, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id, label: id, hosts: ["api.example.com"], module: "ops.mjs" }] }));
+      await writeFile(path.join(packageRoot, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id, label: id, hosts: ["api.example.com"], module: "ops.mjs" }] }));
       await writeFile(path.join(packageRoot, "ops.mjs"), "export default { status() {}, logs() {} };\n");
     }
     await mkdir(path.join(sourceRoot, "no-category"));
@@ -145,7 +145,7 @@ test("a digest-trusted package outside the ops owners cannot become a parallel o
     const source = path.join(root, "source");
     await mkdir(source);
     await writeFile(path.join(source, "plugin.json"), '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"example-pages","version":"1.0.0"}');
-    await writeFile(path.join(source, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example-actions", label: "Example Actions", module: "ops.mjs", hosts: ["api.example.com"] }] }));
+    await writeFile(path.join(source, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example-actions", label: "Example Actions", module: "ops.mjs", hosts: ["api.example.com"] }] }));
     await writeFile(path.join(source, "ops.mjs"), "export default { status() {}, logs() {} };\n");
     const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "state") } });
     const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
@@ -157,7 +157,7 @@ test("a digest-trusted package outside the ops owners cannot become a parallel o
     const { loadDeployOpsRegistry } = await import("../registry.js");
     const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: lifecycle.loadPluginContributions });
     assert.deepEqual(registry.list(), []);
-    assert.deepEqual(registry.refusals, ["deploy ops from 'example-pages' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"]);
+    assert.deepEqual(registry.refusals, ["deploy ops from 'example-pages' were not loaded: only bundled plugins shipping jini-deploy-ops.json may contribute"]);
   } finally { await forceRemove(root); }
 });
 
@@ -173,7 +173,7 @@ test("secrets fields without the secret verbs, and invalid secret capabilities, 
     await t.test(name, async () => {
       const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-secret-shape-"));
       try {
-        await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] }] }));
+        await writeFile(path.join(root, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] }] }));
         await writeFile(path.join(root, "ops.mjs"), body);
         const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root }, {});
         assert.deepEqual(registry.refusals, [`deploy ops platform 'example' was not loaded: ${reason}`]);
@@ -184,7 +184,7 @@ test("secrets fields without the secret verbs, and invalid secret capabilities, 
   await t.test("a complete secrets adapter loads", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-secret-ok-"));
     try {
-      await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] }] }));
+      await writeFile(path.join(root, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] }] }));
       await writeFile(path.join(root, "ops.mjs"), `export default { status() {}, logs() {}, listSecrets() {}, setSecret() {}, unsetSecret() {}, readSecret() {}, ${caps} };`);
       const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root });
       assert.deepEqual(registry.refusals, []);
@@ -197,13 +197,13 @@ test("an unreadable manifest is a refusal for the registry and is skipped by enu
   const sourceRoot = await mkdtemp(path.join(tmpdir(), "tovu-ops-unreadable-"));
   try {
     const packageRoot = path.join(sourceRoot, "broken");
-    await mkdir(path.join(packageRoot, "tovu-deploy-ops.json"), { recursive: true });
+    await mkdir(path.join(packageRoot, "jini-deploy-ops.json"), { recursive: true });
     await writeFile(path.join(packageRoot, "plugin.json"), JSON.stringify({ name: "broken", version: "1.0.0" }));
     const invalidRoot = path.join(sourceRoot, "invalid");
     await mkdir(invalidRoot);
     await writeFile(path.join(invalidRoot, "plugin.json"), JSON.stringify({ name: "invalid", version: "1.0.0" }));
-    await writeFile(path.join(invalidRoot, "tovu-deploy-ops.json"), "{}");
-    assert.deepEqual((await loadDeployOpsRegistryFromSource({ pluginId: "broken", packageRoot })).refusals, ["deploy ops from 'broken' were not loaded: tovu-deploy-ops.json could not be read"]);
+    await writeFile(path.join(invalidRoot, "jini-deploy-ops.json"), "{}");
+    assert.deepEqual((await loadDeployOpsRegistryFromSource({ pluginId: "broken", packageRoot })).refusals, ["deploy ops from 'broken' were not loaded: jini-deploy-ops.json could not be read"]);
     assert.deepEqual(readBundledDeployOpsDescriptors({ sourceRoot }, {}), []);
     assert.deepEqual((await loadBundledDeployOpsRegistry({ sourceRoot }, {})).list(), []);
   } finally { await forceRemove(sourceRoot); }
@@ -227,7 +227,7 @@ test("a loader fault becomes one refusal, and requirePlatform names no platforms
 
 test("an installed but off plugin that provides the platform is named in the refusal; an unprovided id keeps the plain refusal", async () => {
   const { loadDeployOpsRegistry } = await import("../registry.js");
-  const railway = bundledContributionSources({ sourceRoot: SHIPPED.root, filename: "tovu-deploy-ops.json" }).find(plugin => plugin.pluginId === "railway");
+  const railway = bundledContributionSources({ sourceRoot: SHIPPED.root, filename: "jini-deploy-ops.json" }).find(plugin => plugin.pluginId === "railway");
   assert.ok(railway);
   const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: async (_input, options = {}) => {
     await options.onInactive?.({ plugin: railway });

@@ -46,8 +46,8 @@ async function register(items: readonly LoadedAgentPluginTool[], options: { read
 
 test('the contributions are loaded once for the workspace, from the tools file, ordered by plugin id', async () => {
   const { loads } = await register([tool('read_rows', 'read')]);
-  assert.equal(AGENT_PLUGIN_TOOLS_FILENAME, 'tovu-agent-tools.json');
-  assert.deepEqual(loads, [{ workspaceId: WORKSPACE, filename: 'tovu-agent-tools.json', orderByPluginId: true }]);
+  assert.equal(AGENT_PLUGIN_TOOLS_FILENAME, 'jini-agent-tools.json');
+  assert.deepEqual(loads, [{ workspaceId: WORKSPACE, filename: 'jini-agent-tools.json', orderByPluginId: true }]);
 });
 
 test('a read tool runs directly: classified agent-plugin-read, never wrapped in the approval card, deadline kept', async () => {

@@ -34,7 +34,7 @@ import type { SourceControlHostFacts, SourceControlProvider, SourceControlProvid
  */
 
 /** The file a plugin ships at its root to contribute git-host providers. */
-export const SOURCE_CONTROL_PROVIDERS_FILENAME = "tovu-source-control.json";
+export const SOURCE_CONTROL_PROVIDERS_FILENAME = "jini-source-control.json";
 
 export interface SourceControlProviderDescriptor extends SourceControlHostFacts {
   /** Plugin-relative path of the `.mjs` module. */

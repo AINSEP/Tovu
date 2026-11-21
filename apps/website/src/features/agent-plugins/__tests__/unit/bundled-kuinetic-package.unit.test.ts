@@ -58,5 +58,5 @@ test("kuinetic seeds on, registers agent_plugin_kuinetic, and its guidance fits 
   assert.equal(resolved.ok, true);
   const guidance = resolved.ok ? resolved.promptPrefix : "";
   assert.ok(Buffer.byteLength(guidance) < AUTOMATIC_GUIDANCE_LIMIT_BYTES, `${Buffer.byteLength(guidance)} bytes`);
-  assert.ok(guidance.includes(await readFile(path.join(PACKAGE_ROOT, "skills", PLUGIN_ID, "SKILL.md"), "utf8")));
+  assert.ok(guidance.includes(await readFile(path.join(PACKAGE_ROOT, "skills", PLUGIN_ID, "SKILL.md"), "utf8")), "the automatic guidance includes the complete kuinetic skill");
 });

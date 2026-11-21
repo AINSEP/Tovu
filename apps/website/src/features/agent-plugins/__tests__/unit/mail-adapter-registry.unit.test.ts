@@ -188,7 +188,7 @@ test("throwing modules and malformed descriptors are refused while healthy mail 
     }
     const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, [
-      "mail adapters from 'malformed-mail' were not loaded: tovu-mail-adapters.json is invalid: not valid JSON",
+      "mail adapters from 'malformed-mail' were not loaded: jini-mail-adapters.json is invalid: not valid JSON",
       "mail adapter 'fixture_mail' from 'throwing-mail' was not loaded: fixture import failed",
     ]);
     assert.deepEqual(registry.list().map(adapter => [adapter.pluginId, adapter.descriptor.id]), [["healthy-mail", "fixture_mail"]]);

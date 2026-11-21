@@ -87,7 +87,7 @@ for (const part of [
   });
 }
 
-for (const name of ["mcp.json", "tovu-credential-schemes.json", "nested/dir/MCP.json"]) {
+for (const name of ["mcp.json", "jini-credential-schemes.json", "nested/dir/MCP.json"]) {
   test(`'${name}' below an installed package root is package content`, { timeout: 10_000 }, () => { assert.equal(excludedSharePath({ path: `${PACKAGE_ROOT}/${name}` }), false); });
 }
 
@@ -180,7 +180,7 @@ test("an opaque credentials.gz under a forged root stays included by name; the s
 });
 
 test("package manifest names stay exempt by name below any package root; their bytes get the full scan", { timeout: 10_000 }, () => {
-  const path = `${FORGED_ROOT}/tovu-credential-schemes.json`;
+  const path = `${FORGED_ROOT}/jini-credential-schemes.json`;
   assert.equal(requireShareSecretFree({ path, bytes: Buffer.from('{"schemes":[]}') }), true);
   assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(PASSWORD) }), true);
 });
@@ -216,7 +216,7 @@ test("credential-looking ancestor names stay included", { timeout: 10_000 }, () 
 });
 
 test("a package exemption name outside any package root stays included", { timeout: 10_000 }, () => {
-  const path = "plugins/p/tovu-credential-schemes.json";
+  const path = "plugins/p/jini-credential-schemes.json";
   assert.equal(excludedSharePath({ path }), false);
 });
 

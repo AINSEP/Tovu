@@ -102,7 +102,7 @@ export function acmeFixtureCopy(t: { after(fn: () => void): void }, edit: (decla
   const root = mkdtempSync(path.join(tmpdir(), "acme-c3-"));
   onTeardown({ t, step: () => rmSync(root, { recursive: true, force: true }) });
   cpSync(ACME_FIXTURE_ROOT, root, { recursive: true });
-  const file = path.join(root, "tovu-connections.json");
+  const file = path.join(root, "jini-connections.json");
   const parsed = JSON.parse(readFileSync(file, "utf8")) as { connections: Record<string, unknown>[] };
   edit(parsed.connections[0]!);
   writeFileSync(file, JSON.stringify(parsed));

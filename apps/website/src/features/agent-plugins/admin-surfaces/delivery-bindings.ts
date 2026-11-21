@@ -11,7 +11,7 @@ import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
  *
  * Why the host re-checks what Jini's session already checked: the session knows only the surface's
  * declared adapter and connection ids; only the host knows which adapters the calling plugin really
- * contributes (`tovu-form-destinations.json`) and which connections it declares in this workspace.
+ * contributes (`jini-form-destinations.json`) and which connections it declares in this workspace.
  * And the session's ownership check is a separate `list` before the `save`/`remove`, so ownership is
  * re-read here inside the write itself (another writer may have changed the setting in between).
  *

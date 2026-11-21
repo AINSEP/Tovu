@@ -27,9 +27,9 @@ const packageFiles = new Map([
   ["plugin.json", Buffer.from('{"name":"portable","version":"1.0.0"}')],
   ["mcp.json", Buffer.from('{"mcpServers":{"portable":{"command":"node","args":["server.mjs"]}}}')],
   ["server.mjs", Buffer.from("throw new Error('must never execute during import');")],
-  ["tovu-credential-schemes.json", Buffer.from('{"schemes":[]}')],
-  ["tovu-deploy-targets.json", Buffer.from('{"targets":[]}')],
-  ["tovu-deploy-configs.json", Buffer.from('{"configs":[]}')],
+  ["jini-credential-schemes.json", Buffer.from('{"schemes":[]}')],
+  ["jini-deploy-targets.json", Buffer.from('{"targets":[]}')],
+  ["jini-deploy-configs.json", Buffer.from('{"configs":[]}')],
   // These references must survive the same package scan as literal credential-bearing files.
   ["targets/cloudflare-pages.mjs", Buffer.from([
     'export const headers = config => ({ Authorization: `Bearer ${config.token}` });',
@@ -55,7 +55,7 @@ test("share code awareness is restricted to code extensions", { timeout: 120000 
 test("verified plugin package files get a vendor-key scan only; settings JSON elsewhere stays strict", { timeout: 120000 }, () => {
   const at = (name: string) => `${packageRoot}/${name}`;
   const publicFiles = [
-    ["tovu-deploy-targets.json", '{"i18n":{"es":{"API token": "Token de API", "token": "Zq7xK2mP9vR4tL8wN3bY6cH1"}}}'],
+    ["jini-deploy-targets.json", '{"i18n":{"es":{"API token": "Token de API", "token": "Zq7xK2mP9vR4tL8wN3bY6cH1"}}}'],
     ["skills/jev/SKILL.md", "curl -H 'Authorization: Bearer <API_KEY>' https://api.example.com"],
     ["deploy-configs/railway.mjs", 'export const regions = ["us-west2", "europe-west4-drams3a", "asia-southeast1-eqsg3a"];'],
   ] as const;
@@ -68,7 +68,7 @@ test("verified plugin package files get a vendor-key scan only; settings JSON el
   // A provider-shaped key is refused wherever it sits in a package.
   for (const secret of [["sk", "proj", ""].join("-") + "Zq7xK2mP9vR4tL8wN3bY6cH1", "gh" + "p_" + "a1".repeat(18),
     "-----BEGIN " + "PRIVATE KEY-----\nabc\n-----END " + "PRIVATE KEY-----"]) {
-    assert.equal(requireShareSecretFree({ path: at("tovu-deploy-targets.json"), bytes: Buffer.from(`{"note": "${secret}"}`) }, { packageFiles }), true);
+    assert.equal(requireShareSecretFree({ path: at("jini-deploy-targets.json"), bytes: Buffer.from(`{"note": "${secret}"}`) }, { packageFiles }), true);
     assert.equal(requireShareSecretFree({ path: at("skills/jev/SKILL.md"), bytes: Buffer.from(secret) }, { packageFiles }), true);
   }
   // A malformed package root is not a package payload; non-package settings keep the strict scan.

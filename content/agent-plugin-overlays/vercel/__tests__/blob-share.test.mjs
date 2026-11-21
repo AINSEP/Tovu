@@ -118,7 +118,7 @@ test("no token in errors or logs; a missing or malformed Blob token refuses befo
 });
 
 test("the manifest registers provider `vercel`; it is chosen and delivered when it is the only artifact store", async () => {
-  const manifest = parseObjectStoresFile({ raw: await readFile(path.join(PLUGIN_DIR, "tovu-object-stores.json"), "utf8") });
+  const manifest = parseObjectStoresFile({ raw: await readFile(path.join(PLUGIN_DIR, "jini-object-stores.json"), "utf8") });
   assert.equal(manifest.ok, true);
   assert.deepEqual(manifest.descriptors.map(({ id, module }) => ({ id, module })), [{ id: "vercel", module: "object-stores/vercel-blob.mjs" }]);
   assert.equal(provider.create({ settings: {}, host: {} }).status, "rejected", "Blob holds share links only, never site media");
