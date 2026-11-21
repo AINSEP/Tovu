@@ -172,3 +172,42 @@ Found while merging combine-8 against Jini `integ/merge-8-2026-11-21` `3ad0c5671
   (Jini `ui/…/tab-strip/react/components/TabBar.tsx:108,116` emits `tab-bar-dot` / `tab-bar-tag`), and `:781`
   `.jini-row-menu-popup-above` (Jini `admin/…/RowMenu/RowMenu.tsx:106` template literal ` row-menu-popup-above`).
   Those rules never match. Full reverse-check list (26 selectors): `cloud-results/combine-8-tovu-class-audit.txt`.
+
+## combine-9 (Tovu `integ/merge-9-2026-11-21`, 2026-11-21)
+
+Found while merging combine-9 against Jini `integ/merge-10-2026-11-21` `de4e555b9`. Listed, not fixed
+(none blocks build or typecheck). Details: `cloud-results/combine-9-tovu.md`.
+
+### `C9-share-zip-refusal-vs-acknowledgement` — confirmed (tv-sharezip T5 vs the existing acknowledgement flow)
+- tv-sharezip T5 (`apps/website/src/features/site-backup/share-backend.ts`, `requireNoShareCredentialWarnings`,
+  called right after both ZIP builds) now throws `SiteShareRefusal` `UNSAFE_FILE` whenever the ZIP collector
+  records any credential warning. Before it, the same warnings produced a share with
+  `needsAcknowledgement: true`, a 403 `ACKNOWLEDGE_CREDENTIALS` download block and a
+  `POST …/site-shares/<id>/acknowledge` route. That whole acknowledgement path is now unreachable.
+- Red on the tip, green on the base (merge-8 + lockfile pair): `features/site-backup/__tests__/credential-warnings.integration.test.ts`
+  "export keeps database values and complete plugin packages; download requires a durable acknowledgement"
+  (`SiteShareRefusal: The export contains files with possible credentials…`), and
+  `features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts` "exports and imports contain
+  no saved keys or inherited grants" (inSite) and (appData): the admin export route returns 400
+  `{"code":"UNSAFE_FILE","message":"Export creation failed: The export contains files with possible credentials…"}`
+  where the test expects 200.
+- Effect: a site whose files carry anything credential-shaped can no longer be exported or shared at all;
+  previously the owner could review and acknowledge. Decision: keep the hard refusal (then delete the
+  acknowledgement route/state and repoint the 3 tests), or scope T5 to the public-token share and keep the
+  acknowledged download for owner exports.
+
+### `C9-site-chat-lockfile-stale` — confirmed (release/lockfile-1120 left one lockfile behind)
+- `release/lockfile-1120` bumped `apps/site-chat/package.json` (`@jini-ai/agentic`, `chat`, `core`, `protocol`
+  → `^0.7.3-next.1`) but did not regenerate `apps/site-chat/package-lock.json`, which still pins 0.7.0.
+  `npm ci --ignore-scripts` in `apps/site-chat` fails: `EUSAGE … lock file's @jini-ai/agentic@0.7.0 does not
+  satisfy @jini-ai/agentic@0.7.3-next.1` (also chat, core, protocol). Root/admin/desktop `npm ci`: 0.
+  Fix: `npm install` in `apps/site-chat` against the published 0.7.3-next.1 and commit the lockfile.
+
+### `C9-automatic-plugin-note-jini-merge10` — suspected (Jini merge-10 behaviour vs Tovu expectations)
+- `assistant/__tests__/automatic-agent-plugins.integration.test.ts` 3 red on the tip and identically on the
+  relinked base (merge-8 + lockfile pair, i.e. caused by Jini merge-10, not by a Tovu branch; green in combine-8
+  against Jini merge-8): "50 relevant ids are discoverable…" (the automatic note is over its 600-byte budget),
+  "explicit loader and guarded write refuse ask through the real executor" (a plugin whose preference is Ask is
+  still listed in the "Enabled agent plugins (load one before acting on its part)" note; the test expects no
+  note), "accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true)" (the delivered
+  preflight text differs). If the Ask-listing is real, the model is told to load a plugin the person has set to Ask.
