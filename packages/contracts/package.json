@@ -18,6 +18,7 @@
     "prepare": "npm run build"
   },
   "dependencies": {
+    "@jini-ai/agent-runtime": "^0.7.0",
     "@jini-ai/analytics": "^0.7.0",
     "@jini-ai/chat": "^0.7.0",
     "@jini-ai/diagnostics": "^0.7.0",
