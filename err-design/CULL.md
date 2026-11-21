@@ -78,7 +78,7 @@ Disposition key: **RETIRED** = the work has already landed on the checked ref. *
 | ERFIX-J2: `own-message` is model-only | KEEP | `catalog.ts:114` and `reporter.ts:166` publish raw `error.message` to callers. |
 | ERFIX-J2: per-call `exactSecrets` in refusal redaction | KEEP | `reporter.ts:183` passes host redaction only. |
 | ERFIX-J2: logger stops receiving the raw `error` | KEEP | `reporter.ts:150` passes `error` next to the redacted `diagnostic`. |
-| ERFIX-J2: rebuild `ClientFacingError` from the catalog, dropping its text | DROP | A `ClientFacingError` is our own code's deliberately classified carrier, and http-kit `adapter.ts:128–131` and `json-route.ts:265` send it verbatim by design. Rebuilding it adds a second policy (owner: keep it simple). |
+| ERFIX-J2: rebuild `ClientFacingError` from the catalog, dropping its text | DROP | A `ClientFacingError` is our own code's deliberately classified carrier, and http-kit `adapter.ts:129–131` and `json-route.ts:267` send it verbatim by design. Rebuilding it adds a second policy (owner: keep it simple). |
 | ERFIX-J2: filter `details.params` to placeholders | DROP | errfix1 itself says a registered `sentence.params` callback is the owner's approval of its values. Redaction plus the 128-char cap stays. |
 | ERFIX-J2: Sentry/OTel tagged export with no stack frames | CHANGE | The owner addendum requires the original error for stack and grouping. Export frames **with the message line removed**, type = label, value = ID. |
 | E4-J-TRACKER carrier retirement | RETIRED | Landed via `jz2-a` (`reporter.ts:114–131`). |
