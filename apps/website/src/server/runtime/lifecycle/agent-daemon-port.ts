@@ -58,11 +58,21 @@ interface ExplicitOrigin {
  *  @complexity O(1). */
 function readExplicitOrigin(): ExplicitOrigin | undefined {
   const explicitUrl = process.env.JINI_AGENT_DAEMON_URL;
-  if (explicitUrl) return { url: explicitUrl, port: undefined };
+  if (explicitUrl) {
+    const url = URL.parse(explicitUrl);
+    if (!url || !["http:", "https:"].includes(url.protocol) || [url.username, url.password, url.search, url.hash].some(Boolean)) {
+      throw new Error("JINI_AGENT_DAEMON_URL must be an HTTP(S) URL without credentials, query or fragment");
+    }
+    return { url: explicitUrl, port: undefined };
+  }
 
   const explicitPort = process.env.JINI_AGENT_DAEMON_PORT;
   if (explicitPort === undefined) return undefined;
-  return { url: `http://127.0.0.1:${Number(explicitPort)}`, port: Number(explicitPort) };
+  const port = Number(explicitPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("JINI_AGENT_DAEMON_PORT must be an integer from 1 to 65535");
+  }
+  return { url: `http://127.0.0.1:${port}`, port };
 }
 
 /** One real free-port probe: bind to port 0, read back whatever the OS assigned, release it

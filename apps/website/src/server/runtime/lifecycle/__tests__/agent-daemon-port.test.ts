@@ -81,12 +81,35 @@ test("an explicit JINI_AGENT_DAEMON_PORT still wins outright — no self-allocat
 });
 
 test("an explicit JINI_AGENT_DAEMON_URL wins outright over JINI_AGENT_DAEMON_PORT, and reports no port to manage", async () => {
-  await withEnv({ JINI_AGENT_DAEMON_URL: "http://127.0.0.1:9999", JINI_AGENT_DAEMON_PORT: "6421" }, () => {
+  await withEnv({ JINI_AGENT_DAEMON_URL: "http://127.0.0.1:9999/s/site", JINI_AGENT_DAEMON_PORT: "0" }, async () => {
     const resolver = createAgentDaemonOriginResolver();
+    await resolver.ensure();
 
-    assert.equal(resolver.getUrl(), "http://127.0.0.1:9999");
+    assert.equal(resolver.getUrl(), "http://127.0.0.1:9999/s/site", "the scoped explicit URL must take precedence over an unusable proxy port");
     assert.equal(resolver.getPortForSpawnEnv(), undefined, "a URL-only config has no separate port for this process to inject into the child's env");
   });
+});
+
+test("ensure() rejects unusable explicit daemon URLs without disclosing their values", async () => {
+  for (const url of ["invalid-daemon-url", "ftp://127.0.0.1", "http://user:secret@127.0.0.1", "http://127.0.0.1?secret=value", "http://127.0.0.1#secret"]) {
+    await withEnv({ JINI_AGENT_DAEMON_URL: url, JINI_AGENT_DAEMON_PORT: "6421" }, async () => {
+      const resolver = createAgentDaemonOriginResolver();
+      await assert.rejects(resolver.ensure(), {
+        message: "JINI_AGENT_DAEMON_URL must be an HTTP(S) URL without credentials, query or fragment",
+      }, "an unusable explicit URL must name the setting without echoing its value");
+    });
+  }
+});
+
+test("ensure() rejects blank, zero, fractional and out-of-range proxy ports without disclosing their values", async () => {
+  for (const port of ["", "0", "3.14", "-1", "65536"]) {
+    await withEnv({ JINI_AGENT_DAEMON_URL: undefined, JINI_AGENT_DAEMON_PORT: port }, async () => {
+      const resolver = createAgentDaemonOriginResolver();
+      await assert.rejects(resolver.ensure(), {
+        message: "JINI_AGENT_DAEMON_PORT must be an integer from 1 to 65535",
+      }, "an unusable proxy port must name the setting and range without echoing its value");
+    });
+  }
 });
 
 test("ensure() is idempotent — a second call does not re-allocate a different port", async () => {

@@ -179,6 +179,7 @@ test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFI
 test("publishStaticSite: github-pages gets the module's /<repo> base path, core adds no .nojekyll, and real exported files map to deploy-relative DeployFile[]", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
   const deps: RouteDeps = testRouteDeps();
+  let exportCalls = 0;
 
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
@@ -188,13 +189,14 @@ test("publishStaticSite: github-pages gets the module's /<repo> base path, core 
       workspaceId: deps.workspaceId,
       publishOutputRootDir: deps.publishOutputRootDir,
       idGen: deps.idGen,
-      exportSiteBound: deps.exportSiteBound,
+      exportSiteBound: async (options) => { exportCalls += 1; return deps.exportSiteBound(options); },
       config: { target: "github-pages", owner: "octo", repo: "demo-repo" },
       projectName: "demo",
     }
   );
 
   assert.equal(result.ok, true);
+  assert.equal(exportCalls, 1, "a successful publish must export the site exactly once");
   if (!result.ok) throw new Error("unreachable");
   assert.equal(result.basePath, "/demo-repo");
   assert.ok(captured.value, "the fake deploy target must have been invoked");
