@@ -1,3 +1,5 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
+
 /** Visitor confirmation is a live transport directive, never a transcript/history event. */
 export interface ToolConfirmation {
   readonly kind: 'tool_confirmation'; readonly challengeId: string; readonly title: string; readonly summary: string;
@@ -23,9 +25,9 @@ export function parseToolConfirmation({ value }: { value: unknown }, _options = 
  * Failure leaves the held execution to refuse/expire. @complexity One bounded HTTP request.
  */
 export async function confirmSiteAssistantTool({ challengeId, allow }: { challengeId: string; allow: boolean }, { fetch: send = globalThis.fetch, headers = () => ({}) }: { fetch?: typeof fetch; headers?: () => Record<string, string> } = {}): Promise<boolean> {
-  try {
+  return orFallback({ work: async () => {
     const response = await send('/api/site-assistant/confirm', { method: 'POST', mode: 'same-origin', redirect: 'error',
       headers: { 'Content-Type': 'application/json', ...headers() }, credentials: 'same-origin', body: JSON.stringify({ challengeId, allow }), signal: AbortSignal.timeout(10_000) });
     return response.ok;
-  } catch { return false; }
+  }, fallback: false, step: "site-assistant.confirm.send" });
 }

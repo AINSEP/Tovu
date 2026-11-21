@@ -1,3 +1,4 @@
+import { observed } from "@jini-ai/core/errors/idioms";
 import { InMemorySiteTitlePreservationStore, ensureSiteTitleSettingDefinition, preserveLegacySiteTitles } from "#src/features/settings/site-title";
 import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
 import { SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../../../configuration/seed.js";
@@ -41,6 +42,6 @@ export function composeSiteTitleSettings(required: { settingsRepo: InMemorySetti
 
   // Consent no longer observes this detached branch. Observe it now while preserving rejection
   // for consumers that await title readiness later, as the persistent composition root does.
-  void siteTitleReady.catch(() => undefined);
+  observed({ promise: siteTitleReady });
   return { siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, siteTitlePreservationStore };
 }

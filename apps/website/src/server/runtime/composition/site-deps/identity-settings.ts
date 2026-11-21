@@ -1,3 +1,4 @@
+import { observed } from "@jini-ai/core/errors/idioms";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
@@ -87,6 +88,16 @@ export function composeIdentitySettings(required: ComposeIdentitySettingsRequire
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
   const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
+  const { siteSettingsReady, siteTitleReady } = startPersistentSiteSettings({ analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore });
+  return { identity, settingsPrincipals, adminPasswordResetReady, presentationRepo, settingsRepo, settingsReady, seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady, siteTitlePreservationStore, siteDisplayName, siteTimeZone, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady };
+}
+
+function startPersistentSiteSettings(required: {
+  analyticsSettingsReady: Promise<void>;
+  siteTitleSettingsDeps: { settingsRepo: SqliteSettingsRepo; clock: ClockPort; ids: IdGeneratorPort; principals: ReturnType<typeof createSettingsPrincipalLookup> & Pick<IdentityRouteDepsSlice["principalRepo"], "findById" | "list" | "save"> };
+  siteTitlePreservationStore: SqliteSiteTitlePreservationStore;
+}, _options = {}) {
+  const { analyticsSettingsReady, siteTitleSettingsDeps, siteTitlePreservationStore } = required;
   const siteSettingsReady = analyticsSettingsReady
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
     // one-connection reason as the registrations above.
@@ -118,8 +129,8 @@ export function composeIdentitySettings(required: ComposeIdentitySettingsRequire
   // Observed at once: composition awaits provider boot before any consumer reads this tail, and a
   // rejection left unobserved across that pause is an unhandled rejection (Codex check 2026-10-27).
   // Only marks it handled; every consumer below still receives the rejection.
-  siteTitleReady.catch(() => undefined);
-  return { identity, settingsPrincipals, adminPasswordResetReady, presentationRepo, settingsRepo, settingsReady, seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady, siteTitlePreservationStore, siteDisplayName, siteTimeZone, siteTitleSettingsDeps, siteSettingsReady, siteTitleReady };
+  observed({ promise: siteTitleReady });
+  return { siteSettingsReady, siteTitleReady };
 }
 
 /**

@@ -21,6 +21,7 @@ export function createSiteVanillaArgs({ element }: { element: HTMLElement }, opt
   const frontend = createVisitorPageControl({ document, beforeNavigate: ({ messages }) => { const state = loadSiteAssistantState(); saveSiteAssistantState({ ...state, messages: messages ?? state.messages }); } }, { assign });
   const showConfirmation = createVanillaToolConfirmation({ element, document }, {
     confirm: input => confirmSiteAssistantTool(input, { headers: frontend.currentHeaders }),
+    sendFailureText: t("Couldn't send your decision. Try again."),
   });
   return { element, document, transport: createSiteAssistantTransport({}, { onToolConfirmation: showConfirmation, frontend }), agentId: 'site-assistant',
     suggestions: [t('What can I find on this site?'), t('Show me the latest posts')],

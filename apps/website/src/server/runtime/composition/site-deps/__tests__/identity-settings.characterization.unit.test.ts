@@ -24,7 +24,8 @@ test("B05: the call keeps the moved statements' place in composeSiteRouteDeps", 
 
 test("B05: the moved statements keep their order", () => {
   const declared = bodyOf(parse(SLICE), "composeIdentitySettings").flatMap((s) => ts.isVariableStatement(s) ? s.declarationList.declarations.filter((d) => d.initializer?.getText() !== "required").map((d) => d.name.getText().replace(/\s+/g, " ")) : []);
-  assert.deepEqual(declared, ["identity","settingsPrincipals","adminPasswordResetReady","presentationRepo","settingsRepo","settingsReady","{ seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady }","siteTitlePreservationStore","{ siteDisplayName, siteTimeZone }","siteTitleSettingsDeps","siteSettingsReady","siteTitleReady"]);
+  assert.deepEqual(declared, ["identity","settingsPrincipals","adminPasswordResetReady","presentationRepo","settingsRepo","settingsReady","{ seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady }","siteTitlePreservationStore","{ siteDisplayName, siteTimeZone }","siteTitleSettingsDeps","{ siteSettingsReady, siteTitleReady }"]);
+  assert.deepEqual(bodyOf(parse(SLICE), "startPersistentSiteSettings").flatMap(s => ts.isVariableStatement(s) ? s.declarationList.declarations.map(d => d.name.getText()) : []).filter(name => name === "siteSettingsReady" || name === "siteTitleReady"), ["siteSettingsReady", "siteTitleReady"], "site settings must start before title preservation");
 });
 
 test("B05: later-built inputs are only read lazily", () => {

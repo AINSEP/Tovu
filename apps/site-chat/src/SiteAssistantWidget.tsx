@@ -78,6 +78,7 @@ export function SiteAssistantWidget({ useSiteAssistantWidgetHook = useSiteAssist
             <div className="tovu-site-assistant__proposal" role="group" aria-label={toolConfirmation.pending.title}>
               <span className="tovu-site-assistant__proposal-label" role="status">
                 {toolConfirmation.pending.title} {toolConfirmation.pending.summary}
+                {toolConfirmation.sendFailed ? ` ${t("Couldn't send your decision. Try again.")}` : null}
               </span>
               <button type="button" className="tovu-site-assistant__proposal-go" onClick={() => toolConfirmation.decide({ allow: true })}>Allow</button>
               <button ref={toolConfirmation.cancelRef} type="button" className="tovu-site-assistant__proposal-go" onClick={() => toolConfirmation.decide({ allow: false })}>Cancel</button>
