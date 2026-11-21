@@ -193,5 +193,44 @@
       ]
     ],
     "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"partial\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\",\"result\":{\"reason\":\"stop\"}}\n\n"
+  },
+  "a pending approval interrupts the run": {
+    "httpVersion": "1.1",
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "date",
+        "<date>"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ],
+      [
+        "x-tovu-request-id",
+        "<uuid>"
+      ]
+    ],
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"partial\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\",\"outcome\":{\"type\":\"interrupt\",\"interrupts\":[{\"id\":\"approval\",\"reason\":\"confirmation\",\"toolCallId\":\"tool\",\"message\":\"Allow action?\"}]}}\n\n"
   }
 }

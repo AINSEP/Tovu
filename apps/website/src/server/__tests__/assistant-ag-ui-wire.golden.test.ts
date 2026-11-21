@@ -80,6 +80,10 @@ const SCRIPTS: Readonly<Record<string, Script>> = {
   "end with a failed status": { frames: [["agent", { type: "text_delta", delta: "partial" }], ["end", { reason: "error", status: "failed", code: 1, signal: null, resumable: false }]] },
   "end with a cancelled status": { frames: [["agent", { type: "thinking_delta", delta: "thinking" }], ["end", { reason: "canceled", status: "canceled", code: null, signal: "SIGTERM", resumable: true }]] },
   "a stream that closes with no end frame": { frames: [["agent", { type: "text_delta", delta: "partial" }]] },
+  "a pending approval interrupts the run": { frames: [
+    ["agent", { type: "text_delta", delta: "partial" }],
+    ["agent", { type: "mcp-ui", resource: MCP_UI_RESOURCE, pendingApproval: { id: "approval", reason: "confirmation", toolCallId: "tool", message: "Allow action?" } }],
+  ] },
 };
 
 let activeScript: Script = SCRIPTS["an error frame"]!;
@@ -153,6 +157,7 @@ function postRun(baseUrl: string, cookie: string): Promise<Captured> {
   const body = JSON.stringify({ threadId: "thread-golden", runId: "run-golden", messages: [{ role: "user", content: "find my posts" }] });
   return new Promise((resolve, reject) => {
     const req = request(`${baseUrl}${RUN_PATH}`, { method: "POST", agent: false, headers: { "content-type": "application/json", "content-length": Buffer.byteLength(body), cookie } }, (res) => {
+      res.setTimeout(5_000, () => res.destroy(new Error("the AG-UI response must reach HTTP EOF")));
       const chunks: Buffer[] = [];
       res.on("data", (chunk: Buffer) => chunks.push(chunk));
       res.on("error", reject);
@@ -253,7 +258,7 @@ for (const [name, script] of Object.entries(SCRIPTS)) {
     if (process.env.UPDATE_GOLDEN === "1") return;
     const golden = (JSON.parse(readFileSync(GOLDEN, "utf8")) as Record<string, Captured>)[name];
     assert.ok(golden, `no golden for "${name}"`);
-    assert.equal(actual[name]!.body, golden.body);
+    assert.equal(actual[name]!.body, golden.body, `the response reaches HTTP EOF with the exact ordered events for "${name}"`);
     assert.deepEqual({ ...actual[name], body: "" }, { ...golden, body: "" });
   });
 }
