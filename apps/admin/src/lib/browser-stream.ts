@@ -1,5 +1,6 @@
 /** Browser connection ownership; transport callbacks retain their native retry policy. */
 import type { VisibilitySource } from "@jini-ai/ui/visible-interval";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import type { StreamActivity } from "./stream-activity";
 
 export interface StreamChannel {
@@ -217,9 +218,8 @@ function openSharedChannel(
 ): StreamChannel | undefined {
   // Both capabilities are necessary: a lock without fan-out would silence follower tabs.
   if (scope !== "origin" || !ports.requestLock || !ports.openChannel) return undefined;
-  let channel: StreamChannel;
-  try { channel = ports.openChannel({ name: `browser-stream:${key}` }); }
-  catch { return undefined; /* Storage-denied hosts use the visibility-managed fallback. */ }
+  const channel = orFallbackSync({ work: () => ports.openChannel?.({ name: `browser-stream:${key}` }), fallback: undefined, step: "Open browser stream channel" });
+  if (!channel) return undefined; // Storage-denied hosts use the visibility-managed fallback.
   channel.addEventListener("message", onMessage);
   return channel;
 }

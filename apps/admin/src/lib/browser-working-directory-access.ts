@@ -1,4 +1,5 @@
 import type { ChatPaneWorkingDirectoryAccess } from "@jini-ai/chat/react";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 /**
  * @file Native folder picker for the assistant composer's working-directory control.
@@ -54,27 +55,24 @@ export function isDirectoryPickerSupported(): boolean {
  * recent folders" rather than throwing, since losing this list is cosmetic.
  */
 function readRecentDirectoryNames(): string[] {
-  try {
+  return orFallbackSync({ work: () => {
     const raw = window.localStorage.getItem(RECENT_DIRECTORY_NAMES_STORAGE_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === "string") : [];
-  } catch {
-    return [];
-  }
+  }, fallback: [], step: "Read recent directories" });
 }
 
 /** Moves `name` to the front of the persisted recent list, deduplicated and capped. */
 function recordRecentDirectoryName({ name }: { name: string }, _optional: Record<string, never> = {}): void {
-  try {
+  // Same degrade-silently posture as the read side above.
+  orFallbackSync({ work: () => {
     const next = [name, ...readRecentDirectoryNames().filter((existing) => existing !== name)].slice(
       0,
       MAX_RECENT_DIRECTORY_NAMES,
     );
     window.localStorage.setItem(RECENT_DIRECTORY_NAMES_STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // Same degrade-silently posture as the read side above.
-  }
+  }, fallback: undefined, step: "Remember recent directory" });
 }
 
 /**

@@ -22,6 +22,7 @@ import {
   type SettingsThemeChoice,
 } from "@jini-ai/ui";
 import type { SettingScope } from "@jini-ai/core/settings";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import {
   loadNamespaceValues,
   readBoolean,
@@ -305,13 +306,15 @@ export async function savePrivacy(
   // A withdrawal stops live browser collection even when the durable save fails.
   // Keep only a denial marker for reloads; it can never manufacture a grant.
   if (!nextMetrics && previousMetrics && typeof window !== 'undefined') {
-    try { window.localStorage.setItem('jini:metrics-withdrawal', '1'); } catch { /* Live teardown still applies. */ }
+    /* Live teardown still applies. */
+    orFallbackSync({ work: () => { window.localStorage.setItem('jini:metrics-withdrawal', '1'); }, fallback: undefined, step: 'Save metrics withdrawal marker' });
     window.dispatchEvent(new CustomEvent('jini:metrics-consent-changed', { detail: false }));
   }
   // Metrics is the first durable write. Signal it before later preference writes can fail.
   const metrics = await saveChangedEntries({ namespace: PRIVACY_NAMESPACE, scope: WORKSPACE_SCOPE, candidates: candidates.filter(candidate => candidate.key === PRIVACY_KEYS.metrics) });
   if (metrics.includes(PRIVACY_KEYS.metrics) && typeof window !== 'undefined') {
-    try { window.localStorage.removeItem('jini:metrics-withdrawal'); } catch { /* The marker only denies. */ }
+    /* The marker only denies. */
+    orFallbackSync({ work: () => { window.localStorage.removeItem('jini:metrics-withdrawal'); }, fallback: undefined, step: 'Clear metrics withdrawal marker' });
     window.dispatchEvent(new CustomEvent('jini:metrics-consent-changed', { detail: nextMetrics }));
   }
   const remaining = await saveChangedEntries({ namespace: PRIVACY_NAMESPACE, scope: WORKSPACE_SCOPE, candidates: candidates.filter(candidate => candidate.key !== PRIVACY_KEYS.metrics) });

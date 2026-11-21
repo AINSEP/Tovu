@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
 
@@ -33,21 +34,18 @@ export function mailStatusBannerVisible({ status }: { status: AdminMailStatus | 
 /** Best-effort read — a failing storage just shows the banner again, which is harmless.
  *  @complexity Time/space: O(1). */
 export function readMailBannerDismissed({ storage }: { storage: MailBannerStorage }): boolean {
-  try {
+  return orFallbackSync({ work: () => {
     return storage.getItem({ key: MAIL_BANNER_DISMISSED_KEY }) === "1";
-  } catch {
-    return false;
-  }
+  }, fallback: false, step: "Read mail banner dismissal" });
 }
 
 /** Best-effort write — silent on storage failure; the caller's state still hides it for the session.
  *  @complexity Time/space: O(1). */
 export function writeMailBannerDismissed({ storage }: { storage: MailBannerStorage }): void {
-  try {
+  // best-effort; see the doc comment above.
+  orFallbackSync({ work: () => {
     storage.setItem({ key: MAIL_BANNER_DISMISSED_KEY, value: "1" });
-  } catch {
-    // best-effort; see the doc comment above.
-  }
+  }, fallback: undefined, step: "Remember mail banner dismissal" });
 }
 
 /**

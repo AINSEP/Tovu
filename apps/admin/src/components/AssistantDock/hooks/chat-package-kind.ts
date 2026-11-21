@@ -1,3 +1,5 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
+
 type ChatPackageKind = "skill" | "site-plugin" | "agent-plugin" | "attachment";
 type CentralDirectory = { count: number; offset: number; size: number };
 
@@ -82,11 +84,7 @@ export async function chatPackageKind(
 ): Promise<ChatPackageKind> {
   if (file.name === "SKILL.md") return "skill";
   if (!file.name.toLowerCase().endsWith(".zip")) return "attachment";
-  try {
-    return await zipPackageKind({ file });
-  } catch {
-    return "attachment";
-  }
+  return orFallback({ work: () => zipPackageKind({ file }), fallback: "attachment", step: "Identify chat archive" });
 }
 
 /** Jini annotates expanded browser folders with relativePath. Keep a skill's companion files
