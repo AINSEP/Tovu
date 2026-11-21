@@ -101,6 +101,8 @@ export interface AssistantToolExecutorDeps {
   readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore;
   readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
   readonly toolFailures?: RedactedToolFailuresDeps;
+  readonly observability?: Parameters<typeof createDaemonToolExecutor>[0]["observability"];
+  readonly observabilityEnabled?: Parameters<typeof createDaemonToolExecutor>[0]["observabilityEnabled"];
 }
 export function createAssistantToolExecutor(required: AssistantToolExecutorDeps, optional = {}): ToolExecutor {
   const { toolAttemptAudit, toolFailures, ...deps } = required;
