@@ -693,6 +693,7 @@ async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps
     });
   }
 
+  if (plan.credentialWarnings?.length) return pushRefusal({ ok: false, code: "UNSAFE_FILE", message: "The export contains files with possible credentials. Remove the credentials and export again." });
   const uploaded = await uploadBackupPlan({
     plan, signal: run.signal, progress: run.progress,
     uploadBlob: async (file, _optional = {}) => {
@@ -725,6 +726,19 @@ async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps
     filesWritten: uploaded.entries.length,
     totalBytes: uploaded.entries.reduce((sum, entry) => sum + entry.bytes, 0),
   };
+}
+
+async function runObservedBackupPush(required: Parameters<typeof pushPlannedBackup>[0]): Promise<PushResult> {
+  if (!required.deps.observability) return pushPlannedBackup(required);
+  const operation = required.deps.observability.trackOperation({ name: "site.backup" });
+  return operation.run(() => pushPlannedBackup(required)).then(result => {
+    const cancelled = !result.pushed && (result.cancelled || ("reason" in result && result.reason === "abandoned"));
+    operation.end({ outcome: result.pushed ? "completed" : cancelled ? "cancelled" : "not_pushed", failed: !result.pushed && !cancelled });
+    return result;
+  }, error => {
+    operation.end({ outcome: "failed", failed: true });
+    throw error;
+  });
 }
 
 const PLAN_TAKE_MESSAGES = {
@@ -777,7 +791,7 @@ export async function pushSiteBackup(
   if (!job) {
     const taken = (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).take(key);
     if (!taken.ok) return { pushed: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
-    job = jobs.start({ key, progress: initialPushProgress({ plan: taken.plan }), run: ({ signal, progress }) => pushPlannedBackup({ deps, plan: taken.plan, run: { signal, progress } }) });
+    job = jobs.start({ key, progress: initialPushProgress({ plan: taken.plan }), run: ({ signal, progress }) => runObservedBackupPush({ deps, plan: taken.plan, run: { signal, progress } }) });
   }
 
   const waited = await jobs.wait({ job, signal: ctx.signal, budgetMs: pushWaitBudget({ deps, waitMs: optional.waitMs }) });

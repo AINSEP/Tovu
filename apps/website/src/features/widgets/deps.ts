@@ -1,4 +1,8 @@
-import { updatePost, restorePostForward, findPublishedPostBySlug, createPublicPostReader, findPublishedPostById, PostVersionConflictError, PostNotFoundError, type ForgetRemovedPostFn, type BeforeSaveHookPort, type PostRecord, type PostRepoPort } from "../post/index.js";
+import { updatePost } from "../post/post-update.js";
+import { restorePostForward } from "../post/post-trash.js";
+import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "../post/post-read.js";
+import { PostVersionConflictError, PostNotFoundError } from "../post/post.js";
+import type { ForgetRemovedPostFn, BeforeSaveHookPort, PostRecord, PostRepoPort } from "../post/contracts.js";
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 /**
  * @file One shared composer for the deps bag every widgets write-path function needs

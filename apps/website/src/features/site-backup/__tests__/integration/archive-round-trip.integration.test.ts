@@ -103,12 +103,22 @@ async function source(required: { t: TestContext }) {
 }
 
 // Mutation: remove any scope from SITE_BACKUP_SCOPES; the exact scope manifest assertion fails.
-test("repository backup plan and fake-provider push preserve every portable scope and omit the saved key", { timeout: 120000 }, async t => {
+for (const warned of [false, true]) {
+test(`repository backup plan and fake-provider push preserve every portable scope and omit the saved key (${warned ? "warned" : "clean"})`, { timeout: 120000 }, async t => {
   const { h } = await source({ t }), f = await repositoryHarness({ h });
+  if (!warned) fs.rmSync(path.join(f.siteDir, "themes/static/site/credential.js"));
   const call = { principal: { id: "owner" }, signal: new AbortController().signal };
   const planned = await planSiteBackup({ deps: f.deps, call: { ...call, input: { owner: "octo", repo: "backups", folder: "demo-site" } } }) as { planned: boolean; planId: string };
-  assert.equal(planned.planned, true);
+  assert.equal(planned.planned, true, "both clean and warned sources produce a backup plan");
+  const tip = f.github.state.tip;
   const pushed = await pushSiteBackup({ deps: f.deps, call: { ...call, input: { planId: planned.planId } } });
+  if (warned) {
+    assert.deepEqual(pushed, { pushed: false, cancelled: false, code: "UNSAFE_FILE", message: "The export contains files with possible credentials. Remove the credentials and export again." }, "warned backups are refused before upload");
+    assert.deepEqual(f.github.writeRoutes(), [], "warned backups make no provider writes");
+    assert.deepEqual(f.github.blobContents, [], "warned backups upload no blobs");
+    assert.equal(f.github.state.tip, tip, "warned backups leave the branch unchanged");
+    return;
+  }
   assert.equal(pushed.pushed, true);
   assert.deepEqual(f.github.unexpected, []);
   const files = new Map([...f.github.files].filter(([name]) => name.startsWith("demo-site/")).map(([name, bytes]) => [name.slice(10), bytes]));
@@ -116,9 +126,6 @@ test("repository backup plan and fake-provider push preserve every portable scop
   try { assertPortableCounts({ source: h.db.$client, copy }); } finally { copy.close(); }
   assert.equal(digest(files.get("uploads/" + STORAGE_KEY)!), HASH);
   assert.deepEqual(files.get("themes/static/site/index.html"), h.files.get("themes/static/site/index.html"));
-  assert.deepEqual(files.get("themes/static/site/credential.js"), h.files.get("themes/static/site/credential.js"));
-  assert.ok("credentialWarnings" in pushed && pushed.credentialWarnings?.some(warning => warning.path === "themes/static/site/credential.js"));
-  assert.equal(JSON.stringify("credentialWarnings" in pushed && pushed.credentialWarnings).includes("ghp_" + "b".repeat(36)), false);
   assert.deepEqual(files.get("settings/config.json"), h.files.get("settings/config.json"));
   assert.deepEqual(files.get("agent-plugins/ws/ws/portable/memory/notes/note.md"), Buffer.from("portable plugin state"));
   const manifest = JSON.parse(files.get("tovu-backup.json")!.toString());
@@ -133,6 +140,7 @@ test("repository backup plan and fake-provider push preserve every portable scop
   assertInventory({ inventory: manifest.files, files });
   assert.equal(f.github.writeRoutes().filter(route => route === "POST /git/commits").length, 1);
 });
+}
 
 // Mutation: omit a restored media file in restoreStagedImport; the destination hash assertion fails.
 test("share export and new-site import preserve portable rows, bytes, plugin state and the import report", { timeout: 120000 }, async t => {
