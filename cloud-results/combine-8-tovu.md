@@ -1,4 +1,4 @@
-`integ/merge-8-2026-11-21` @ `__SHA__` (report commit; see the push line in the run log). Code tip: `c15aa2a009` (+ report/raw-output commits). Jini: `origin/integ/merge-8-2026-11-21` `3ad0c5671` at start and re-fetched before the final gates and again at the end: unchanged.
+`integ/merge-8-2026-11-21` @ `5ad106cea3` (report commit; the branch tip is the next commit, which only fills in this line). Code tip: `c15aa2a009` (+ report/raw-output commits). Jini: `origin/integ/merge-8-2026-11-21` `3ad0c5671` at start and re-fetched before the final gates and again at the end: unchanged.
 
 # combine-8 TOVU (2026-11-21) — `integ/merge-8-2026-11-21`
 
