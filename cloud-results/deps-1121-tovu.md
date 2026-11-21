@@ -1,4 +1,4 @@
-**Tovu `deps/lockfile-1121` @ `__TOVU_SHA__`** · Jini `deps/lockfile-1121` @ `__JINI_SHA__`
+**Tovu `deps/lockfile-1121` @ `d066f29fe`** (last code commit; the report commits follow it) · **Jini `deps/lockfile-1121` @ `3493668d`** (last code commit; Jini report `1befd817`)
 
 # deps-1121 TOVU (2026-11-21): dependency and lockfile run
 
@@ -43,7 +43,7 @@ No source changes. Lockfiles were updated with `npm update --package-lock-only -
 
 ## Step 3: no Tovu part
 
-## Step 4: zod 3.25.76 → 4.6.7 (`d066f29fe`; relinked to the Jini zod commit)
+## Step 4: zod 3.25.76 → 4.6.7 (`d066f29fe`; relinked to the Jini zod commit `673ab136`. Later Jini commits change only tests, vitest configs and devDependencies, so the linked runtime source is identical to `3493668d`)
 - Manifests: root `zod ^3.25.76 → ^4.6.6`, `apps/desktop` the same, and `packages/contracts` the same. All three resolve to 4.6.7.
 - **Source: the import specifier changed in 7 files, and no schema call changed.** `from "zod"` → `from "zod/v3"` in:
   `apps/website/src/assistant/daemon-core-protocol.ts`, `server/inbound/assistant/{agent-daemon-core-client,agent-daemon-site-tools,agent-plugin-preflight-events,tool-access-lowering-route}.ts`, `server/runtime/composition/modules/assistant-tool-exec.ts`, `packages/contracts/src/daemon-connection.ts`.
