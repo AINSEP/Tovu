@@ -47,7 +47,7 @@ test("a successful contact form is hidden by the emitted stylesheet in a browser
     assert.equal(await form.getAttribute("hidden"), "");
     assert.equal(await form.evaluate((el) => getComputedStyle(el).display), "none");
     assert.equal(await form.isVisible(), false);
-    assert.equal(await page.locator(".tovu-form-success").isVisible(), true);
+    assert.equal(await page.locator(".jini-form-success").isVisible(), true);
   } finally {
     await browser.close();
   }
@@ -68,7 +68,7 @@ test("contact form fallback error and success colors apply in both modes without
         assert.equal(await error.evaluate((el) => getComputedStyle(el).color), danger, `${mode}: ${selector}`);
       }
       await page.setContent(document(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK })));
-      const message = page.locator(".tovu-form-success");
+      const message = page.locator(".jini-form-success");
       assert.equal(await message.isVisible(), true);
       assert.equal(await message.evaluate((el) => getComputedStyle(el).color), success, mode);
     }

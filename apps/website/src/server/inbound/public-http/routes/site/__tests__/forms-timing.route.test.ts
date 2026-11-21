@@ -19,7 +19,7 @@ test("live GET and POST share issuance: fast retries preserve text, 1000 ms admi
   const fields = [{ id: "name", label: "Name", type: "text" as const, required: true }];
   const theme = loadTheme({ themeDir: path.resolve("content/themes/static/tovu-starter"), id: "tovu-starter", source: "built-in" });
   const form = renderHtmlForm({ slug: "contact", fields, action: "/forms/contact/submit", hooks: {
-    form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error", field: "data-tovu-field",
+    form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error", field: "data-tovu-field",
   } }, {});
   const deps = { ...base, clock, postRepo: new InMemoryPostRepo({}, { initialRows: [] }), themes: [{ ...theme, pages: { ...theme.pages, index: `<html><body>${form}</body></html>` } }] };
   await deps.formDefinitionRepo.create({ id: "timed-form", workspaceId: deps.workspaceId, name: "Contact", slug: "contact", fields,

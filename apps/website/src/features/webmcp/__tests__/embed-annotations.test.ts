@@ -6,12 +6,12 @@ import { renderHtmlMenu, type HtmlMenuItem } from '#src/platform/html/menu-rende
 import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 
 test('rendered HTML forms advertise native tools and preserve human submission and transport', () => {
-  const html = renderHtmlForm({ slug: 'contact', action: '/forms/contact', fields: [{ id: 'email', type: 'email', label: 'Email', required: true }] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } });
+  const html = renderHtmlForm({ slug: 'contact', action: '/forms/contact', fields: [{ id: 'email', type: 'email', label: 'Email', required: true }] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error" } });
   assert.match(html, /<form[^>]*toolname="form_contact"[^>]*tooldescription="contact"/);
   assert.match(html, /method="post" action="\/forms\/contact"/);
   assert.match(html, /name="email"[^>]*toolparamtitle="Email"[^>]*toolparamdescription="Email"[^>]*required/);
   assert.doesNotMatch(html, /toolautosubmit/);
-  const custom = renderHtmlForm({ slug: 'custom', action: '/forms/custom', fields: [] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } }, { html: '<textarea name="message"></textarea>' });
+  const custom = renderHtmlForm({ slug: 'custom', action: '/forms/custom', fields: [] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error" } }, { html: '<textarea name="message"></textarea>' });
   assert.match(custom, /toolname="form_custom"/);
   assert.match(custom, /<textarea name="message"><\/textarea>/);
 });

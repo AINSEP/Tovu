@@ -1786,12 +1786,12 @@ test("contact-form widget: renders a hidden success slot from props.successMessa
       successMessage: "Thanks <for> reaching out",
     },
   });
-  // Generic `tovu-form-success`/`data-form-slug` hooks alongside the legacy `widget-contact-form-*`/
+  // Generic `jini-form-success`/`data-form-slug` hooks alongside the legacy `widget-contact-form-*`/
   // `data-contact-form-slug` ones (2026-08-31 generalization) — any form-rendering widget gets the
   // former; contact-form additionally keeps the latter for theme back-compat.
   assert.match(
     html,
-    /<div class="tovu-form-success widget-contact-form-success" data-form-slug="contact" data-contact-form-slug="contact" hidden>Thanks &lt;for&gt; reaching out<\/div>/
+    /<div class="jini-form-success widget-contact-form-success" data-form-slug="contact" data-contact-form-slug="contact" hidden>Thanks &lt;for&gt; reaching out<\/div>/
   );
   assert.match(html, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact" data-contact-form-slug="contact" hidden><\/div>/);
   assert.match(html, /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error" hidden><\/div>/);
@@ -1825,7 +1825,7 @@ test("injectFormSubmissionResultIntoHtml: a result for a slug NOT present on the
 test("injectFormSubmissionResultIntoHtml: success reveals the success message and hides the form", () => {
   const html = contactFormPageHtml();
   const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
-  assert.match(updated, /<div class="tovu-form-success widget-contact-form-success" data-form-slug="contact" data-contact-form-slug="contact">All set!<\/div>/);
+  assert.match(updated, /<div class="jini-form-success widget-contact-form-success" data-form-slug="contact" data-contact-form-slug="contact">All set!<\/div>/);
   assert.match(updated, /<form hidden class="widget tovu-form widget-contact-form"/);
 });
 

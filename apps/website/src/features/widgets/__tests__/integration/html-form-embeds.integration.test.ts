@@ -65,7 +65,7 @@ test("HTML mode is per occurrence, and native POST results reveal plain confirma
   const plainHtml = `<div data-embed-config='{"type":"form","id":"contact","mode":"html"}'></div>`;
   const plain = renderHtmlPageBody({ html: plainHtml, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps }, input: { workspaceId: "ws", html: plainHtml } }) });
   const success = injectFormSubmissionResultIntoHtml({ html: plain, result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
-  assert.match(success, /data-tovu-form-success data-form-slug="contact" role="status">Thanks — your message has been sent\.<\/div>/);
+  assert.match(success, /data-jini-form-success data-form-slug="contact" role="status">Thanks — your message has been sent\.<\/div>/);
   assert.match(success, /<form hidden class="tovu-form" data-tovu-form/);
   const failure = injectFormSubmissionResultIntoHtml({ html: plain, result: { kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "invalid" }] }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   // A sentence from the field's label since 2e733c6a5 (friendly form errors), not "email: invalid".
@@ -80,14 +80,14 @@ test("HTML-mode forms carry the tovu-form hook and baseline style so they inheri
   // Author markup is never re-classed: the theme reaches it through `.tovu-form` descendant selectors.
   assert.match(html, /<label class="mine">Email<input class="author-input" name="email" type="email"><\/label>/);
   // Success/error slots keep the exact prefix the result-reveal regexes in form-render.ts match on.
-  assert.match(html, /<div data-tovu-form-success data-form-slug="contact" role="status" hidden>/);
+  assert.match(html, /<div data-jini-form-success data-form-slug="contact" role="status" hidden>/);
   assert.match(html, /<div data-tovu-form-error data-form-slug="contact" role="alert" hidden><\/div>/);
 });
 
 test("renderHtmlForm merges a host class with any extra classes instead of replacing them", () => {
-  const html = renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } }, { className: "tovu-form  author-form " });
+  const html = renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error" } }, { className: "tovu-form  author-form " });
   assert.match(html, /<form class="tovu-form author-form" data-tovu-form="contact"/);
-  assert.match(renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } }), /<form data-tovu-form="contact"/);
+  assert.match(renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error" } }), /<form data-tovu-form="contact"/);
 });
 
 test("theme validator accepts restored form vocabulary and mode key", () => {

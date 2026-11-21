@@ -122,7 +122,7 @@ test("decode flash: rejects a missing, empty or non-string slug even with valid 
 test("slots: a widget's extra classes and attributes are emitted beside the generic hooks", () => {
   assert.equal(
     renderFormSuccessSlot({ slug: "s", message: "Thanks", className: FORM_SUCCESS_CLASS }, { extraClasses: "legacy-success", extraAttrs: 'data-legacy="s"' }),
-    '<div class="tovu-form-success legacy-success" data-form-slug="s" data-legacy="s" hidden>Thanks</div>',
+    '<div class="jini-form-success legacy-success" data-form-slug="s" data-legacy="s" hidden>Thanks</div>',
   );
   assert.equal(
     renderFormErrorSlot({ slug: "s", className: FORM_ERROR_CLASS }, { extraClasses: "legacy-error", extraAttrs: 'data-legacy="s"' }),
@@ -131,7 +131,7 @@ test("slots: a widget's extra classes and attributes are emitted beside the gene
 });
 
 test("slots: without extras only the generic class and slug attribute are emitted", () => {
-  assert.equal(renderFormSuccessSlot({ slug: "s", message: "Thanks", className: FORM_SUCCESS_CLASS }), '<div class="tovu-form-success" data-form-slug="s" hidden>Thanks</div>');
+  assert.equal(renderFormSuccessSlot({ slug: "s", message: "Thanks", className: FORM_SUCCESS_CLASS }), '<div class="jini-form-success" data-form-slug="s" hidden>Thanks</div>');
   assert.equal(renderFormErrorSlot({ slug: "s", className: FORM_ERROR_CLASS }), '<div class="tovu-form-error" data-form-slug="s" hidden></div>');
 });
 
@@ -143,16 +143,16 @@ test("encode flash: a slug too long for the cookie on its own sets no cookie", (
   assert.equal(encodeFormFlashCookieValue({ payload: { slug: "s".repeat(3001), values: { name: "Ada" } } }), undefined);
 });
 
-// HTML-mode forms mark their slots with bare `data-tovu-form-success`/`data-tovu-form-error`
+// HTML-mode forms mark their slots with bare `data-jini-form-success`/`data-tovu-form-error`
 // attributes instead of the Builder classes.
 const htmlModeFormPage =
-  '<div data-tovu-form-success data-form-slug="s" hidden>Thanks</div>' +
+  '<div data-jini-form-success data-form-slug="s" hidden>Thanks</div>' +
   '<form data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s" hidden></div></form>';
 
 test("inject: success on an HTML-mode form reveals its bare success slot and hides the form", () => {
   assert.equal(
     injectFormSubmissionResultIntoHtml({ html: htmlModeFormPage, result: { kind: "success", slug: "s" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }),
-    '<div data-tovu-form-success data-form-slug="s">Thanks</div>' +
+    '<div data-jini-form-success data-form-slug="s">Thanks</div>' +
       '<form hidden data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s" hidden></div></form>',
   );
 });
@@ -160,7 +160,7 @@ test("inject: success on an HTML-mode form reveals its bare success slot and hid
 test("inject: a one-second rate limit says 'second', not 'seconds'", () => {
   assert.equal(
     injectFormSubmissionResultIntoHtml({ html: htmlModeFormPage, result: { kind: "rate-limited", slug: "s", retryAfterSeconds: 1 }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }),
-    '<div data-tovu-form-success data-form-slug="s" hidden>Thanks</div>' +
+    '<div data-jini-form-success data-form-slug="s" hidden>Thanks</div>' +
       '<form data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s">Too many submissions — please try again in 1 second.</div></form>',
   );
 });
