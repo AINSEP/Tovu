@@ -72,13 +72,13 @@ const HTML_PAGE = {
 it("U1: injected page readiness reaches the captured protected-card describer", async () => {
   const base = createFakePageEditorPort({ page: HTML_PAGE });
   const port = { ...base, getPage: async () => ({ post: HTML_PAGE, pluginEmbeds: [
-    { plugin: "tovu/google-login", component: "sign-in-button", availability: "PLUGIN_DISABLED" },
+    { plugin: "jini/google-login", component: "sign-in-button", availability: "PLUGIN_DISABLED" },
   ] }) };
   const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps: { port, themeCanvasPort: createFakeThemeCanvasPort(),
     navigate: () => {}, t: ({ key }: { locale: string; key: string }) => key, locale: "en" } }));
   await waitFor(() => expect(result.current.page?.id).toBe("pg-html"));
   const marker = document.createElement("div");
-  marker.setAttribute("data-embed-config", JSON.stringify({ type: "plugin", plugin: "tovu/google-login", component: "sign-in-button" }));
+  marker.setAttribute("data-embed-config", JSON.stringify({ type: "plugin", plugin: "jini/google-login", component: "sign-in-button" }));
   expect(result.current.embedPlaceholderDescriber(marker)?.identityLabel).toBe("sign-in-button — plugin off: visitors see your fallback");
 });
 

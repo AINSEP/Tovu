@@ -178,7 +178,7 @@ resend/
 ```json
 {"schemaVersion":2,"adapters":[{
   "id":"resend","label":"Resend","module":"adapters/resend.mjs",
-  "credentialLabel":"Tovu Mail — Resend API","credentialKeys":["token"],
+  "credentialLabel":"Jini Mail — Resend API","credentialKeys":["token"],
   "feedback":true,
   "credentialCard":{
     "title":"Connect Resend",

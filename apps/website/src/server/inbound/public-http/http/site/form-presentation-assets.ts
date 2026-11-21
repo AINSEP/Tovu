@@ -1,5 +1,5 @@
 const FORM_CLASS = "tovu-form";
-const FORM_SUCCESS_CLASS = "tovu-form-success";
+const FORM_SUCCESS_CLASS = "jini-form-success";
 const FORM_ERROR_CLASS = "tovu-form-error";
 const FORM_SLUG_ATTR = "data-form-slug";
 
@@ -154,7 +154,7 @@ export const FORM_BASELINE_STYLE =
   ":where([data-tovu-form] button:not([type=button],[type=reset])){align-self:flex-start;padding:8px 16px;" +
   "border:1px solid transparent;border-radius:6px;background:var(--fg,#111827);" +
   "color:var(--bg,#fff);font-weight:600;cursor:pointer;}" +
-  `:where(.${FORM_SUCCESS_CLASS},[data-tovu-form-success]){padding:12px 14px;border-radius:6px;` +
+  `:where(.${FORM_SUCCESS_CLASS},[data-jini-form-success]){padding:12px 14px;border-radius:6px;` +
   "background:var(--surface,#fff);border:1px solid var(--border,#d1d5db);" +
   "border-left:4px solid var(--success,var(--tovu-form-success-fallback));color:var(--success,var(--tovu-form-success-fallback));}" +
   `:where(.${FORM_ERROR_CLASS},[data-tovu-form-error]){padding:10px 12px;border-radius:6px;` +

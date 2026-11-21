@@ -117,8 +117,8 @@ function manualTimers(): { timers: MaintenanceTimers; queue: { run: () => void; 
 }
 
 test("the credential label is the fixed prefix plus the provider label", () => {
-  assert.equal(SEARCH_CREDENTIAL_LABEL_PREFIX, "Tovu Search — ");
-  assert.equal(searchCredentialLabel({ providerLabel: "Meilisearch" }), "Tovu Search — Meilisearch");
+  assert.equal(SEARCH_CREDENTIAL_LABEL_PREFIX, "Jini Search — ");
+  assert.equal(searchCredentialLabel({ providerLabel: "Meilisearch" }), "Jini Search — Meilisearch");
 });
 
 test("with no built-in provider and no plugins, search is not configured and the default 'builtin' shows as unregistered", async () => {
@@ -530,9 +530,9 @@ test("bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, memb
   assert.equal(ports.httpClient, httpClient);
   assert.equal(ports.now(), NOW);
   assert.match(await ports.installId(), /^[A-Za-z0-9_-]+$/);
-  assert.deepEqual(await ports.resolveCredential({ label: "Tovu Search — Meilisearch" }), { baseUrl: "https://meili.example", token: "k" });
+  assert.deepEqual(await ports.resolveCredential({ label: "Jini Search — Meilisearch" }), { baseUrl: "https://meili.example", token: "k" });
   assert.equal(await ports.resolveCredential({ label: "Tovu Search — Other" }), null);
-  assert.deepEqual(credentialCalls[0], { workspaceId: WS, label: "Tovu Search — Meilisearch" });
+  assert.deepEqual(credentialCalls[0], { workspaceId: WS, label: "Jini Search — Meilisearch" });
   assert.deepEqual(await ports.audiencesForSession({}), []);
   assert.deepEqual(await ports.audiencesForSession({ sessionToken: "tok" }), ["members", "paid", "tier:gold"]);
   assert.deepEqual(memberCalls, [

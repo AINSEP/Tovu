@@ -21,7 +21,7 @@ test("API card reuses multi-enum and suggests exact catalog labels only on creat
 });
 
 test("a non-hosting credential gets no Works-for picker and no deploy host", () => {
-  for (const prefill of [{ label: "Tovu Mail — Resend API" }, { label: "Tovu Mail — Resend API", category: "general" }, { label: "Production access" }, { label: "Vercel", worksFor: [] }, {}]) {
+  for (const prefill of [{ label: "Jini Mail — Resend API" }, { label: "Jini Mail — Resend API", category: "general" }, { label: "Production access" }, { label: "Vercel", worksFor: [] }, {}]) {
     assert.equal(worksForField(prefill), undefined, JSON.stringify(prefill));
   }
 });
@@ -38,7 +38,7 @@ test("source-control credentials still get the catalog", () => {
 });
 
 test("prefilled non-catalog targets are the only options offered", () => {
-  const field = worksForField({ label: "Tovu Mail — Resend API", worksFor: ["resend"] });
+  const field = worksForField({ label: "Jini Mail — Resend API", worksFor: ["resend"] });
   assert.deepEqual(field?.options.map(option => option.value), ["resend"]);
   assert.deepEqual(field?.value, ["resend"]);
 });

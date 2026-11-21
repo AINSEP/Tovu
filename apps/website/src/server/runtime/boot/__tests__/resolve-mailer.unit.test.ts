@@ -27,7 +27,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 const WORKSPACE = "ws-1";
 
 /** The label sites already saved their Resend key under; it now lives in the plugin's descriptor. */
-const MAIL_HTTP_API_CREDENTIAL_LABEL = "Tovu Mail — Resend API";
+const MAIL_HTTP_API_CREDENTIAL_LABEL = "Jini Mail — Resend API";
 
 /** Synthetic provider uses the same injected HTTP port as any plugin adapter. */
 async function loadBundledMailAdapters(): Promise<MailAdapterRegistry> {
@@ -273,7 +273,7 @@ test("a selected provider without a credential refuses in production (and is ret
   const { mailer } = createResolvedMailer(deps);
   const refused = await mailer.send(MESSAGE, OPTIONS);
   assert.equal(!refused.ok && refused.errorCode, "MAIL_PROVIDER_UNAVAILABLE");
-  assert.match(warnings[0]!, /'resend' has no saved credential "Tovu Mail — Resend API"/);
+  assert.match(warnings[0]!, /'resend' has no saved credential "Jini Mail — Resend API"/);
   await saveResendKey(credentialDeps);
   assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true, "a key saved later is picked up on the next send");
 

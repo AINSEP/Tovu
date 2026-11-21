@@ -90,7 +90,7 @@ function defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPlugi
 /**
  * After the bundled plugins are seeded (a token needs its plugin installed): connects plugins from
  * tokens typed into create-site onboarding for this site, then from an old env token
- * (`tovuTokenAuth.importFromEnv`, e.g. the retired `TOVU_SUPABASE_MCP_ACCESS_TOKEN`). The onboarding
+ * (`tovuTokenAuth.importFromEnv`, e.g. the retired `JINI_SUPABASE_MCP_ACCESS_TOKEN`). The onboarding
  * token goes first and the env import skips every plugin that had one: the person chose that token
  * for this site, and an ambient env token (possibly another account's) saved first would make the
  * pending import find the row connected and drop it. Neither overwrites a connection the site

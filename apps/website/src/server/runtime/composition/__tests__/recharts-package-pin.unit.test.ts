@@ -58,7 +58,7 @@ test("the runtime manifest is the approval: a package cannot widen its own trust
   assert.equal(manifest.version, RECHARTS_BROWSER_APPROVAL.version);
   assert.equal(manifest.integrity, RECHARTS_BROWSER_APPROVAL.integrity);
   assert.equal(manifest.browserProviders, RECHARTS_BROWSER_APPROVAL.browserProviders);
-  assert.deepEqual(manifest.extensions, { tovu: { id: "tovu/charts-recharts" } });
+  assert.deepEqual(manifest.extensions, { jini: { id: "jini/charts-recharts" } });
   assert.equal(RECHARTS_DEFAULT_PROVIDER, "plugin.recharts");
   assert.equal(RECHARTS_BROWSER_APPROVAL.browserProviders[0]?.id, RECHARTS_DEFAULT_PROVIDER);
 });

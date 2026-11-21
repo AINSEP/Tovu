@@ -85,7 +85,7 @@ function registryDepsWithoutHost(deps: PluginsToolDeps): Omit<AssistantToolRegis
 test("the contributor builds through the injected host factory only when the deps carry no host", () => {
   const { deps, surfaceExchanges } = harness();
   const host = deps.pluginHost;
-  assert.ok(host);
+  assert.ok(host, "the harness binds a plugin host");
   const created: PluginsToolDeps[] = [];
   const contributor = contributePluginsTools({ createPluginHost: ({ deps: received }) => { created.push(received); return host; } });
   assert.deepEqual([contributor.domain, contributor.risk], ["plugins", pluginsDerivedRisk]);
@@ -100,7 +100,7 @@ test("the contributor builds through the injected host factory only when the dep
 test("with no host bound and no factory, an Agent Plugin operation is an explicit refusal", async () => {
   const { deps, surfaceExchanges } = harness();
   const uninstall = contributePluginsTools().build(registryDepsWithoutHost(deps), { surfaceExchanges }).find((registration) => registration.descriptor.id === "plugins_uninstall");
-  assert.ok(uninstall);
+  assert.ok(uninstall, "plugins_uninstall is registered without a bound host");
   await assert.rejects(uninstall.handler(context({ family: "agent-plugin", pluginId: "higgsfield" }), {}),
     (error: unknown) => error instanceof ToolInputError && error.message === "The host does not provide agent-plugin lifecycle operations.");
 });
@@ -271,11 +271,11 @@ test("a Soon plugin is refused in plain words before confirmation or write; a li
 test("turning a Soon plugin off is never refused, and a ready plugin is not refused as not-ready", async () => {
   const off = harness({ providerFaces: { describeNotReady: async () => assert.fail("turning off never asks whether the plugin is ready") } });
   await off.tool("plugins_set_enabled").handler(context({ ...AGENT_ENABLE, enabled: false }), { emitSurface: noDialog });
-  assert.ok(off.events.includes("setEnabled:false"));
+  assert.ok(off.events.includes("setEnabled:false"), "turning a plugin off writes setEnabled:false");
   const ready = harness({ confirmEnable: () => false, providerFaces: { describeNotReady: async () => undefined } });
   const result = await approveEnable({ h: ready, input: AGENT_ENABLE }) as { changed: boolean; reason?: string };
   assert.notEqual(result.reason, "not-ready");
-  assert.ok(ready.events.includes("setEnabled:true"));
+  assert.ok(ready.events.includes("setEnabled:true"), "a ready plugin writes setEnabled:true");
 });
 
 test("the injected classifier keeps the owner's linked-switch refusal at write time", async () => {

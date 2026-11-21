@@ -704,7 +704,7 @@ pre.has-copy-btn > code { display: block; overflow-x: auto; }
 form:where(.tovu-form:not([hidden])) { display: flex; flex-direction: column; gap: 18px; max-width: 520px; }
 /* An HTML-mode form sits in page prose, whose paragraphs carry no bottom margin; Builder forms sit in
    their own widget container and keep its spacing. The success message replaces the form in place. */
-form:where([data-tovu-form]:not([hidden])), div:where([data-tovu-form-success]:not([hidden])) { margin-block: 24px; }
+form:where([data-tovu-form]:not([hidden])), div:where([data-jini-form-success]:not([hidden])) { margin-block: 24px; }
 div:where(.tovu-form .widget-form-field:not([hidden])) { display: flex; flex-direction: column; gap: 8px; }
 :where(.tovu-form) label { font-size: 13px; font-weight: 500; color: var(--fg); }
 /* HTML mode wraps each control in its `<label>`; stack the text above the control like Builder does. */
@@ -765,7 +765,7 @@ output:where(.tovu-form-range-value) { font-size: 13px; color: var(--muted); fon
 }
 :where(.tovu-form) button:where(:not([type="button"], [type="reset"]):hover) { opacity: 0.88; }
 /* Colours stay with the baseline (`--danger`/`--success` fallbacks); only the shape follows the theme. */
-div:where(.tovu-form-success, [data-tovu-form-success], .tovu-form-error, [data-tovu-form-error]) { max-width: 520px; padding: 12px 16px; border-radius: 10px; font-size: 14px; }
+div:where(.jini-form-success, [data-jini-form-success], .tovu-form-error, [data-tovu-form-error]) { max-width: 520px; padding: 12px 16px; border-radius: 10px; font-size: 14px; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 860px) {

@@ -23,12 +23,12 @@ const BOOT_ENV = [
   "TOVU_ADMIN_RESET_PASSWORD",
   "TOVU_ADMIN_RESET_USERNAME",
   "TOVU_MEDIA_BLOB_STORE",
-  "TOVU_S3_BUCKET",
-  "TOVU_S3_REGION",
-  "TOVU_S3_ACCESS_KEY_ID",
-  "TOVU_S3_SECRET_ACCESS_KEY",
-  "TOVU_S3_ENDPOINT",
-  "TOVU_S3_KEY_PREFIX",
+  "JINI_S3_BUCKET",
+  "JINI_S3_REGION",
+  "JINI_S3_ACCESS_KEY_ID",
+  "JINI_S3_SECRET_ACCESS_KEY",
+  "JINI_S3_ENDPOINT",
+  "JINI_S3_KEY_PREFIX",
 ] as const;
 
 test("a reset secret left set to the stored credential creates no backup or credential write on repeated boots", async t => {
@@ -150,10 +150,10 @@ test("an unknown TOVU_MEDIA_BLOB_STORE refuses to boot, naming the accepted back
 });
 
 test("TOVU_MEDIA_BLOB_STORE=s3 with missing variables refuses to boot, naming every required one and exactly the missing ones", async (t) => {
-  withBootEnv(t, { TOVU_MEDIA_BLOB_STORE: "s3", TOVU_S3_BUCKET: "tovu-media", TOVU_S3_ACCESS_KEY_ID: "AKIA-F2244" });
+  withBootEnv(t, { TOVU_MEDIA_BLOB_STORE: "s3", JINI_S3_BUCKET: "tovu-media", JINI_S3_ACCESS_KEY_ID: "AKIA-F2244" });
   const dir = siteDir(t);
   await assert.rejects(createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") }), {
-    message: "TOVU_MEDIA_BLOB_STORE=s3 requires TOVU_S3_BUCKET, TOVU_S3_REGION, TOVU_S3_ACCESS_KEY_ID, TOVU_S3_SECRET_ACCESS_KEY — missing: TOVU_S3_REGION, TOVU_S3_SECRET_ACCESS_KEY.",
+    message: "TOVU_MEDIA_BLOB_STORE=s3 requires JINI_S3_BUCKET, JINI_S3_REGION, JINI_S3_ACCESS_KEY_ID, JINI_S3_SECRET_ACCESS_KEY — missing: JINI_S3_REGION, JINI_S3_SECRET_ACCESS_KEY.",
   });
 });
 
@@ -162,11 +162,11 @@ test("a complete S3 config boots with the S3 blob store, and the site backup the
   // rather than reach a real bucket.
   withBootEnv(t, {
     TOVU_MEDIA_BLOB_STORE: "s3",
-    TOVU_S3_BUCKET: "tovu-media",
-    TOVU_S3_REGION: "eu-west-1",
-    TOVU_S3_ACCESS_KEY_ID: "AKIA-F2244",
-    TOVU_S3_SECRET_ACCESS_KEY: "secret-F2244",
-    TOVU_S3_ENDPOINT: "http://127.0.0.1:9",
+    JINI_S3_BUCKET: "tovu-media",
+    JINI_S3_REGION: "eu-west-1",
+    JINI_S3_ACCESS_KEY_ID: "AKIA-F2244",
+    JINI_S3_SECRET_ACCESS_KEY: "secret-F2244",
+    JINI_S3_ENDPOINT: "http://127.0.0.1:9",
   });
   const dir = siteDir(t);
   const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });

@@ -8,7 +8,7 @@ export const FORM_RESULT_MARKUP = {
   successClass: FORM_SUCCESS_CLASS,
   errorClass: FORM_ERROR_CLASS,
   fieldErrorClass: "widget-form-field-error",
-  hooks: { form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
+  hooks: { form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error" },
 };
 
 export const FORM_FEEDBACK = {

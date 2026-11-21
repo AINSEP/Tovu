@@ -60,12 +60,12 @@ export function renderWidgetContactForm(props: JsonObject): string {
   const fieldDescriptors = arr({ value: props.fields }) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[];
   if (props.collectionPlan) return FORM_BASELINE_STYLE + renderFormCollection({
     slug, fields: fieldDescriptors, plan: props.collectionPlan as unknown as FormCollectionPlan,
-    hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
+    hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error" },
   }, { ...collectionHtmlOptions({ props }), idPrefix, consentOff: props.collectionConsentOff === true }) + rangeReadout;
   // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
   if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths({ html: renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
-    hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
+    hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error" },
     fields: fieldDescriptors,
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),

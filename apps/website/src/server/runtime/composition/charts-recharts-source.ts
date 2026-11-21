@@ -103,7 +103,7 @@ export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
 
 const manifest: PluginManifest = {
   id: RECHARTS_BROWSER_APPROVAL.pluginId, name: "Recharts", version: RECHARTS_BROWSER_APPROVAL.version,
-  extensions: { tovu: { id: "tovu/charts-recharts" } },
+  extensions: { jini: { id: "jini/charts-recharts" } },
   sdkRange: "^0.1.0 || ^0.2.0", engine: 1, tier: "tier-3", capabilities: [], hooks: [], fields: [],
   browserProviders: RECHARTS_BROWSER_APPROVAL.browserProviders, integrity: RECHARTS_BROWSER_APPROVAL.integrity,
 };

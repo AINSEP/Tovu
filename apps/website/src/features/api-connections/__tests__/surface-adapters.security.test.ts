@@ -277,10 +277,10 @@ test("security: a surface handler's HTTP reaches only the https origins its plug
 
 test("public config: only TOVU_…_APP_ID/_CLIENT_ID/_BROWSER_KEY/_PUBLIC_KEY names without secret words are read; unset reads null", async () => {
   const config = createAdminSurfacePublicConfig({ env: {
-    TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_SESSION_KEY: "k", TOVU_SITE_KEY: "k", TOVU_S3_ACCESS_KEY_ID: "k", DATABASE_URL: "postgres://u:p@h/db",
+    TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_SESSION_KEY: "k", TOVU_SITE_KEY: "k", JINI_S3_ACCESS_KEY_ID: "k", DATABASE_URL: "postgres://u:p@h/db",
     TOVU_SESSION_SIGNING_APP_ID: "k", TOVU_ACME_CHOOSER_APP_ID: " app-1 ",
   } });
-  for (const name of ["TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET", "TOVU_SESSION_KEY", "TOVU_SITE_KEY", "TOVU_S3_ACCESS_KEY_ID", "DATABASE_URL", "TOVU_SESSION_SIGNING_APP_ID", "lowercase_name"]) {
+  for (const name of ["TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET", "TOVU_SESSION_KEY", "TOVU_SITE_KEY", "JINI_S3_ACCESS_KEY_ID", "DATABASE_URL", "TOVU_SESSION_SIGNING_APP_ID", "lowercase_name"]) {
     await assert.rejects(config.get({ name }), { message: PUBLIC_CONFIG_REFUSED_MESSAGE }, name);
   }
   assert.equal(await config.get({ name: "TOVU_ACME_CHOOSER_APP_ID" }), "app-1");
