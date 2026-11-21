@@ -36,7 +36,7 @@ function expectedIncident(
   { row, received }: { row: Record<string, unknown>; received?: Record<string, unknown> },
   { failure }: { failure?: ExpectedAdminFailure },
 ): Record<string, unknown> {
-  assert.match(String(received?.errorId), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.match(String(received?.errorId), /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
   const field = typeof row.error === "string" ? "error" : "message";
   const text = expectedPublicText({ publicText: row[field] as string, failure });
   const incident = { ...row, code: row.code ?? "INTERNAL_ERROR", errorId: received!.errorId, [field]: `${text} (error ${received!.errorId})` };
@@ -81,7 +81,7 @@ export function assertAdminDiagnostics(
   assert.equal(calls.length, diagnostics.length);
   calls.forEach((call, index) => {
     const detail = call[1] as { errorId: string; diagnostic: string };
-    assert.match(detail?.errorId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.match(detail?.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
     assert.match(detail?.diagnostic, diagnostics[index]!);
     assert.deepEqual(Object.keys(detail).sort(), ["diagnostic", "errorId"]);
     assert.deepEqual(call, [operation, detail]);
