@@ -73,7 +73,7 @@ test('Tovu delivers host tool rules beside portable skills, including tools-firs
     if (pluginId === 'resend') {
       assert.match(guidance, /target:\s*"resend-mcp"/);
       assert.match(guidance, /target:\s*"resend"/);
-      assert.ok(guidance.includes('Jini Mail — Resend API'));
+      assert.ok(guidance.includes('Mail — Resend API'), 'Resend host guidance names the canonical sending credential');
     }
     const injected = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: [pluginId], workspaceLayout: workspace }, { deliveryMode: 'inject' });
     assert.equal(injected.ok, true, pluginId);

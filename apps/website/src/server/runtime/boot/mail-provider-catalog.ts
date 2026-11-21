@@ -88,17 +88,18 @@ export const resolveMailDomainReadCredential = (required: { deps: MailProviderCa
  * @complexity One credential list + one decrypt.
  */
 export async function resolveMailCredential(
-  required: { deps: MailProviderCatalogDeps; catalog: MailProviderCatalog; id: string },
+  required: { deps: MailProviderCatalogDeps; labels: readonly string[]; id: string },
   _optional: Record<string, never> = {}
 ): Promise<MailAdapterCredential | null> {
-  const { deps, catalog, id } = required;
-  const label = catalog.credentialLabelFor({ id });
-  if (label === undefined) return null;
-  const resolved = await resolveCustomCredentialByLabel({ repo: deps.customCredentialRepo, sealer: deps.sealer }, { workspaceId: deps.workspaceId, label });
-  if (!resolved) return null;
-  const username = resolved.connection.username;
-  if (id === "smtp" && !username) return null;
-  return { token: resolved.connection.token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
+  const { deps, labels, id } = required;
+  for (const label of labels) {
+    const resolved = await resolveCustomCredentialByLabel({ repo: deps.customCredentialRepo, sealer: deps.sealer }, { workspaceId: deps.workspaceId, label });
+    if (!resolved) continue;
+    const username = resolved.connection.username;
+    if (id === "smtp" && !username) return null;
+    return { token: resolved.connection.token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
+  }
+  return null;
 }
 
 /** Caller-safe credential refusal. Raw store/decrypt error text must never leave this boundary. */

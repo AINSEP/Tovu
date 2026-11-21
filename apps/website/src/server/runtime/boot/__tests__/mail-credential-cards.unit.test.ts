@@ -33,7 +33,7 @@ import { bindPublishCompatibility } from "#src/features/deployments/publish-cred
 
 const WORKSPACE_ID = "ws-mail-card";
 const PRINCIPAL_ID = "owner";
-const RESEND_LABEL = "Jini Mail — Resend API";
+const RESEND_LABEL = "Mail — Resend API";
 
 const fixtureCard = { title: "Connect Resend", intro: "Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).", helpUrl: "https://resend.com/api-keys", helpLabel: "Get a key at resend.com/api-keys", keyHint: "Create a key with Sending access", baseUrl: "https://api.resend.com" };
 const bundledCards = () => loadMailCredentialCards({ loadMailAdapters: async () => ({ refusals: [], list: () => [{
