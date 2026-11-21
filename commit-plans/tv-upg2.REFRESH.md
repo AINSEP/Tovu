@@ -1,0 +1,9 @@
+# READY sheet refresh
+
+Base: `1e7790996575b1495abd228fa00570cccd11ca7c`, branch `codex/tv-upg2`.
+
+- CRED-T1: no additional production importers of the named search symbols. No import/export edits or repoints. The source used the Jini prefix while some existing test expectations still named Tovu; the requested canonical/legacy cases replace those stale expectations. The existing error-debt row remains untouched.
+- GH-T1: DEPENDS: jx-gh GH-J1. Per rerun direction, Tovu was written against the sheet while the Jini work runs separately; packed-candidate presence and compatibility remain a combine obligation. No dependency or lockfile edit.
+- Additional GH test consumers surfaced by the required symbol lookups: `apps/website/src/features/source-control/__tests__/commit-site.characterization.unit.test.ts`, `commit-site.packager-port.unit.test.ts`, `commit-site.preview-parity.unit.test.ts` and `gates.characterization.unit.test.ts` in that same directory. They retain existing imports and need no repoint. No unlisted production importer surfaced; `CommitSiteInput` in `commit-site.ts` is a separate host input from the provider input in `provider-module.ts`.
+- FED-T1: already completed in the supplied base. The obsolete observability test is absent in HEAD and on disk. Targeted lookups of `/api/federation/reload`, `FEDERATION_RELOAD_PATH`, `federation-reload-route` and `registerFederationReloadRoute` found the retained standalone declaration, tests and documentation/debt references, with no production importer. The roster-listener integration witness and direct reload remain intact; no file was deleted again.
+- No tests, builds, installs, type-checks, linters, MCP graph calls or git writes were performed. All tests, mutations and named Chrome/sandbox-publish proofs remain with combine.
