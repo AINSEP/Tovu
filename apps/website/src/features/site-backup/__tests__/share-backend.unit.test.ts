@@ -13,6 +13,7 @@ import type { SiteSharePlanContent } from "../plan-content.js";
 import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { SiteShareExportFailure } from "../share-export-failure.js";
+import { SiteShareRefusal } from "../share-policy.js";
 
 for (const step of ["prepare", "archive", "delivery"] as const) {
   test(`a ${step} exception keeps its actual step when collected by a later job poll`, async t => {
@@ -69,6 +70,21 @@ test("a create without a wait budget waits for a quick export and returns the ZI
     { status: "active", url: null, message: "ZIP ready. Download zip only. Connect a deployed Tovu site or S3-compatible storage to get a link." });
   assert.deepEqual(result.credentialWarnings, []);
   assert.equal(result.needsAcknowledgement, false);
+});
+
+test("a full share with prepared credential warnings refuses before delivery or registration", async t => {
+  const registry = await registryIn(t);
+  const delivery = t.mock.fn(async () => undefined);
+  const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, delivery,
+    prepare: async () => content({ credentialWarnings: [{ path: "themes/site/config.js", kind: "provider key shape" }] }),
+  });
+  await assert.rejects(backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 60_000 }), error => {
+    assert.ok(error instanceof SiteShareRefusal, "prepared credential warnings remain a share refusal");
+    assert.equal(error.code, "UNSAFE_FILE", "prepared credential warnings refuse the full share as unsafe");
+    return true;
+  }, "a full share with prepared credential warnings must be refused");
+  assert.deepEqual(await registry.list({ site: "ws" }), [], "a refused full share creates no registry row");
+  assert.equal(delivery.mock.callCount(), 0, "a refused full share never looks up a delivery provider");
 });
 
 /** Starts an export whose delivery lookup blocks after archiving, and returns its progress at that point. */
@@ -143,6 +159,23 @@ test("static selection snapshots roster, active identity and time, captures sequ
   const { existsSync } = await import("node:fs");
   for (const directory of directories) assert.equal(existsSync(directory), false);
   assert.deepEqual(await backend.staticOptions({}), { activeThemeId: "zoran-poster", themes: [{ themeId: "zoran-poster", name: "Poster" }, { themeId: "zoran-editorial", name: "Editorial" }] });
+});
+
+test("a static export with captured credential content refuses before registration", async t => {
+  const registry = await registryIn(t);
+  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => content(), zip: zipFolderFiles, delivery: async () => undefined,
+    staticSite: { now: () => new Date("2026-10-30T17:15:00Z"), context: async () => ({ name: "Site", slug: "site", theme: "A", themeId: "a" }),
+      render: async ({ outputDir }) => ({ outputDir,
+        routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<main>" + "gh" + "p_" + "x".repeat(36) + "</main>" }], failed: [] },
+        assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] }),
+    },
+  });
+  await assert.rejects(backend.create({ principalId: "owner", format: "static", signal: new AbortController().signal }, { waitMs: 60_000 }), error => {
+    assert.ok(error instanceof SiteShareRefusal, "captured credential content remains a share refusal");
+    assert.equal(error.code, "UNSAFE_FILE", "captured credential content refuses the static export as unsafe");
+    return true;
+  }, "a static export with captured credential content must be refused");
+  assert.deepEqual(await registry.list({ site: "ws" }), [], "a refused static export creates no registry row");
 });
 
 test("static backend refuses unknown selections before rendering and unusable captures without creating a ZIP", async t => {

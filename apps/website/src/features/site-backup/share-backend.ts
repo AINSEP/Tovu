@@ -132,6 +132,10 @@ function requireCredentialFreeExport({ content }: { content: Awaited<ReturnType<
   if (content.encryptedKeys || content.sealedPassword || hasKeyFile) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Exports no longer include saved keys. Update the export adapter and create this export again." });
 }
 
+function requireNoShareCredentialWarnings({ credentialWarnings }: { credentialWarnings: readonly CredentialWarning[] }): void {
+  if (credentialWarnings.length > 0) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: "The export contains files with possible credentials. Remove the credentials and export again." });
+}
+
 type ShareBackendRequired = {
   registry: SiteShareRegistry;
   site: string;
@@ -158,6 +162,7 @@ async function exportStaticShare({ ctx, input, bounded, stage }: { ctx: ShareBac
   const credentialWarnings: CredentialWarning[] = [];
   stage.step = "archive";
   const archive = await buildStaticSiteZip({ ...selection, zip: required.zip }, { signal: bounded, progress: input.progress, notices, credentialWarnings });
+  requireNoShareCredentialWarnings({ credentialWarnings });
   stage.step = "delivery";
   return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename, notices, credentialWarnings });
 }
@@ -177,6 +182,7 @@ async function exportBackupShare({ ctx, input, bounded, stage }: { ctx: ShareBac
   Object.assign(progress, { filesTotal: content.files.length + (content.bufferedFiles?.length ?? 0) + 1, bytesTotal: content.totalBytes });
   stage.step = "archive";
   const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress, notices, credentialWarnings });
+  requireNoShareCredentialWarnings({ credentialWarnings });
   stage.step = "delivery";
   const delivery = await required.delivery({});
   bounded.throwIfAborted();
