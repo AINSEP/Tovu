@@ -1,9 +1,8 @@
-import { createConsoleLogger } from "@jini-ai/core/primitives";
+import { formatErrorForLog } from "@jini-ai/core";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
 import { redactedError } from "@jini-ai/diagnostics/observability/node";
-
-const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file Process-level safety net for an unhandled promise rejection escaping every route/middleware
@@ -76,7 +75,7 @@ export function installUnhandledRejectionGuard(options: InstallUnhandledRejectio
   const log =
     options.log ??
     ((message: string, reason: unknown) => {
-      consoleLogger.error({ message }, { error: reason });
+      console.error(message, formatErrorForLog({ error: reason }, TOVU_ERROR_REDACTION_OPTIONS));
     });
   const handler = (reason: unknown): void => {
     log("[unhandledRejection] an async operation rejected with no catch anywhere in its chain — logged, not fatal:", reason);
