@@ -42,6 +42,7 @@ test("forms pull gives its formatter the concrete explanation and correlated ref
   assert.equal(body.code, "INTERNAL_ERROR");
   assert.equal(body.details.failure.message, "Form submission retrieval stopped before any published host was read.");
   assert.equal(body.details.failure.errorId, body.errorId);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/, "forms pull returns a standard correlated incident ID");
   assert.equal(body.details.failure.step, "forms.submissions.pull");
   assert.equal(body.details.failure.cause, "The error ID identifies the server report.");
   assert.equal(body.error, `${body.details.failure.message} ${body.details.failure.action} (error ${body.errorId})`);

@@ -137,7 +137,7 @@ export class SiteShareRegistry {
 
 /** A public token serves only its own active, acknowledged file. */
 function servesToken({ row, token, file }: { row: SiteShareRecord; token: string; file: string }, _optional = {}): boolean {
-  return row.token === token && row.file === file && row.status === "active" && !row.needsAcknowledgement;
+  return row.token === token && row.file === file && row.status === "active" && !row.needsAcknowledgement && !row.credentialWarnings?.length;
 }
 
 /**

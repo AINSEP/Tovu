@@ -59,7 +59,7 @@ const EVERY_PAYLOAD: readonly (readonly [string, unknown])[] = [
   ["agent", { type: "tool_result", toolUseId: "call-1", content: "found 3", isError: true, media: [{ type: "image", mimeType: "image/png", data: "AAAA" }], outcome: "unknown" }],
   ["agent", { type: "usage", usage: { input_tokens: 11, output_tokens: 7 }, costUsd: 0.01, cumulativeCostUsd: 0.05, costSessionId: "cost-1", durationMs: 1200, stopReason: "end_turn" }],
   ["agent", { type: "raw", line: "raw line" }],
-  ["agent", { type: "mcp-ui", resource: MCP_UI_RESOURCE, surfaceExchange: { exchangeId: "ex-1", toolId: "posts.delete", runId: "daemon-run-1" } }],
+  ["agent", { type: "mcp-ui", resource: MCP_UI_RESOURCE, surfaceExchange: { exchangeId: "ex-1", toolId: "posts.delete", runId: "daemon-run-1" }, pendingApproval: { id: "approval-1", reason: "confirmation", toolCallId: "call-1", message: "Allow action?" } }],
   ["agent", { type: "a2ui", message: { createSurface: { surfaceId: "s1", catalogId: "basic" } } }],
   ["agent", { type: "stage_start", stage: "plan" }],
   ["stdout", { chunk: STDOUT_CHUNK }],
@@ -70,6 +70,7 @@ const EVERY_PAYLOAD: readonly (readonly [string, unknown])[] = [
 
 interface Script {
   readonly frames: readonly (readonly [string, unknown])[];
+  readonly dropConnection?: true;
   /** Raw text written between the frames and the close, for cases a frame tuple cannot express. */
   readonly keepalive?: boolean;
 }
@@ -86,6 +87,10 @@ let activeScript: Script = SCRIPTS["an error frame"]!;
 
 function writeScript(res: ServerResponse): void {
   res.writeHead(200, { "content-type": "text/event-stream" });
+  if (activeScript.dropConnection) {
+    res.write(wireFrame("agent", { type: "text_delta", delta: "partial" }, 1), () => res.destroy());
+    return;
+  }
   if (activeScript.keepalive) res.write("id: 0\n\n");
   activeScript.frames.forEach(([kind, payload], index) => res.write(wireFrame(kind, payload, index + 1)));
   res.end();
@@ -195,6 +200,17 @@ async function boot(t: import("node:test").TestContext) {
   const baseUrl = await startTestServer(buildApp(), t);
   return { baseUrl, cookie: await loginAsOwner(baseUrl) };
 }
+
+test("a dropped daemon stream closes partial text and reports a private interruption message", async t => {
+  const { baseUrl, cookie } = await boot(t);
+  activeScript = { frames: [], dropConnection: true };
+  const captured = await postRun(baseUrl, cookie);
+  assert.equal(captured.status, 200, "the read failure follows successful SSE headers");
+  const events = captured.body.split("\n\n").filter(frame => frame.startsWith("data: ")).map(frame => JSON.parse(frame.slice(6)));
+  assert.deepEqual(events.map(event => event.type), ["RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_END", "RUN_ERROR"], "partial text closes before the single run error");
+  assert.equal(events[2].delta, "partial", "the partial upstream text reaches the response");
+  assert.equal(events[4].message, "The assistant’s response was interrupted. Send your request again.", "the run error contains only the approved interruption message");
+});
 
 test("Jini's shipped AG-UI reader completes Tovu's authenticated stream with its IDs and text intact", async (t) => {
   const { baseUrl, cookie } = await boot(t);

@@ -6,7 +6,8 @@
  */
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
+import { mintToolErrorId } from "@jini-ai/core/errors/error-id";
 import type { Response } from "express";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { describeRequestFailure, formatErrorForLog, formatUserFacingError, type UserFacingError, type UserFacingErrorOptions } from "@jini-ai/core";
@@ -52,7 +53,7 @@ function adminDiagnostic({ error }: { error: unknown }, _options = {}): string {
  */
 export function reportServerFailure(
   { error, operation }: { error: unknown; operation: string },
-  { tracker, errorId = randomUUID() }: AdminFailurePorts & { errorId?: string } = {},
+  { tracker, errorId = mintToolErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }) }: AdminFailurePorts & { errorId?: string } = {},
 ): { errorId: string } {
   const diagnostic = adminDiagnostic({ error });
   // Never hand raw backend/provider errors to a log sink: they may contain saved credentials.
@@ -71,7 +72,7 @@ export function adminFailureResponse(
   options: FailureOptions = {},
 ): { status: number; body: { error: string; code: string; errorId: string; details?: { failure: UserFacingError } } } {
   const { operation = "admin-route" } = options;
-  const body = unexpectedAdminBody({ errorId: randomUUID(), options });
+  const body = unexpectedAdminBody({ errorId: mintToolErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }), options });
   const { errorId } = reportServerFailure({ error, operation }, { tracker, errorId: body.errorId });
   // The backup owner supplies this closed, human-safe refusal. Preserve it for every admin route.
   if (options.status === undefined && error instanceof DatabaseDiskSpaceError) return { status: error.status, body: { code: error.code, errorId, error: error.message } };

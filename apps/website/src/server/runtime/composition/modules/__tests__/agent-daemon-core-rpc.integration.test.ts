@@ -12,9 +12,20 @@ import { createEarlySessionCapture } from "#src/server/inbound/assistant/early-r
 import { captureDaemonRun } from "#src/server/inbound/assistant/__tests__/helpers/daemon-source";
 import { createLiveRunTracker, waitForStoppingRuns, STOPPING_RUN_WAIT_MS, CONCURRENT_RUN_REFUSAL_MESSAGE } from "#src/assistant/agent-session-preset";
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
+import { openChatDb } from "#src/platform/db/sqlite/chat-db";
+import { chatKernel } from "#src/platform/db/chat-kernel";
+import { createChatRunLedger, createChatStoreFactory, createSqliteAgentSessionStore } from "#src/assistant/index";
 
 async function fixture(t: import("node:test").TestContext, overrides: Partial<Pick<ReturnType<typeof createRouteDeps>, "tracker" | "aiTraceSink">> = {}) {
-  const server = { ...createRouteDeps(), ...overrides };
+  const base = createRouteDeps();
+  const db = openChatDb({ filePath: ":memory:" });
+  t.after(() => db.close());
+  const store = chatKernel({ store: db });
+  const server = { ...base,
+    chatHistory: createChatStoreFactory({ store }),
+    chatRunLedger: createChatRunLedger({ store }),
+    agentSessions: createSqliteAgentSessionStore({ store, clock: base.clock }),
+    ...overrides };
   await Promise.all(Object.entries(server).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
   const token = ensureToolExecToken({}, {});
   const app = express();

@@ -129,7 +129,7 @@ describe("export credential warning", () => {
 
   it("shows the server's own reason and the same checkbox when a download is still refused, then downloads once checked", async () => {
     const downloadShare = vi.fn();
-    const shareDownloadRefusal = vi.fn().mockResolvedValueOnce({ status: 409, code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings }).mockResolvedValue(null);
+    const shareDownloadRefusal = vi.fn().mockResolvedValueOnce({ status: 403, code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings }).mockResolvedValue(null);
     const acknowledgeShare = vi.fn(async () => share());
     renderExport(createFakeSiteTransferPort({ listShares: async () => ({ shares: [share()] }), downloadShare, shareDownloadRefusal, acknowledgeShare }));
     const row = await exportRow();
@@ -224,10 +224,10 @@ describe("live port: acknowledgement and download check", () => {
     const methods: (string | undefined)[] = [];
     vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) => {
       methods.push(init?.method);
-      return init?.method === "HEAD" ? new Response(null, { status: 409 })
-        : new Response(JSON.stringify({ code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings }), { status: 409, headers: { "Content-Type": "application/json" } });
+      return init?.method === "HEAD" ? new Response(null, { status: 403 })
+        : new Response(JSON.stringify({ code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings }), { status: 403, headers: { "Content-Type": "application/json" } });
     });
-    expect(await defaultSiteTransferPort.shareDownloadRefusal({ share: share() })).toEqual({ status: 409, code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings });
+    expect(await defaultSiteTransferPort.shareDownloadRefusal({ share: share() }), "the download refusal preserves the server's acknowledgement status and warning payload").toEqual({ status: 403, code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings });
     expect(methods).toEqual(["HEAD", "GET"]);
   });
 

@@ -301,7 +301,7 @@ async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, 
     return { status: "succeeded" };
   } catch (error) {
     writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun({ state: ctx.state }) });
-    writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: error instanceof Error ? error.message : String(error) });
+    writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: "The assistant’s response was interrupted. Send your request again." });
     ctx.res.end();
     return { status: "failed", error };
   }

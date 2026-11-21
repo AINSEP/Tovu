@@ -128,7 +128,7 @@ function registerShareDownloadRoute({ app, deps, root, gate, fail }: ShareRouteC
       const row = await registry.get({ shareId: String(req.params.shareId), site: deps.workspaceId });
       if (!row || row.status === "revoked") { res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: this export is missing or was revoked." }); return; }
       if (row.needsAcknowledgement) {
-        res.status(409).json({ code: "ACKNOWLEDGE_CREDENTIALS", message: "This export may contain credentials. Review the warnings and acknowledge that you understand before downloading.", credentialWarnings: row.credentialWarnings ?? [] });
+        res.status(403).json({ code: "ACKNOWLEDGE_CREDENTIALS", message: "This export may contain credentials. Review the warnings and acknowledge that you understand before downloading.", credentialWarnings: row.credentialWarnings ?? [] });
         return;
       }
       sendShareZip({ req, res, row, registry, fail });

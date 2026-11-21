@@ -123,8 +123,8 @@ async function deleteRemoteArtifact(required: { row: SiteShareRecord; storage: N
   } catch (error) { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share is disabled locally but remote deletion/purge is not verified. Retry revoke." }, { cause: error }); }
 }
 
-/** Acknowledge this immutable archive, then reuse its original delivery lifecycle. Public uploads
- * are deferred until this explicit action; replays return the acknowledged row without reuploading.
+/** Acknowledge the owner download; warned exports stay private. */
+/**
  * Revocation tombstones remain authoritative across racing updates.
  * @throws SiteShareRefusal for a missing/revoked export or unavailable original storage.
  * @complexity O(archive bytes) for a pending remote delivery, O(1) for ZIP-only exports/retries.
@@ -134,14 +134,15 @@ export async function acknowledgeSiteShare(required: { registry: SiteShareRegist
   if (!row || row.status === "revoked") throw new SiteShareRefusal({ code: "NOT_FOUND", message: "This export is missing or was revoked." });
   if (!row.needsAcknowledgement) return row;
   const acknowledged = { ...row, needsAcknowledgement: false };
+  const deliveryStorage = !row.credentialWarnings?.length ? row.storage : undefined;
   const delivery = optional.delivery;
-  assertOriginalDelivery({ row }, { delivery });
+  if (deliveryStorage) assertOriginalDelivery({ row }, { delivery });
   // Runtime delivery verifies through findToken too. Persist consent before asking the same
   // delivery owner to publish/verify; otherwise its own acknowledgement gate hides the artifact.
   await required.registry.put({ record: acknowledged });
-  if (!row.storage || !delivery) return acknowledged;
+  if (!deliveryStorage || !delivery) return acknowledged;
   const archive = await required.registry.readArtifact(required);
-  return deliverShare({ registry: required.registry, row: acknowledged, delivery, key: row.storage.key, file: row.file, archive }, { signal: AbortSignal.timeout(10 * 60 * 1000) });
+  return deliverShare({ registry: required.registry, row: acknowledged, delivery, key: deliveryStorage.key, file: row.file, archive }, { signal: AbortSignal.timeout(10 * 60 * 1000) });
 }
 
 /** A stored export publishes only through the provider and binding that first stored it. */
