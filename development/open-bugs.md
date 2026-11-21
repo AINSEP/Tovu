@@ -202,3 +202,18 @@ Found while merging combine-9 against Jini `integ/merge-10-2026-11-21` `de4e555b
   `npm ci --ignore-scripts` in `apps/site-chat` fails: `EUSAGE … lock file's @jini-ai/agentic@0.7.0 does not
   satisfy @jini-ai/agentic@0.7.3-next.1` (also chat, core, protocol). Root/admin/desktop `npm ci`: 0.
   Fix: `npm install` in `apps/site-chat` against the published 0.7.3-next.1 and commit the lockfile.
+
+## combine-10 (Tovu `integ/merge-10-2026-11-21`, 2026-11-21)
+
+Follow-ups and cloud items on top of combine-9, against Jini `integ/merge-10-2026-11-21` `de4e555b9`.
+Details: `cloud-results/combine-10-tovu.md`. **No new production bug found.**
+
+- `C9-site-chat-lockfile-stale`: **FIXED** in `47dd8b157`. Only the `@jini-ai/*` entries were re-resolved
+  to 0.7.3-next.1; every other locked version is unchanged. `npm ci --ignore-scripts` in `apps/site-chat`: 0.
+- `C9-share-zip-refusal-vs-acknowledgement`: **still open**. Owner decision pending; tv-sharezip left as merged.
+- Not production: the 3 tv-w2 I2-T media reds and the 3 lockfile-1120 pin reds were stale tests (repointed in
+  `ab038aae8` and `75900acdf`). `byte-size.ts` still reports `null` for an unknown size.
+- Test infrastructure (not production): with `TOVU_CHAT_TEST_POSTGRES_URL` set, every `*.dialects.test.ts`
+  file shares one real Postgres database. `chat-dialect-matrix.ts` `emptiedPostgresChatKernel()` truncates the
+  four `ai_chat.*` tables per make, so files running at the same time wipe each other's rows. Each file is green
+  alone. Needs a per-process database/schema, or serial dialect files.

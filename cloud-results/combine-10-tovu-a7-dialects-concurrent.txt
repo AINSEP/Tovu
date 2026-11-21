@@ -1,0 +1,616 @@
+##### a7-par-agent-session-store.txt
+▶ agent session store [sqlite]
+  ✔ get is null until set; set round-trips and overwrites; clear removes (50.505286ms)
+  ✔ pairs are independent per conversation and per agent (7.336979ms)
+  ✔ set fails for a conversation that does not exist (foreign key) (8.018021ms)
+  ✔ deleting the conversation deletes its sessions (5.97743ms)
+  ✔ a set inside a rolled-back transaction leaves nothing (4.734409ms)
+  ✔ concurrent sets of one pair leave exactly one row holding one of the values (5.767963ms)
+✔ agent session store [sqlite] (83.991029ms)
+▶ agent session store [pglite]
+  ✔ get is null until set; set round-trips and overwrites; clear removes (7084.626553ms)
+  ✔ pairs are independent per conversation and per agent (50.667116ms)
+  ✔ set fails for a conversation that does not exist (foreign key) (20.220286ms)
+  ✔ deleting the conversation deletes its sessions (40.122596ms)
+  ✔ a set inside a rolled-back transaction leaves nothing (21.829488ms)
+  ✔ concurrent sets of one pair leave exactly one row holding one of the values (50.021019ms)
+✔ agent session store [pglite] (7300.039339ms)
+▶ agent session store [real postgres]
+  ✔ get is null until set; set round-trips and overwrites; clear removes (213.205858ms)
+  ✔ pairs are independent per conversation and per agent (119.594341ms)
+  ✔ set fails for a conversation that does not exist (foreign key) (121.779039ms)
+  ✔ deleting the conversation deletes its sessions (68.878336ms)
+  ✔ a set inside a rolled-back transaction leaves nothing (102.276384ms)
+  ✖ concurrent sets of one pair leave exactly one row holding one of the values (116.706334ms)
+
+Interrupted while running:
+
+⚠ apps/website/src/assistant/persistence/__tests__/agent-session-store.dialects.test.ts (apps/website/src/assistant/persistence/__tests__/agent-session-store.dialects.test.ts:1:1)
+✖ apps/website/src/assistant/persistence/__tests__/agent-session-store.dialects.test.ts (599920.643609ms)
+ℹ tests 19
+ℹ suites 2
+ℹ pass 17
+ℹ fail 1
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 599928.67171
+
+✖ failing tests:
+
+test at apps/website/src/assistant/persistence/__tests__/agent-session-store.dialects.test.ts:1:3202
+✖ concurrent sets of one pair leave exactly one row holding one of the values (116.706334ms)
+  Error [AgentSessionStoreError]: agent session store unavailable
+      at atSessionBoundary (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:39:22)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Promise.all (index 2)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/agent-session-store.dialects.test.ts:83:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'unavailable',
+    [cause]: error: insert or update on table "assistant_agent_sessions" violates foreign key constraint "assistant_agent_sessions_conversation_id_fkey"
+        at /home/user/Tovu/node_modules/pg/lib/client.js:694:17
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:113:28)
+        at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+        at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:20)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+        at async <anonymous> (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:62:5)
+        at async atSessionBoundary (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:38:14)
+        at async Promise.all (index 2)
+        at PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:126:41)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+        at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:20)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+        at async <anonymous> (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:62:5)
+        at async atSessionBoundary (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:38:14)
+        at async Promise.all (index 2)
+        at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/agent-session-store.dialects.test.ts:83:7) {
+      length: 347,
+      severity: 'ERROR',
+      code: '23503',
+      detail: 'Key (conversation_id)=(c1) is not present in table "ai_chats".',
+      hint: undefined,
+      position: undefined,
+      internalPosition: undefined,
+      internalQuery: undefined,
+      where: undefined,
+      schema: 'ai_chat',
+      table: 'assistant_agent_sessions',
+      column: undefined,
+      dataType: undefined,
+      constraint: 'assistant_agent_sessions_conversation_id_fkey',
+      file: 'ri_triggers.c',
+      line: '2608',
+      routine: 'ri_ReportViolation'
+    }
+  }
+
+test at apps/website/src/assistant/persistence/__tests__/agent-session-store.dialects.test.ts:1:1
+✖ apps/website/src/assistant/persistence/__tests__/agent-session-store.dialects.test.ts (599920.643609ms)
+  'Promise resolution is still pending but the event loop has already resolved'
+##### a7-par-chat-expiry-sweep.txt
+▶ chat expiry sweep [sqlite]
+  ✔ one host pass drains more than one 500-row package batch and retains never-expiring chats (101.354321ms)
+  ✔ deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats (32.868506ms)
+  ✔ a chat expiring exactly now is swept; a second pass deletes nothing (3.305893ms)
+  ✔ startChatExpirySweep sweeps at start and stops cleanly (4.622328ms)
+  ✔ stop() resolves only after the pass in flight has finished (23.753763ms)
+  ✔ a tick that fires while a pass is still running is skipped, never overlapped, and later ticks sweep again (5.400329ms)
+  ✔ a failed sweep reports the error and a later tick still sweeps (5.011974ms)
+✔ chat expiry sweep [sqlite] (189.781019ms)
+▶ chat expiry sweep [pglite]
+  ✔ one host pass drains more than one 500-row package batch and retains never-expiring chats (7740.956183ms)
+  ✔ deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats (74.200755ms)
+  ✔ a chat expiring exactly now is swept; a second pass deletes nothing (16.10797ms)
+  ✔ startChatExpirySweep sweeps at start and stops cleanly (15.663313ms)
+  ✔ stop() resolves only after the pass in flight has finished (34.426555ms)
+  ✔ a tick that fires while a pass is still running is skipped, never overlapped, and later ticks sweep again (20.690523ms)
+  ✔ a failed sweep reports the error and a later tick still sweeps (29.222972ms)
+✔ chat expiry sweep [pglite] (7936.566265ms)
+▶ chat expiry sweep [real postgres]
+  ✔ one host pass drains more than one 500-row package batch and retains never-expiring chats (159.867535ms)
+  ✔ deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats (74.127958ms)
+  ✔ a chat expiring exactly now is swept; a second pass deletes nothing (57.742205ms)
+  ✔ startChatExpirySweep sweeps at start and stops cleanly (39.742861ms)
+  ✔ stop() resolves only after the pass in flight has finished (23.78352ms)
+  ✔ a tick that fires while a pass is still running is skipped, never overlapped, and later ticks sweep again (70.493648ms)
+  ✔ a failed sweep reports the error and a later tick still sweeps (35.180893ms)
+✔ chat expiry sweep [real postgres] (470.941347ms)
+ℹ tests 21
+ℹ suites 3
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12029.105712
+##### a7-par-chat-history-store.txt
+▶ chat history store [sqlite]
+  ✔ legacy reversed first turn reads question then answer without changing stored positions (109.374382ms)
+  ✔ read repair preserves a later follow-up and request-bound answers (35.347184ms)
+  ✔ equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up (19.167605ms)
+  ✔ create then get and list round-trip every conversation field (7.343645ms)
+  ✔ list is most-recently-updated first and counts messages (10.607159ms)
+  ✔ messages round-trip every stored field, in position order (18.748728ms)
+  ✔ a malformed events column reads as no events, not an error (8.103918ms)
+  ✔ appending an existing id updates it in place at the same position (15.807414ms)
+  ✔ appending bumps the conversation's updatedAt (8.603232ms)
+  ✔ rename: a generated title replaces a fallback one but never a manual one (7.600858ms)
+  ✔ touch bumps updatedAt and, when asked, the expiry (3.309601ms)
+  ✔ delete cascades to messages, agent sessions and tool approvals (3.794827ms)
+  ✔ another owner, workspace or owner kind sees nothing and changes nothing (12.034758ms)
+  ✔ appending an id that lives in another owner's chat never overwrites that row (24.453654ms)
+  ✔ an append inside a rolled-back transaction leaves nothing (7.044164ms)
+  ✔ concurrent appends to one chat get distinct, gap-free positions (32.102046ms)
+✔ chat history store [sqlite] (331.402706ms)
+▶ chat history store [pglite]
+  ✔ legacy reversed first turn reads question then answer without changing stored positions (7768.705902ms)
+  ✔ read repair preserves a later follow-up and request-bound answers (74.097309ms)
+  ✔ equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up (133.192228ms)
+  ✔ create then get and list round-trip every conversation field (16.929938ms)
+  ✔ list is most-recently-updated first and counts messages (39.017382ms)
+  ✔ messages round-trip every stored field, in position order (48.413958ms)
+  ✔ a malformed events column reads as no events, not an error (42.06673ms)
+  ✔ appending an existing id updates it in place at the same position (70.12323ms)
+  ✔ appending bumps the conversation's updatedAt (19.186783ms)
+  ✔ rename: a generated title replaces a fallback one but never a manual one (19.058623ms)
+  ✔ touch bumps updatedAt and, when asked, the expiry (13.031364ms)
+  ✔ delete cascades to messages, agent sessions and tool approvals (26.121284ms)
+  ✔ another owner, workspace or owner kind sees nothing and changes nothing (79.605844ms)
+  ✔ appending an id that lives in another owner's chat never overwrites that row (31.273164ms)
+  ✔ an append inside a rolled-back transaction leaves nothing (19.686725ms)
+  ✔ concurrent appends to one chat get distinct, gap-free positions (96.224609ms)
+✔ chat history store [pglite] (8506.599705ms)
+▶ chat history store [real postgres]
+  ✔ legacy reversed first turn reads question then answer without changing stored positions (94.496256ms)
+  ✔ read repair preserves a later follow-up and request-bound answers (59.579856ms)
+  ✔ equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up (54.592588ms)
+  ✔ create then get and list round-trip every conversation field (23.549375ms)
+  ✔ list is most-recently-updated first and counts messages (42.168731ms)
+  ✔ messages round-trip every stored field, in position order (38.37029ms)
+  ✔ a malformed events column reads as no events, not an error (42.247696ms)
+  ✔ appending an existing id updates it in place at the same position (56.253233ms)
+  ✔ appending bumps the conversation's updatedAt (28.829357ms)
+  ✔ rename: a generated title replaces a fallback one but never a manual one (38.832578ms)
+  ✔ touch bumps updatedAt and, when asked, the expiry (28.91715ms)
+  ✔ delete cascades to messages, agent sessions and tool approvals (40.278494ms)
+  ✔ another owner, workspace or owner kind sees nothing and changes nothing (57.706065ms)
+  ✔ appending an id that lives in another owner's chat never overwrites that row (48.841093ms)
+  ✔ an append inside a rolled-back transaction leaves nothing (24.376441ms)
+  ✖ concurrent appends to one chat get distinct, gap-free positions (113.117805ms)
+✖ chat history store [real postgres] (798.608357ms)
+ℹ tests 48
+ℹ suites 3
+ℹ pass 47
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12942.603369
+
+✖ failing tests:
+
+test at apps/website/src/assistant/persistence/__tests__/chat-history-store.dialects.test.ts:1:10001
+✖ concurrent appends to one chat get distinct, gap-free positions (113.117805ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      0,
+  +   0,
+      1,
+  +   1,
+      2,
+  +   2,
+      3,
+      4,
+      5,
+      6,
+      7,
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/chat-history-store.dialects.test.ts:269:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      0, 0, 1, 1, 2, 2,
+      3, 4, 5, 6, 7, 8,
+      9
+    ],
+    expected: [
+      0, 1, 2, 3, 4,
+      5, 6, 7, 8, 9
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+##### a7-par-conversation-tool-approval-store.txt
+▶ conversation tool approval store [sqlite]
+  ✔ has is false until granted, then true for the exact fingerprint only (41.519402ms)
+  ✔ native identity lookup survives another chat and revokes with the granting chat (16.318419ms)
+  ✔ every key part scopes the approval (7.47483ms)
+  ✔ a regrant replaces the fingerprint and time in the one row (6.766173ms)
+  ✔ two different tools in one chat retain independent approval rows (17.763975ms)
+  ✔ grant throws for a conversation that does not exist; deleting a chat deletes its approvals (3.305026ms)
+  ✔ a grant inside a rolled-back transaction leaves nothing (2.471014ms)
+  ✔ concurrent grants of one key leave exactly one row (9.919813ms)
+✔ conversation tool approval store [sqlite] (115.514162ms)
+▶ conversation tool approval store [pglite]
+  ✔ has is false until granted, then true for the exact fingerprint only (7602.523698ms)
+  ✔ native identity lookup survives another chat and revokes with the granting chat (92.320089ms)
+  ✔ every key part scopes the approval (27.223589ms)
+  ✔ a regrant replaces the fingerprint and time in the one row (23.797469ms)
+  ✔ two different tools in one chat retain independent approval rows (23.087061ms)
+  ✔ grant throws for a conversation that does not exist; deleting a chat deletes its approvals (17.485923ms)
+  ✔ a grant inside a rolled-back transaction leaves nothing (28.164634ms)
+  ✔ concurrent grants of one key leave exactly one row (31.341794ms)
+✔ conversation tool approval store [pglite] (7855.088058ms)
+▶ conversation tool approval store [real postgres]
+  ✖ has is false until granted, then true for the exact fingerprint only (102.430111ms)
+  ✔ native identity lookup survives another chat and revokes with the granting chat (56.276053ms)
+  ✔ every key part scopes the approval (93.320038ms)
+  ✔ a regrant replaces the fingerprint and time in the one row (97.383003ms)
+  ✔ two different tools in one chat retain independent approval rows (60.882358ms)
+  ✔ grant throws for a conversation that does not exist; deleting a chat deletes its approvals (84.666518ms)
+  ✖ a grant inside a rolled-back transaction leaves nothing (99.350638ms)
+  ✖ concurrent grants of one key leave exactly one row (78.555492ms)
+✖ conversation tool approval store [real postgres] (693.056095ms)
+ℹ tests 24
+ℹ suites 3
+ℹ pass 21
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11730.110827
+
+✖ failing tests:
+
+test at apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:1:562
+✖ has is false until granted, then true for the exact fingerprint only (102.430111ms)
+  error: duplicate key value violates unique constraint "ai_chats_pkey"
+      at /home/user/Tovu/node_modules/pg/lib/client.js:694:17
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:113:28)
+      at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+      at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:20)
+      at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+      at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+      at async seedChat (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/chat-seed.ts:6:3)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:30:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:126:41)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+      at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:20)
+      at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+      at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+      at async seedChat (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/chat-seed.ts:6:3)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:30:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Promise.all (index 0) {
+    length: 191,
+    severity: 'ERROR',
+    code: '23505',
+    detail: 'Key (id)=(c1) already exists.',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: 'ai_chat',
+    table: 'ai_chats',
+    column: undefined,
+    dataType: undefined,
+    constraint: 'ai_chats_pkey',
+    file: 'nbtinsert.c',
+    line: '666',
+    routine: '_bt_check_unique'
+  }
+
+test at apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:1:3741
+✖ a grant inside a rolled-back transaction leaves nothing (99.350638ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /boom/. Input:
+  
+  'error: insert or update on table "assistant_conversation_tool_approvals" violates foreign key constraint "assistant_conversation_tool_approvals_conversation_id_fkey"'
+  
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:102:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: error: insert or update on table "assistant_conversation_tool_approvals" violates foreign key constraint "assistant_conversation_tool_approvals_conversation_id_fkey"
+        at /home/user/Tovu/node_modules/pg/lib/client.js:694:17
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:113:28)
+        at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+        at async #run (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/single-connection-provider.js:24:16)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+        at async Object.grant (/home/user/Tovu/apps/website/src/assistant/persistence/conversation-tool-approval-store.ts:51:7)
+        at async <anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:104:11)
+        at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/kysely.js:680:32
+        at PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:126:41)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+        at async #run (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/single-connection-provider.js:24:16)
+        at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+        at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+        at async Object.grant (/home/user/Tovu/apps/website/src/assistant/persistence/conversation-tool-approval-store.ts:51:7)
+        at async <anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:104:11)
+        at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/kysely.js:680:32
+        at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:20),
+    expected: /boom/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:1:4038
+✖ concurrent grants of one key leave exactly one row (78.555492ms)
+  error: insert or update on table "assistant_conversation_tool_approvals" violates foreign key constraint "assistant_conversation_tool_approvals_conversation_id_fkey"
+      at /home/user/Tovu/node_modules/pg/lib/client.js:694:17
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:113:28)
+      at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+      at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:20)
+      at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+      at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+      at async Object.grant (/home/user/Tovu/apps/website/src/assistant/persistence/conversation-tool-approval-store.ts:51:7)
+      at async Promise.all (index 5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:115:7)
+      at PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:126:41)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+      at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:20)
+      at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+      at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+      at async Object.grant (/home/user/Tovu/apps/website/src/assistant/persistence/conversation-tool-approval-store.ts:51:7)
+      at async Promise.all (index 5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/conversation-tool-approval-store.dialects.test.ts:115:7)
+      at async Test.run (node:internal/test_runner/test:1409:7) {
+    length: 399,
+    severity: 'ERROR',
+    code: '23503',
+    detail: 'Key (conversation_id)=(c1) is not present in table "ai_chats".',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: 'ai_chat',
+    table: 'assistant_conversation_tool_approvals',
+    column: undefined,
+    dataType: undefined,
+    constraint: 'assistant_conversation_tool_approvals_conversation_id_fkey',
+    file: 'ri_triggers.c',
+    line: '2608',
+    routine: 'ri_ReportViolation'
+  }
+##### a7-par-durable-run-store.txt
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'attempt-failed',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'boot',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+▶ durable attempts migration and fencing [sqlite]
+  ✔ mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice (220.048653ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=false (53.901139ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=true (45.300547ms)
+  ✔ an occupied slot does not persist the queued request's user payload (14.523562ms)
+  ✔ a colliding question ID cannot commit an answer without its question (19.273777ms)
+  ✔ foreign acceptance cannot persist its user payload (5.81623ms)
+  ✔ an assistant ID colliding with a user row rolls back the newly appended question (13.560917ms)
+  ✔ an invalid user payload or shared user/assistant identity cannot be accepted (18.749934ms)
+  ✔ user and stub appends roll back together when the second write fails (14.422732ms)
+  ✔ a retry without a divider retains a checkpoint committed after the recovery probe (31.122373ms)
+  ✔ acceptance commits a queued stub and its runtime input once across duplicate POSTs (13.436204ms)
+  ✔ Stop beating acceptance creates a terminal tombstone that no late POST can launch (10.310487ms)
+  ✔ only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools (26.224869ms)
+  ✔ a checkpoint landing between recovery's read and CAS remains in the continuation segment (38.097534ms)
+  ✔ a host-minted locator is unconfirmed until the CLI reports it in status (25.57577ms)
+  ✔ progress resets the attempt counter, while init and terminal notices do not (14.084459ms)
+  ✔ recovery time pauses while executing and resumes with its exact remaining budget (20.630177ms)
+  ✔ an identical mutating delegated call is blocked after restart while its earlier outcome is unknown (21.407235ms)
+  ✔ a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint (104.993654ms)
+  ✔ the slot follows the unfinished logical row and releases on finalization and deletion (32.269251ms)
+  ✔ browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS (21.309597ms)
+  ✔ the dev-restart incident resumes and finalizes the same message even if no browser returns (23.659045ms)
+✔ durable attempts migration and fencing [sqlite] (792.133851ms)
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'attempt-failed',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'boot',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+▶ durable attempts migration and fencing [pglite]
+  ✔ mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice (7710.985255ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=false (102.729766ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=true (87.560301ms)
+  ✔ an occupied slot does not persist the queued request's user payload (76.297077ms)
+  ✔ a colliding question ID cannot commit an answer without its question (50.668356ms)
+  ✔ foreign acceptance cannot persist its user payload (23.493973ms)
+  ✔ an assistant ID colliding with a user row rolls back the newly appended question (31.704539ms)
+  ✔ an invalid user payload or shared user/assistant identity cannot be accepted (22.818986ms)
+  ✔ user and stub appends roll back together when the second write fails (63.48263ms)
+  ✔ a retry without a divider retains a checkpoint committed after the recovery probe (42.718486ms)
+  ✔ acceptance commits a queued stub and its runtime input once across duplicate POSTs (35.137618ms)
+  ✔ Stop beating acceptance creates a terminal tombstone that no late POST can launch (56.030266ms)
+  ✔ only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools (73.152195ms)
+  ✔ a checkpoint landing between recovery's read and CAS remains in the continuation segment (50.091218ms)
+  ✔ a host-minted locator is unconfirmed until the CLI reports it in status (47.34916ms)
+  ✔ progress resets the attempt counter, while init and terminal notices do not (54.112891ms)
+  ✔ recovery time pauses while executing and resumes with its exact remaining budget (80.548013ms)
+  ✔ an identical mutating delegated call is blocked after restart while its earlier outcome is unknown (50.615301ms)
+  ✔ a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint (56.530916ms)
+  ✔ the slot follows the unfinished logical row and releases on finalization and deletion (75.384551ms)
+  ✔ browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS (47.234149ms)
+  ✔ the dev-restart incident resumes and finalizes the same message even if no browser returns (90.432668ms)
+✔ durable attempts migration and fencing [pglite] (8939.432841ms)
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'attempt-failed',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+▶ durable attempts migration and fencing [real postgres]
+  ✔ mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice (175.169546ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=false (57.09089ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=true (59.57843ms)
+  ✔ an occupied slot does not persist the queued request's user payload (39.672779ms)
+  ✔ a colliding question ID cannot commit an answer without its question (34.780133ms)
+  ✔ foreign acceptance cannot persist its user payload (19.977411ms)
+  ✔ an assistant ID colliding with a user row rolls back the newly appended question (39.633608ms)
+  ✔ an invalid user payload or shared user/assistant identity cannot be accepted (27.48467ms)
+  ✔ user and stub appends roll back together when the second write fails (29.007096ms)
+  ✔ a retry without a divider retains a checkpoint committed after the recovery probe (37.888482ms)
+  ✔ acceptance commits a queued stub and its runtime input once across duplicate POSTs (42.655056ms)
+  ✔ Stop beating acceptance creates a terminal tombstone that no late POST can launch (38.580077ms)
+  ✔ only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools (56.970222ms)
+  ✔ a checkpoint landing between recovery's read and CAS remains in the continuation segment (49.939924ms)
+  ✔ a host-minted locator is unconfirmed until the CLI reports it in status (50.568674ms)
+  ✔ progress resets the attempt counter, while init and terminal notices do not (65.327887ms)
+  ✔ recovery time pauses while executing and resumes with its exact remaining budget (63.149071ms)
+  ✔ an identical mutating delegated call is blocked after restart while its earlier outcome is unknown (57.080865ms)
+  ✔ a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint (58.200396ms)
+  ✔ the slot follows the unfinished logical row and releases on finalization and deletion (51.790446ms)
+  ✔ browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS (41.520061ms)
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'boot',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+  ✔ the dev-restart incident resumes and finalizes the same message even if no browser returns (55.748143ms)
+✔ durable attempts migration and fencing [real postgres] (1155.075438ms)
+ℹ tests 66
+ℹ suites 3
+ℹ pass 66
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13910.627641
+##### a7-par-package-adapters.txt
+▶ package adapter composition [sqlite]
+  ✔ bounded reads use the adopted history adapter and retain owner isolation (91.474271ms)
+  ✔ a throwing ledger write rolls back package history AND session writes (26.712413ms)
+  ✔ a late browser save cannot erase the first terminal answer; a request-bound run can retry (30.397199ms)
+  ✔ package delete cascades sessions AND host-owned approvals (6.130588ms)
+✔ package adapter composition [sqlite] (156.790353ms)
+▶ package adapter composition [pglite]
+  ✔ bounded reads use the adopted history adapter and retain owner isolation (7564.415045ms)
+  ✔ a throwing ledger write rolls back package history AND session writes (45.683319ms)
+  ✔ a late browser save cannot erase the first terminal answer; a request-bound run can retry (134.925499ms)
+  ✔ package delete cascades sessions AND host-owned approvals (22.15077ms)
+✔ package adapter composition [pglite] (7779.511533ms)
+▶ package adapter composition [real postgres]
+  ✔ bounded reads use the adopted history adapter and retain owner isolation (198.347092ms)
+  ✖ a throwing ledger write rolls back package history AND session writes (106.938665ms)
+  ✖ a late browser save cannot erase the first terminal answer; a request-bound run can retry (99.899092ms)
+  ✔ package delete cascades sessions AND host-owned approvals (55.885065ms)
+✖ package adapter composition [real postgres] (464.6357ms)
+✔ negative control: independent kernels do not participate in the ledger rollback (10.959243ms)
+ℹ tests 13
+ℹ suites 3
+ℹ pass 11
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11698.798412
+
+✖ failing tests:
+
+test at apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts:1:1740
+✖ a throwing ledger write rolls back package history AND session writes (106.938665ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /abort shared transaction/. Input:
+  
+  'AgentSessionStoreError: agent session store unavailable'
+  
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts:36:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AgentSessionStoreError: agent session store unavailable
+        at atSessionBoundary (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:39:22)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async write (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts:38:7)
+        at async <anonymous> (/home/user/Jini/packages/chat/src/store/runtime/run-ledger.ts:241:40)
+        at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/kysely.js:680:32
+        at async DefaultConnectionProvider.provideConnection (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/default-connection-provider.js:10:20)
+        at async <anonymous> (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:139:14)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts:36:5) {
+      [cause]: error: insert or update on table "assistant_agent_sessions" violates foreign key constraint "assistant_agent_sessions_conversation_id_fkey"
+          at /home/user/Tovu/node_modules/pg/lib/client.js:694:17
+          at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+          at async PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:113:28)
+          at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+          at async #run (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/single-connection-provider.js:24:16)
+          at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+          at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+          at async <anonymous> (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:62:5)
+          at async atSessionBoundary (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:38:14)
+          at async write (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts:38:7)
+          at PostgresConnection.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/dialect/postgres/postgres-driver.js:126:41)
+          at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+          at async file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:39:24
+          at async #run (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/driver/single-connection-provider.js:24:16)
+          at async DefaultQueryExecutor.executeQuery (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-executor/query-executor-base.js:38:28)
+          at async InsertQueryBuilder.execute (file:///home/user/Jini/node_modules/.pnpm/kysely@0.29.6/node_modules/kysely/dist/query-builder/insert-query-builder.js:1101:24)
+          at async <anonymous> (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:62:5)
+          at async atSessionBoundary (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:38:14)
+          at async write (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts:38:7)
+          at async <anonymous> (/home/user/Jini/packages/chat/src/store/runtime/run-ledger.ts:241:40)
+    },
+    expected: /abort shared transaction/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts:1:2431
+✖ a late browser save cannot erase the first terminal answer; a request-bound run can retry (99.899092ms)
+  Error [ChatStoreError]: Chat store unavailable.
+      at atStoreBoundary (/home/user/Jini/packages/chat/src/store/sql/boundary.ts:27:11)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts:48:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'unavailable',
+    [cause]: Error: ai_chats: created conversation c was not readable in its own scope
+        at Object.create (/home/user/Jini/packages/chat/src/store/sql/store.ts:476:27)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async atStoreBoundary (/home/user/Jini/packages/chat/src/store/sql/boundary.ts:24:16)
+        at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts:48:5)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7)
+  }

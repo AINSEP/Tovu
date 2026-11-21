@@ -1,0 +1,28 @@
+## apps/site-chat/src/__tests__/site-assistant-transport.test.ts
+✖ apps/site-chat/src/__tests__/site-assistant-transport.test.ts (3456.662972ms)
+## apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts
+✖ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (433.695973ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+✖ explicit loader and guarded write refuse ask through the real executor (17.633884ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true) (558.504523ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+## apps/website/src/features/media-import/__tests__/import-local-file-search.test.ts
+✖ adding the local importer introduces no misses in the 138 operator requests (633.043089ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+## apps/website/src/server/runtime/composition/__tests__/pages-html-revisions-wiring.integration.test.ts
+✖ createSiteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller (1309.262763ms)
+  Error [ToolInputError]: 'expectedVersion' is required: call pages_read_html first and pass the record's current version.
+✖ createRouteDeps (in-memory root): pages_write_html appends its html state to post_revisions, attributed to the caller (513.835111ms)
+  Error [ToolInputError]: 'expectedVersion' is required: call pages_read_html first and pass the record's current version.
+## apps/website/src/server/runtime/composition/__tests__/process-root-parity.test.ts
+✖ daemon dev mode passes bypass in the executor's options bag (14.589746ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+## apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts
+✖ row 7: no file outside the baseline builds an agent-plugin lifecycle owner or activation queue (67.125188ms)
+  AssertionError [ERR_ASSERTION]: a new owner or queue builder appeared
+## development/scripts/__tests__/dead-path-sweep.test.ts
+✖ dead-path sweep: no path reference outside the known-broken register resolves to nothing (1443.814404ms)
+  AssertionError [ERR_ASSERTION]: a path reference under development/scripts or the db tooling points at a file that does not exist
+✖ generated coverage artifacts are not reported as dead paths (0.636222ms)
+  AssertionError [ERR_ASSERTION]: development/coverage/lcov.unit.info's parent directory should exist

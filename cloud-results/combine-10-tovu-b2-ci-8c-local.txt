@@ -1,0 +1,21 @@
+== BASE_REF=origin/main
+::notice::merge-base fad66fb87b2c62c5d6735260a2ba814cc2823bdc has no reviewed persisted-name registry; this change is the bootstrap baseline.
+exit=0
+== BASE_REF=e77a818e9
+✔ registered persisted names match their production declarations (8.821659ms)
+✔ an unchanged registry needs no transition evidence (0.353744ms)
+✔ a registry rename with no evidence reports its key and both values (0.133915ms)
+✔ a registered new migration permits a rename but historical and unregistered steps do not (0.391826ms)
+✔ a removal needs an approved cutover for the exact old value (0.303455ms)
+✔ persisted names match the reviewed target (11.845706ms)
+ℹ pass 6
+ℹ fail 0
+ℹ skipped 0
+exit=0
+== mutation: registry sheets.submission.id renamed with no record, BASE_REF=e77a818e9
+✖ registered persisted names match their production declarations (9.100147ms)
+✖ persisted names match the reviewed target (12.105179ms)
+ℹ pass 4
+ℹ fail 2
+✖ failing tests:
+✖ registered persisted names match their production declarations (9.100147ms)

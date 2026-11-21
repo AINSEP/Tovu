@@ -1,0 +1,58 @@
+contracts/core/chat-delete-grant.ts:
+     server/inbound/public-http/routes/site/pages.ts:3  ->  ./pages/handlers/home.js
+     server/inbound/public-http/routes/site/pages/handlers/home.ts:25  ->  ../extra-head.js
+     server/inbound/public-http/routes/site/pages/extra-head.ts:1  ->  #src/features/seo/index
+     features/seo/index.ts:16  ->  ../media/index.js
+     features/media/index.ts:146  ->  ./library-save-attachment.js
+     features/media/library-save-attachment.ts:6  ->  ../../contracts/core/human-confirm.js
+     contracts/core/human-confirm.ts:19  ->  ./chat-delete-grant.js
+contracts/core/human-confirm.ts:
+     server/inbound/public-http/routes/site/pages.ts:3  ->  ./pages/handlers/home.js
+     server/inbound/public-http/routes/site/pages/handlers/home.ts:25  ->  ../extra-head.js
+     server/inbound/public-http/routes/site/pages/extra-head.ts:1  ->  #src/features/seo/index
+     features/seo/index.ts:16  ->  ../media/index.js
+     features/media/index.ts:146  ->  ./library-save-attachment.js
+     features/media/library-save-attachment.ts:6  ->  ../../contracts/core/human-confirm.js
+contracts/core/tool-metadata/index.ts:
+     server/inbound/public-http/routes/site/pages.ts:3  ->  ./pages/handlers/home.js
+     server/inbound/public-http/routes/site/pages/handlers/home.ts:25  ->  ../extra-head.js
+     server/inbound/public-http/routes/site/pages/extra-head.ts:1  ->  #src/features/seo/index
+     features/seo/index.ts:16  ->  ../media/index.js
+     features/media/index.ts:146  ->  ./library-save-attachment.js
+     features/media/library-save-attachment.ts:6  ->  ../../contracts/core/human-confirm.js
+     contracts/core/human-confirm.ts:19  ->  ./chat-delete-grant.js
+     contracts/core/chat-delete-grant.ts:3  ->  ../headless/index.js
+     contracts/headless/index.ts:10  ->  ./secret-form-cards.js
+     contracts/headless/secret-form-cards.ts:1  ->  ../core/tool-metadata/index.js
+features/media/library-save-attachment.ts:
+     server/inbound/public-http/routes/site/pages.ts:3  ->  ./pages/handlers/home.js
+     server/inbound/public-http/routes/site/pages/handlers/home.ts:25  ->  ../extra-head.js
+     server/inbound/public-http/routes/site/pages/extra-head.ts:1  ->  #src/features/seo/index
+     features/seo/index.ts:16  ->  ../media/index.js
+     features/media/index.ts:146  ->  ./library-save-attachment.js
+features/media/original-bytes.ts:
+     server/inbound/public-http/routes/site/pages.ts:3  ->  ./pages/handlers/home.js
+     server/inbound/public-http/routes/site/pages/handlers/home.ts:25  ->  ../extra-head.js
+     server/inbound/public-http/routes/site/pages/extra-head.ts:1  ->  #src/features/seo/index
+     features/seo/index.ts:16  ->  ../media/index.js
+     features/media/index.ts:147  ->  ./original-bytes.js
+features/media/promote-chat-attachment.ts:
+     server/inbound/public-http/routes/site/pages.ts:3  ->  ./pages/handlers/home.js
+     server/inbound/public-http/routes/site/pages/handlers/home.ts:25  ->  ../extra-head.js
+     server/inbound/public-http/routes/site/pages/extra-head.ts:1  ->  #src/features/seo/index
+     features/seo/index.ts:16  ->  ../media/index.js
+     features/media/index.ts:146  ->  ./library-save-attachment.js
+     features/media/library-save-attachment.ts:8  ->  ./promote-chat-attachment.js
+features/post/expected-version.ts:
+     server/inbound/public-http/routes/site/pages.ts:3  ->  ./pages/handlers/home.js
+     server/inbound/public-http/routes/site/pages/handlers/home.ts:21  ->  ../render-context/widgets.js
+     server/inbound/public-http/routes/site/pages/render-context/widgets.ts:2  ->  #src/features/widgets/deps
+     features/widgets/deps.ts:1  ->  ../post/index.js
+     features/post/index.ts:21  ->  ./expected-version.js
+platform/db/sqlite/content-db.ts:
+     server/inbound/public-http/routes/site/pages.ts:3  ->  ./pages/handlers/home.js
+     server/inbound/public-http/routes/site/pages/handlers/home.ts:21  ->  ../render-context/widgets.js
+     server/inbound/public-http/routes/site/pages/render-context/widgets.ts:2  ->  #src/features/widgets/deps
+     features/widgets/deps.ts:1  ->  ../post/index.js
+     features/post/index.ts:42  ->  ./search-index.memory.js
+     features/post/search-index.memory.ts:2  ->  ../../platform/db/sqlite/content-db.js

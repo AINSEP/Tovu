@@ -1,0 +1,31 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' Error
+[daemon-supervisor] 2026-11-21T10:35:06.680Z spawned agent daemon pid=321
+✔ Jini's shipped AG-UI reader completes Tovu's authenticated stream with its IDs and text intact (7846.014962ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' Error
+✔ the AG-UI route refuses a valid request without a session cookie (239.872416ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' Error
+✔ the AG-UI route refuses authenticated requests whose messages are not an array (257.557781ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' Error
+[daemon-supervisor] 2026-11-21T10:35:07.423Z spawned agent daemon pid=321
+✔ AG-UI wire golden: every payload, then end with max_tool_turns (229.485712ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' Error
+[daemon-supervisor] 2026-11-21T10:35:07.658Z spawned agent daemon pid=321
+✔ AG-UI wire golden: an error frame (240.136885ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' Error
+[daemon-supervisor] 2026-11-21T10:35:07.865Z spawned agent daemon pid=321
+✔ AG-UI wire golden: end with a failed status (197.61019ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' Error
+[daemon-supervisor] 2026-11-21T10:35:08.076Z spawned agent daemon pid=321
+✔ AG-UI wire golden: end with a cancelled status (212.626742ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' Error
+[daemon-supervisor] 2026-11-21T10:35:08.341Z spawned agent daemon pid=321
+✔ AG-UI wire golden: a stream that closes with no end frame (262.580175ms)
+✔ the golden file holds exactly these scenarios (0.670086ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12120.004705
