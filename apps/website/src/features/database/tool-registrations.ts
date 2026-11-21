@@ -197,6 +197,7 @@ const migrateHooks = createMigrateHooks(routeDeps);
       run: async ({ ctx, prepared: { hooks, plan, costClass }, confirmer }) => {
         const record = await gatewayConfirm({
           deps: routeDeps.gatedMutations.gatewayDeps,
+          signal: ctx.signal,
           principalId: confirmer.id,
           principalKind: confirmer.kind,
           hooks: hooks as GatedMutationHooks<unknown, unknown>,
@@ -211,6 +212,7 @@ const migrateHooks = createMigrateHooks(routeDeps);
           gatewayExecute: () =>
             gatewayExecute({
               deps: routeDeps.gatedMutations.gatewayDeps,
+              signal: ctx.signal,
               principalId: ctx.principal.id,
               principalKind: AGENT_TOOL_PRINCIPAL_KIND,
               hooks,

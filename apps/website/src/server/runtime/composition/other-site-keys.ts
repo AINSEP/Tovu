@@ -39,7 +39,7 @@ const SHARED_KINDS: readonly VaultKind[] = ["vendor", "source-control"];
 const MAX_ROWS_PER_SITE = 50;
 const metaParsers = createTovuVaultKinds({ policy: { validateMeta: ({ meta }) => meta, legacyPublishCredential: () => undefined, tokenField: () => undefined } }).metaParsers;
 
-type MetaRow = { id: string; kind: VaultKind; provider: string | null; label: string; meta: string | Record<string, unknown> };
+type MetaRow = { id: string; kind: VaultKind; provider: string | null; label: string; meta: string | Record<string, unknown>; sourceCount: number };
 type Target = { siteId: string; name: string; dir: string; file: string | undefined };
 
 const refused = ({ message }: { message: string }, _optional = {}) => new ToolInputError({ message });
@@ -139,7 +139,7 @@ function createSourceReader(workspace: SitesWorkspace, home: string, openSource:
     try {
       const empty = !(await tableExists({ kernel, table: "secrets_vault" }));
       const workspaceId = empty ? "" : (await resolveWorkspace({ kernel: kernel as unknown as ContentKernel })).id;
-      const rows = empty ? [] : await kernel.query<MetaRow>(sql`SELECT id, kind, provider, label, meta FROM secrets_vault
+      const rows = empty ? [] : await kernel.query<MetaRow>(sql`SELECT id, kind, provider, label, meta, ${rowId === undefined ? sql`count(*) OVER ()` : sql`1`} AS sourceCount FROM secrets_vault
         WHERE workspace_id=${workspaceId} AND owner_key='tovu' AND principal_id IS NULL AND binding IS NULL
         AND kind IN (${sql.join(SHARED_KINDS)}) ${rowId === undefined ? sql`` : sql`AND id = ${rowId}`}
         ORDER BY kind, id LIMIT ${rowId === undefined ? MAX_ROWS_PER_SITE : 1}`);
@@ -211,9 +211,9 @@ function createKeyList(sources: () => (Source & { isTarget?: boolean })[], readS
     for (const source of sources()) {
       try {
         await readSource({ source, read: async ({ rows, keyStatus }) => {
-          for (const row of rows) {
+          for (const [index, row] of rows.entries()) {
             const locked = lockedReason({ row, source, keyStatus });
-            choices.push({ keyId: keyId({ source, row }), kind: row.kind, name: hasSafeNames({ row }) ? keyName({ row, site: label(source) }) : `Key with an unsafe name, ${label(source)}`, siteName: source.name, ...(locked ? { locked } : {}) });
+            choices.push({ keyId: keyId({ source, row }), kind: row.kind, name: hasSafeNames({ row }) ? keyName({ row, site: label(source) }) : `Key with an unsafe name, ${label(source)}`, siteName: source.name, ...(locked ? { locked } : {}), ...(index === 0 && row.sourceCount > MAX_ROWS_PER_SITE ? { omittedCount: row.sourceCount - MAX_ROWS_PER_SITE } : {}) });
           }
         } });
       } catch {

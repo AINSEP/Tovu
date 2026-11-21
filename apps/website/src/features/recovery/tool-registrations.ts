@@ -273,7 +273,7 @@ async function resolveRecoveryDeepLink(routeDeps: RecoveryToolDeps, ctx: Paramet
       });
     }
 type RestorePreparation = { restorePointId: string; plan: { planId: string; planHash: string }; createdAt: string | undefined };
-function createRecoveryConfirmationGateway(routeDeps: RecoveryToolDeps, hooks: ReturnType<ReturnType<typeof createRecoveryPlanner>['restoreHooks']>, confirmer: { id: string; kind: Parameters<typeof gatewayConfirm>[0]['principalKind'] }): Parameters<typeof confirmRestore>[0]['deps']['gateway'] {
+function createRecoveryConfirmationGateway(routeDeps: RecoveryToolDeps, hooks: ReturnType<ReturnType<typeof createRecoveryPlanner>['restoreHooks']>, confirmer: { id: string; kind: Parameters<typeof gatewayConfirm>[0]['principalKind']; signal: AbortSignal }): Parameters<typeof confirmRestore>[0]['deps']['gateway'] {
   return {
               confirm: (params) =>
                 toRecoveryResult({ run: async () => {
@@ -281,6 +281,7 @@ function createRecoveryConfirmationGateway(routeDeps: RecoveryToolDeps, hooks: R
                     deps: routeDeps.gatedMutations.gatewayDeps,
                     principalId: confirmer.id,
                     principalKind: confirmer.kind,
+                    signal: confirmer.signal,
                     hooks,
                     planId: params.planId,
                     planHash: params.planHash,
@@ -295,7 +296,7 @@ function createRecoveryRestoreRun(routeDeps: RecoveryToolDeps, restoreHooks: Ret
         const hooks = restoreHooks({ actorId: ctx.principal.id, restorePointId });
         const confirmed = await confirmRestore({
           deps: {
-            gateway: createRecoveryConfirmationGateway(routeDeps, hooks, confirmer),
+            gateway: createRecoveryConfirmationGateway(routeDeps, hooks, { ...confirmer, signal: ctx.signal }),
           },
           input: { principalId: confirmer.id, principalKind: confirmer.kind, planId: plan.planId, planHash: plan.planHash, disclosureAcknowledged: true },
         });
@@ -313,6 +314,7 @@ function createRecoveryRestoreRun(routeDeps: RecoveryToolDeps, restoreHooks: Ret
                     principalKind: AGENT_TOOL_PRINCIPAL_KIND,
                     hooks,
                     confirmationToken: params.confirmationToken,
+                    signal: ctx.signal,
                   }) }, {},
                 ),
             },

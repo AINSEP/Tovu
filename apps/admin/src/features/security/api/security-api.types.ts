@@ -152,7 +152,7 @@ export interface AdminCredentialCopySource {
   name: string;
   keys: { kind: string; id: string; label: string; provider: string | null; worksFor?: string[]; publishHosts?: string[]; last4?: string;
     /** Set for a key still saved only on a site; absent for a Shared Key. */
-    siteName?: string; locked?: string }[];
+    siteName?: string; locked?: string; omittedCount?: number }[];
   reasonCode?: string;
   message?: string;
   actionHint?: { action: "start-site"; siteId: string; desktopSiteId: string };
