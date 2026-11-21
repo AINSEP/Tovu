@@ -15,6 +15,7 @@ import {
 } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { forceRemove } from "../fixtures/force-remove.js";
+import { selectedPluginSourceRoot } from "../fixtures/bundled-source-root.js";
 
 /**
  * @file The Tovu binding of the Jini lifecycle owner (`lifecycle.ts`): its delivery-mode policy, the
@@ -227,6 +228,19 @@ test("a seeded bundled plugin refuses uninstall with Tovu's disable recovery, an
   const retired = await lifecycle.retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE }, { retiredBundledPlugins: new Set<string>() } as Parameters<typeof lifecycle.retireBundledAgentPlugins>[1]);
   assert.ok(retired);
   assert.deepEqual((await lifecycle.listInstalledPlugins({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE }).root })).map(plugin => plugin.pluginId), ["plain-bundled"]);
+});
+
+test("the seeded Cloudflare plugin keeps its qualified identity and starts inactive", async t => {
+  const { layout, lifecycle } = await boundLifecycle(t);
+  const source = await selectedPluginSourceRoot({ pluginIds: ["cloudflare"] });
+  t.after(() => source.dispose());
+  await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE, sourceRoot: source.root });
+  const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
+  const installed = (await lifecycle.listInstalledPlugins({ workspaceRoot })).find(plugin => plugin.pluginId === "cloudflare");
+  assert.ok(installed, "the shipped Cloudflare plugin is installed under its manifest name");
+  assert.equal(installed.id, "jini/cloudflare", "the installed Cloudflare record preserves its qualified manifest identity");
+  const activation = await explicitRootAgentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId: installed.pluginId });
+  assert.equal(activation.verdict, "inactive", "the seeded hosting plugin starts disabled under its storage identity");
 });
 
 test("a host archive reader's non-file entries pass through the positional adapter unchanged", async t => {

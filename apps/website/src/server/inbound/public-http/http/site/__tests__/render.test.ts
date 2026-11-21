@@ -503,7 +503,9 @@ test("renderSite: siteAssistantEnabled:false (or omitted) shows no widget on a s
   const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "content", "themes", "static", "tovu-theme"), id: "tovu-theme", source: "built-in" });
   assert.equal(theme.status, "valid");
 
-  const html = await renderSite({ theme, route: "home", siteTitle: "Basic Demo", posts: [] });
+  const html = await renderSite({ theme, route: "home", siteTitle: "Basic Demo", posts: [], extraHead: '<meta name="packed-cms-contract" content="present">' });
+  assert.equal(html.split('<meta name="packed-cms-contract" content="present">').length, 2, "the static home includes the CMS head marker exactly once");
+  assert.ok(html.indexOf('<meta name="packed-cms-contract" content="present">') < html.indexOf("</head>"), "the CMS head marker appears before the closing head tag");
   assert.doesNotMatch(html, /tovu-site-assistant-root/);
   assert.doesNotMatch(html, /site-assistant\.js/);
   assert.doesNotMatch(html, /site-assistant\.css/);

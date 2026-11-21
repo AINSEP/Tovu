@@ -8,6 +8,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import express from "express";
+import { createAgUiFetchAgent } from "@jini-ai/chat/transports/ag-ui";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/index.js";
 import { resetAssistantDaemonSingletonForTests, startAssistantDaemon } from "../runtime/lifecycle/daemon-supervisor.js";
@@ -194,6 +195,52 @@ async function boot(t: import("node:test").TestContext) {
   const baseUrl = await startTestServer(buildApp(), t);
   return { baseUrl, cookie: await loginAsOwner(baseUrl) };
 }
+
+test("Jini's shipped AG-UI reader completes Tovu's authenticated stream with its IDs and text intact", async (t) => {
+  const { baseUrl, cookie } = await boot(t);
+  activeScript = { frames: [["agent", { type: "text_delta", delta: "Packed reader contract" }], ["end", { reason: "stop", status: "succeeded" }]] };
+  const agent = createAgUiFetchAgent({ request: async ({ input, signal }) => {
+    const response = await fetch(`${baseUrl}${RUN_PATH}`, {
+      method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(input), signal,
+    });
+    assert.equal(response.status, 200, "the authenticated AG-UI request succeeds");
+    assert.match(response.headers.get("content-type")!, /^text\/event-stream\b/, "the real route serves an event stream to the shipped reader");
+    return response;
+  } });
+  const events: unknown[] = [];
+  await new Promise<void>((resolve, reject) => {
+    agent.run({
+      threadId: "thread-packed-reader", runId: "run-packed-reader",
+      messages: [{ id: "user-packed-reader", role: "user", content: "Read this turn" }],
+      tools: [], context: [], state: {}, forwardedProps: {},
+    }).subscribe({ next: event => events.push(event), error: reject, complete: resolve });
+  });
+  assert.deepEqual(events, [
+    { type: "RUN_STARTED", threadId: "thread-packed-reader", runId: "run-packed-reader" },
+    { type: "TEXT_MESSAGE_START", messageId: "msg_1", role: "assistant" },
+    { type: "TEXT_MESSAGE_CONTENT", messageId: "msg_1", delta: "Packed reader contract" },
+    { type: "TEXT_MESSAGE_END", messageId: "msg_1" },
+    { type: "RUN_FINISHED", threadId: "thread-packed-reader", runId: "run-packed-reader", result: { reason: "stop" } },
+  ], "the shipped reader completes with the requested IDs and the text delta before run finish");
+});
+
+test("the AG-UI route refuses a valid request without a session cookie", async (t) => {
+  const { baseUrl } = await boot(t);
+  const response = await fetch(`${baseUrl}${RUN_PATH}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ threadId: "thread-no-session", runId: "run-no-session", messages: [{ id: "user-no-session", role: "user", content: "Read this turn" }], tools: [], context: [], state: {}, forwardedProps: {} }),
+  });
+  assert.equal(response.status, 401, "a valid AG-UI request requires an authenticated session");
+});
+
+test("the AG-UI route refuses authenticated requests whose messages are not an array", async (t) => {
+  const { baseUrl, cookie } = await boot(t);
+  const response = await fetch(`${baseUrl}${RUN_PATH}`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ threadId: "thread-malformed", runId: "run-malformed", messages: "not an array" }),
+  });
+  assert.equal(response.status, 400, "the authenticated AG-UI route rejects a malformed messages field");
+});
 
 const actual: Record<string, Captured> = {};
 
