@@ -9,7 +9,7 @@ import { readInitialAdminSession } from "./lib/local-owner-signin";
 import {
   readPublishToLiveAvailability,
   setPublishToLiveAvailable,
-} from "./features/publish-content/hooks/publish-availability.store";
+} from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 

@@ -2,7 +2,7 @@ import { publishSectionById, type PublishSectionId } from "@tovu/publish-content
 
 import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as translateDashboard } from "../../dashboard/dashboard-i18n";
-import { usePublishToLiveAvailable } from "./publish-availability.store";
+import { usePublishToLiveAvailable } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 import { requestPublish } from "./publish-request.store";
 
 /**

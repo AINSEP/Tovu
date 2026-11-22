@@ -8,7 +8,7 @@ import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { useRecentActivityDisclosure } from "./hooks/use-recent-activity-disclosure.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
 import { requestPublish } from "../publish-content/hooks/publish-request.store";
-import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
+import { usePublishToLiveAvailable } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";

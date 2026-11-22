@@ -3,7 +3,7 @@ import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-quer
 import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { isPublishToLiveAvailable, setPublishToLiveAvailable } from "../../features/publish-content/hooks/publish-availability.store";
+import { isPublishToLiveAvailable, setPublishToLiveAvailable } from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 import { useAdminSession } from "../../App.hooks";
 import { Login } from "../../features/auth";
 import { settingsApi } from "../../features/settings/api/settings-api";

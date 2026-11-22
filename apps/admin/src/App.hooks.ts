@@ -34,7 +34,7 @@ import { requestPublish } from "./features/publish-content/hooks/publish-request
 import {
   readPublishToLiveAvailability,
   setPublishToLiveAvailable,
-} from "./features/publish-content/hooks/publish-availability.store";
+} from "@jini-ai/admin/publish-content/screen/hooks/publish-availability.store";
 import {
   parsePublishContentToolInput,
   PUBLISH_CONTENT_CAPABILITY,
