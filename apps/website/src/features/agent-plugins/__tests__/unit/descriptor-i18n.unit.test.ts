@@ -6,7 +6,7 @@ import test from "node:test";
 import { parseDeployTargetsFile } from "#src/features/deployments/deploy-targets/registry";
 import { parseSourceControlProvidersFile } from "#src/features/source-control/provider-registry";
 
-import { parseDescriptorI18n } from "../../descriptor-i18n.js";
+import { parseDescriptorI18n } from "@jini-ai/agent-plugins/site/descriptor-i18n";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { composedBundledPluginDirs } from "../fixtures/bundled-source-root.js";
 

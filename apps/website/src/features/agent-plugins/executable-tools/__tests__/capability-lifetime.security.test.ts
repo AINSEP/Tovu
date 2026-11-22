@@ -19,7 +19,7 @@ import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { applyToolApprovalPolicy } from '../../../../assistant/tool-approval-policy.js';
 import { createSurfaceConnections } from '../../../api-connections/surface-connections.js';
 import type { ApiConnectionHost } from '../../../api-connections/host.js';
-import { createAdminSurfaceCapabilities } from '../../admin-surfaces/capabilities.js';
+import { createAdminSurfaceCapabilities } from '@jini-ai/agent-plugins/site/admin-surfaces/capabilities';
 import { createAgentPluginAdminSurfaceHandlers } from '../../admin-surfaces/handlers.js';
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from '@jini-ai/agent-plugins/connect/executable';
 import { registerAgentPluginExecutableTools } from '../register.js';
