@@ -14,7 +14,7 @@ import { buildAssistantToolRegistrations } from "#src/assistant/tool-registratio
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
 import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { postAgentToolCatalog } from "../../agent-tools.js";
-import { TIPTAP_DOC_SCHEMA } from "../../tiptap-doc-schema.js";
+import { TIPTAP_DOC_SCHEMA } from "@jini-ai/cms/posts/tiptap-doc-schema";
 import { InMemoryPostRepo } from "../../repo.memory.js";
 import { contributePostTools } from "../../tool-registrations.js";
 import { buildPostRecord } from "../post-record.fixture.js";

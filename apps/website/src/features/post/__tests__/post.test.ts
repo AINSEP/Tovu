@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import type { BeforeSaveHookPort } from "../post-before-save.js";
+import type { BeforeSaveHookPort } from "@jini-ai/cms/posts/post-before-save";
 import { createPost } from "../post-create.js";
 import { hasPostBeenPublished } from "../post-slugs.js";
 import { findPublishedPostById, getAdminPostById, getAdminPostByIdOrSlug, getPublishedPostBySlug, listAdminPages, listAdminPosts } from "../post-read.js";

@@ -8,7 +8,7 @@ import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/
 import { DOC_NODE_HANDLERS } from "#src/server/inbound/public-http/http/site/render/doc/doc-nodes";
 import { MARK_RENDERERS } from "@jini-ai/cms/html/document-marks";
 import { postAgentToolCatalog } from "../agent-tools.js";
-import { TIPTAP_DOC_SCHEMA } from "../tiptap-doc-schema.js";
+import { TIPTAP_DOC_SCHEMA } from "@jini-ai/cms/posts/tiptap-doc-schema";
 
 /**
  * @file RED-then-GREEN evidence for the 2026-09-11 `TIPTAP_DOC_SCHEMA` expansion

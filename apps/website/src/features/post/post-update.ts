@@ -2,10 +2,10 @@ import { type UUID, type JsonObject, type Clock as ClockPort, nowIso as clockNow
 import type { PostStatus } from "@jini-ai/cms/core";
 import { type PostRepoPort, type PostRecord, PostValidationError, type PublicPostRecord, isPublicPost, PostNotFoundError, SYSTEM_ACTOR_ID } from "./post.js";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { type BeforeSaveHookPort, runBeforeSaveHook, withCoverPresentation, mergeExt } from "./post-before-save.js";
+import { type BeforeSaveHookPort, runBeforeSaveHook, withCoverPresentation, mergeExt } from "@jini-ai/cms/posts/post-before-save";
 import { type SlugChangeCaptureLookup, assertValidExplicitSlug, hasPostBeenPublished, availablePostSlug, trashedSlugHolderOrConflict, releaseTrashedSlug, captureSlugChange } from "./post-slugs.js";
 import { assertOptionalBoolean, assertPostPresentationFields, assertTitleWithinLimit, isJsonObject, isValidPostStatus, presentScheduleFields, normalizePublishAt, normalizeFeaturedMediaId, normalizePostAuthor, normalizeShowPostAuthor, resolveUpdateBodyFields, savedPostContent } from "./post-write-fields.js";
-import { isAutomaticPostSlug } from "./slug.js";
+import { isAutomaticPostSlug } from "@jini-ai/cms/posts/slug";
 import { isTrashed } from "@jini-ai/core/contracts/site/soft-delete";
 import { assertExpectedVersion, persistUpdatedPost, appendPostRevision, enqueueContentWrite, emitPublicTransitionEvent } from "./post-write-effects.js";
 import { isDeepStrictEqual } from "node:util";

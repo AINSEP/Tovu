@@ -2,7 +2,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { arr, obj, str } from "../value-readers.js";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
-import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
+import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "@jini-ai/cms/posts/slug";
 import { renderEntryList, renderEntryListStructuredData, type EntryListItem, type EntryListFieldValue, type EntryListRenderOptions } from "@jini-ai/cms/listing";
 import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
