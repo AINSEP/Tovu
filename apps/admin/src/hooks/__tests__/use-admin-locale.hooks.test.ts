@@ -177,7 +177,7 @@ describe("language query ownership", () => {
 });
 
 // L13 Stryker: the per-principal query key and the `enabled: !checking` boot gate survived.
-import { AdminBootScopeContext } from "../../lib/admin-boot-scope";
+import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import type { ReactNode } from "react";
 import { createElement } from "react";
 

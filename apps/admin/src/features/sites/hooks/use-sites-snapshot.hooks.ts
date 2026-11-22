@@ -5,7 +5,7 @@ import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { KEYS, SITES_RESOURCE } from "../rules";
 import type { SitesPort } from "./sites-port.hooks";
-import { useAdminBootScope } from "@/lib/admin-boot-scope";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 
 /** Shared Sites read/refresh lifecycle for the screen and its sidebar label.
  * @returns The cached server snapshot, including the current live binding and list status.

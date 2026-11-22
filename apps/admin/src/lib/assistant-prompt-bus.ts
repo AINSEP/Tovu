@@ -1,6 +1,6 @@
 import { useEffect, type RefObject } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
-import { requestAssistantDock } from "./assistant-dock-bus";
+import { requestAssistantDock } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 
 /**
  * @file Lets a screen hand the assistant a drafted request: it opens the dock and writes the text

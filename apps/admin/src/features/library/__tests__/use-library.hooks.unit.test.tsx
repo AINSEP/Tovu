@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakeLibraryPort, fakeDocument } from "../hooks/library-dependencies.hooks";
 import type { LibraryPort } from "../hooks/library-port.hooks";
 import { useLibrary, useWiredLibrary } from "../hooks/use-library.hooks";

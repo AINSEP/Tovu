@@ -1,5 +1,5 @@
 import { authenticatedAdminRequest } from "./admin-http/request";
-import { WORKSPACE_ID } from "./admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 
 export const SUBAGENT_DANGERS = [
   "Security risk: subagents can act independently.",

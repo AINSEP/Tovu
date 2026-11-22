@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type ExecutionConfig } from "@jini-ai/ui";
 
 import { useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { useAdminBootScope } from "@/lib/admin-boot-scope";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import type { CachedLoader } from "@jini-ai/core/fetch";
 import { subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { isAbortError, retryWhileUnreachable } from "@/lib/retry-unreachable";

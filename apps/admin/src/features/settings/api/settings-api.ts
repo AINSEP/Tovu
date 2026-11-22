@@ -1,7 +1,7 @@
 import type { SettingScope } from "@jini-ai/core/settings";
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { authenticatedAdminRequest } from "../../../lib/admin-http/request";
-import { type SettingResolvedValue, shareSettingsEffectiveRead } from "../../../lib/settings-effective-reads";
+import { type SettingResolvedValue, shareSettingsEffectiveRead } from "@jini-ai/admin/shell/lib/settings-effective-reads";
 import type { SettingValueResponse } from "./settings-api.types";
 
 const BLANK_NAMESPACE_MESSAGE = "Cannot read settings without a namespace. Pass the settings group to read, for example \"core.language\".";

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { UserFacingError } from "@jini-ai/core";
 import { useFetchQuery as useFetchQueryHook, useInvalidate as useInvalidateHook } from "@jini-ai/ui/fetch-query";
-import { useAdminBootScope as useAdminBootScopeHook } from "@/lib/admin-boot-scope";
+import { useAdminBootScope as useAdminBootScopeHook } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { useExportPassword as useExportPasswordHook } from "./use-export-password.hooks";
 import { useStaticExportSelection as useStaticExportSelectionHook } from "./use-static-export-selection.hooks";
 import { useShareCredentialGate as useShareCredentialGateHook } from "./use-share-credential-gate.hooks";

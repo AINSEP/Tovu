@@ -1,4 +1,4 @@
-import type { AddonsRouteResolution } from "./addons-routes";
+import type { AddonsRouteResolution } from "@jini-ai/admin/shell/lib/addons-routes";
 
 /**
  * @file Sites → Export Site / Import Site moved to Operations → Import & Export as tabs (owner,

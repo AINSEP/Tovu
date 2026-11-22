@@ -1,5 +1,5 @@
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
-import { WORKSPACE_ID } from "../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import type { AdminPluginFiles } from "../plugins/api/plugins-api.types";
 export const SKILLS_CHANGED_EVENT = "tovu-skills-changed";
 const base = `/workspaces/${WORKSPACE_ID}/skills`;

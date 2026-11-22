@@ -11,7 +11,7 @@ import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.ho
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
 import { useAssistantEmptyState } from "./hooks/use-assistant-empty-state.hooks";
 import { useSelectedAgentAuthWarning } from "./hooks/use-selected-agent-auth-warning.hooks";
-import { useComposerSendStopGuard } from "./hooks/use-composer-send-stop-guard.hooks";
+import { useComposerSendStopGuard } from "@jini-ai/admin/shell/components/AssistantDock/hooks/use-composer-send-stop-guard.hooks";
 import { useBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
 import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
 import {

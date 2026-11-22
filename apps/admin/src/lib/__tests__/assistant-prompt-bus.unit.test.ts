@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RefObject } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
 
-import { resetAssistantDockBus, subscribeToAssistantDockRequests } from "../assistant-dock-bus";
+import { resetAssistantDockBus, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { requestAssistantPrompt, resetAssistantPromptBus, useAssistantPromptRequests } from "../assistant-prompt-bus";
 
 /**

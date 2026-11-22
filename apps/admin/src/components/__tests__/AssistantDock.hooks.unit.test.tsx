@@ -68,7 +68,7 @@ vi.mock("../../lib/assistant-transport-ag-ui", () => ({
 // which resolves the existing client-local `/mcp` route through `navigate` — mocked here so that
 // branch is assertable without a real `router.ts`/history dependency.
 const mockNavigate = vi.hoisted(() => vi.fn());
-vi.mock("../../lib/router", () => ({ navigate: mockNavigate }));
+vi.mock("@jini-ai/admin/shell/lib/router", () => ({ navigate: mockNavigate }));
 
 // `useAssistantDockChrome`'s default falls back to `useWiredAdminLocale`, whose real binding calls
 // `port.loadLanguage()` — a real `fetch` to the settings-effective endpoint. Mocked so its own
@@ -109,7 +109,7 @@ import { getResumeCapableAgentIds } from "../AssistantDock/hooks/agents-inventor
 import { useByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";
 import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
 import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
-import { publishAssistantDockState, resetAssistantDockBus } from "../../lib/assistant-dock-bus";
+import { publishAssistantDockState, resetAssistantDockBus } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import {
   DEFAULT_EXECUTION_CONFIG,
   createExecutionPort,

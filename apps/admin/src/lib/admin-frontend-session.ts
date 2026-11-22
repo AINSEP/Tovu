@@ -1,6 +1,6 @@
 import type { SurfaceEmission } from '@jini-ai/core';
-import { uniqueId } from './unique-id';
-import { requestAssistantDock } from './assistant-dock-bus';
+import { uniqueId } from '@jini-ai/admin/shell/lib/unique-id';
+import { requestAssistantDock } from '@jini-ai/admin/shell/lib/assistant-dock-bus';
 
 // Kept in this page's memory: duplicated tabs and reloads get independent browser bindings.
 export const adminFrontendTabId = uniqueId();

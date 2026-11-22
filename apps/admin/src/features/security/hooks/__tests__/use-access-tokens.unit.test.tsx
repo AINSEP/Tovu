@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
 import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { ApiError } from "@/lib/admin-http/request";

@@ -1,4 +1,4 @@
-import { adminHref } from "../../../lib/router";
+import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 import type { ThemePageSlugCollision } from "../hooks/theme-pages-port.hooks";

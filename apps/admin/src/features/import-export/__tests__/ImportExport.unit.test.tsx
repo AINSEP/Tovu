@@ -6,7 +6,7 @@ import { resolveImportExportTabId, resolveImportExportTabs } from "../import-exp
 import { createFakeGitBackupPort } from "../hooks/git-backup-port.hooks";
 import { useGitBackup } from "../hooks/use-git-backup.hooks";
 import { useSitesSectionAvailable } from "../hooks/use-import-export.hooks";
-import { publishContentRefresh } from "@/lib/content-refresh-bus";
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "@/features/sites/rules";
 
 /** The Git backup card on a fake port with no connection, so no test here reaches the network. */

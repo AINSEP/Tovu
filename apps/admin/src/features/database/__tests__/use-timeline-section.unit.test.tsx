@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { navigateToRecoveryWithDeepLink, useTimelineSection, useWiredTimelineSection } from "../hooks/use-timeline-section.hooks";
 import { createFakeTimelineSectionPort } from "../hooks/timeline-section-dependencies.hooks";
 
@@ -21,7 +21,7 @@ import { createFakeTimelineSectionPort } from "../hooks/timeline-section-depende
  * precedent.
  */
 
-vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
+vi.mock("@jini-ai/admin/shell/lib/router", () => ({ navigate: vi.fn() }));
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return <FetchQueryProvider>{children}</FetchQueryProvider>;

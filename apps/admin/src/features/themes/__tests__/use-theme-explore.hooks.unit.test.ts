@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { themesApi } from "@/features/themes/api/themes-api";
 import { ApiError } from "@/lib/admin-http/request";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 import { t as translateThemes } from "../themes-i18n";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";

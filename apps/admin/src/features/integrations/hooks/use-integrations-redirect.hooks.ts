@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { navigate } from "../../../lib/router";
-import { ADDONS_PANEL_PATHS } from "../../../lib/addons-routes";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
+import { ADDONS_PANEL_PATHS } from "@jini-ai/admin/shell/lib/addons-routes";
 
 /**
  * @file The side effect behind `IntegrationsRedirect.tsx` — split out so that `.tsx` file carries no

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { contentRefreshApplies, subscribeToContentRefresh, type ContentRefreshScope } from "@/lib/content-refresh-bus";
+import { contentRefreshApplies, subscribeToContentRefresh, type ContentRefreshScope } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 /**
  * @file The one-line adoption path for `lib/content-refresh-bus.ts` — so a list/detail hook does

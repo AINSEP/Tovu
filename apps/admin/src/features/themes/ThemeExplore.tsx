@@ -8,11 +8,11 @@ import { CodeWithLines, CodeWrapToggle, Icon, Toast, useCodeWrap } from "@jini-a
 
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
-import { useDevicePreviewDevice, usePreviewPaneWidth, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
+import { useDevicePreviewDevice, usePreviewPaneWidth, type DevicePreviewDevice } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { siteUrl } from "../../lib/site-url";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import {
   canResetThemeFile,

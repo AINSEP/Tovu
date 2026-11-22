@@ -15,7 +15,7 @@ import { createCommentsQueueScope } from "./integrations/jini-admin/comments-por
 import { AdminFailureNotice } from "./components/AdminFailureNotice/AdminFailureNotice";
 import { ServerRestartingBanner } from "./components/ServerRestartingBanner/ServerRestartingBanner";
 import { FetchQueryProvider } from "./lib/fetch-query/provider";
-import { redirectLegacyHashUrl } from "./lib/router";
+import { redirectLegacyHashUrl } from "@jini-ai/admin/shell/lib/router";
 import { adminTelemetry, installBrowserErrorListeners, reactRootErrorOptions } from "./lib/browser-telemetry";
 import remixiconCss from "@jini-ai/ui/remixicon.css?inline";
 import "./styles.css";

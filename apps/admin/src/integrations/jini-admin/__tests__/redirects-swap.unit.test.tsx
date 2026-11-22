@@ -6,7 +6,7 @@ import { createMemoryRedirectsApi } from '@jini-ai/admin/redirects/adapters/memo
 import { Redirects } from '../../../features/redirects';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { redirectsEvents } from '../redirects-ports';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 afterEach(() => {

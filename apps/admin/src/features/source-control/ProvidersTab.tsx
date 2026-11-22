@@ -3,7 +3,7 @@ import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 import type { AdminSourceControlProviderId } from "./api/source-control-api.types";
 import { fieldHelpText, fieldNameHandleSegment } from "../deployment/rules";

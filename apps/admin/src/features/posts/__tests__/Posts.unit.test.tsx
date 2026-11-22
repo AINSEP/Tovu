@@ -7,7 +7,7 @@ import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks"
 import { Posts, postsListNotice } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "../rules";
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
@@ -19,7 +19,7 @@ import type { AdminPost } from "@/features/posts/api/posts-api.types";
  * error-after-load, empty, mid-delete — is reached directly rather than through a real `fetch`.
  */
 
-vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
+vi.mock("@jini-ai/admin/shell/lib/router", () => ({ navigate: vi.fn() }));
 
 const POST: AdminPost = {
   id: "p1",

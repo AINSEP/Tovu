@@ -1,4 +1,4 @@
-import { dropInFlightSettingsReads } from "./settings-effective-reads";
+import { dropInFlightSettingsReads } from "@jini-ai/admin/shell/lib/settings-effective-reads";
 
 /**
  * @file The seam between "a setting changed somewhere else" and "the mounted settings tabs re-read

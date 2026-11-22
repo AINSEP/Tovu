@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { settingsApi } from "@/features/settings/api/settings-api";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 import { usePosts, usePostRowMenuHandleMap, useWiredPosts } from "../hooks/use-posts.hooks";
 import { POSTS_RESOURCE } from "../rules";

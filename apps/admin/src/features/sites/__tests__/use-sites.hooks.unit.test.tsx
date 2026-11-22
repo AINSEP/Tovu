@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminSiteActivation, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { ApiError } from "@/lib/admin-http/request";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "../rules";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeSitesPort, defaultSitesPort } from "../hooks/sites-dependencies.hooks";

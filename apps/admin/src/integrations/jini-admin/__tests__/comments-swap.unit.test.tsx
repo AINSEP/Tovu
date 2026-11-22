@@ -6,7 +6,7 @@ import { CommentQueueScopeProvider } from '@jini-ai/admin/comments/react';
 import { Comments } from '../../../features/comments';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { commentsEvents, createCommentsQueueScope } from '../comments-ports';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 afterEach(() => {

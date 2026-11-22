@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { FormsTransportPort } from '@jini-ai/admin/forms/adapters/http';
 import { createFormsHostPorts, createFormsTranslator, formsEvents, formsSessionGrants } from '../forms-ports';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { COMMON_I18N } from '../../../lib/i18n-common';
 
 describe('Forms host ports', () => {

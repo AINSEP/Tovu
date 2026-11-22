@@ -3,7 +3,7 @@ import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fe
 import { useConfirmRequest } from "@jini-ai/admin/react";
 import { describeApiError } from "@/lib/admin-http/request";
 import { subscribeToSettingsRefresh, publishSettingsRefresh } from "@/lib/settings-refresh-bus";
-import { useAdminBootScope } from "@/lib/admin-boot-scope";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 type Grant = { enabled: boolean; canEdit: boolean };
 interface SiteGrantPort<T extends Grant> {
   read(required: Record<string, never>, optional?: Record<string, never>): Promise<T>;

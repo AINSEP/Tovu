@@ -3,7 +3,7 @@ import { mediaApi } from "@/features/media/api/media-api";
 import { usersApi } from "@/features/users/api/users-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { MediaPort } from "./media-port.hooks";
-import { asciiSlug } from "../../../lib/ascii-slug";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 
 /**
  * @file The only place under `features/media` that reaches `lib/api` for the five `MediaPort`

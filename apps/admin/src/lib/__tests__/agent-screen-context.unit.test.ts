@@ -8,7 +8,7 @@ import {
   resetAgentScreenContext,
   type AgentScreenEntry,
 } from "../agent-screen-context";
-import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "../playground-render-target-bus";
+import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@jini-ai/admin/shell/lib/playground-render-target-bus";
 import { useAgentScreenEntry, useAgentScreenRoute } from "@/hooks/use-agent-screen-context.hooks";
 
 /**

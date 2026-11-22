@@ -14,7 +14,7 @@ import {
   useSocialLinksConfig,
 } from "./WidgetConfigFields.hooks";
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
-import { asciiSlug } from "../../lib/ascii-slug";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 
 import { type Translate, interpolate } from '@jini-ai/core/text';
 /**

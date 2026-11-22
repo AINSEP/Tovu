@@ -9,7 +9,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { agentPageId, App, parseRoute } from "../../App";
 import type { UseAdminSession } from "../../App.hooks";
 import { closePublishRequest, requestPublish } from "../../features/publish-content/hooks/publish-request.store";
-import { publishScreenshotCaptured, resetScreenshotCapturedBus } from "../../lib/agent-screenshot-bus";
+import { publishScreenshotCaptured, resetScreenshotCapturedBus } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
 import { appShellApiBody } from "../app-shell-api.fixture";
 
 /**

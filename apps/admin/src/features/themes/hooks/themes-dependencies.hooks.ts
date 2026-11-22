@@ -2,7 +2,7 @@ import type { PresentationSettings, ThemeTier } from "@/features/themes/api/them
 import { themesApi } from "@/features/themes/api/themes-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { ThemesPort } from "./themes-port.hooks";
-import { asciiSlug } from "../../../lib/ascii-slug";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 
 /**
  * @file The only place under `features/themes` that reaches `lib/api` for the three `ThemesPort`

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { decideExternalEntryRefresh, type ExternalEntryRevision } from "@/lib/external-entry-refresh";
+import { decideExternalEntryRefresh, type ExternalEntryRevision } from "@jini-ai/admin/shell/lib/external-entry-refresh";
 
 import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 

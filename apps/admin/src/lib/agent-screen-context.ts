@@ -13,7 +13,7 @@
  * see which page it is?" and the assistant could not.
  */
 
-import { getPlaygroundRenderTarget } from "./playground-render-target-bus";
+import { getPlaygroundRenderTarget } from "@jini-ai/admin/shell/lib/playground-render-target-bus";
 
 /** The open entry an editor reports — what "this page" refers to. */
 export interface AgentScreenEntry {

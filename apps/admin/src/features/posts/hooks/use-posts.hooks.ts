@@ -4,7 +4,7 @@ import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../posts-i18n";
 
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { navigate as defaultNavigate } from "@/lib/router";
+import { navigate as defaultNavigate } from "@jini-ai/admin/shell/lib/router";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { POSTS_RESOURCE, buildPostRowMenuHandleMap } from "../rules";
 import { defaultPostsListPort } from "./posts-list-dependencies.hooks";

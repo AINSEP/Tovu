@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
-import { publishContentRefresh } from "@/lib/content-refresh-bus";
+import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { type UseAssistantChats } from "@/hooks/use-assistant-chats.hooks";
 
 /**

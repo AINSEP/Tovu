@@ -17,7 +17,7 @@ import { WidgetAddControl } from '../../../components/WidgetPickerDialog/WidgetP
 import { WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../../components/WidgetConfigFields/WidgetConfigFields';
 import type { AdminWidgetType as HostWidgetType } from '../../../features/widgets/api/widgets-api.types';
 import { tovuKit } from '../kit';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];

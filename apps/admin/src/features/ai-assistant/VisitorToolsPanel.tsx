@@ -11,7 +11,7 @@ import {
 // The segmented pill's look lives with the chat settings it was built for; imported here too so this
 // tab never depends on the dock having loaded it first.
 import "../../styles/assistant.css";
-import { asciiSlug } from "../../lib/ascii-slug";
+import { asciiSlug } from "@jini-ai/admin/shell/lib/ascii-slug";
 import { trimCharsEnd } from "@jini-ai/core/primitives";
 
 /**

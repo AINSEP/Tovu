@@ -1,8 +1,8 @@
 import { expect, test, vi } from "vitest";
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import { browserDurableSubscriptionPorts, followDurableRun, type DurableSubscriptionPorts } from "../durable-run-subscription";
-import { browserQueuedStartPorts, startQueuedDaemonRun } from "../queued-daemon-start";
-import { withAcceptanceCancellation } from "../acceptance-cancellation";
+import { browserQueuedStartPorts, startQueuedDaemonRun } from "@jini-ai/admin/shell/lib/queued-daemon-start";
+import { withAcceptanceCancellation } from "@jini-ai/admin/shell/lib/acceptance-cancellation";
 import { subscriptionEnded, type TrackedRunHandlers } from "../stream-activity";
 
 function harness() {

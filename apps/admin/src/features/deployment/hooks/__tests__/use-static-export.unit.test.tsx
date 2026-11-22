@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { useStaticExport } from "../use-static-export.hooks";
 import { createFakeStaticExportPort } from "../static-export-dependencies.hooks";
 import { DEPLOYMENT_EXPORT_RESOURCE } from "../../rules";

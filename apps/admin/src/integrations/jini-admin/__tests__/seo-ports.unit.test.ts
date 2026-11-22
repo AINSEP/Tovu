@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SeoTransportPort, SeoSitemapTransportPort } from '@jini-ai/admin/seo/adapters/http';
 import { ApiError } from '../../../lib/admin-http/request';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { createSeoHostPorts, createSeoTranslator, describeSeoHostError, seoEvents, seoSessionGrants, seoSitemapTransport, seoImageTransport } from '../seo-ports';
 import { siteUrl } from '../../../lib/site-url';
 

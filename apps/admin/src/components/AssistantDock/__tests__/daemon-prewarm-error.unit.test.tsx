@@ -1,6 +1,6 @@
 import { act, cleanup, renderHook } from '@/__tests__/fetch-query-render';
 import { afterEach, expect, it, vi } from 'vitest';
-import { publishAssistantDockState, resetAssistantDockBus } from '@/lib/assistant-dock-bus';
+import { publishAssistantDockState, resetAssistantDockBus } from '@jini-ai/admin/shell/lib/assistant-dock-bus';
 import { useLocalCliDaemonPrewarm } from '../hooks/assistant-transport.hooks';
 
 afterEach(() => { cleanup(); resetAssistantDockBus(); });

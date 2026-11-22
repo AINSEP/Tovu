@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialsSnapshot, AdminSourceControlCredentialSummary, AdminSourceControlProvidersSnapshot } from "./source-control-api.types";
 

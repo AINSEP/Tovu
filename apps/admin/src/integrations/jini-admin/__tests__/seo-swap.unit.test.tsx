@@ -10,7 +10,7 @@ import { seoEvents } from '../seo-ports';
 import { SeoMediaPickerSlot } from '../seo-module.hooks';
 import { MediaPickerDialog } from '../../../components/MediaPickerDialog/MediaPickerDialog';
 import { tovuKit } from '../kit';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];

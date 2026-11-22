@@ -2,8 +2,8 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@/features/recovery/api/recovery-api.types";
-import { navigate } from "@/lib/router";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { useRecovery, useWiredRecovery } from "../hooks/use-recovery.hooks";
 import { createFakeRecoveryPort } from "../hooks/recovery-dependencies.hooks";
 import { RECOVERY_RESOURCE } from "../rules";
@@ -11,7 +11,7 @@ import { RECOVERY_RESOURCE } from "../rules";
 // Tabs (2026-09-10): the deep-link resolution effect below now also navigates to `?tab=restore` on
 // a match — mocked for the same reason `Recovery.unit.test.tsx`/`Database.unit.test.tsx` mock it,
 // so no real browser navigation runs under jsdom and the call is directly assertable.
-vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
+vi.mock("@jini-ai/admin/shell/lib/router", () => ({ navigate: vi.fn() }));
 
 /**
  * @file `useRecovery` — the Recovery screen's status/points load plus deep-link re-resolution

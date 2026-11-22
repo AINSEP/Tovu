@@ -1,5 +1,5 @@
 import { authenticatedAdminRequest } from "./admin-http/request";
-import { WORKSPACE_ID } from "./admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 
 /** Mirrors `VisitorToolsView` in `apps/website/src/contracts/site-assistant/visitor-tools-management.ts`.
  * The admin page and the assistant chat's `visitor_tools_list` read the same service, so this shape

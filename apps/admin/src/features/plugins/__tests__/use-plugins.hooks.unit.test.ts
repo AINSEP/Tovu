@@ -5,7 +5,7 @@ import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { pluginsApi } from "@/features/plugins/api/plugins-api";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePlugins } from "../hooks/use-plugins.hooks";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 /**
  * @file `usePlugins` driven against the injected `PluginsPort`, no `fetch` stub and no

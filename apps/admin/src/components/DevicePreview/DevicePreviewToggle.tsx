@@ -5,7 +5,7 @@ import {
   DEVICE_PREVIEW_WIDTHS,
   devicePreviewButtonHandleProps,
   type DevicePreviewDevice,
-} from "./DevicePreview.hooks";
+} from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

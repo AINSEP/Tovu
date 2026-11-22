@@ -1,6 +1,6 @@
 
 import { DataTable } from "@jini-ai/admin/react";
-import { adminHref } from "@/lib/router";
+import { adminHref } from "@jini-ai/admin/shell/lib/router";
 import { useWiredAnalytics } from "./hooks/use-analytics.hooks";
 
 import { formatTimestamp } from '@jini-ai/core/text';

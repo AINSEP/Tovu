@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { defaultAdminLocalePort, DEFAULT_LOCALE } from "./admin-locale-dependencies.hooks";
 import type { AdminLocalePort } from "./admin-locale-port.hooks";
-import { useAdminBootScope } from "../lib/admin-boot-scope";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 
 /**
  * Fetches the operator's stored `core.language.locale`, defaulting to `DEFAULT_LOCALE` ("en")

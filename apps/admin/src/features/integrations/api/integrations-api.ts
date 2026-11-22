@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import type { AdminAgentPlugin, AdminAgentPluginFiles, AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminExternalMcpConnectStart, AdminExternalMcpProbeResult, AdminExternalMcpServer, AdminExternalMcpServerInput, AdminExternalMcpToolApproval, AdminFederatedAdmissionEntry, AdminToolRefusalReason, AdminWebhookDelivery, AdminWebhookSubscription } from "./integrations-api.types";
 

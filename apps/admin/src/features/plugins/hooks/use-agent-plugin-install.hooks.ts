@@ -3,7 +3,7 @@ import { useRef, useState, type ChangeEvent } from "react";
 import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 
-import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
+import { useZipDrop } from "@jini-ai/admin/shell/components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
 import { formatByteSize } from "@jini-ai/core/text";
 import { agentPluginDisplayName, agentPluginWarningText } from "../rules";

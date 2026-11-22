@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { settingsApi } from "@/features/settings/api/settings-api";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { createFakePagesPort } from "../hooks/pages-dependencies.hooks";
 import { usePages, useWiredPages } from "../hooks/use-pages.hooks";
 import { PAGES_RESOURCE, pageAdminPath } from "../rules";

@@ -2,9 +2,9 @@ import { createHttpMediaApi, createHttpMediaProvidersPort } from '@jini-ai/admin
 import type { MediaApiPort, MediaProvidersPort, MediaEventsPort } from '@jini-ai/admin/media';
 import { authenticatedAdminRequest } from '../../lib/admin-http/request';
 import { authenticatedAdminUrl } from '../../lib/admin-http/urls';
-import { WORKSPACE_ID } from '../../lib/admin-http/config';
+import { WORKSPACE_ID } from '@jini-ai/admin/shell/lib/admin-http/config';
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from '../../features/media/media-provider-catalog';
-import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
+import { contentRefreshApplies, subscribeToContentRefresh } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 
 const mediaBasePath = `/workspaces/${WORKSPACE_ID}/media`;

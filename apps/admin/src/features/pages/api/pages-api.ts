@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "../../../lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
 import type { AdminPost } from "../../posts/api/posts-api.types";
 import type { AdminPagePluginEmbed } from "./pages-api.types";

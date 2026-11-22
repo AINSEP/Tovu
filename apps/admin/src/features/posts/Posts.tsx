@@ -8,7 +8,7 @@ import { useState, type ReactNode } from "react";
 import type { AdminPost } from "./api/posts-api.types";
 import { siteUrl } from "../../lib/site-url";
 
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import {
   postRowMenuItems,
 } from "./rules";

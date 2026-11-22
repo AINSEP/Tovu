@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { devicePreviewFrameStyles } from "./DevicePreview.hooks";
+import { devicePreviewFrameStyles } from "@jini-ai/admin/shell/components/DevicePreview/DevicePreview.hooks";
 
 /**
  * Renders `children` (the preview `<iframe>`) at a fixed device `width` and scales the whole box down

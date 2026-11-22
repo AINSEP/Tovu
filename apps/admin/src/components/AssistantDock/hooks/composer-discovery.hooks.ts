@@ -1,13 +1,13 @@
 import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./resolve-composer-discovery-outcome";
 import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
-import { getAssistantDockOpen, subscribeToAssistantDock } from "@/lib/assistant-dock-bus";
+import { getAssistantDockOpen, subscribeToAssistantDock } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { useCallback, useEffect, useState } from "react";
 import { type ComposerDiscoveryOutcome, type ComposerDiscoverySelection } from "@jini-ai/chat/react";
 
-import { navigate } from "@/lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { startVisibleInterval } from "@jini-ai/ui/visible-interval";
-import { useAdminBootScope } from "@/lib/admin-boot-scope";
+import { useAdminBootScope } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { createBundledComposerCapabilitySource, emptyComposerCapabilityProjection, projectComposerCapabilities, type ComposerCapabilityProjection } from "@/features/plugins/composer-capabilities";
 
 function createComposerReload(

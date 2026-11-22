@@ -1,7 +1,7 @@
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import { usersApi } from "@/features/users/api/users-api";
 import { authApi } from "@/features/auth/api/auth-api";
-import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { authenticatedAdminUrl } from "@/lib/admin-http/urls";
 

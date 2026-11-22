@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { usePlugins } from "../hooks/use-plugins.hooks";
 import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";

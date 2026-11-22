@@ -2,7 +2,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
 import { ensureInitialSession, acceptSession, handleSessionUnauthenticated, signInSession, signOutSession, type AdminSessionOptions, type MeResponse } from "./App.session";
-import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
+import { setAdminDraftIdentity, getAdminDraftIdentity } from "@jini-ai/admin/shell/lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, createFrontendRequestCaller, createFrontendNavigationGuard, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigation";
@@ -20,12 +20,12 @@ import {
   renderAdminScreenshotCanvas,
   type RenderElementToCanvas,
 } from "./lib/agent-screenshot";
-import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
-import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
+import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "@jini-ai/admin/shell/lib/agent-screenshot-bus";
+import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "@jini-ai/admin/shell/lib/router";
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
 import type { AdminUser } from "./features/auth/api/auth-api.types";
 import { authApi } from "./features/auth/api/auth-api";
-import { WORKSPACE_ID } from "./lib/admin-http/config";
+import { WORKSPACE_ID } from "@jini-ai/admin/shell/lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "./lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/local-owner-signin";
@@ -44,8 +44,8 @@ import {
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { openTabEventSource } from "./lib/tab-event-source";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
-import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
-import { isEscapeOwnedByInnerLayer } from "./lib/escape-owned-by-inner-layer";
+import { publishAssistantDockState, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
+import { isEscapeOwnedByInnerLayer } from "@jini-ai/admin/shell/lib/escape-owned-by-inner-layer";
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
 import type { AdminNavGroup } from "./nav";
 

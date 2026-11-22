@@ -7,7 +7,7 @@ import { PAGE_CAPABILITIES, type WebMcpToolRegistration } from "@jini-ai/agentic
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-settings.hooks";
 import { adminFrontendTabId, subscribeToAdminPageSurfaces } from "../../lib/admin-frontend-session";
-import { navigate } from "../../lib/router";
+import { navigate } from "@jini-ai/admin/shell/lib/router";
 
 // Inject the transport factory; no module replacement or network is needed for page registration.
 const createBridge = vi.fn((): FrontendSessionBridge => ({

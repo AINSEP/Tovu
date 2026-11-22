@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { useMessagesChangeHandler } from "../hooks/messages-change.hooks";
-import { resetContentRefreshBus, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
+import { resetContentRefreshBus, subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { resetSettingsRefreshBus, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 
 /**

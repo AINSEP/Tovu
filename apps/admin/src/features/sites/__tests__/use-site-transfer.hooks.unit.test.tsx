@@ -4,9 +4,9 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { AdminBootScopeContext } from "@/lib/admin-boot-scope";
+import { AdminBootScopeContext } from "@jini-ai/admin/shell/lib/admin-boot-scope";
 import { API_UNREACHABLE_CODE, ApiError } from "@/lib/admin-http/request";
-import { resetAssistantDockBus, subscribeToAssistantDockRequests } from "@/lib/assistant-dock-bus";
+import { resetAssistantDockBus, subscribeToAssistantDockRequests } from "@jini-ai/admin/shell/lib/assistant-dock-bus";
 import { resetAssistantPromptBus, useAssistantPromptRequests } from "@/lib/assistant-prompt-bus";
 import {
   createFakeSiteTransferPort,

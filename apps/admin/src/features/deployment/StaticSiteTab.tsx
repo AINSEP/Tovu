@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { adminHref, navigate } from "../../lib/router";
+import { adminHref, navigate } from "@jini-ai/admin/shell/lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 

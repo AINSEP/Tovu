@@ -9,7 +9,7 @@ import type { AdminPost } from "../posts/api/posts-api.types";
 
 import { siteUrl } from "../../lib/site-url";
 
-import { adminHref, navigate } from "../../lib/router";
+import { adminHref, navigate } from "@jini-ai/admin/shell/lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";

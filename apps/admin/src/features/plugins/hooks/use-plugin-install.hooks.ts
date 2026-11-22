@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/admin-http/request";
 
 import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } from "./plugin-install-port.hooks";
 import { pluginInstallPreviewDisplay } from "../rules";
-import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
+import { useZipDrop } from "@jini-ai/admin/shell/components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
 import { formatByteSize } from "@jini-ai/core/text";
 

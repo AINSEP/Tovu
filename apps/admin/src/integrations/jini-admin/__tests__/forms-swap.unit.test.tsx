@@ -7,7 +7,7 @@ import { FormsList, FormEditor } from '../../../features/forms';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { formsEvents } from '../forms-ports';
 import { formsCatalog } from '../forms-catalog-ports';
-import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
+import { publishContentRefresh, resetContentRefreshBus } from '@jini-ai/admin/shell/lib/content-refresh-bus';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
 afterEach(() => {

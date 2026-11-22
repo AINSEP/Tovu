@@ -10,6 +10,8 @@ import { InteractiveHtmlEditor } from '@jini-ai/ui/html-editor';
 import { applyAdminTheme, defaultAdminTheme, resolveColorScheme } from '@jini-ai/ui/theme';
 import { useCachedLoader, useFetchMutation, useFetchQuery, useFetchQueryScope, useInvalidate } from '@jini-ai/ui/fetch-query';
 import { ConfirmDialog as AdminConfirmDialog, RowMenu } from '@jini-ai/admin/react';
+import { useT as useChatT, createMidRunMessagePoster, createTypedAnswerPoster } from '@jini-ai/chat/react';
+import { createA2uiActionPoster } from '@jini-ai/chat/transports/http';
 import type { AdminKit } from '@jini-ai/admin/react/kit';
 import type { UserManagementKit } from '@jini-ai/user-management/react/kit';
 import type { UiKit } from '@jini-ai/ui/react-kit';
@@ -30,6 +32,9 @@ export const adminKit = {
   // Passed through by identity, never copied: the dock's dictionary lookup
   // (`assistant-dock-i18n.ts`) still reads `SETTINGS_DIALOG_DICTIONARIES` at call time.
   values: { SETTINGS_DIALOG_DICTIONARIES, DEFAULT_NOTIFICATIONS_PREFERENCES, UNREACHABLE_RETRY_DELAYS_MS, LOCAL_BACKUP_PRINCIPAL_ID },
+  // The chat library's own translator (its locale context, not ui's) and its run posters; callers keep
+  // passing the host route, cookie fetch, tool id and redaction callback in the factories' two arg objects.
+  chat: { useT: useChatT, createMidRunMessagePoster, createTypedAnswerPoster, createA2uiActionPoster },
 } satisfies AdminKit;
 
 /** ui's own kit (selects and secret inputs): ui-kit's real implementations. The alias keeps ui-kit's

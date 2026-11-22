@@ -6,7 +6,7 @@ import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { adminHref } from "../../lib/router";
+import { adminHref } from "@jini-ai/admin/shell/lib/router";
 
 import type { AdminPublishTargetField } from "../deployment/api/deployment-api.types";
 import { fieldHelpText } from "../deployment/rules";
