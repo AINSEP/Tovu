@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { normalizePeerBaseUrl, peerHostname, peerUrl } from "../peer-url.js";
+import { normalizePeerBaseUrl, peerHostname, peerUrl } from "@jini-ai/cms/publish/content/peer-url";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —

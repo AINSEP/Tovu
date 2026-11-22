@@ -45,7 +45,7 @@ import { publishContentAgentToolCatalog, PUBLISH_CONTENT_PUBLISH_TOOL_ID, PUBLIS
 import { connectAndRecordDestination } from "./connect-destination.js";
 // Both pulls and autonomous publishes resolve the same saved destination credential.
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
-import { normalizePeerBaseUrl } from "./peer-url.js";
+import { normalizePeerBaseUrl } from "@jini-ai/cms/publish/content/peer-url";
 import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "./peers.js";
 import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "./permissions.js";
 import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "@jini-ai/cms/publish/content/publish-readiness";
