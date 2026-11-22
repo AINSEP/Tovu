@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 import { resolveAgentPermissionMode, type AgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
-import { COMMENTS_IP_SALT_ENV_VAR } from "#src/features/comments/index";
+import { COMMENTS_IP_SALT_ENV_VAR } from "@jini-ai/cms/comments/site/ip-hash-salt";
 import { LEGACY_DEPLOYMENT_ADVICE, type HostSignalOptions } from "@tovu/contracts/host-signals";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 
