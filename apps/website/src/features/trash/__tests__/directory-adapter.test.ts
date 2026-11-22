@@ -8,7 +8,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
-import { reportDirectoryRollbackFailure } from "@jini-ai/cms/trash/site/directory-rollback-log";
+import { reportDirectoryRollbackFailure } from "../directory-rollback-log.js";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { InMemoryTrashRepo } from "@jini-ai/cms/trash";

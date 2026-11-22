@@ -18,7 +18,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { themeRosterPorts } from "#src/features/theme/index";
 import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
 import { unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
-import { reportDirectoryRollbackFailure } from "@jini-ai/cms/trash/site/directory-rollback-log";
+import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 
 interface ComposePublishingStoresThemesRequired {
   kernel: SiteStore["content"];

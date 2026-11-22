@@ -1,6 +1,6 @@
 import { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
 import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
-import { reportDirectoryRollbackFailure } from "@jini-ai/cms/trash/site/directory-rollback-log";
+import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { composeMemoryTrashAdapters } from "../../memory-deps/slices/trash-adapters.js";
 import { attachFormAttachmentPurge } from "../../memory-deps/slices/form-attachment-purge.js";

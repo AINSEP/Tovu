@@ -34,7 +34,7 @@ import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observabili
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
 import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
-import { reportDirectoryRollbackFailure } from "@jini-ai/cms/trash/site/directory-rollback-log";
+import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";

@@ -75,5 +75,6 @@ export type { MediaTrashAdapterDeps } from "./adapters/media.js";
 export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 export { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "@jini-ai/cms/trash";
+export { reportDirectoryRollbackFailure } from "./directory-rollback-log.js";
 export { createUserTrashAdapter, USER_ENTITY_TYPE } from "./adapters/user.js";
 export type { UserTrashAdapterDeps } from "./adapters/user.js";

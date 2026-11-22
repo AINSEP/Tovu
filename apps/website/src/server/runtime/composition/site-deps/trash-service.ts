@@ -8,7 +8,7 @@ import { createTrashService } from "@jini-ai/cms/trash";
 import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
 import { randomUUID } from "node:crypto";
 import { unhideIfRemoveThrows, type createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
-import { reportDirectoryRollbackFailure } from "@jini-ai/cms/trash/site/directory-rollback-log";
+import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
 import type { SiteStore } from "../open-site-store.js";
 import type { SqliteTrashRepo } from "#src/features/trash/index";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
