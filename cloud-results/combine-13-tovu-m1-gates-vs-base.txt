@@ -1,0 +1,68 @@
+== boundaries
+164c164
+< x 112 dependency violations (0 errors, 112 warnings). 6791 modules, 47197 dependencies cruised.
+---
+> x 112 dependency violations (0 errors, 112 warnings). 6777 modules, 47143 dependencies cruised.
+== why-comments
+1c1
+< why-comments: 3020 files with removed lines checked against origin/refactor/terra..HEAD, 450 comment blocks lost (370 allow-listed)
+---
+> why-comments: 3159 files with removed lines checked against origin/refactor/terra..HEAD, 463 comment blocks lost (383 allow-listed)
+== architecture
+1,2c1,2
+< check:architecture — 2293 files, 73 modules, production files only
+<   cross-feature import edges (all-import)              319
+---
+> check:architecture — 2279 files, 73 modules, production files only
+>   cross-feature import edges (all-import)              312
+4c4
+<   propagation cost (runtime-only)                      3.27%
+---
+>   propagation cost (runtime-only)                      3.28%
+9,11c9,11
+<   module API surface (files exposed)                   692
+<     └ deep-import edges (informational)                2863
+<   bidirectional hub count                              13.74% (315/2293)
+---
+>   module API surface (files exposed)                   688
+>     └ deep-import edges (informational)                2840
+>   bidirectional hub count                              13.73% (313/2279)
+73c73
+<   WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.27
+---
+>   WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.28
+75,76c75,76
+<   module API surface (files exposed) improved: 821 → 692
+<   bidirectional hub count improved: 335 → 315
+---
+>   module API surface (files exposed) improved: 821 → 688
+>   bidirectional hub count improved: 335 → 313
+80c80
+<   regressed: propagation cost (runtime-only)     3.06 → 3.27  (+0.21 pts, +6.86%)
+---
+>   regressed: propagation cost (runtime-only)     3.06 → 3.28  (+0.22 pts, +7.19%)
+82,83c82,83
+<   improved:  module API surface (files exposed)  821 → 692  (-129, -15.71%)
+<   improved:  bidirectional hub count             335 → 315  (-20, -5.97%)
+---
+>   improved:  module API surface (files exposed)  821 → 688  (-133, -16.2%)
+>   improved:  bidirectional hub count             335 → 313  (-22, -6.57%)
+== summary
+HEAD 41e948ee4a	HEAD f9d2f02261
+size exit=1	size exit=1
+boundaries exit=0	boundaries exit=0
+admin-tsc exit=0	admin-tsc exit=0
+desktop-tsc-preload exit=0	desktop-tsc-preload exit=0
+desktop-tsc-live-verify exit=0	desktop-tsc-live-verify exit=0
+desktop-tsc-renderer exit=0	desktop-tsc-renderer exit=0
+desktop-tsc-main exit=0	desktop-tsc-main exit=0
+typecheck exit=0	typecheck exit=0
+hooks exit=0	hooks exit=0
+errors exit=0	worker-import-graph exit=0
+worker-import-graph exit=0	errors exit=0
+complexity exit=0	complexity exit=0
+typecheck-scripts exit=2	typecheck-scripts exit=2
+why-comments exit=1	why-comments exit=1
+typecheck-tests exit=0	typecheck-tests exit=0
+architecture exit=1	architecture exit=1
+DONE	DONE
