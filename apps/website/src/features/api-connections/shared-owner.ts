@@ -78,7 +78,7 @@ export function createSharedOAuthOwnerStorage(required: { scope: SharedOAuthOwne
 }
 export type SharedOAuthOwnerStorage = ReturnType<typeof createSharedOAuthOwnerStorage>;
 
-/** Picker projection opens only the listed lifecycle/context rows, never token payloads.
+/** The saved-connection list label opens only the listed lifecycle/context rows, never token payloads.
  * @complexity At most three selected reads per OAuth item in the existing bounded 50-row inventory.
  */
 export function createSharedOAuthLabels(required: { scope: SharedOAuthOwnerScope; clock: Clock }, _optional = {}) {
