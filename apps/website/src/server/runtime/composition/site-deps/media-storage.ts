@@ -7,7 +7,7 @@ import { loadBundledObjectStoreRegistry } from "#src/features/object-storage/ind
 import { loadObjectStoreRegistry } from "#src/features/object-storage/index";
 import { mediaUploadsDir } from "../site-paths.js";
 import { readBundledObjectStoreEnvDeclarations } from "#src/features/object-storage/index";
-import { readMediaObjectStoreSetting } from "#src/features/object-storage/index";
+import { readMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { storeBoundServicesFor } from "../store-bound-services.js";
 import { toDeployTargetCredential } from "#src/features/deployments/static-publish/credentials";
 import { trackFetch } from "@jini-ai/diagnostics/observability";

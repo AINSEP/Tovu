@@ -26,7 +26,7 @@ import { ensureFormDeliverySettings } from "#src/features/settings/index";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
 import { ensureMailSenderSettings } from "#src/features/settings/index";
-import { ensureMediaObjectStoreSetting } from "#src/features/object-storage/index";
+import { ensureMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
 import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
 import { ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";

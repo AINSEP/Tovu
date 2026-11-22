@@ -17,7 +17,7 @@ import { createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { join } from "node:path";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
-import { readMediaObjectStoreSetting } from "#src/features/object-storage/index";
+import { readMediaObjectStoreSetting } from "@jini-ai/platform/object-store/site/setting";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { resolveShareDelivery } from "#src/features/site-backup/share-hosting";
 import { resolveShareDirectory } from "../site-paths.js";
