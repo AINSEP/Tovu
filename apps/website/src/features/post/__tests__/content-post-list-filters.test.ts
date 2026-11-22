@@ -4,7 +4,7 @@ import test from "node:test";
 import { ToolInputError, withBatchInput, type BatchResult, type ToolExecutionContext } from "@jini-ai/core";
 import { executeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
 import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
-import { POST_LIST_FIELDS } from "@jini-ai/cms/posts/post-tool-schemas";
+import { POST_LIST_FIELDS } from "../post-tool-schemas.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";

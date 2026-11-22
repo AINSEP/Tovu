@@ -2746,14 +2746,6 @@
       "reason": "Moved verbatim to Jini @jini-ai/cms/presentation/site/active-theme-id.ts resolveActiveThemeId doc (Jini 1ee707247, C-presentation-1.J); host caller paths reworded neutral per N2."
     },
     {
-      "id": "9e08d239c79d",
-      "reason": "Moved verbatim to Jini @jini-ai/cms/posts/tiptap-doc-schema.ts (Jini 5c87f9a8, T-post-1.J rest); the Tovu file no longer holds the schema it explained."
-    },
-    {
-      "id": "b8de5c9d1288",
-      "reason": "Moved to Jini @jini-ai/cms/posts/tiptap-text-schema.ts mark-schema doc (Jini 5c87f9a8, T-post-1.J rest); one host path citation reworded neutral per N2, rest identical."
-    },
-    {
       "id": "ac059ae80d3e",
       "reason": "Moved to Jini @jini-ai/cms/posts/post-before-save.ts (landed T-post-1.J; Tovu copy deleted by T-post-1.T); product SDK name reworded to the host SDK, rest identical."
     }
