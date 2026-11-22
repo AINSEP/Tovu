@@ -6,7 +6,7 @@ import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
-import { PostPublishAtField } from "../PostPublishingFields";
+import { PostPublishAtField } from "@jini-ai/admin/posts/PostPublishingFields";
 import { isScheduledPost, isoToLocalDateTimeInput, localDateTimeInputToIso } from "../rules";
 
 /**

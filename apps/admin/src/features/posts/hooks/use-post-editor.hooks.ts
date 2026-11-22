@@ -28,7 +28,7 @@ import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
 import { navigate as realNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
-import { rememberPostEditorRouteRename } from "../post-editor-route-key";
+import { rememberPostEditorRouteRename } from "@jini-ai/admin/posts/post-editor-route-key";
 import { editorTemplateOptions } from "@/lib/editor-template-options.rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";

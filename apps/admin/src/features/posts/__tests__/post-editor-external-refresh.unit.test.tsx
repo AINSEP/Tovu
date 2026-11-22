@@ -5,7 +5,7 @@ import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
-import { postEditorRouteKey } from "../post-editor-route-key";
+import { postEditorRouteKey } from "@jini-ai/admin/posts/post-editor-route-key";
 
 /**
  * todos.md:367 (09-24, L3110): the Posts editor ignored edits the assistant made to the open post,

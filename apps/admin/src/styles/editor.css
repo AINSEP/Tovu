@@ -351,18 +351,18 @@
 .post-settings-dialog { --admin-dialog-width: 34rem; }
 .post-settings-tabs { align-self: flex-start; margin-bottom: var(--space-4); }
 .post-settings-panel { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-height: 3rem; }
-.post-settings-panel .editor-publishing-fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.post-settings-panel .jini-post-publishing__fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
 /* Publish tab: the label sits above the date box, so the browser's calendar opens straight under it
  * from the modal's left edge instead of hanging off the right side of a narrow window. */
-.post-settings-panel > .editor-publishing-field:has(> input[type="datetime-local"]) { flex-direction: column; align-items: flex-start; }
+.post-settings-panel > .jini-post-publishing__field:has(> input[type="datetime-local"]) { flex-direction: column; align-items: flex-start; }
 .post-settings-dialog .widget-picker-footer { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
 /* Container (2026-10-11): pairs with that shared rule (PO-3 in `styles.css`), now container-based. */
 @container admin-content (max-width: 620px) {
   /* The shared phone rule puts every publishing label on its own line above a full-width control,
      which split "Show post author" from its checkbox. Keep that pair on one line. */
-  .post-settings-panel .editor-publishing-field:has(> input[type="checkbox"]) { flex-wrap: nowrap; }
-  .post-settings-panel .editor-publishing-field:has(> input[type="checkbox"]) > .field-label { flex-basis: auto; }
-  .post-settings-panel .editor-publishing-field > input[type="checkbox"] { width: 16px; }
+  .post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) { flex-wrap: nowrap; }
+  .post-settings-panel .jini-post-publishing__field:has(> input[type="checkbox"]) > .field-label { flex-basis: auto; }
+  .post-settings-panel .jini-post-publishing__field > input[type="checkbox"] { width: 16px; }
 }
 
 /* Editor-only: override TipTap’s fixed iframe dimensions without altering saved/public HTML. */

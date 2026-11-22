@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
-import { postEditorRouteKey } from "../post-editor-route-key";
+import { postEditorRouteKey } from "@jini-ai/admin/posts/post-editor-route-key";
 
 /**
  * Review 2026-11-02 (r1-tovu #4): every new post's first Save recorded its slug against the one empty

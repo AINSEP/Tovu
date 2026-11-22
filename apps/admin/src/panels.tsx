@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
 import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
-import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
+import { postEditorRouteKey } from "@jini-ai/admin/posts/post-editor-route-key";
 import { renderMediaPanel } from "./media-panel";
 import {
   Skills,
