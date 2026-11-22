@@ -9,17 +9,17 @@ or a request to install a shared Tovu site, call `site_import_backup` with exact
 site and returns private owner setup/opening instructions. Never crawl a ZIP or write its content
 into the current site. The skill's crawl-and-write flow is for live public websites.
 
-**Design and theme plugins.** The plugin that provides `ui-design` is UI/UX Design: call
-`agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` before designing. The plugin that provides
-`theme-authoring` is Tovu Theme: call `agent_plugin_tovu_theme` and follow its Part C ("match a
-reference site"). Part C runs `content_read.theme`, `theme_duplicate`, `theme_read_file`,
-`theme_write_file`, `theme_edit_file`, and `theme_set_active` only with the owner's approval.
-Start with `theme_duplicate { sourceThemeId, newName, mode: "structure-only", activate: false }`.
+**Build from a picture or URL.** Use the reference for the page or section named. A request to migrate a whole site uses the import workflow. Preserve the site’s shared header, footer and theme unless the owner asks to change them. Use supplied assets and identify missing ones. During a migration, copy the owner’s source material or material they can reuse. For a design reference, use its visual direction with the owner’s own identity and assets.
+For one page or section, find and edit the existing page. For whole-site migration, use site-import
+and hand theme work to Tovu Theme Part C. Load UI/UX Design before designing.
+Load Tovu plugin guidance with `load_agent_plugin` and `pluginId`, plus `skill` or `file` as needed.
+Use `pluginId: "ui-ux-design"`, `skill: "ui-ux-design"` before designing and `pluginId: "tovu-theme"` for whole-site theme work.
+Start the migration theme with `theme_duplicate { sourceThemeId, newName, mode: "structure-only", activate: false }`.
 Tovu Starter supplies structure and functional wiring only. Rebuild CSS from the supplied site's
 design; never inherit Starter styling. A `valid` copy can still be `unstyled`: write fresh CSS,
 compare screenshots and obtain the owner's approval before activation.
 
-**References.** Read the skill's references with `agent_plugin_site_import` and
+**References.** Read the skill's references with `load_agent_plugin`, `pluginId: "site-import"` and
 `file: "references/<file>"`, and Tovu's exact write shapes with `file: "host/content-mapping.md"`.
 Read `host/content-mapping.md` before Step 4. For a dropped local folder (Tovu Theme Part B),
 read only `host/content-mapping.md` § Local-folder sources; do not run the public-URL crawl.
@@ -37,10 +37,10 @@ read only `host/content-mapping.md` § Local-folder sources; do not run the publ
 | Old URLs | `redirects_import` (up to 500 rules per call) |
 | SEO | `seo_set_entry_overrides`, `seo_get_settings`, `seo_set_settings` |
 | Site time zone | `settings_set_value` (`namespace` `core.site`, `key` `timezone`, `scope` `workspace`). Post `publishAt` stays the original instant |
-| Theme | `agent_plugin_tovu_theme` (Part C) |
+| Theme | `load_agent_plugin` with `pluginId: "tovu-theme"` (Part C) |
 | See how pages look | `web_screenshot_page` (`{url, viewport}` for the source, `{sitePath, viewport}` for this site, plus `themeId` to see an inactive theme copy; `desktop` and `mobile`). Each capture is saved; `savedFiles` gives the paths |
 | The one question | `assistant_ask_choice`, the suggested default first |
-| Final `/` check | `fetch_published_page` for `/` (status 200); `fetch_live_url` once published to the live site. `fetch_live_url` only reads THIS site's own published copy |
+| Homepage check | Preview draft home by entry ID. Check `/` only after the agreed switch. `fetch_published_page` checks the local copy; `fetch_live_url` only reads THIS site's own published copy |
 
 **Batches are ONE call.** `web_fetch_page`, `media_import_from_url`, `content_post_create`,
 `content_post_update`, `pages_write_html`, `theme_read_file`, `theme_write_file`,

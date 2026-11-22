@@ -1,9 +1,9 @@
 ## Theme screenshot QA
 
-For theme-from-reference work, the screenshot loop is a release gate. Capture the actual authored
-theme at 360, 390, 768, 1024, 1280 and 1440px viewport widths, including full-page views and close
-views of every hero and section headline. Inspect the final saved version after fonts and images
-load. A desktop and phone screenshot alone does not establish a pass at the widths between them.
+Save requested site work using the site’s tools. Preview a draft by entry ID. Use available browser widths for actual visual checks and report those widths. A public-route screenshot checks only the page served at that address.
+`web_screenshot_page` presets are desktop 1280px, tablet 768px and mobile 375px.
+Capture full-page views and close views of every hero and section headline at the available widths.
+Inspect the final saved version after fonts and images load. Report only the widths actually checked.
 
 - FAIL on clipped text or horizontal overflow at any checked width, including a headline clipped
   inside its own section even when the page itself has no horizontal scrollbar. Read every heading

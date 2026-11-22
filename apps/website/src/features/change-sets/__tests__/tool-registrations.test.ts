@@ -295,3 +295,20 @@ test("change_sets_list: accepts omitted input and preserves repo order for tied 
   ] });
   assert.deepEqual(records.map(record => record.id), ["older", "first-tie", "second-tie"], "listing must not reorder the repo's array");
 });
+
+test("W11 a missing undo record never directs the owner to Recovery", async () => {
+  const { deps } = fakeRouteDeps();
+  await assert.rejects(() => confirmedRevert({ deps, changeSetId: "missing" }), error => {
+    assert.ok(error instanceof ToolInputError, "a missing record is an actionable refusal");
+    assert.match(error.message, /was not found/, "the refusal names the missing record");
+    assert.doesNotMatch(error.message, /Recovery|\/admin\//, "a missing undo record never produces a Recovery link");
+    return true;
+  }, "undo requires a recorded change");
+  for (const tool of getChangeSetsAgentToolCatalog()) {
+    assert.match(tool.description, /Undo a matching recorded change/, `${tool.name} limits undo to a verified record`);
+    assert.doesNotMatch(tool.description, /Recovery/, `${tool.name} never promises a generic Recovery route`);
+  }
+  const revert = getChangeSetsAgentToolCatalog().find(tool => tool.name === "change_sets_revert");
+  assert.ok(revert, "the undo tool remains available");
+  assert.match(revert.description, /If a newer save blocks undo, explain the conflict and keep the newer version/, "undo reporting preserves a newer save");
+});

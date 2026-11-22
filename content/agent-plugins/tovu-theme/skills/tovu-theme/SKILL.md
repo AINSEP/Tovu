@@ -496,7 +496,7 @@ Before surveying or writing, call the existing `assistant_ask_choice` once:
 ```json
 {
   "title": "How should I convert this website?",
-  "description": "By default, images go into Media and pages become editable Tovu Pages.",
+  "description": "By default, images go into Media and pages become editable Tovu Pages. Name any proposed homepage/menu move or replacement, theme switch and local publication on this card. Apply only the named changes the owner approves.",
   "submitLabel": "Convert website",
   "multiSelect": {
     "label": "Optional",
@@ -593,18 +593,20 @@ Use its local-folder conventions; do not invoke the public-site crawl or scope q
    Keep `data-agent-element` handles in Page bodies only; theme markup rejects them.
    Creating Page rows alone does not preserve the source layout.
 3. Create Page drafts with `content_post_create { kind: "page", title, slug, status: "draft" }`.
-   Follow the shared mapping for homepage `/`, collisions, repeat imports and version conflicts.
+   Stage imports at free addresses. Update a verified prior import by entry ID and current version.
+   Put any proposed move, replacement, theme switch and local publication on the existing choice card.
+   Apply only the changes it names and the owner approves.
    Write only inner HTML with `pages_write_html`; each top-level section gets stable
    `data-agent-element="<handle>" data-agent-role="region"` attributes for later edits.
    Retain the source's layout classes; fix sanitizer warnings and report unsupported behavior.
-4. Validate/rescan the completed theme. Activate it with `theme_set_active` before assigning
+4. Validate/rescan the completed theme. Only after the approved theme switch, assign
    custom `template` filenames through `content_post_update`: that tool checks the active theme.
    Use each Page's current `expectedVersion`. An explicit draft/preview request prevails:
    keep Pages draft and defer any activation-dependent assignment until activation is wanted.
-5. Verify Page previews and rendered desktop/mobile layouts against the source. Publish locally
-   with `content_post_update { kind: "page", id, expectedVersion, status: "published" }` when
-   making the converted site usable. Keep drafts when explicitly requested. Check the actual
-   live homepage and each converted address; report unverified appearance honestly.
+5. Verify Page previews by entry ID and rendered desktop/mobile layouts against the source.
+   Publish locally with `content_post_update { kind: "page", id, expectedVersion, status: "published" }`
+   only when named on the approved card. Check `/` only after the agreed switch;
+   report unverified appearance honestly.
 
 ## B3 — Static opt-out
 
@@ -670,12 +672,12 @@ Create no CMS Page rows in this branch.
 
 - Preserve the source folder. Inspect every batch item's result; report incomplete pages and
   unsupported/refused assets with paths and errors.
-- Resolve homepage/slug collisions reversibly before claiming success. Published CMS entries
-  can hide static pages: move conflicting existing entries to nearest free slugs such as
-  `previous-home` or `previous-about` with `content_post_update` and current `expectedVersion`.
-  Never overwrite or trash them; report every move. A version conflict stops that entry's move.
-- Rescan, check errors, activate the finished theme and verify rendered pages at desktop/mobile
-  sizes. The submitted card authorizes this conversion and local activation/publication;
+- Stage imports at free addresses. Update a verified prior import by entry ID and current version.
+  Put any proposed move, replacement, theme switch and local publication on the existing choice card.
+  Apply only the changes it names and the owner approves. Keep the current homepage and menu serving
+  until that switch.
+- Rescan, check errors and verify Page previews by entry ID at desktop/mobile sizes.
+  The submitted card authorizes only its named changes;
   ask no plugin-enabling question, second scope question or second activation approval.
   Explicit draft/preview requests prevail. Deployment to external hosting is separate.
 - Report which branch ran, theme id, Media imports, Pages created/updated and their publication
@@ -683,12 +685,9 @@ Create no CMS Page rows in this branch.
 
 # Part C — Match a reference site
 
-**Copy the source verbatim.** Use the source's real text, images, logo, brand names and fonts
-exactly as they are: the header wordmark, nav labels, button labels, footer lines and any copy
-written into the theme's partials or pages. Never substitute placeholder or rewritten copy, never
-comment on who owns the content, and never ask about rights. Ask the owner nothing during Part C:
-build the copy, run the compare loop, and report; switching the live site to it is the only
-thing left for them to decide.
+**Build from a picture or URL.** Use the reference for the page or section named. A request to migrate a whole site uses the import workflow. Preserve the site’s shared header, footer and theme unless the owner asks to change them. Use supplied assets and identify missing ones. During a migration, copy the owner’s source material or material they can reuse. For a design reference, use its visual direction with the owner’s own identity and assets.
+For a named page or section, edit the existing page and preserve its shared theme.
+For whole-site migration, use site-import and the inactive theme workflow below.
 
 Goal: this site looks like the source, at desktop and mobile. A recolour is not a match: the
 Luvira import (2026-10-08) duplicated the starter, changed tokens, never looked at its own page,
@@ -702,11 +701,9 @@ theme.css under a `ground.css` and its headings stayed Geist). Rewrite the token
 has no use for. Replace the scaffold's fonts: `--font-display`, `--font-body`, the `@font-face`
 rules and any font link in each page's `<head>` name the source's fonts, not the starter's.
 
-**Photos from Media first.** Before writing any image slot (hero, split blocks, cards), list the
-site's images with `content_read.media_asset` and fill each slot with a suitable existing photo as a
-media embed by slug (Assets section), cropped to fill. Match the source's image style: photos for a
-photo source, never a flat illustration among them. Use a placeholder only when Media has nothing
-suitable, and say which slots still need a picture.
+**Use supplied assets.** Use supplied assets and identify missing ones. Preserve the owner's
+actual photos; do not silently replace them with similar ones from Media. Use the saved public
+reference for assets displayed on the page.
 
 **Modular, not a flat copy.** Break the source into the theme's parts. The header and footer are
 partials (`render/partials/nav.html`, `render/partials/footer.html`), and page sections reuse the

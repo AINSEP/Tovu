@@ -58,10 +58,16 @@ test("duplicate handlers register in order and a second contributor for one reso
   assert.deepEqual(listDuplicateResourceHandlers(), []);
 });
 
-test("the site-guide pointer routes agents to site_guide directly and through the delegated read-only proxy", () => {
+test("the site-guide pointer routes agents to site_guide through the advertised direct or delegated transport", () => {
   for (const fragment of ['site_guide({"operation":"overview"})', 'site_guide({"operation":"explain","topic":"<topic id from overview>"})',
-    'execute_readonly_delegated_tool with toolId "site_guide"', "search_tools", "never call cards boxes"]) {
+    'Call site_guide directly if exposed, otherwise use the delegated executor in your tool list.', "Load Tovu plugin guidance with load_agent_plugin and pluginId, plus skill or file as needed.", "never call cards boxes"]) {
     assert.ok(SITE_GUIDE_POINTER.includes(fragment), fragment);
   }
   assert.ok(SITE_GUIDE_POINTER.endsWith(" "), "the pointer is concatenated into a larger prompt and keeps its trailing separator");
+});
+
+test("W10–12 site work is saved, attachments are promoted and handback reports verified state", () => {
+  for (const rule of ["Save requested site work using the site’s tools.", "Preview a draft by entry ID.", "Use available browser widths for actual visual checks and report those widths.", "A public-route screenshot checks only the page served at that address.", "promote the chat attachment to Media", "Use its saved public reference.", "use empty alt text for decoration", "Preview the draft by entry ID.", "draft, scheduled, published here or verified live", "how to undo it when a matching recorded change exists", "Name unfinished checks and failed items plainly."]) {
+    assert.ok(SITE_GUIDE_POINTER.includes(rule), `site handback must state: ${rule}`);
+  }
 });

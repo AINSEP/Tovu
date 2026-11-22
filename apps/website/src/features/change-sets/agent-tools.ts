@@ -87,10 +87,9 @@ export function getChangeSetsAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "change_sets_list",
       description:
-        "Lists recent change sets for this workspace, newest first. Undo covers post and page edits " +
-        "and deletes today. Other changes are not listed here; deleted items come back through " +
-        "trash_restore_item. Read-only. Use this to find a change set's id before calling " +
-        "change_sets_revert.",
+        "Lists recent change sets for this workspace, newest first. Undo a matching recorded change. " +
+        "Other changes are not listed here; deleted items come back through trash_restore_item. " +
+        "Read-only. Use this to find a change set's id before calling change_sets_revert.",
       sideEffects: "none",
       authorization: { permission: CHANGE_SET_READ_PERMISSION },
       inputSchema: LIST_SCHEMA,
@@ -98,11 +97,8 @@ export function getChangeSetsAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "change_sets_revert",
       description:
-        "Reverts one applied change set, undoing the post/page edit or delete it recorded. Undo " +
-        "covers post and page edits and deletes today. Other changes are not listed here; deleted " +
-        "items come back through trash_restore_item. If the entity changed again since this change " +
-        "set was applied, this returns a conflict instead of reverting — it never overrides a " +
-        "conflict, so ask the human to revert from the Recovery page if they still want it.",
+        "Reverts one applied change set, undoing the post/page edit or delete it recorded. " +
+        "Undo a matching recorded change. If a newer save blocks undo, explain the conflict and keep the newer version.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: CHANGE_SET_REVERT_PERMISSION },
       inputSchema: REVERT_SCHEMA,

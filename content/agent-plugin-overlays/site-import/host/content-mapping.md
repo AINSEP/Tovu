@@ -2,7 +2,7 @@
 
 Version: 1.0.0 (2026-11-02), split from the skill's content-mapping reference 1.1.0.
 
-The portable reference (`agent_plugin_site_import` with `file: "references/content-mapping.md"`)
+The portable reference (`load_agent_plugin` with `pluginId: "site-import"`, `file: "references/content-mapping.md"`)
 owns the rules: slugs, idempotency, media, posts, pages, body conversion, links, SEO, menus,
 redirects and batching. This file adds Tovu's exact tool inputs under the same section numbers,
 and Tovu's local-folder conversion. Field names are the tools' own input names.
@@ -21,13 +21,11 @@ then normalize to a root-relative source path. Never widen roots or bypass a den
   `path` is the destination, `sourcePath` is relative to the selected source root.
 - Use §5's inner-HTML Page contract and stable region handles. Preserve layout classes with
   matching family shells/partials/styles in the theme; no theme chrome inside Page bodies.
-- Create drafts first. Activate the completed theme before setting a Page's custom `template`
-  filename via `content_post_update` with `expectedVersion`; templates validate against the
-  active theme. Publish locally to make the conversion usable unless draft/preview was requested.
-- A rerun updates only known imported entries (§2), using their current versions. Unknown
-  provenance is a collision even when slug and kind match: move the original reversibly to a
-  free slug before creating the imported Page, as Part B4 requires. Report every move and never
-  overwrite a concurrent edit.
+- Stage imports at free addresses. Update a verified prior import by entry ID and current version.
+  Put any proposed move, replacement, theme switch and local publication on the existing choice card.
+  Apply only the changes it names and the owner approves. Keep the current homepage and menu serving
+  until the approved switch. Assign custom templates only after the approved theme switch;
+  templates validate against the active theme.
 - Inspect every batch result. Name refused assets and incomplete pages; source paths are never
   rewritten on disk.
 
@@ -36,13 +34,9 @@ then normalize to a root-relative source path. Never widen roots or bypass a den
 Tovu serves every page and post at `/<slug>`: one flat namespace, no folders. A slug is
 lower-case letters, digits and dashes, at most 120 characters, and never `admin` or `api`.
 
-- A live page at `/` moves with `content_post_update` to `previous-home` before the imported
-  homepage is written at `/` (`kind: "page"` only).
-- For local-folder imports, a target slug held by any non-trashed entry not known to this import
-  → first move that original with `content_post_update` and its current `expectedVersion` to
-  `previous-<slug>` (or the nearest free suffix, such as `previous-about-2`), then create the
-  imported Page at the target slug. For `/`, use `previous-home`. Never overwrite or trash the
-  original; report every move. A version conflict stops the move and that Page's import.
+- Stage imports at free addresses. Update a verified prior import by entry ID and current version.
+  Put any proposed move, replacement, theme switch and local publication on the existing choice card.
+  Apply only the changes it names and the owner approves.
 
 ## 2. Idempotency
 
@@ -54,11 +48,9 @@ concurrency, not provenance.
 
 1. Before planning, `content_read.content_post` once per `kind` (fields `id`, `kind`, `slug`,
    `title`, `version`, `author`, `showAuthor`) and index existing rows by slug.
-2. For local folders, update only the mapped imported entry after confirming its id and kind;
-   otherwise apply §1's reversible collision move before creating the imported Page, regardless
-   of the existing entry's kind. For public URLs, an update is `content_post_update` with `id`,
-   `kind` and the current `version` as `expectedVersion`; a `VERSION_CONFLICT` means a person
-   edited it since.
+2. Update a verified prior import by entry ID and current version. Confirm the mapped id and kind;
+   without verified provenance, stage at a free address. Send the current version as
+   `expectedVersion`; a `VERSION_CONFLICT` means a person edited it since.
 3. Menu reuse is `menus_update_menu_tree` with the menu's `version`.
 4. Duplicate redirects come back in `redirects_import`'s `failed` list.
 
