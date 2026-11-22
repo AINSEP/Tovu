@@ -1,6 +1,6 @@
 # X-external-mcp-1 — external-mcp → @jini-ai/mcp (Jini step J then Tovu step T)
 
-Lane X. Batch J:17 T:20. Depends on: none (only already-Jini code). Est: J 34 min, T 25 min.
+Lane X. Batch J:18 T:19. Depends on: none (only already-Jini code). Est: J 34 min, T 25 min.
 
 ## J — move verbatim into Jini (2 files, 244 LOC)
 

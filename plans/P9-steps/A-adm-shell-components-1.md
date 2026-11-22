@@ -1,6 +1,6 @@
 # A-adm-shell-components-1 — adm-shell-components → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:31 T:36. Depends on: none (only already-Jini code). Est: J 82 min, T 39 min.
+Lane A. Batch J:28 T:29. Depends on: none (only already-Jini code). Est: J 82 min, T 39 min.
 
 ## J — move verbatim into Jini (14 files, 917 LOC)
 

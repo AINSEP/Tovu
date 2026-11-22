@@ -1,6 +1,6 @@
 # A-adm-posts-1 — adm-posts → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:32 T:33. Depends on: A-adm-shell-components-1, A-adm-shell-lib-3. Est: J 79 min, T 119 min.
+Lane A. Batch J:29 T:30. Depends on: A-adm-shell-components-1, A-adm-shell-lib-3. Est: J 79 min, T 119 min.
 
 ## J — move verbatim into Jini (14 files, 894 LOC)
 

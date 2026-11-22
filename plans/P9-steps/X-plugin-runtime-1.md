@@ -1,6 +1,6 @@
 # X-plugin-runtime-1 — plugin-runtime → @jini-ai/plugins (Jini step J then Tovu step T)
 
-Lane X. Batch J:19 T:21. Depends on: none (only already-Jini code). Est: J 51 min, T 46 min.
+Lane X. Batch J:19 T:20. Depends on: none (only already-Jini code). Est: J 51 min, T 46 min.
 
 ## J — move verbatim into Jini (7 files, 675 LOC)
 

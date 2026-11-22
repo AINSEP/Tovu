@@ -1,14 +1,15 @@
 # R-public-http-2 — public-http → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane R. Batch J:22 T:23. Depends on: R-public-http-1, C-platform-html-1, C-presentation-1, T-post-1, T-theme-1, X-entries-1, C-platform-routing-1. Est: J 56 min, T 32 min.
+Lane R. Batch J:22 T:23. Depends on: R-public-http-1, C-platform-html-1, C-presentation-1, C-contracts-core-2, T-post-1, T-theme-1, X-entries-1, C-platform-routing-1. Est: J 61 min, T 33 min.
 
-## J — move verbatim into Jini (8 files, 536 LOC)
+## J — move verbatim into Jini (9 files, 608 LOC)
 
 | Tovu source | Jini destination | LOC | flags |
 |---|---|---|---|
 | `apps/website/src/server/inbound/public-http/http/site/render/contact-form-widget.ts` | `packages/cms/src/public-http/http/site/render/contact-form-widget.ts` | 95 | W8 |
 | `apps/website/src/server/inbound/public-http/http/site/render/media-placeholder.ts` | `packages/cms/src/public-http/http/site/render/media-placeholder.ts` | 20 |  |
 | `apps/website/src/server/inbound/public-http/middleware/render-theme-override.ts` | `packages/cms/src/public-http/middleware/render-theme-override.ts` | 41 | W1 |
+| `apps/website/src/server/inbound/public-http/middleware/theme-asset-dirs.ts` | `packages/cms/src/public-http/middleware/theme-asset-dirs.ts` | 72 | W1 |
 | `apps/website/src/server/inbound/public-http/middleware/theme-preview-static.ts` | `packages/cms/src/public-http/middleware/theme-preview-static.ts` | 43 | W2 |
 | `apps/website/src/server/inbound/public-http/routes/site/pages/request-policy.ts` | `packages/cms/src/public-http/routes/site/pages/request-policy.ts` | 132 | W4 |
 | `apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts` | `packages/cms/src/public-http/routes/site/product-checkout.ts` | 55 |  |
@@ -20,6 +21,7 @@ Lane R. Batch J:22 T:23. Depends on: R-public-http-1, C-platform-html-1, C-prese
 - "@jini-ai/cms" exports["./public-http/http/site/render/media-placeholder"]
 - "@jini-ai/cms" exports["./public-http/http/site/render/widgets/social-entries"]
 - "@jini-ai/cms" exports["./public-http/middleware/render-theme-override"]
+- "@jini-ai/cms" exports["./public-http/middleware/theme-asset-dirs"]
 - "@jini-ai/cms" exports["./public-http/middleware/theme-preview-static"]
 - "@jini-ai/cms" exports["./public-http/routes/site/pages/redirect-phase"]
 - "@jini-ai/cms" exports["./public-http/routes/site/pages/request-policy"]
@@ -28,12 +30,13 @@ Lane R. Batch J:22 T:23. Depends on: R-public-http-1, C-platform-html-1, C-prese
 
 **Relative imports inside moved files**: rewrite each `../..`/`#src/`/`@/` specifier that pointed at a file moved in this or an earlier step to the relative path between the two Jini destinations (`.js` suffix); a `@jini-ai/<same package>/x` import becomes relative. Nothing else in the file changes.
 
-## Tests that move with the code (2, 201 LOC) → Jini `__tests__/` beside the destination
+## Tests that move with the code (3, 269 LOC) → Jini `__tests__/` beside the destination
+- `apps/website/src/server/inbound/public-http/middleware/__tests__/unit/theme-asset-dirs.unit.test.ts`
 - `apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-static.test.ts`
 - `apps/website/src/server/inbound/public-http/routes/site/__tests__/product-checkout.unit.test.ts`
 
 
-## T — Tovu repoint: delete the 8 sources, rewrite every importer (27 lines)
+## T — Tovu repoint: delete the 9 sources, rewrite every importer (28 lines)
 
 ```
 apps/website/src/server/inbound/public-http/http/site/render/content-html.ts:12  './contact-form-widget.js' -> '@jini-ai/cms/public-http/http/site/render/contact-form-widget'
@@ -48,6 +51,7 @@ apps/website/src/server/inbound/public-http/routes/site/pages/handlers/virtual-p
 apps/website/src/server/inbound/public-http/routes/site/products.ts:5  '../../middleware/render-theme-override.js' -> '@jini-ai/cms/public-http/middleware/render-theme-override'
 apps/website/src/server/runtime/composition/commerce-http.ts:9  '#src/server/inbound/public-http/middleware/render-theme-override' -> '@jini-ai/cms/public-http/middleware/render-theme-override'
 apps/website/src/server/runtime/composition/http-app/public-middleware.ts:30  '../../../inbound/public-http/middleware/render-theme-override.js' -> '@jini-ai/cms/public-http/middleware/render-theme-override'
+apps/website/src/server/inbound/public-http/middleware/theme-static-assets.ts:8  './theme-asset-dirs.js' -> '@jini-ai/cms/public-http/middleware/theme-asset-dirs'
 apps/website/src/server/runtime/composition/http-app/mount-public-site.ts:12  '../../../inbound/public-http/middleware/theme-preview-static.js' -> '@jini-ai/cms/public-http/middleware/theme-preview-static'
 apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:28  '../routes/site/pages/request-policy.js' -> '@jini-ai/cms/public-http/routes/site/pages/request-policy'
 apps/website/src/server/inbound/public-http/routes/site/pages/handlers/home.ts:18  '../request-policy.js' -> '@jini-ai/cms/public-http/routes/site/pages/request-policy'
@@ -71,6 +75,7 @@ apps/website/src/server/inbound/public-http/routes/site/pages/handlers/slug-rout
 ## Tovu words (Jini guard N1 fails on /tovu/i, comments included)
 - `apps/website/src/server/inbound/public-http/http/site/render/contact-form-widget.ts` (8)
 - `apps/website/src/server/inbound/public-http/middleware/render-theme-override.ts` (1)
+- `apps/website/src/server/inbound/public-http/middleware/theme-asset-dirs.ts` (1)
 - `apps/website/src/server/inbound/public-http/middleware/theme-preview-static.ts` (2)
 - `apps/website/src/server/inbound/public-http/routes/site/pages/request-policy.ts` (4)
 - `apps/website/src/server/inbound/public-http/http/site/render/widgets/social-entries.ts` (1)
@@ -89,4 +94,4 @@ apps/website/src/server/inbound/public-http/routes/site/pages/request-policy.ts:
 ```
 
 ## Named mutation
-in the Jini copy of `request-policy.ts`, negate the first `if (` condition of its first exported function; `theme-preview-static.test.ts` must go red, then revert
+in the Jini copy of `request-policy.ts`, negate the first `if (` condition of its first exported function; `theme-asset-dirs.unit.test.ts` must go red, then revert

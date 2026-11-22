@@ -97,12 +97,8 @@ Owner 11-20 ~12:50: "I want tovu removed from jini totally. we will fix the brea
 | X-skills-1 | `apps/website/src/features/skills/state.ts:5` | `export const SKILL_STATE_FILE = ".tovu-install.json";` | | |
 | X-database-1 | `apps/website/src/features/database/db-messages.ts:9` | `export const TOVU_DATABASE_MESSAGES: DbMessages = {` | | |
 | X-database-1 | `apps/website/src/features/database/agent-tools.ts:7` | `return getJiniDatabaseAgentToolCatalog({}, { messages: TOVU_DATABASE_MESSAGES });` | | |
-| X-database-transfer-1 | `apps/website/src/features/database-transfer/postgres-target.ts:9` | `return createTarget({ connectionString }, { parentEnv, applicationName: "tovu-database-transfer" });` | | |
 | X-database-transfer-1 | `apps/website/src/features/database-transfer/transfer-messages.ts:9` | `export const TOVU_TRANSFER_MESSAGES: DbTransferMessages & Pick<DbMessages, "privateAreasTaken"` | | |
 | X-database-transfer-1 | `apps/website/src/features/database-transfer/table-catalog.ts:150` | `const MIGRATION_LEDGERS = new Set(["__drizzle_migrations", "tovu_migrations", "tovu_chat_migrations"]);` | | |
-| X-database-transfer-1 | `apps/website/src/features/database-transfer/copy-engine.ts:8` | `export const DEFAULT_TRANSFER_SCHEMA = "tovu";` | | |
-| X-database-transfer-1 | `apps/website/src/features/database-transfer/copy-engine.ts:9` | `export const TRANSFER_MARKER_TABLE = "_tovu_transfer";` | | |
-| X-database-transfer-1 | `apps/website/src/features/database-transfer/copy-engine.ts:10` | `export const TRANSFER_NAMING: TransferNaming = { defaultSchema: DEFAULT_TRANSFER_SCHEMA, markerTable: TRANSFER_MARKER_TABLE, unvalidatedTabl` | | |
 | X-recovery-1 | `apps/website/src/features/recovery/agent-tools.ts:118` | `description: "Reports this site's restore-point cost class and mechanism kind. For private full-site repository backups, call source_control` | | |
 | R-public-http-1 | `apps/website/src/server/inbound/public-http/http/site/form-presentation-assets.ts:1` | `const FORM_CLASS = "tovu-form";` | | |
 | R-public-http-1 | `apps/website/src/server/inbound/public-http/http/site/form-presentation-assets.ts:3` | `const FORM_ERROR_CLASS = "tovu-form-error";` | | |

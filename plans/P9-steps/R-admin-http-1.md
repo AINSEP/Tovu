@@ -1,6 +1,6 @@
 # R-admin-http-1 — admin-http → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane R. Batch J:22 T:24. Depends on: none (only already-Jini code). Est: J 63 min, T 30 min.
+Lane R. Batch J:21 T:24. Depends on: none (only already-Jini code). Est: J 63 min, T 30 min.
 
 ## J — move verbatim into Jini (7 files, 642 LOC)
 

@@ -1,6 +1,6 @@
 # X-seo-1 — seo → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:13 T:14. Depends on: none (only already-Jini code). Est: J 28 min, T 18 min.
+Lane X. Batch J:12 T:13. Depends on: none (only already-Jini code). Est: J 28 min, T 18 min.
 
 ## J — move verbatim into Jini (1 files, 44 LOC)
 

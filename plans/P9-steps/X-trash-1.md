@@ -1,6 +1,6 @@
 # X-trash-1 — trash → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:14 T:15. Depends on: none (only already-Jini code). Est: J 57 min, T 71 min.
+Lane X. Batch J:13 T:14. Depends on: none (only already-Jini code). Est: J 57 min, T 71 min.
 
 ## J — move verbatim into Jini (8 files, 411 LOC)
 

@@ -1,6 +1,6 @@
 # X-mail-status-1 — mail-status → @jini-ai/user-management (Jini step J then Tovu step T)
 
-Lane X. Batch J:20 T:23. Depends on: X-identity-1. Est: J 42 min, T 25 min.
+Lane X. Batch J:20 T:22. Depends on: X-identity-1. Est: J 42 min, T 25 min.
 
 ## J — move verbatim into Jini (4 files, 145 LOC)
 

@@ -1,6 +1,6 @@
 # X-content-duplication-1 — content-duplication → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:16 T:19. Depends on: none (only already-Jini code). Est: J 34 min, T 20 min.
+Lane X. Batch J:16 T:18. Depends on: none (only already-Jini code). Est: J 34 min, T 20 min.
 
 ## J — move verbatim into Jini (2 files, 241 LOC)
 

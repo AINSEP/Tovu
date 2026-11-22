@@ -1,6 +1,6 @@
 # X-media-1 — media → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:7 T:9. Depends on: P-publish-content-1. Est: J 65 min, T 43 min.
+Lane X. Batch J:6 T:7. Depends on: P-publish-content-1. Est: J 65 min, T 43 min.
 
 ## J — move verbatim into Jini (10 files, 731 LOC)
 

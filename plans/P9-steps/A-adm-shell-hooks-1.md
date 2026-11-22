@@ -1,6 +1,6 @@
 # A-adm-shell-hooks-1 — adm-shell-hooks → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:35 T:38. Depends on: A-adm-shell-lib-2, A-adm-shell-lib-4. Est: J 72 min, T 42 min.
+Lane A. Batch J:34 T:37. Depends on: A-adm-shell-lib-2, A-adm-shell-lib-4. Est: J 72 min, T 42 min.
 
 ## J — move verbatim into Jini (10 files, 592 LOC)
 

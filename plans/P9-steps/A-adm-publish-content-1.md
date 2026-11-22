@@ -1,6 +1,6 @@
 # A-adm-publish-content-1 — adm-publish-content → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:25 T:26. Depends on: none (only already-Jini code). Est: J 32 min, T 30 min.
+Lane A. Batch J:24 T:25. Depends on: none (only already-Jini code). Est: J 32 min, T 30 min.
 
 ## J — move verbatim into Jini (2 files, 217 LOC)
 

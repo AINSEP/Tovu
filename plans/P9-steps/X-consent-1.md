@@ -1,6 +1,6 @@
 # X-consent-1 — consent → @jini-ai/cookie-consent (Jini step J then Tovu step T)
 
-Lane X. Batch J:8 T:13. Depends on: C-contracts-core-1. Est: J 57 min, T 56 min.
+Lane X. Batch J:9 T:14. Depends on: C-contracts-core-1. Est: J 57 min, T 56 min.
 
 ## J — move verbatim into Jini (6 files, 343 LOC)
 
