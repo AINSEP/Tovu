@@ -374,7 +374,7 @@ Also cut in this wave:
 
 ## 4. Remaining value edges — kept or injected, each listed
 
-**Ratchet start.** When C, O and P are done, these 33 pairs (66 sites) remain. That is `plans/P9U-data/ratchet-start-edges-and-ranks.txt`, computed by cutting every file the C/O/P steps rewrite.
+**Ratchet start.** When C, O and P are done, these 32 pairs (65 sites) remain. That is `plans/P9U-data/ratchet-start-edges-and-ranks.txt`, computed by cutting every file the C/O/P steps rewrite. `taxonomy → auth` (`taxonomy/hooks/term-picker-dependencies.hooks.ts:3`) is not in it, because C10.T moves that live port; the data file's list is authoritative.
 - No cycle remains.
 - B.T lands on exactly this set.
 - Each R step below then removes its pairs and lowers the affected ranks in the same commit.
@@ -472,7 +472,7 @@ The admin mirror differs only where extraction demands it:
 
 1. **New files.**
    - `development/boundaries/admin-feature-ranks.json`: one row per production folder under `apps/admin/src/features/` (46 today). Starting values are the ratchet-start ranks in `plans/P9U-data/ratchet-start-edges-and-ranks.txt`: `recovery` 5; `database`, `library`, `security` 4; `media`, `menus`, `taxonomy`, `themes` 3; `admin-ui`, `sites`, `trash` 2; `email`, `observability`, `settings`, `skills`, `users` 1; the other 30 are 0.
-   - `development/boundaries/admin-feature-edges.baseline.json`: the 33 ratchet-start pairs as `{ "<importer>": ["<target>", …] }`.
+   - `development/boundaries/admin-feature-edges.baseline.json`: the 32 ratchet-start pairs as `{ "<importer>": ["<target>", …] }`.
    - `development/boundaries/admin-shared-baseline.json`, with two sections:
      - `sharedToFeature`: every remaining shared file → its allowed feature folders, as listed in §4.
      - `featureToHost`: the five wrapper entries plus `consent/CookieConsent.tsx` and `media/hooks/use-edit-media-panel.hooks.ts`, until R8.T; and the theme-runtime consumers, until R4.T.
@@ -523,7 +523,7 @@ The admin mirror differs only where extraction demands it:
 |---|---|---|---|
 | **B0.J** / Jini / 60 | `packages/admin/src/core/ports/embed-policy.ts`, `packages/admin/src/media/html-attributes.ts`; api-baseline delta if the type's export path changes | Port and media consumers compile, and a depcruise fixture finds no `core → media` edge → restore the back-import and see the B.J fixture red | — |
 | **B.J** / Jini / 100 | `.dependency-cruiser.mjs` rule; `scripts/__tests__/check-admin-boundaries.test.ts` (real depcruise CLI on a temp fixture tree, like the Tovu `check-architecture.test.ts`); `package.json` script; `.github/workflows/ci.yml` blocking step | Accept feature → itself, feature → `core`/`react/editor`, and `screens/a` → `react`. Reject `screens/a` → `screens/b`, `media` → `security`, `core` → `media` (value and type) → exempt one sibling root and see the fixture red | B0.J, C1.J, O2.J |
-| **B.T** / Tovu / 115 | `development/boundaries/{admin-feature-ranks.json,admin-feature-edges.baseline.json,admin-shared-baseline.json,admin.depcruise.mjs}`; `.dependency-cruiser.mjs` generators; `development/scripts/check-feature-ranks.mjs` `--edges`/`--zero`; `development/scripts/__tests__/check-admin-boundaries.test.ts`; `package.json`; `.github/workflows/ci.yml` step + summary line | Real CLI in a temp fixture, as in `development/scripts/__tests__/check-architecture.test.ts`. **Accept:** same-feature, composition → feature, baselined pair, baselined shared file. **Reject:** relative and `@/` sibling value imports; standalone `import type` and inline `{ type X }`; `typeof import("…")` type query; re-export; literal lazy `import()`; side-effect import; a feature → `src/composition/` import; a feature → `src/panels.tsx` import; a new shared `lib` file → feature (detour); an unbaselined pair at a lower rank; a rank with slack; a stale baseline pair; an unranked isolated folder; a rank of `1` under `--zero`; an unresolved `@/` specifier. **Mutation:** add `"type-only"` to `dependencyTypesNot` in the generator → the type-import fixtures pass and the test goes red | **C1.T–C10.T, O0.T–O5.T, P0.T–P5b.T** (all C/O/P Tovu cuts, which includes C7.T, O1.T, O3.T and O4.T from P9U-check), **B.J**, and a resolved cruise on the post-wave tree that reports exactly the 33 baseline pairs. If any Security import listed for O4.T survives, B.T waits for SEC-T1 |
+| **B.T** / Tovu / 115 | `development/boundaries/{admin-feature-ranks.json,admin-feature-edges.baseline.json,admin-shared-baseline.json,admin.depcruise.mjs}`; `.dependency-cruiser.mjs` generators; `development/scripts/check-feature-ranks.mjs` `--edges`/`--zero`; `development/scripts/__tests__/check-admin-boundaries.test.ts`; `package.json`; `.github/workflows/ci.yml` step + summary line | Real CLI in a temp fixture, as in `development/scripts/__tests__/check-architecture.test.ts`. **Accept:** same-feature, composition → feature, baselined pair, baselined shared file. **Reject:** relative and `@/` sibling value imports; standalone `import type` and inline `{ type X }`; `typeof import("…")` type query; re-export; literal lazy `import()`; side-effect import; a feature → `src/composition/` import; a feature → `src/panels.tsx` import; a new shared `lib` file → feature (detour); an unbaselined pair at a lower rank; a rank with slack; a stale baseline pair; an unranked isolated folder; a rank of `1` under `--zero`; an unresolved `@/` specifier. **Mutation:** add `"type-only"` to `dependencyTypesNot` in the generator → the type-import fixtures pass and the test goes red | **C1.T–C10.T, O0.T–O5.T, P0.T–P5b.T** (all C/O/P Tovu cuts, which includes C7.T, O1.T, O3.T and O4.T from P9U-check), **B.J**, and a resolved cruise on the post-wave tree that reports exactly the 32 baseline pairs. If any Security import listed for O4.T survives, B.T waits for SEC-T1 |
 
 ---
 
@@ -629,7 +629,7 @@ Each item of `plans/P9U-check.md` and where v2 fixes it.
 | Corrected-steps table: B.J prerequisite | B0.J |
 
 **Other v1 changes not raised by the check.**
-- **Ratchet start.** v1 started at an empty edge set, which required every R step before the gate. v2 starts at the measured post-loop set (33 pairs) with exact ranks and a strict pair allowlist, then ratchets down to zero with RZ.T. That follows the owner brief: "ratchet start = post-untangle edges".
+- **Ratchet start.** v1 started at an empty edge set, which required every R step before the gate. v2 starts at the measured post-loop set (32 pairs) with exact ranks and a strict pair allowlist, then ratchets down to zero with RZ.T. That follows the owner brief: "ratchet start = post-untangle edges".
 - **Rank-rule line range.** v1 cited `.dependency-cruiser.mjs:833–875`; the generator runs `:861–877` and the comment block `:833–860`.
 - **Composition home.** v1 split the host bindings between `src/integrations/jini-admin/` and `src/panels.tsx`. v2 adds `src/composition/` so that `panels.tsx` (1,314 lines) does not grow and the rule has one host folder to exempt.
 - **Missed type sites now included.**

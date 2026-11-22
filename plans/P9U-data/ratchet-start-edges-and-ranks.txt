@@ -1,4 +1,4 @@
-loop files 93 remaining edges 66 pairs 33
+loop files 94 remaining edges 65 pairs 32
 admin-ui -> admin-themes admin-ui/AdminUi.tsx:5 admin-ui/AdminUi.tsx:6
 admin-ui -> integrations admin-ui/AdminUi.tsx:7
 admin-ui -> settings admin-ui/AdminUi.tsx:8
@@ -26,7 +26,6 @@ settings -> workspace settings/SettingsUi.tsx:130 settings/SettingsUi.tsx:131
 sites -> auth sites/hooks/site-transfer-dependencies.hooks.ts:3
 sites -> users sites/hooks/site-transfer-dependencies.hooks.ts:2
 skills -> plugins skills/SkillRow.tsx:5 skills/Skills.tsx:11 skills/api.ts:3T skills/use-skill-files.hooks.ts:5T skills/use-skill-files.hooks.ts:6
-taxonomy -> auth taxonomy/hooks/term-picker-dependencies.hooks.ts:3
 taxonomy -> trash taxonomy/hooks/taxonomy-dependencies.hooks.ts:3
 themes -> trash themes/hooks/themes-dependencies.hooks.ts:3
 trash -> users trash/hooks/trash-dependencies.hooks.ts:1T trash/hooks/trash-dependencies.hooks.ts:2 trash/hooks/trash-port.hooks.ts:1T
