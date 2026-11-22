@@ -63,7 +63,7 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
     "Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry.",
     // rules.ts: pageAutosaveStaleBasisMessage / pageVersionConflictMessage
     "Someone else saved this while you were editing — you were working from version {baseVersion}, so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want to keep first.",
-    "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version.",
+    "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor.",
     "the version you loaded",
     "a newer version",
     "version {version}",

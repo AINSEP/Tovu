@@ -84,6 +84,39 @@ function fakeNavigate() {
  *  every other assertion in this file stays independent of `PostEditor`'s actual copy. */
 const fakeT = (key: string): string => key;
 
+it.each(["resolve", "reject"])("a superseded Post load cannot overwrite the live editor when it later %ss", async outcome => {
+  const current = { ...POST, id: "current-id", slug: "current-post", title: "Current title", version: 8, templateChoice: "current.html",
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Current body" }] }] } };
+  const port = createFakePostEditorPort({ post: current });
+  const presentation = await port.getPresentation();
+  vi.spyOn(port, "getPresentation").mockResolvedValueOnce({ ...presentation, activeThemeTemplates: ["old.html"] })
+    .mockResolvedValueOnce({ ...presentation, activeThemeTemplates: ["current.html"] });
+  let resolve!: (value: { post: AdminPost }) => void;
+  let reject!: (error: Error) => void;
+  const oldLoad = new Promise<{ post: AdminPost }>((yes, no) => { resolve = yes; reject = no; });
+  const get = vi.spyOn(port, "getPost").mockImplementation(({ id }) => id === "old-route" ? oldLoad : Promise.resolve({ post: current }));
+  const navigate = vi.fn();
+  const { result, rerender } = renderHook(({ route }) => usePostEditor({ postId: route, deps: { port, navigate, t: fakeT } }), {
+    initialProps: { route: "old-route" },
+  });
+  await waitFor(() => expect(get, "route A begins its held read").toHaveBeenCalledWith({ id: "old-route" }));
+  rerender({ route: current.slug });
+  await waitFor(() => expect(result.current.post?.version, "route B hydrates its current basis").toBe(current.version));
+  expect(result.current.editor?.isDestroyed, "B uses a live TipTap editor").toBe(false);
+  await act(async () => {
+    if (outcome === "resolve") resolve({ post: { ...POST, slug: "old-canonical", templateChoice: "old.html" } });
+    else reject(new Error("late private route A failure"));
+    await oldLoad.catch(() => undefined);
+  });
+  expect(result.current.editor?.getText(), "late A cannot replace B's body").toContain("Current body");
+  expect(result.current.title, "late A cannot replace B's title").toBe(current.title);
+  expect(result.current.post?.version, "late A cannot replace B's saved basis").toBe(current.version);
+  expect(result.current.availableTemplates, "late A cannot replace B's template choices").toEqual(["current.html"]);
+  expect(result.current.templateChoice, "B's selected template stays current").toBe("current.html");
+  expect(navigate, "late A cannot redirect the current route").not.toHaveBeenCalled();
+  expect(result.current.error, "late A rejection cannot show a banner on B").toBeNull();
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();

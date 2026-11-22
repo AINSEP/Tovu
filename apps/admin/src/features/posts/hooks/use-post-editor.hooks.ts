@@ -465,6 +465,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   // `PostEditorController.saving`'s own doc for the double-write bug this closes. Mirrors
   // `use-page-editor.hooks.ts`'s identical `saving` state.
   const [saving, setSaving] = useState(false);
+  const [saveSettlement, setSaveSettlement] = useState(0);
   // TipTap's content lives in the editor's own imperative state, not React state, so nothing here
   // re-renders when the body changes on its own — `onUpdate` below exists solely to force one, so
   // `current.bodyJson` (read fresh via `editor.getJSON()` every render) actually gets re-evaluated
@@ -731,6 +732,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   loadInputs.current = { port, navigate, t, takeLoadedRow, clearLoadedRow };
   useEffect(() => {
     if (postId === savedRouteSlug.current) return;
+    let cancelled = false;
     const { port, navigate, t, clearLoadedRow } = loadInputs.current;
     firstSaveRequest.current = null;
     setPost(null); clearLoadedRow(); // the new route has nothing in the editor yet
@@ -749,6 +751,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     } satisfies AdminPost });
     Promise.all([row, port.getPresentation()])
       .then(([{ post }, presentation]) => {
+        if (cancelled) return;
         const { activeThemeTemplates } = presentation;
         setAvailableTemplates(editorTemplateOptions({ templates: activeThemeTemplates, savedTemplate: post.templateChoice }));
         setStaticPageIds(presentation.activeThemeStaticPageIds);
@@ -767,7 +770,10 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
         const redirectPath = post.id ? slugRedirectPath({ base: "/posts", requestedId: postId, item: post }) : null;
         if (redirectPath) navigate(redirectPath, { replace: true });
       })
-      .catch((e) => setError(reportPostLoadFailure({ error: e, t: t })));
+      .catch((e) => {
+        if (!cancelled) setError(reportPostLoadFailure({ error: e, t: t }));
+      });
+    return () => { cancelled = true; };
   }, [postId]);
 
   // Mention feature (2026-08-11) — fetched once per mount, independent of `postId` (same
@@ -846,6 +852,8 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   // the address bar. Same clean/dirty/saving rule the Pages editor applies
   // (`use-external-entry-refresh.hooks.ts`): a clean editor takes the new row; a dirty one is left alone.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
+    routeIdentity: postId,
+    saveSettlement,
     loaded: savedPost,
     fetchLatest: ({ id }, _options = {}) => port.getPost({ id }).then((loaded) => loaded.post),
     isDirty: () => isDirty,
@@ -959,7 +967,10 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
       // flip the shared `saving` flag back off, or an older call's own settlement could briefly
       // re-enable Save/Publish while a newer call is still in flight. Mirrors
       // `use-page-editor.hooks.ts`'s identical `finally` in `runSave`.
-      if (settlement.isCurrent({ generation })) setSaving(false);
+      if (settlement.isCurrent({ generation })) {
+        setSaving(false);
+        setSaveSettlement(counter => counter + 1);
+      }
     }
   }
 
@@ -1064,7 +1075,6 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
       setError(t("could not re-read the current version — your changes are still here, try again"));
       return;
     }
-    setPost(fresh);
     await runSave({ statusOverride: attemptedStatus, expectedVersion: fresh.version });
   }
 

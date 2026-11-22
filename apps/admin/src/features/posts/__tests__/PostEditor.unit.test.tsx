@@ -1072,7 +1072,7 @@ describe("Recovery and version-conflict banners", () => {
     const user = userEvent.setup();
     const { ctrl } = renderPostEditor({ saveConflict: { expectedVersion: 1, currentVersion: 2, attemptedStatus: undefined } });
     expect(screen.getByText(/someone else saved/i)).toHaveTextContent(/version 2/i);
-    await user.click(screen.getByRole("button", { name: "Save anyway" }));
+    await user.click(screen.getByRole("button", { name: "Replace their version" }));
     expect(ctrl.saveOverwritingConflict).toHaveBeenCalledTimes(1);
     expect(ctrl.dismissSaveConflict).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Keep editing" }));

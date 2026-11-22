@@ -51,6 +51,8 @@ function setup(overrides?: {
   const { result, rerender } = renderHook<ReturnType<typeof useExternalEntryRefresh<TestRow>>, { loaded: TestRow | null }>(
     (props) =>
       useExternalEntryRefresh<TestRow>({
+        routeIdentity: "test-route",
+        saveSettlement: 0,
         loaded: props.loaded,
         fetchLatest,
         isDirty: () => dirty,
@@ -261,6 +263,8 @@ describe("useExternalEntryRefresh — checkForExternalChange", () => {
     const applyLatest = vi.fn();
     const { result, unmount } = renderHook(() =>
       useExternalEntryRefresh<TestRow>({
+        routeIdentity: "test-route",
+        saveSettlement: 0,
         loaded: { id: "a", version: 1 },
         fetchLatest,
         isDirty: () => false,
@@ -380,6 +384,8 @@ describe("useExternalEntryRefresh — loadExternalChange", () => {
 
     const { result } = renderHook(() =>
       useExternalEntryRefresh<TestRow>({
+        routeIdentity: "test-route",
+        saveSettlement: 0,
         loaded: { id: "a", version: 1 },
         fetchLatest,
         isDirty: () => true,
