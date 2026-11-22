@@ -73,13 +73,6 @@
     },
     {
       "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/quality-gates.ts",
-      "line": 150,
-      "reason": "Export validateManifest duplicates a Jini function without using its owner.",
-      "fingerprint": "2f89e0208ab89db16d32a2f9a0d2a778b1413bb7324d2cb8788c93848c1c3c6c"
-    },
-    {
-      "rule": "HW5-jini-export",
       "file": "apps/desktop/src/renderer/folder-drop.ts",
       "line": 87,
       "reason": "Export folderPathsFromDataTransfer duplicates a Jini function without using its owner.",

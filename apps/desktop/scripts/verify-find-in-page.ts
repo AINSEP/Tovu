@@ -52,7 +52,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
-import { createCheckLog } from '../src/live-verify-checks.ts';
+import { createCheckLog } from '@jini-ai/devops/checks/live-verify-checks';
 import { advancesEveryStep, nextOrdinal, parseCount, previousOrdinal } from '@jini-ai/desktop-host/shell/find-in-page-verify';
 import type { Count } from '@jini-ai/desktop-host/shell/find-in-page-verify';
 

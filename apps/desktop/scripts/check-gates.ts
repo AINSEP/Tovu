@@ -36,8 +36,8 @@ import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validateManifest, detectGateDrift, formatSummary, isFailure, asGateEntryArray } from "../src/quality-gates.ts";
-import type { GateEntry, GateExitCode, GateManifest } from "../src/quality-gates.ts";
+import { validateManifest, detectGateDrift, formatSummary, isFailure, asGateEntryArray } from "@jini-ai/devops/checks/quality-gates";
+import type { GateEntry, GateExitCode, GateManifest } from "@jini-ai/devops/checks/quality-gates";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

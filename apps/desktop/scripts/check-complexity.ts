@@ -39,8 +39,8 @@ import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { evaluateRun, rejectUnusableEslintRun } from "../src/complexity-debt.ts";
-import type { ComplexityViolation, EslintFileResult } from "../src/complexity-debt.ts";
+import { evaluateRun, rejectUnusableEslintRun } from "@jini-ai/devops/checks/complexity-debt";
+import type { ComplexityViolation, EslintFileResult } from "@jini-ai/devops/checks/complexity-debt";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
