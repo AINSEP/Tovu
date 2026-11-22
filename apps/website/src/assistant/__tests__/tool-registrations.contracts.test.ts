@@ -40,7 +40,7 @@ import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
-import { externalMcpAgentToolCatalog } from "@jini-ai/mcp/external/agent-tools";
+import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
 import { externalMcpOperationsToolCatalog } from "../../features/external-mcp/operations-tools.js";
 import { askAgentPluginChoice, askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";

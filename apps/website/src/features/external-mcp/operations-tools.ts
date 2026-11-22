@@ -5,7 +5,7 @@ import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor } from "@jini-ai/core";
 import { createRateLimiter, OUTBOUND_CALL_PER_IP } from "../../contracts/core/rate-limit/rate-limit.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { EXTERNAL_MCP_MANAGE_PERMISSION } from "@jini-ai/mcp/external/agent-tools";
+import { EXTERNAL_MCP_MANAGE_PERMISSION } from "./agent-tools.js";
 import type { ExternalMcpToolDeps } from "./deps.js";
 
 /** Composition injects the same services the External MCP admin routes call. Secrets stay in those services. */
