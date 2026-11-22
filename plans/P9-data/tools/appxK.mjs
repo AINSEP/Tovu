@@ -62,7 +62,7 @@ fs.writeFileSync(path.join(REPO, 'plans/P9-data/stays-in-tovu.md'), S.join('\n')
 // ---- step table (INDEX) + batches
 const items = K.items.slice().sort((a, b) => a.batch - b.batch || (a.repo === 'Jini' ? -1 : 1) || a.id.localeCompare(b.id));
 const ST = ['| step id | lane | repo | files | depends on | batch | est | files left after |', '|---|---|---|---|---|---|---|---|'];
-for (const it of items) ST.push(`| ${it.id} | ${it.lane === 'old' ? 'P9 (' + it.id.split('-')[0] + ')' : it.lane} | ${it.repo} | ${it.n ? it.n + (it.repo === 'Tovu' ? ' (delete + repoint)' : ' (move)') : '—'} | ${it.deps.join(', ') || '—'} | B${it.batch} | ${it.est} min | ${it.repo === 'Tovu' && it.files ? T(it.left) : ''} |`);
+for (const it of items) ST.push(`| ${it.id} | ${it.lane === 'old' ? 'P9 (' + it.id.split('-')[0] + ')' : it.lane} | ${it.repo} | ${it.n ? it.n + (it.repo === 'Tovu' ? ' (delete + repoint)' : ' (move)') : '—'} | ${it.deps.join(', ') || '—'} | ${it.batch ? "B" + it.batch : "done (tonight)"} | ${it.est} min | ${it.repo === 'Tovu' && it.files ? T(it.left) : ''} |`);
 fs.writeFileSync(path.join(FRAG, 'steps.md'), ST.join('\n'));
 const BT = ['| batch | items (≤6, one implementer each) | max est | files left after |', '|---|---|---|---|'];
 const est = new Map(K.items.map((i) => [i.id, i.est]));

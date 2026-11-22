@@ -236,7 +236,7 @@ for (const o of oldSteps.values()) if (o.status.includes('VALID') || o.status.in
 const known = new Set(items.map((i) => i.id)); for (const it of items) it.deps = it.deps.filter((d) => known.has(d));
 // unlock score: Tovu files a J item eventually lets go
 const unl = new Map(); for (const it of items) if (it.repo === 'Tovu') { for (const d of it.deps) unl.set(d, (unl.get(d) || 0) + it.files); }
-const done = new Set(); const batches = []; let left = [...items]; let filesLeft = startLeft; const curve = [];
+const done = new Set((process.env.DONEJ || '').split(',').filter(Boolean)); for (const it of items) if (done.has(it.id)) it.batch = 0; const batches = []; let left = items.filter((it) => !done.has(it.id)); let filesLeft = startLeft; const curve = [];
 while (left.length && batches.length < 400) {
   const b = []; const pk = new Map(); const touched = new Set();
   const ready = left.filter((it) => it.deps.every((d) => done.has(d)));
@@ -251,7 +251,7 @@ while (left.length && batches.length < 400) {
   b.forEach((it) => { done.add(it.id); it.batch = batches.length + 1; filesLeft -= it.repo === 'Tovu' ? it.files : 0; });
   batches.push(b); curve.push(filesLeft); left = left.filter((it) => !done.has(it.id));
 }
-for (const it of items) it.left = curve[it.batch - 1];
+for (const it of items) it.left = it.batch ? curve[it.batch - 1] : startLeft;
 
 // ---- write data
 const sum = (k) => { const c = {}; for (const [f, w] of work) if (P.has(f)) for (const x of w) if (x.k === k) c[f] = 1; return Object.keys(c).length; };
