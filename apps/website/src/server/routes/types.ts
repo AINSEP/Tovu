@@ -43,7 +43,7 @@ import type { SettingsRepoPort, getEffective, set } from "../../features/setting
 import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "../../features/settings/site-title.js";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
-import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
+import type { AnalyticsConfigPort, AnalyticsSinkPort } from "@jini-ai/analytics/site/ports";
 import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
 import type {
   MagicLinkTokenRepoPort,

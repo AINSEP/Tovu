@@ -104,7 +104,7 @@ import { mediaProvidersAgentToolCatalog } from "../../features/media-generation/
 import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
 import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-tool.js";
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
-import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";
+import { analyticsAgentToolCatalog } from "@jini-ai/analytics/site/agent-tools";
 import { mailStatusAgentToolCatalog } from "../../features/mail-status/agent-tools.js";
 import { mailProviderAgentToolCatalog } from "../../features/mail-status/provider-agent-tools.js";
 import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";

@@ -7,7 +7,7 @@ import type { Clock as ClockPort, HttpClientPort as EngineHttpClientPort } from 
 import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { ProviderRegistry } from "@jini-ai/core/provider-registry";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
-import type { AnalyticsConfigPort, AnalyticsHooks } from "./ports.js";
+import type { AnalyticsConfigPort, AnalyticsHooks } from "@jini-ai/analytics/site/ports";
 
 /**
  * @file Host wiring for analytics vendor forwarding and `beforeIngest` hooks
