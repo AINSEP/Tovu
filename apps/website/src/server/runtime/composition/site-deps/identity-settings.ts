@@ -28,7 +28,7 @@ import { ensureMailProviderSettings } from "#src/features/settings/mail-provider
 import { ensureMailSenderSettings } from "@jini-ai/cms/settings/site/mail-sender";
 import { ensureMediaObjectStoreSetting } from "#src/features/object-storage/index";
 import { ensurePreviewSwitcherSetting } from "#src/features/theme/preview-switcher";
-import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
+import { ensureSearchProviderSetting } from "@jini-ai/search/site/settings";
 import { ensureSiteTimeZoneSettingDefinition } from "@jini-ai/cms/settings/site/site-timezone";
 import { ensureSiteTitleSettingDefinition } from "#src/features/settings/site-title";
 import { preserveLegacySiteTitles } from "#src/features/settings/site-title";
