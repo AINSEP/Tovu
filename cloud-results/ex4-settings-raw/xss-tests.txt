@@ -1,0 +1,4 @@
+apps/website/src/features/site-search/__tests__/cms-search.test.ts | ℹ pass 25 ℹ fail 0  | exit 0
+apps/website/src/features/site-search/__tests__/index-state-store.test.ts | ℹ pass 22 ℹ fail 0  | exit 0
+apps/website/src/features/site-search/__tests__/settings.test.ts | ℹ pass 4 ℹ fail 0  | exit 0
+apps/website/src/server/runtime/composition/modules/__tests__/site-search.unit.test.ts | ℹ pass 25 ℹ fail 0  | exit 0
