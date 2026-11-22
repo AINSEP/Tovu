@@ -1,4 +1,4 @@
-DONE 781a613c88
+DONE c55d79a916 — review fix applied (K4-i18n-common.T: `composeCommonDictionary` removed, `COMMON_I18N` built inline); prior halves DONE 781a613c88
 
 All four Tovu halves landed on `codex/ex2-tovu-halves`, one commit per step plus one why-comments debt commit. Each step's named mutation was run, and all went RED. Every gate equals base except admin tsc, which goes red → green: base is red because Jini merge-14's `AdminKit` needs the host's `Icon`, `useT` and `values`, and step 4 supplies them. No new red test: every red file in the node set (182 files) and in admin full has the same failing test names at base. FILES-LEFT 2,486 → **2,485**; excluding the theme areas, 2,375 → **2,374**.
 
@@ -166,3 +166,33 @@ Measured with `scan.mjs` + `plan.mjs` from `origin/plan/whats-left-1122` (`18f1b
 4. Stale prose: `development/refactor-patterns/dedupe/dedupe-0{1,2}.terra-prompt.md` still mention `rejectSettingsRequest`. These are historical prompts and were not edited.
 5. **Test litter:** a node test wrote a root `chat.db` again (C13-test-writes-dev-site). It was removed before committing.
 6. Not run: e2e/playwright, desktop vitest, scripts vitest. No changed file reaches them, and desktop tsc ×4 is green.
+
+## Review fixes
+Source: `origin/plan/whats-left-1122:reviews/ex6-review-tovu-halves.md`. Only **K4-i18n-common.T** was FIX. K4-seam-1.T, RT-K1-0.T and A-K2-0a.T were APPROVE and were not touched.
+- **Setup (this run):** Node 22.23.5 (no `/opt/node24` in this container). Jini `origin/integ/merge-14-2026-11-22` `4902a6a1`, detached: `pnpm install --frozen-lockfile` 0, `pnpm --no-bail -r build` 0 (0 `error TS`). Tovu `npm ci --ignore-scripts` in root and admin: 0/0. `link-jini.mjs`: 79 links. `packages/sdk` was **not** built this run (see `typecheck:tests` below).
+- **Commits (pushed to `codex/ex2-tovu-halves`):**
+  - `2716d82675` tests first
+  - `c55d79a916` source fix
+  - this report commit
+- **Tests first (`2716d82675`):**
+  - `i18n-common.unit.test.ts` drops the two `composeCommonDictionary` cases. It adds a `COMMON_I18N: composition rules (mocked Jini dictionary)` block that re-imports `../i18n-common` after `vi.doMock("@jini-ai/admin/core/i18n-common")`. It covers three cases:
+    1. The branded Tovu entry wins over a colliding Jini value, and the other Jini entries are kept.
+    2. Tovu's 21 locales come out in Tovu's order, even when the Jini locales are reversed and an extra `xx` is present.
+    3. A missing `bn` makes the module load reject with `common dictionary bn is missing from @jini-ai/admin`.
+  - The existing parity, translator-fallback and real-dictionary composition tests are unchanged and still run against `COMMON_I18N`. The tests went from 12 to 13, and all 13 passed on the **old** source. That is expected: this is a refactor that keeps behaviour, so there was no red to show first. Case 3 passing proves the mock takes effect, because the real dictionary has `bn`.
+- **Fix (`c55d79a916`), `apps/admin/src/lib/i18n-common.ts`:**
+  - The exported `composeCommonDictionary` and `HOST_COMMON_I18N` are removed.
+  - `COMMON_I18N` is built directly from the `OLDER_DESTINATION_I18N` rows: per Tovu locale, `{ ...ADMIN_COMMON_I18N[locale], [OLDER_DESTINATION_KEY]: value }`, so the Jini spread comes first and the branded entry last. A Tovu locale missing from Jini throws.
+  - The header comment (old line 12) now says that Tovu's locale rows govern which locales are exposed and in what order, and that a Tovu locale missing from Jini throws at module load.
+  - A why-comment on `COMMON_I18N` explains why the merge is inline rather than an exported helper (Jini First).
+  - `git grep`: no other reference to `composeCommonDictionary` or `HOST_COMMON_I18N` remained. Owner rules: no re-export shell was added. The removed helper's `_optional` pad went with the helper; there are no new functions, so no new pads were needed.
+- **Admin vitest, i18n + parity set** (59 files matching `i18n|parity|untranslated|dictionary|version-conflict|literal-copy`): final **1,348 pass / 2 fail**; base `3aed69a07` **1,347 / 2**. The same 2 tests fail on both, and both are known base-red: `admin-literal-copy` and `dictionary-lookup-sinks`. **No new red.**
+- **Mutation M1 (drop one generic key):** removed Spanish `Save: "Guardar",` from the linked Jini `admin/dist/core/i18n-common-base.js` → **RED**: 3 failed / 21 passed across `i18n-common` and `app-i18n`. The failures are key-set parity, translator fallback and the Spanish pin. Restored, and checked with `cmp`.
+  - **Extra Tovu-side mutation:** with the spread order swapped (branded first, Jini last), the mocked collision test goes **RED** (1 failed / 12 passed). Restored.
+- **Gates, base `3aed69a07` vs final `c55d79a916`** (exit codes):
+  - admin tsc 0/0, `check:size` 1/1, `check:complexity` 0/0, `check:boundaries` 0/0, `check:errors` 0/0, `check:hooks` 0/0.
+  - `check:size` and `check:boundaries` output bodies are identical between base and final.
+  - `typecheck:tests`: **2/2, identical output** (45 `error TS`, all `Cannot find module '@tovu/sdk'` and the cascades from it). This comes from this run's setup: `packages/sdk` was not built. It is not this change.
+  - `check:why-comments`: 1/1, **80 open, identical body**. Measured in the same tree with the two files swapped back to base; a worktree is not comparable because the checker scans the whole tree. No `i18n-common` rows.
+- **Raw:** `cloud-results/ex2-tovu-halves-review-fix.txt`.
+- **Not done:** the review's registry-backed integration gate (publish the Jini artifacts, update ranges and lockfiles). It is outside this FIX and is still open before any merge into a branch that builds from the registry.
