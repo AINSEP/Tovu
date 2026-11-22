@@ -76,7 +76,13 @@ interface Script {
 }
 
 const SCRIPTS: Readonly<Record<string, Script>> = {
-  "every payload, then end with max_tool_turns": { frames: [...EVERY_PAYLOAD, ["end", { reason: "max_tool_turns", status: "succeeded" }]], keepalive: true },
+  "mixed payloads stop at pending approval": { frames: [...EVERY_PAYLOAD, ["end", { reason: "max_tool_turns", status: "succeeded" }]], keepalive: true },
+  "unmarked payloads, then end with max_tool_turns": { frames: [
+    ...EVERY_PAYLOAD.slice(0, 10),
+    ["agent", { type: "mcp-ui", resource: MCP_UI_RESOURCE, surfaceExchange: { exchangeId: "ex-1", toolId: "posts.delete", runId: "daemon-run-1" } }],
+    ...EVERY_PAYLOAD.slice(11),
+    ["end", { reason: "max_tool_turns", status: "succeeded" }],
+  ], keepalive: true },
   "an error frame": { frames: [["agent", { type: "text_delta", delta: "partial" }], ["error", { message: "agent crashed: exit 1" }]] },
   "end with a failed status": { frames: [["agent", { type: "text_delta", delta: "partial" }], ["end", { reason: "error", status: "failed", code: 1, signal: null, resumable: false }]] },
   "end with a cancelled status": { frames: [["agent", { type: "thinking_delta", delta: "thinking" }], ["end", { reason: "canceled", status: "canceled", code: null, signal: "SIGTERM", resumable: true }]] },
