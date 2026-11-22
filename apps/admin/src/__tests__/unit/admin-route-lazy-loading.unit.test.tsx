@@ -29,7 +29,7 @@ const ROUTE_FEATURES = [
   { modulePath: "../../features/authentication", moduleId: "authentication", exports: ["Authentication"] },
   { modulePath: "../../features/roles", moduleId: "roles", exports: ["Roles"] },
   { modulePath: "../../features/settings", moduleId: "settings", exports: ["SettingsUi"] },
-  { modulePath: "../../features/seo", moduleId: "seo", exports: ["Seo"] },
+  { modulePath: "@jini-ai/admin/screens/seo", moduleId: "seo", exports: ["Seo"] },
   { modulePath: "../../features/redirects", moduleId: "redirects", exports: ["Redirects"] },
   { modulePath: "../../features/plugins", moduleId: "plugins", exports: ["Plugins", "AgentPlugins"] },
   { modulePath: "../../features/forms", moduleId: "forms", exports: ["FormsList", "FormEditor"] },
@@ -83,6 +83,11 @@ beforeEach(() => {
       ]));
     });
   }
+  // The SEO screen adapter now lives in Jini and panels.tsx injects the host's module-panel hook and
+  // loading view. Like the mocked eager bridges, those host modules (the whole admin module scope,
+  // media picker, publish button) are stubbed at the same thin-adapter seam.
+  vi.doMock("../../integrations/jini-admin/modules.hooks", () => ({ useModulePanel: () => ({ content: null }) }));
+  vi.doMock("../../integrations/jini-admin/seo-module.hooks", () => ({ SeoModuleLoading: () => null }));
 });
 
 // Fake the Jini page boundary beneath a thin, synchronous host adapter. Module evaluation and

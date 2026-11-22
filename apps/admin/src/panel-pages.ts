@@ -35,7 +35,7 @@ export const Users = lazy(() => import("./features/users").then(module => ({ def
 export const Authentication = lazy(() => import("./features/authentication").then(module => ({ default: module.Authentication })));
 export const Roles = lazy(() => import("./features/roles").then(module => ({ default: module.Roles })));
 export const SettingsUi = lazy(() => import("./features/settings").then(module => ({ default: module.SettingsUi })));
-export { Seo } from "./features/seo";
+export { Seo } from "@jini-ai/admin/screens/seo";
 export { Redirects } from "./features/redirects";
 export const Plugins = lazy(() => import("./features/plugins").then(module => ({ default: module.Plugins })));
 export const AgentPlugins = lazy(() => import("./features/plugins").then(module => ({ default: module.AgentPlugins })));

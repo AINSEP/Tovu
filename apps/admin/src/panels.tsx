@@ -58,6 +58,8 @@ import {
   Sites,
 } from "./panel-pages";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
+import { useModulePanel } from "./integrations/jini-admin/modules.hooks";
+import { SeoModuleLoading } from "./integrations/jini-admin/seo-module.hooks";
 import { t as tApp } from "./app-i18n";
 
 /**
@@ -1231,7 +1233,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Three tabs (Site defaults, Sitemap, Pages & posts) as of 2026-09-06 — same `?tab=`
     // deep-linking convention `deployment`/`settings`/`sites` above already use, so the query
     // value is threaded in here and guarded by `resolveSeoTabId` inside the screen.
-    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} useModulePanel={useModulePanel} ModuleLoading={SeoModuleLoading} />,
     nav: {
       label: "SEO & Metadata",
       group: "Marketing",
