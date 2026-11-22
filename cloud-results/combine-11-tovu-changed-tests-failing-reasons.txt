@@ -1,0 +1,77 @@
+#### apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts
+✖ backup plan and push return credential warnings for the chat to show (24.08982ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+#### apps/website/src/server/__tests__/assistant-ag-ui-wire.golden.test.ts
+✖ a dropped daemon stream closes partial text and reports a private interruption message (3390.092177ms)
+  AssertionError [ERR_ASSERTION]: the run error contains only the approved interruption message
+  + actual - expected
+  + 'aborted'
+  - 'The assistant’s response was interrupted. Send your request again.'
+✖ AG-UI wire golden: every payload, then end with max_tool_turns (191.947855ms)
+#### apps/website/src/server/__tests__/routes/pages-update-html-auth.test.ts
+✖ PUT /pages/:id/html on a trashed page answers the 409 entity-not-live envelope, not a 500 (4.600453ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+#### apps/website/src/server/inbound/admin-http/http/__tests__/assert-admin-response.test.ts
+✖ share incident snapshots require a valid correlated ID, exact public text and no leaked fields (2.915668ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+    actual: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/. Input:
+✖ failure snapshots require explicitly specified copy and independently verify the whole copy block (0.936849ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+    actual: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/. Input:
+#### apps/website/src/server/inbound/admin-http/http/__tests__/unexpected-route-errors.test.ts
+✖ newsletter: the mapping fallback reports Error and non-Error exceptions without leaking details (1.864699ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^[0-9a-f-]{36}$/. Input:
+✖ widgets: the mapping fallback reports Error and non-Error exceptions without leaking details (1.231414ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^[0-9a-f-]{36}$/. Input:
+✖ publishing: the mapping fallback reports Error and non-Error exceptions without leaking details (1.138581ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^[0-9a-f-]{36}$/. Input:
+#### apps/website/src/server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts
+✖ L244 authoring: absent or ignored patch preserves the definition: undefined (370.866447ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  +   version: 2,
+  -   version: 1,
+✖ L244 authoring: absent or ignored patch preserves the definition: null (117.289769ms)
+#### apps/website/src/server/inbound/admin-http/routes/forms/__tests__/pull-submissions-tw4.unit.test.ts
+✖ pull characterization: failure logs private stack under the response reference (109.190236ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^[0-9a-f-]{36}$/. Input:
+✖ pull characterization: failure logs private message under the response reference (119.348089ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^[0-9a-f-]{36}$/. Input:
+✖ pull characterization: failure logs private rejection under the response reference (115.759858ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^[0-9a-f-]{36}$/. Input:
+#### apps/website/src/server/inbound/admin-http/routes/forms/__tests__/pull-submissions.unit.test.ts
+✖ forms submissions pull: a thrown pull is a private 500 that names a reference the server log repeats (111.001273ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^[0-9a-f-]{36}$/. Input:
+#### apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-backups.integration.test.ts
+✖ site-backup routes gate, map errors and run the shared plan/push service (85.702308ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  + undefined
+  - true
+#### apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts
+✖ imports the shared tool policy resolver from assistant-system-overlay.ts (8.502011ms)
+  AssertionError [ERR_ASSERTION]: agent-daemon-server.ts must import the shared resolver, not hardcode a second copy of the list
+#### apps/website/src/server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts
+✖ BYOK attachment refusals stay 400 while preparation faults become redacted incidents (68.298167ms)
+✖ the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory (30.857749ms)
+#### apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts
+✖ real bundled resend and SMTP composition retain requests, ordered ledger, policy, identity, status, rotation, cards and counters (49.404017ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  +         '  <dt>Saved as</dt><dd>Mail — Resend API</dd>\n' +
+  -         '  <dt>Saved as</dt><dd>Jini Mail — Resend API</dd>\n' +
+  +       sha256: 'c9f2482608a3349238a10b50955f008e09557700b492eff3aff5714734b876a3',
+#### apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts
+✖ the default SMTP transport and console log are used when none is injected (56.402082ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+#### apps/website/src/server/runtime/composition/__tests__/bundled-inactive-gating.integration.test.ts
+✖ every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection (2020.848757ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  +   'kuinetic',
+#### apps/website/src/server/runtime/composition/modules/__tests__/assistant-agent-plugin-preflight.integration.test.ts
+✖ pinned preflight always inlines text and carries its identity, even with pointer environment delivery (304.50636ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  +     'Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidan
+  -     'Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidance. Full guidan

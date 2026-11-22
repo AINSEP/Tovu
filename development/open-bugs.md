@@ -217,3 +217,45 @@ Details: `cloud-results/combine-10-tovu.md`. **No new production bug found.**
   file shares one real Postgres database. `chat-dialect-matrix.ts` `emptiedPostgresChatKernel()` truncates the
   four `ai_chat.*` tables per make, so files running at the same time wipe each other's rows. Each file is green
   alone. Needs a per-process database/schema, or serial dialect files.
+
+## combine-11 (Tovu `integ/merge-11-2026-11-21`, 2026-11-21)
+
+Eleven merges on top of combine-10, against Jini `integ/merge-11-2026-11-21` `1ac1cbbd1` (published 0.7.3-next.2).
+Details: `cloud-results/combine-11-tovu.md`.
+
+### `C11-agui-run-error-raw-message` — OPEN (tv-ag1 × bugs1 T4)
+- bugs1 T4 changed the catch in Tovu's own `drainAgUiStream`. On a dropped daemon stream the AG-UI `RUN_ERROR`
+  carried the approved sentence "The assistant’s response was interrupted. Send your request again." in place
+  of the transport text.
+- tv-ag1 deleted that function, and Tovu now calls Jini `drainRunFramesToAgUi`. Its catch
+  (`packages/chat/src/core/ag-ui/event-projection.ts:280` at `1ac1cbbd1`) writes `error.message` again.
+- Witness: `assistant-ag-ui-wire.golden.test.ts` "a dropped daemon stream closes partial text and reports a
+  private interruption message" fails with actual `'aborted'`.
+- Fix options: a Jini change (a fixed message, or a host-supplied `interruptedMessage`), or a Tovu `write`
+  wrapper that rewrites the catch-path `RUN_ERROR`. Not one line, so not fixed in combine-11.
+
+### `C11-share-ack-403-admin` — FIXED (`c3ac7bd03`)
+- bugs1 SHARE-ZIP moved `site-shares.ts` acknowledgement-required downloads from 409 to 403.
+- The admin `use-share-credential-gate.hooks.ts:69` still opened the acknowledgement checkbox only for 409.
+  The owner saw "Download failed." for a warned export.
+- Fixed in one line (`!== 403`). The sheet's admin test is now 16/16.
+
+### `C11-stage-payload-empty-refusal` — FIXED (`623bbbab7`), only on the merge
+- main `d2edbcb43` added `failIfShellIsIncomplete` with `fail(string)`. The integ object-arg refactor's `fail`
+  takes `{ message }`, so the refusal printed nothing (desktop tsc TS2345).
+- Fixed in one line.
+
+### `C11-installed-plugin-id-upgrade` — OPEN (known PARTIAL, now with a failing proof)
+- Installed `tovu/<x>` bundled plugins from 0.7.2 (25 IDs) never reach `jini/<x>`. Canonical seeding keeps the
+  old revision silently.
+- Witness: `installed-plugin-id-upgrade.unit.test.ts` (red).
+
+### Not production / listed
+- `C10-A7` real-Postgres dialect contention: **FIXED** in test support (`1baf41c6f`).
+- `vendor-neutrality` "no generic seam file names the first provider": 4 hits outside T-VENDOR's scope
+  (`bundled-catalog.ts:47,48,57`, `shared-owner.ts:81`). This is BASE-RED and meets the T-VENDOR STOP.
+- New complexity violations (CI step is non-blocking): `backup-service.ts:681 pushPlannedBackup` 11 (tv-own Q3),
+  `use-copy-keys.hooks.ts:24 useCopyKeys` 11 (tv-gate T46), `plugin-activation-polling.ts:46
+  reconcilePluginActivationsOnce` 13 (main's backoff in integ's signature).
+- Size: `backup-service.ts` 547 (baseline 535).
+- why-comments: 77 → 79 (`b3ec582b7325`, `096121b6167d`).
