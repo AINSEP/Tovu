@@ -8,7 +8,8 @@ import { pathToFileURL } from "node:url";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
 import type { Tier2Request } from "@jini-ai/plugins/host/worker";
-import { importPluginModule, main, startIfWorker } from "../worker.js";
+import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
+import { importPluginModule, main, startIfWorker, tier2PluginPackageUrl } from "../worker.js";
 
 /**
  * @file The Tier-2 worker entry's `main()`, run in-process (the real-worker path is the
@@ -20,6 +21,9 @@ import { importPluginModule, main, startIfWorker } from "../worker.js";
  * - with no injected importer, registers the `@tovu/sdk` resolver BEFORE importing, so a plugin
  *   outside every node_modules tree still resolves the runtime's SDK (CIC U-002, per worker)
  *   -> the real-import test.
+ * - the C043 import allowlist covers a plugin's package (entry's grandparent) but not a built-in
+ *   compiled into Tovu -> the package-url test (the refusals run in real workers in
+ *   `worker-import-allowlist.integration.test.ts`).
  */
 
 const plugin = { pluginId: "t2", capabilities: ["hooks.attach"] as const, hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE] };
@@ -102,3 +106,18 @@ for (const imported of [null, "a string module"] as const) {
     assert.equal((posted[0] as { ok: boolean }).ok, false);
   });
 }
+
+test("tier2PluginPackageUrl() names the plugin package for the allowlist and exempts Tovu's built-ins", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-tier2-package-"));
+  try {
+    const entry = path.join(dir, "server", "index.mjs");
+    const expected = `${pathToFileURL(dir).href}/`;
+    assert.equal(tier2PluginPackageUrl({ workerData: { plugin: { entryPath: entry } } }), expected);
+    assert.equal(tier2PluginPackageUrl({ workerData: { plugin: { entryPath: pathToFileURL(entry).href } } }), expected);
+    assert.equal(tier2PluginPackageUrl({ workerData: { plugin: { entryPath: CONTENT_ANALYZER_RUNTIME_SOURCE.entryPath } } }), undefined, "built-in");
+    assert.equal(tier2PluginPackageUrl({ workerData: {} }), undefined);
+    assert.equal(tier2PluginPackageUrl({ workerData: null }), undefined);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

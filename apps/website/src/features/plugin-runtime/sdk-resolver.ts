@@ -52,16 +52,33 @@ const require = createRequire(import.meta.url);
  * `dist/` output. `initialize(data)` receives the values this hook needs at registration time
  * (the resolved SDK URL and accepted specifiers); `resolve()` redirects only the exact canonical
  * and legacy SDK specifiers — deep imports still go through ordinary package export checks.
+ *
+ * C043 import allowlist: when `pluginPackageUrl` is set (the Tier-2 worker, for plugin code not
+ * compiled into Tovu), a module inside that package may import by name ONLY the SDK specifiers —
+ * `node:fs`, `child_process`, npm packages and `data:` modules are refused — and a path import must
+ * stay inside the package, or a `../..` climb would reach the same modules. Code outside the
+ * package (the SDK build, the host's own lazy imports) resolves as before.
  */
 const HOOK_MODULE_SOURCE = `
 let sdkUrl;
 let sdkSpecifiers;
-export function initialize(data) { sdkUrl = data.sdkUrl; sdkSpecifiers = data.sdkSpecifiers; }
+let pluginPackageUrl;
+export function initialize(data) { sdkUrl = data.sdkUrl; sdkSpecifiers = data.sdkSpecifiers; pluginPackageUrl = data.pluginPackageUrl; }
+function refuse(specifier, reason) {
+  throw new Error("This plugin may not import " + JSON.stringify(specifier) + ": " + reason);
+}
 export async function resolve(specifier, context, nextResolve) {
   if (sdkSpecifiers.includes(specifier)) { // legacy alias
     return { url: sdkUrl, shortCircuit: true };
   }
-  return nextResolve(specifier, context);
+  const fromPlugin = pluginPackageUrl !== undefined && String(context.parentURL).startsWith(pluginPackageUrl);
+  if (!fromPlugin) return nextResolve(specifier, context);
+  if (!/^(\\.{0,2}\\/|file:)/.test(specifier)) {
+    refuse(specifier, "a plugin may import only the plugin SDK (" + sdkSpecifiers.join(", ") + ") and its own files.");
+  }
+  const resolved = await nextResolve(specifier, context);
+  if (!resolved.url.startsWith(pluginPackageUrl)) refuse(specifier, "it is outside its own package.");
+  return resolved;
 }
 `;
 
@@ -97,6 +114,10 @@ export interface RegisterPluginSdkResolverOptional {
    * certified test suite supplies a fixture path to prove resolution redirects there instead of
    * to a planted local `node_modules/@tovu/sdk`. */
   readonly sdkModulePath?: string;
+  /** `file:` URL of a plugin package directory, ending in `/`. Set ⇒ modules under it get the C043
+   * import allowlist (SDK specifiers by name, own files by path). Omitted ⇒ no allowlist (server
+   * boot, where no untrusted plugin code is imported). */
+  readonly pluginPackageUrl?: string;
 }
 
 /**
@@ -119,6 +140,6 @@ export function registerPluginSdkResolver(_optional: RegisterPluginSdkResolverOp
   const sdkUrl = pathToFileURL(sdkModulePath).href;
   const hookModuleUrl = `data:text/javascript,${encodeURIComponent(HOOK_MODULE_SOURCE)}`;
 
-  register(hookModuleUrl, { data: { sdkUrl, sdkSpecifiers: PLUGIN_SDK_SPECIFIERS } }); // legacy alias
+  register(hookModuleUrl, { data: { sdkUrl, sdkSpecifiers: PLUGIN_SDK_SPECIFIERS, pluginPackageUrl: _optional.pluginPackageUrl } }); // legacy alias
   registered = true;
 }
