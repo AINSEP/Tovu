@@ -2,7 +2,7 @@ import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery
 import { SqliteTaxonomyRevisionRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqliteTrashRepo } from "#src/features/trash/index";
-import { buildTrashRegistry } from "#src/features/trash/index";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import { toTaxonomyOutbox } from "@jini-ai/cms/taxonomy";
 import type { SiteStore } from "../open-site-store.js";
 import type { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";

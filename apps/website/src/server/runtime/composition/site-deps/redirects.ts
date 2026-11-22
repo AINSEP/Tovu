@@ -7,7 +7,7 @@ import { redirectMatcher } from "@jini-ai/cms/redirects";
 import { registerRedirectHitOutboxHandler } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
 import { registerSlugChangeCapture } from "#src/platform/routing/adapter";
-import { removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import type { SqliteRedirectRepo } from "#src/features/redirects/index";
 import type { createTrashService } from "@jini-ai/cms/trash";
 import type { SqliteTrashRepo } from "#src/features/trash/index";

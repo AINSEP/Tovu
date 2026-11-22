@@ -9,7 +9,7 @@ import { postRepoFor } from "#src/features/post/repo";
 import { SqlPagesHtmlDocumentStore } from "#src/features/pages/html-document-store";
 import { createEmailTemplate, getEmailTemplate, listEmailTemplates, EmailTemplateNotFoundError } from "@jini-ai/platform/mail/email-template-operations";
 import { emailTemplateStore, type EmailTemplateDeps } from "#src/features/email-templates/operations";
-import { buildTrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";

@@ -1,7 +1,7 @@
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { bindWidgetRemoval } from "../widget-removal.js";
-import { removeEntityWithoutBlocker } from "../remove-without-blocker.js";
+import { bindWidgetRemoval } from "@jini-ai/cms/trash/site/widget-removal";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
@@ -16,7 +16,7 @@ import { adoptLegacyTrashedWidgets, createWidgetInstance, restoreWidgetPriorStat
 
 
 import { moveToTrash } from "../move-to-trash.js";
-import { buildTrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { withFollowUps, type UnhideFollowUp, type TrashRegistry } from "@jini-ai/cms/trash";

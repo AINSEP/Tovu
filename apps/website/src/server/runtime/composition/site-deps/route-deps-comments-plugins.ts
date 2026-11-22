@@ -31,7 +31,7 @@ import { createDomainBindingSweep } from "../dns-change-deps.js";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
 import { readAdminChartProviderSnapshot } from "../chart-providers.js";
-import { removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { resolveExportOutputRootDir } from "../site-paths.js";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no

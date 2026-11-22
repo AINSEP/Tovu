@@ -8,7 +8,7 @@ import { SqliteMediaContentTypeStore } from "#src/platform/db/sqlite/media-repo.
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
 import { SqlitePublishContentPeerRepo } from "#src/features/publish-content/publish-content-peer-repo.sqlite";
-import { THEME_ENTITY_TYPE } from "#src/features/trash/index";
+import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { builtInContentSeedDbPath } from "../site-paths.js";
 import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
@@ -18,7 +18,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { themeRosterPorts } from "#src/features/theme/index";
 import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
 import { unhideIfRemoveThrows } from "@jini-ai/cms/trash/adapters/directory";
-import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
+import { reportDirectoryRollbackFailure } from "@jini-ai/cms/trash/site/directory-rollback-log";
 
 interface ComposePublishingStoresThemesRequired {
   kernel: SiteStore["content"];

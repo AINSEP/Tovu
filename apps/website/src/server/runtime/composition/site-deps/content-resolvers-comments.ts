@@ -12,7 +12,7 @@ import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createCommentsModule } from "@jini-ai/cms/comments";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { widgetCollectionListPort } from "../../../../features/entries/public-list.js";

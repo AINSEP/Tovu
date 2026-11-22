@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
 import type { TrashEntityType, TrashEntry, TrashRegistry } from "@jini-ai/cms/trash";
-import { buildTrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import { SqliteTrashRepo } from "../repo.sqlite.js";
 import { entryWhere, loose, readLiveSnapshot, notTrashed } from "@jini-ai/cms/trash/sql";
 

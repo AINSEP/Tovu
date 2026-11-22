@@ -1,6 +1,6 @@
-import { PLUGIN_ENTITY_TYPE } from "#src/features/trash/index";
+import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import type { RemovePluginFn } from "@jini-ai/plugins/host";
-import { TRASH_RETENTION_DAYS } from "#src/features/trash/index";
+import { TRASH_RETENTION_DAYS } from "@jini-ai/cms/trash/site/ports";
 import { USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner } from "#src/features/trash/index";
@@ -8,7 +8,7 @@ import { createTrashService } from "@jini-ai/cms/trash";
 import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
 import { randomUUID } from "node:crypto";
 import { unhideIfRemoveThrows, type createDirectoryTrashAdapter } from "@jini-ai/cms/trash/adapters/directory";
-import { reportDirectoryRollbackFailure } from "#src/features/trash/index";
+import { reportDirectoryRollbackFailure } from "@jini-ai/cms/trash/site/directory-rollback-log";
 import type { SiteStore } from "../open-site-store.js";
 import type { SqliteTrashRepo } from "#src/features/trash/index";
 import type { TrashAdapter } from "@jini-ai/cms/trash";

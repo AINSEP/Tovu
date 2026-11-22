@@ -1,5 +1,5 @@
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createTrashScheduler } from "#src/features/trash/scheduler.node";
+import { createTrashScheduler } from "@jini-ai/cms/trash/site/scheduler.node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,7 +8,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { buildTrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import { createTrashSweep, startTrashSweeper, type TrashSweepOnce, type TrashSweepReport } from "@jini-ai/cms/trash";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";

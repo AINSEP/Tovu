@@ -5,7 +5,7 @@ import Database from "better-sqlite3";
 import type { RestoreOutcome, TrashItem, TrashPort } from "@jini-ai/cms/trash";
 import type { TrashDb } from "../../features/trash/index.js";
 import { sqliteKernel } from "../../platform/db/kernel/drivers/sqlite.js";
-import { buildTrashRegistry } from "../../features/trash/registry.js";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import { registerAdminTrashListRoute } from "../inbound/admin-http/routes/trash/list.js";
 import { registerAdminTrashMoveToTrashRoute } from "../inbound/admin-http/routes/trash/items.js";
 import { registerAdminTrashRestoreRoute } from "../inbound/admin-http/routes/trash/restore.js";

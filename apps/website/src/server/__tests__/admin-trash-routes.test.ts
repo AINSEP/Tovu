@@ -7,7 +7,6 @@ import express from "express";
 import type Database from "better-sqlite3";
 
 import {
-  buildTrashRegistry,
   createContentDbTransactionRunner,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
@@ -18,6 +17,7 @@ import {
   type TrashAdapter,
   type TrashPort,
 } from "#src/features/trash/index";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import * as schema from "#src/platform/db/schema.sqlite";

@@ -19,7 +19,7 @@ import { membersWriteService } from "#src/features/members/write-service";
 import { buildTrashAgentToolCatalog, createTrashService } from "@jini-ai/cms/trash";
 
 import { SqliteTrashRepo, createContentDbTransactionRunner } from "../repo.sqlite.js";
-import { buildTrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createMemberTrashAdapter } from "../adapters/member.js";
@@ -28,7 +28,7 @@ import { buildTrashRegistrations } from "../tool-registrations.js";
 import { deriveTrashItemRegistrations } from "../trash-item-tool.js";
 import { trashToolEntityTypes } from "../tool-kinds.js";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { TRASH_RETENTION_DAYS } from "../ports.js";
+import { TRASH_RETENTION_DAYS } from "@jini-ai/cms/trash/site/ports";
 
 const WS = "member-trash-workspace";
 const AT = "2026-10-09T12:00:00.000Z";

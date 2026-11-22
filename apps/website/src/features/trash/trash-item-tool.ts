@@ -49,7 +49,7 @@ import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
-import { THEME_ENTITY_TYPE } from "./adapters/theme.js";
+import { THEME_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/theme";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashDb } from "./db-port.js";
 import { moveToTrash } from "./move-to-trash.js";

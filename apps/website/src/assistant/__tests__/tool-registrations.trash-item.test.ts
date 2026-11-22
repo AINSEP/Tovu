@@ -21,7 +21,7 @@ import { postAgentToolCatalog } from "#src/features/post/agent-tools";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
-import { buildTrashRegistry } from "#src/features/trash/registry";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 

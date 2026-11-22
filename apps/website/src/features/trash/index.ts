@@ -6,12 +6,7 @@
  * their own dependency object, so nothing in `post.ts`, `redirects.ts`, the comments write-service
  * or the media route knows a Trash exists.
  */
-export { TRASH_RETENTION_DAYS } from "./ports.js";
 export { TRASH_TABLES } from "./repo.sqlite.js";
-export type { RemoveEntity, TransactionRunner } from "./ports.js";
-export { bindWidgetRemoval } from "./widget-removal.js";
-export { removeEntityWithoutBlocker } from "./remove-without-blocker.js";
-export type { RemoveWithoutBlockerResult } from "./remove-without-blocker.js";
 // Shared trash forks were removed; @jini-ai/cms/trash owns their implementation.
 export type {
   ForgetRemovedEntity,
@@ -44,7 +39,6 @@ export type { TrashChangeEvent, TrashServiceDeps } from "@jini-ai/cms/trash";
 export { moveToTrash } from "./move-to-trash.js";
 export type { MoveToTrashOutcome, TrashKindMover } from "./move-to-trash.js";
 
-export { buildTrashRegistry } from "./registry.js";
 
 export type { TrashDb } from "./db-port.js";
 
@@ -81,8 +75,5 @@ export type { MediaTrashAdapterDeps } from "./adapters/media.js";
 export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 export { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "@jini-ai/cms/trash";
-export { reportDirectoryRollbackFailure } from "./directory-rollback-log.js";
-export { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";
-export { THEME_ENTITY_TYPE } from "./adapters/theme.js";
 export { createUserTrashAdapter, USER_ENTITY_TYPE } from "./adapters/user.js";
 export type { UserTrashAdapterDeps } from "./adapters/user.js";

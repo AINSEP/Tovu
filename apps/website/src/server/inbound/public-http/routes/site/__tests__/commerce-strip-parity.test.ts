@@ -18,7 +18,7 @@ import { buildRouteManifest } from "#src/features/site-export/route-manifest";
 import { collectTransferTables } from "#src/features/database-transfer/table-catalog";
 import { classifyAllCoreColumns } from "#src/platform/db/migration/manifest";
 import { SqlUserPurge } from "#src/features/identity/user-purge";
-import { buildTrashRegistry } from "#src/features/trash/registry";
+import { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";

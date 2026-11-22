@@ -1,6 +1,6 @@
 import { COMMENT_ENTITY_TYPE } from "#src/features/trash/index";
 import { MEDIA_ENTITY_TYPE } from "#src/features/trash/index";
-import { PLUGIN_ENTITY_TYPE } from "#src/features/trash/index";
+import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import { POST_ENTITY_TYPE } from "#src/features/trash/index";
 import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
@@ -30,7 +30,7 @@ import type { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-rep
 import type { SqlitePostRepo } from "#src/features/post/index";
 import type { createMediaBlobStore } from "#src/features/object-storage/index";
 import type { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
-import type { buildTrashRegistry } from "#src/features/trash/index";
+import type { buildTrashRegistry } from "@jini-ai/cms/trash/site/registry";
 import type { TrashFollowUpHooks } from "@jini-ai/cms/trash";
 
 interface ComposeTrashAdaptersRequired {

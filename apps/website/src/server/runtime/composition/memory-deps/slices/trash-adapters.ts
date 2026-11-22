@@ -1,5 +1,6 @@
 import type { TrashAdapter } from "@jini-ai/cms/trash";
-import { PLUGIN_ENTITY_TYPE, COMMENT_ENTITY_TYPE, MEDIA_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { COMMENT_ENTITY_TYPE, MEDIA_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { PLUGIN_ENTITY_TYPE } from "@jini-ai/cms/trash/site/adapters/plugin";
 import { memoryCommentTrashAdapter, memoryMediaTrashAdapter, memoryPostTrashAdapter, memoryRedirectTrashAdapter } from "./trash-adapters-content.js";
 import { memoryFormSubmissionTrashAdapter, memoryFormTrashAdapter, memoryMenuTrashAdapter, memoryWidgetTrashAdapter } from "./trash-adapters-forms-widgets.js";
 import { memoryTaxonomyTrashAdapter, memoryTermTrashAdapter, type MemoryTaxonomyTrashInput } from "./trash-adapters-taxonomy.js";

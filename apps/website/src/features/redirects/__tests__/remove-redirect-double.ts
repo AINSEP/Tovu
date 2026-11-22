@@ -9,7 +9,8 @@
  * Tests that care about the index half use the real service (`features/trash/__tests__/`) against
  * real SQLite. Keeping the two apart stops a second, drifting Trash implementation appearing here.
  */
-import { REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 
 import type { RedirectsWriteDeps, RemoveRedirectFn } from "@jini-ai/cms/redirects";

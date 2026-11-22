@@ -18,7 +18,7 @@ import {
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "../adapters/post.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindForgetRemovedEntity, bindRemoveEntity, createTrashService } from "@jini-ai/cms/trash";
-import { removeEntityWithoutBlocker } from "../remove-without-blocker.js";
+import { removeEntityWithoutBlocker } from "@jini-ai/cms/trash/site/remove-without-blocker";
 import type { TrashAdapter, TrashItem } from "@jini-ai/cms/trash";
 
 /**
