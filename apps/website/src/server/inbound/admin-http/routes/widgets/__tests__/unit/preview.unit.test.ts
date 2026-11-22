@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { JsonObject } from '@jini-ai/core/primitives';
 import express from 'express';
-import { InMemoryEntryRepo } from '#src/features/entries/index';
+import { InMemoryEntryRepo } from '@jini-ai/cms/entries';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from '#src/features/media/index';
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
 import { InMemoryPresentationSettingsRepo } from '#src/features/presentation/index';

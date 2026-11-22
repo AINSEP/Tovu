@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { Taxonomy, Term } from "../index.js";
+import type { Taxonomy, Term } from "@jini-ai/cms/taxonomy";
 import {
   SqliteEntryTermRepo,
   SqliteTaxonomyRepo,

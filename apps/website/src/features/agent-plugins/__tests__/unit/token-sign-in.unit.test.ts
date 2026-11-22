@@ -5,7 +5,7 @@ import test from "node:test";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import type { InstalledAgentPluginServers } from "../../import-access-token.js";
-import type { McpServerConfig, RemoteMcpServerConfig } from "../../mcp-metadata.js";
+import type { McpServerConfig, RemoteMcpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { checkAgentPluginAccessToken, listTokenSignInPlugins } from "../../token-sign-in.js";
 
 /**

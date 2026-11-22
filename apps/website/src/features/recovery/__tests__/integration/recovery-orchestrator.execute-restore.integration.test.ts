@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
-import { executeRestore } from "../../recovery-orchestrator.js";
+import { executeRestore } from "@jini-ai/db/recovery/recovery-orchestrator";
 
 /**
  * @file CIC U-001-ORD1 (SPEC-019) — `executeRestore` consults the shared `core/operation-lock`

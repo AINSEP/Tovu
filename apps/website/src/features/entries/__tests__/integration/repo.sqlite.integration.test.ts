@@ -8,7 +8,7 @@ import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteEntryRepo } from "../../repo.sqlite.js";
-import { createEntry } from "../../index.js";
+import { createEntry } from "@jini-ai/cms/entries";
 
 /**
  * @file Real SQLite persistence for `features/entries` (this dispatch). Mirrors

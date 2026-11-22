@@ -9,8 +9,8 @@ import { openPostgresKernel } from "#src/platform/db/kernel/index";
 import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
-import { importEntry, VersionConflictError } from "../../index.js";
-import type { EntryRecord } from "../../index.js";
+import { importEntry, VersionConflictError } from "@jini-ai/cms/entries";
+import type { EntryRecord } from "@jini-ai/cms/entries";
 import { SqliteEntryRepo } from "../../repo.sqlite.js";
 
 /**

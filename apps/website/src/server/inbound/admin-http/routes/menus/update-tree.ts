@@ -5,9 +5,9 @@ import {
   MenuConflictError,
   MenuNotFoundError,
   MenuValidationError,
-  MenuVersionConflictError,
   updateMenuTree,
 } from "#src/features/navigation/index";
+import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
 import type { MenuHtmlAuthoring, NavItemNode } from "#src/features/navigation/index";
 import { authorizeMenuHtmlOrRespond, parseMenuHtmlAuthoring, toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

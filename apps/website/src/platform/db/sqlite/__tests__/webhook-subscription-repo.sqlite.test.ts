@@ -10,7 +10,7 @@ import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlWebhookSubscriptionRepo } from "#src/platform/db/repos/webhook-repo";
 import { SqliteWebhookSubscriptionRepo } from "../webhook-repo.sqlite.js";
 import type { WebhookSubscriptionRepoPort } from "#src/features/webhooks/ports";
-import type { WebhookSubscriptionRecord } from "#src/features/webhooks/types";
+import type { WebhookSubscriptionRecord } from "@jini-ai/integrations/webhooks";
 
 /**
  * @file Shared `WebhookSubscriptionRepoPort` contract-test suite (ADR-PIPE-015 Phase 2 T020),

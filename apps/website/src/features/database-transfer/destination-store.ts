@@ -5,7 +5,7 @@ import { VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/core/
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { InMemoryKeyring } from "../webhooks/index.js";
 import { AesGcmSecretSealer } from "../webhooks/index.js";
-import type { TargetDescription } from "./postgres-target.js";
+import type { TargetDescription } from "@jini-ai/db/transfer";
 
 /**
  * @file Where a site's database copy goes: one saved destination per workspace. The human types the

@@ -4,8 +4,8 @@ import test from "node:test";
 
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 
-import { createEntry, publishEntry, EntrySlugConflictError } from "../../index.js";
-import type { EntryRecord } from "../../index.js";
+import { createEntry, publishEntry, EntrySlugConflictError } from "@jini-ai/cms/entries";
+import type { EntryRecord } from "@jini-ai/cms/entries";
 import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

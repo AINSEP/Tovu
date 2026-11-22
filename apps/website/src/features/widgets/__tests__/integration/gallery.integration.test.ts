@@ -2,7 +2,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resolveHtmlPageEmbeds } from '@jini-ai/cms/widgets/html';
-import { InMemoryEntryRepo } from '#src/features/entries/index';
+import { InMemoryEntryRepo } from '@jini-ai/cms/entries';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFORM_NAME } from '#src/features/media/index';
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
 import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';

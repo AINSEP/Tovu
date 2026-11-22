@@ -4,7 +4,7 @@ import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
-import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 

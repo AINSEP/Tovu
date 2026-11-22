@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
 import { WidgetAreaConflictError, WidgetInstanceNotFoundError } from "@jini-ai/cms/widgets";
 import { createWidgetInstance, type WidgetWriteServiceDeps } from "@jini-ai/cms/widgets";

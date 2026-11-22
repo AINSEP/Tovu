@@ -4,7 +4,7 @@ import test from "node:test";
 import { createKeyringBackedSigner } from "../signing.keyring.js";
 import { createFixedSecretSigner, verifySignature } from "../signing.js";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
-import type { WebhookSubscriptionRecord } from "../types.js";
+import type { WebhookSubscriptionRecord } from "@jini-ai/integrations/webhooks";
 
 function makeSubscription(overrides: Partial<WebhookSubscriptionRecord> = {}): WebhookSubscriptionRecord {
   return {

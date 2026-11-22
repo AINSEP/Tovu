@@ -3,7 +3,7 @@ import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfe
 import { MediaConflictError, MediaSourceImmutableError, resolveWriteOnceSource, replaceMediaFile, MediaValidationError, sniffContentType } from "./index.js";
 import type { VersionedMediaRepoPort } from "@jini-ai/cms/media";
 import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord } from "./index.js";
-import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 /** The reviewed source a replace-on-import may overwrite (publish-content's precheck refusal carries it). */
 interface MediaSourceReplacement {

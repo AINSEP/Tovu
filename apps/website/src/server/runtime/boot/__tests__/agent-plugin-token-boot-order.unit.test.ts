@@ -10,7 +10,7 @@ import { saveExternalMcpServer } from "../../../../features/external-mcp/externa
 import { openExternalMcpOAuthPayload } from "../../../../features/external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import type { McpServerConfig } from "#src/features/agent-plugins/mcp-metadata";
+import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { PENDING_AGENT_PLUGIN_TOKENS_FILENAME } from "../../composition/pending-agent-plugin-tokens.js";
 
 import { importAgentPluginTokensAtBoot, type AgentPluginTokenBootSteps } from "../bootstrap.js";

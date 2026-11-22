@@ -9,7 +9,7 @@ import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCre
 import { createCustomCredentialConnectionPort } from "../connection-port.js";
 import { createFormDestinationDeliverer } from "../deliver.js";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
-import type { FormDestinationCredential, FormDestinationKit, FormDestinationModule } from "../types.js";
+import type { FormDestinationCredential, FormDestinationKit, FormDestinationModule } from "@jini-ai/cms/forms";
 
 /**
  * @file Unit tests for one push-delivery attempt's host half (`deliver.ts`) and the shipped

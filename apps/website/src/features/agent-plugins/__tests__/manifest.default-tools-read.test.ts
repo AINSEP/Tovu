@@ -2,7 +2,7 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { parseAgentPluginMcpConfig, type McpServerConfig, type RemoteMcpServerConfig } from "../mcp-metadata.js";
+import { parseAgentPluginMcpConfig, type McpServerConfig, type RemoteMcpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /** Every fixture here declares a remote server; the `tovu*` metadata only exists on that variant. */

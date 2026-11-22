@@ -1,4 +1,4 @@
-import type { FormDestinationRegistry, LoadedFormDestination } from "./types.js";
+import type { FormDestinationRegistry, LoadedFormDestination } from "@jini-ai/cms/forms";
 
 /**
  * @file Which receiver takes a static publish's form submissions, from the site's `core.forms`

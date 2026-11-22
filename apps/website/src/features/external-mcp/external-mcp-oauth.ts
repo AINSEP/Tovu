@@ -11,8 +11,8 @@ import { createHostedMcpConnectionGate, type ExternalMcpConnectionGateDeps, type
 import { isOAuthError, OAuthError, oauthFlowOperations } from "@jini-ai/oauth";
 import { createHostedMcpSignInService, type HostedMcpSignInPorts } from "@jini-ai/integrations/api-connections/hosted-mcp";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "./external-mcp-store.js";
-import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
-import { resolveExternalMcpAuthMode } from "../../contracts/core/external-mcp-auth.js";
+import { resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
+import { resolveExternalMcpAuthMode } from "@jini-ai/mcp/federation/hosted";
 import type { ExternalMcpServerRecord } from "./contracts.js";
 
 export { createHostedMcpConnectionGate, type HostedMcpConnectionGatePorts } from "@jini-ai/mcp/federation/hosted";

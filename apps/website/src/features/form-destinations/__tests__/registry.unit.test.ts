@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { parseFormDestinationsFile } from "@jini-ai/cms/forms";
 import { loadFormDestinationRegistryFromSource } from "../registry.js";
-import type { FormDestinationDescriptor, FormDestinationModule, LoadedFormDestination } from "../types.js";
+import type { FormDestinationDescriptor, FormDestinationModule, LoadedFormDestination } from "@jini-ai/cms/forms";
 
 /** @file The form destination category's parse, module-shape and cross-plugin rules, and the real bundled file. */
 

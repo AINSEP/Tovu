@@ -25,7 +25,6 @@ import {
   getMediaProviderCredentials,
   resolveMediaProviderCredential,
   sniffContentType,
-  TOVU_MAX_UPLOAD_BYTES,
   uploadMedia,
   type AssetBlobRepoPort,
   type AssetRenditionRepoPort,
@@ -35,6 +34,7 @@ import {
   type MediaRepoPort,
   type TransformDefinitionRepoPort,
 } from "../media/index.js";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "../media/index.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { IMAGE_MODEL_IDS, imageModelIdsFrom } from "@jini-ai/integrations/media-providers/catalog";

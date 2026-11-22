@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import {
   CORE_PUBLIC_TRANSFORM_NAME,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect, type ContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { Taxonomy, Term } from "../index.js";
+import type { Taxonomy, Term } from "@jini-ai/cms/taxonomy";
 import { SqlEntryTermRepo, SqlTaxonomyRepo, SqlTaxonomyRevisionRepo, SqlTermRepo } from "@jini-ai/cms/taxonomy/sql";
 import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { TAXONOMY_TABLES } from "../repo.sqlite.js";

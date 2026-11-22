@@ -2,7 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { createPostBackedContentLookup, toTaxonomyOutbox, renameTerm, TermRecordNotFoundError } from "#src/features/taxonomy/index";
+import { createPostBackedContentLookup, toTaxonomyOutbox, renameTerm, TermRecordNotFoundError } from "@jini-ai/cms/taxonomy";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";
 

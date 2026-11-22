@@ -2,7 +2,19 @@ import { MAX_DOCUMENT_BYTES, documentContentType, type MediaKind } from "@jini-a
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import type { Request, Response } from "express";
 
-import { captureMediaUploaded, MediaConflictError, MediaValidationError, resolveUploadContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
+import {
+  captureMediaUploaded,
+  MediaConflictError,
+  MediaValidationError,
+  resolveUploadContentType,
+  uploadMedia,
+} from "#src/features/media/index";
+/**
+ * Owner policy: 50 MiB for media uploads, including Library documents. Reuse Jini's document
+ * limit so upload validation and text extraction agree. Call sites pass it as uploadMedia's
+ * maxUploadBytes override; Jini's default for other consumers' image/video uploads stays 10 MiB.
+ */
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";

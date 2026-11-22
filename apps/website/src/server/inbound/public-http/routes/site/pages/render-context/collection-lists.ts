@@ -9,7 +9,7 @@ import { ENTRY_LIST_ATTRIBUTE } from "#src/features/theme/entry-list-markup";
 import { markersOfType, COLLECTION_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { listingBatchPath, listingKeyOfAttributes, readListingBatch, renderListingMore } from "@jini-ai/cms/listing";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
-import type { EntryRecord } from "#src/features/entries/index";
+import type { EntryRecord } from "@jini-ai/cms/entries";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref, type ParseCollectionListConfigResult } from "#src/features/entries/public-read";
 import { resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import type { TemplateRenderDeps } from "./deps.js";

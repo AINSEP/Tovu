@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { analyticsPrivacyPolicy, analyticsSaltContext, createAnalyticsIngestBinding, createLocalAnalyticsSink, type AnalyticsIngestRouteDeps } from "../jini-adapters.js";
-import type { NormalizedHit } from "../types.js";
+import type { NormalizedHit } from "@jini-ai/analytics";
 
 /** @file The Tovu → @jini-ai/analytics port binding forwards each object argument. */
 

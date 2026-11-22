@@ -6,7 +6,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 
 import express from "express";
 
-import type { NormalizedHit } from "#src/features/analytics/index";
+import type { NormalizedHit } from "@jini-ai/analytics";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminAnalyticsRecentHitsRoute } from "../../inbound/admin-http/routes/analytics/recent-hits.js";

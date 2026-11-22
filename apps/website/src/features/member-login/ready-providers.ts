@@ -3,7 +3,7 @@ import { loadBundledLoginProviders, loadLoginProviders } from "./providers.js";
 import { hasLoginCredentials } from "./credentials.js";
 import type { CustomCredentialResolveDeps } from "../custom-credentials/index.js";
 import type { LoadPluginContributions } from "../agent-plugins/lifecycle.js";
-import type { LoginProvider } from "./types.js";
+import type { LoginProvider } from "@jini-ai/user-management/server";
 
 /** Re-admit bundled providers and configured credential metadata on every call.
  * @complexity O(p + c) admitted providers and their credential metadata reads.

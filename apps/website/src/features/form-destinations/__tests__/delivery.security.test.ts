@@ -10,7 +10,7 @@ import type { CustomCredentialSetRecord } from "#src/features/custom-credentials
 import { createCustomCredentialConnectionPort } from "../connection-port.js";
 import { createFormDestinationDeliverer } from "../deliver.js";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
-import type { FormDeliveryConnectionPort, FormDestinationCredential, FormDestinationKit, FormDestinationModule } from "../types.js";
+import type { FormDeliveryConnectionPort, FormDestinationCredential, FormDestinationKit, FormDestinationModule } from "@jini-ai/cms/forms";
 
 /**
  * @file Phase-A security pins for push delivery's host side: the custom-credential connection port

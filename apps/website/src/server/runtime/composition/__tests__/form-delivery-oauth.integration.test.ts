@@ -24,7 +24,7 @@ import { FormDeliveryError } from "@jini-ai/cms/forms";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
-import type { FormDestinationKit } from "#src/features/form-destinations/index";
+import type { FormDestinationKit } from "@jini-ai/cms/forms";
 import { FORM_DESTINATIONS_FILENAME } from "#src/features/form-destinations/registry";
 import { createOAuthDeliverySite, FORM_ID, WORKSPACE, type Consent, type OAuthDeliverySite } from "./form-delivery-oauth.fixture.js";
 

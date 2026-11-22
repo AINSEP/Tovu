@@ -1,8 +1,16 @@
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express, Request, Response } from "express";
-import { completeOidcLogin, memberLoginCallbackUrl, requestLoginEmailProof, resolveFederatedIdentity,
-  sealLoginEmailContinuation, MemberLoginError, type CompletedOidcLogin, type LoginContext } from "#src/features/member-login/index";
+import {
+  completeOidcLogin,
+  memberLoginCallbackUrl,
+  requestLoginEmailProof,
+  resolveFederatedIdentity,
+  sealLoginEmailContinuation,
+  type CompletedOidcLogin,
+  type LoginContext,
+} from "#src/features/member-login/index";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { checkMemberRequestLimits, checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "./deps.js";
 import { setMemberSessionCookie } from "./complete-sign-in.js";

@@ -5,7 +5,7 @@ import {
   InMemoryDatabaseIntrospectionAdapter, InMemoryDatabaseLedgerRepo, InMemoryDbOpsAdapter, InMemoryMigrationRunsRepo,
   InMemoryRestorePointsRepo, InMemorySiteStatusRepo,
 } from "../../repo.memory.js";
-import type { LedgerRow } from "../../timeline.js";
+import type { LedgerRow } from "@jini-ai/db/tools";
 
 /** @file The zero-infrastructure database adapters: same observable contract as the SQLite ones. */
 

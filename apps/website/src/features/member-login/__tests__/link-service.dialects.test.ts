@@ -7,7 +7,7 @@ import { SqlPrincipalRepo } from "../../identity/repo.js";
 import { SqlMemberRepo, SqlMemberSessionRepo, SqlMagicLinkTokenRepo, SqlMemberExternalIdentityRepo } from "../../members/repo.js";
 import { InMemoryMemberTierRepo, InMemoryMemberSubscriptionRepo } from "../../members/repo.memory.js";
 import { resolveFederatedIdentity, type MemberLoginLinkDeps } from "../link-service.js";
-import { MemberLoginError } from "../types.js";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, provider } from "./fixtures.js";
 
 function depsFor(kernel: ContentKernel): MemberLoginLinkDeps {

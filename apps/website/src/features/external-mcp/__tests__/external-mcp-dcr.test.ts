@@ -10,7 +10,7 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { ExternalMcpValidationError, listExternalMcpServerViews, openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
-import { resolveExternalMcpOAuthStatus } from "../../../contracts/core/external-mcp-auth.js";
+import { resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
 
 /**
  * @file The wiring: an external-MCP connection that has no `client_id` — or, since, no `grant` —

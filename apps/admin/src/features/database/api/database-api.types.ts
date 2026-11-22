@@ -1,4 +1,4 @@
-/** Database — Timeline (ADR-041 §1). Mirrors `features/database/timeline.ts`'s `LedgerRow`. */
+/** Database — Timeline (ADR-041 §1). Mirrors `@jini-ai/db/tools`' `LedgerRow`. */
 export interface AdminLedgerRow {
   id: string;
   kind: string;

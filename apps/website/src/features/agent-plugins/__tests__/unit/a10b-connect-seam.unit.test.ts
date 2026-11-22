@@ -16,7 +16,7 @@ import { classifyAgentPluginMcpServerTrust } from '../../capability-projection.j
 import { tovuEnableAccessMessages } from '../../enable-access.js';
 import { runAgentPluginConnect, type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages } from '@jini-ai/agent-plugins/connect';
 import { tovuAgentPluginConnectHost, agentPluginConnectAgentToolCatalog } from '../../connect-tool.js';
-import type { McpServerConfig } from '../../mcp-metadata.js';
+import type { McpServerConfig } from '@jini-ai/agent-plugins/lifecycle';
 
 const WORKSPACE_ID = '77777777-7777-4777-8777-777777777777';
 const CLOCK = { nowMs: () => Date.parse('2026-09-27T00:00:00.000Z'), nowIso: () => '2026-09-27T00:00:00.000Z' };

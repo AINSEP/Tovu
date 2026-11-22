@@ -10,7 +10,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
 import { createLocalAnalyticsSink } from "../jini-adapters.js";
 import type { AnalyticsSinkPort } from "../ports.js";
-import type { NormalizedHit } from "../types.js";
+import type { NormalizedHit } from "@jini-ai/analytics";
 
 /**
  * @file ADR-046 Phase 1 (final capability slice) — shared contract-test suite for

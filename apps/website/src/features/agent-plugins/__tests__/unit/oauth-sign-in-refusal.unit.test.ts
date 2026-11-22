@@ -10,8 +10,8 @@ import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mc
 import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
 import { composeAgentPluginMcp, composeAgentPluginConnectServices } from '../../../../server/runtime/composition/agent-plugin-service-ports.js';
-import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames } from '../../../../contracts/core/external-mcp-access.js';
-import { resolveExternalMcpOAuthStatus, externalMcpRecordHasStaticAccessToken } from '../../../../contracts/core/external-mcp-auth.js';
+import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames } from '@jini-ai/mcp/federation/hosted';
+import { resolveExternalMcpOAuthStatus, externalMcpRecordHasStaticAccessToken } from '@jini-ai/mcp/federation/hosted';
 import { runAgentPluginConnect } from '../../connect-tool.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 

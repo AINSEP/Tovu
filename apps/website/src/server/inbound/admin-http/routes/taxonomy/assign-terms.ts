@@ -12,7 +12,7 @@ import {
   unassignTerms,
   ContentRecordNotFoundError,
   TermRecordNotFoundError,
-} from "#src/features/taxonomy/index";
+} from "@jini-ai/cms/taxonomy";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";
 

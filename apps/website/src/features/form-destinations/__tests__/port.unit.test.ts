@@ -8,7 +8,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, listCustomCredentials, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { createFormDestinationPort } from "../port.js";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
-import type { FormDestinationForm, FormDestinationKit, FormDestinationModule } from "../types.js";
+import type { FormDestinationForm, FormDestinationKit, FormDestinationModule } from "@jini-ai/cms/forms";
 
 /** @file The publish-side receiver port: selection, keys by scope, and an external receiver's prepare. */
 

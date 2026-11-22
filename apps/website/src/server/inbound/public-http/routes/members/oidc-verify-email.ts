@@ -1,6 +1,7 @@
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express } from "express";
-import { MemberLoginError, openLoginEmailContinuation, resolveFederatedIdentity } from "#src/features/member-login/index";
+import { openLoginEmailContinuation, resolveFederatedIdentity } from "#src/features/member-login/index";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { toPublicMemberResponse } from "../../http/members.js";
 import { checkMemberPost, checkMemberRequestLimits, toPublicMembersWriteServiceDeps } from "./deps.js";

@@ -3,7 +3,7 @@ import type { Express } from "express";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { authorizeForHooks, confirm, execute, plan } from "#src/contracts/core/gated-mutations/gateway";
-import { confirmRestore, executeRestore, planRestore } from "#src/features/recovery/recovery-orchestrator";
+import { confirmRestore, executeRestore, planRestore } from "@jini-ai/db/recovery/recovery-orchestrator";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildRestoreHooks, toRecoveryResult, type RecoveryErrorPayload } from "#src/features/recovery/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -16,7 +16,7 @@ const RESTORE_PERMISSION = "backup.restore";
  * (ADR-045 §3's restore ceremony). Gated by `backup.read` (`plan`/`confirm`) / `backup.restore`
  * (`execute`, enforced inside `gateway.ts`'s own fixed check-sequence). Mirrors
  * `apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts`'s 3-endpoint shape, composed directly over
- * `features/recovery/recovery-orchestrator.ts`'s already-built `planRestore`/`confirmRestore`/
+ * `@jini-ai/db/recovery/recovery-orchestrator`'s already-built `planRestore`/`confirmRestore`/
  * `executeRestore` wrappers (this file supplies the `Result`-wrapped gateway binding + the real
  * `core/operation-lock.ts` primitive those wrappers were built to receive from a composition root
  * — see `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` doc comment for the disclosed scope

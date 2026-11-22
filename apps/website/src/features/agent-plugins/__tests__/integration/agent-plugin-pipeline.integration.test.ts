@@ -11,7 +11,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
 import { readInstalledSkillMarkdown } from "../../capability-projection.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 
 /**
  * @file End-to-end proof that layout + install + manifest + capability-projection compose into one

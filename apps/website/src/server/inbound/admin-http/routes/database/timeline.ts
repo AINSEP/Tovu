@@ -3,7 +3,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { ToolInputError } from "@jini-ai/core";
 import type { Express, Response } from "express";
 
-import { getTimeline } from "#src/features/database/timeline";
+import { getTimeline } from "@jini-ai/db/tools";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 

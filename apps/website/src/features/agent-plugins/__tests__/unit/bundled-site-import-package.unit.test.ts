@@ -11,7 +11,7 @@ import { agentPluginActivations } from "../../activation-effects.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } from "../../bundled-catalog.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
-import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { selectedPluginSourceRoot, type DisposableSourceRoot } from "../fixtures/bundled-source-root.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 

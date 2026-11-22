@@ -26,7 +26,7 @@ import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { getWebhooksAgentToolCatalog } from "@jini-ai/integrations/webhooks/tools";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/repo.memory.js";
-import type { WebhookDeliveryRecord } from "../../features/webhooks/types.js";
+import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 import { contributeWebhooksTools } from "../../features/webhooks/tool-registrations.js";
 
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";

@@ -13,7 +13,7 @@ import {
 } from "@jini-ai/agent-plugins/connect";
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
-import type { McpServerConfig } from "./mcp-metadata.js";
+import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import type { AgentPluginMcpContext, AgentPluginMcpPort } from "./service-ports.js";
 export {
   findAgentPluginMcpServerDefaults,

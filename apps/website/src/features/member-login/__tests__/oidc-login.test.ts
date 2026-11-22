@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
 import { beginOidcLogin, completeOidcLogin, memberLoginCallbackUrl, openLoginEmailContinuation, sealLoginEmailContinuation, type OidcLoginDeps } from "../oidc-login.js";
-import { MemberLoginError } from "../types.js";
+import { MemberLoginError } from "@jini-ai/user-management/server";
 import { cryptoFixture, originFixture, provider } from "./fixtures.js";
 
 const pair = generateKeyPairSync("rsa", { modulusLength: 2048 });

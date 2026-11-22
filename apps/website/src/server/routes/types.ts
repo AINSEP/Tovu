@@ -84,7 +84,7 @@ import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "@jin
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "@jini-ai/cms/forms";
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "@jini-ai/cms/comments";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import type { LedgerReadPort } from "../../features/database/timeline.js";
+import type { LedgerReadPort } from "@jini-ai/db/tools";
 import type {
   RestorePointListPort,
   RestorePointSavePort,
@@ -108,7 +108,7 @@ import type {
   AssignmentCountEntryTermRepoPort,
   DeletableTaxonomyRepoPort,
   DeletableTermRepoPort,
-} from "../../features/taxonomy/index.js";
+} from "@jini-ai/cms/taxonomy";
 import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermListPort, TermRepoPort, UnassignableEntryTermRepoPort, ImportableTaxonomyRepoPort, ImportableTermRepoPort } from "@jini-ai/cms/taxonomy";
 import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";

@@ -1,4 +1,4 @@
-export type { ExternalMcpAccessSnapshot } from "../../contracts/core/external-mcp-access.js";
+export type { ExternalMcpAccessSnapshot } from "@jini-ai/core/contracts/hosted-mcp";
 /** External-MCP connection DTOs and ports; no assistant or service initialization. */
 import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { ExternalMcpServerView as CanonicalExternalMcpServerView } from "@jini-ai/core/contracts/hosted-mcp";

@@ -20,8 +20,10 @@ import { describeTransferApproval, DATABASE_TRANSFER_RUN_TOOL_ID } from "./confi
 import { countPartialExclusions } from "./copy-engine.js";
 import { databaseDestinationStore as DEFAULT_DESTINATION_STORE, DestinationUnreadableError, type DatabaseDestinationStorePort } from "./destination-store.js";
 import { buildDestinationForm, buildDestinationOutcome, DESTINATION_ADDRESS_FIELD, SET_DESTINATION_TOOL_ID } from "./destination-ui.js";
-import { databaseTransferPlanStore as DEFAULT_PLAN_STORE, type DatabaseTransferPlanStore } from "./plan-store.js";
-import { createPsqlPostgresTarget, InvalidConnectionStringError, type PostgresTargetPort } from "./postgres-target.js";
+import { databaseTransferPlanStore as DEFAULT_PLAN_STORE } from "./plan-store.js";
+import type { DatabaseTransferPlanStore } from "@jini-ai/db/tools";
+import { createPsqlPostgresTarget } from "./postgres-target.js";
+import { InvalidConnectionStringError, type PostgresTargetPort } from "@jini-ai/db/transfer";
 
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import type { contentKernel } from "../../platform/db/content-kernel.js";

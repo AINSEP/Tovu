@@ -6,7 +6,14 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo, SqliteMediaContentTypeStore } from '#src/platform/db/sqlite/media-repo.sqlite';
-import { InMemoryBlobStore, InMemoryTransformDefinitionRepo, InMemoryImageTransformer, MediaConflictError, uploadMedia, TOVU_MAX_UPLOAD_BYTES } from '#src/features/media/index';
+import {
+  InMemoryBlobStore,
+  InMemoryTransformDefinitionRepo,
+  InMemoryImageTransformer,
+  MediaConflictError,
+  uploadMedia,
+} from '#src/features/media/index';
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from '@jini-ai/cms/media';
 import { registerAdminMediaReplaceRoute } from '../replace.js';
 import type { MediaRouteDeps } from '../deps.js';
 

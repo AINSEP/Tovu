@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
-import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { packAgentPluginDirectory } from "../../lifecycle.js";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 

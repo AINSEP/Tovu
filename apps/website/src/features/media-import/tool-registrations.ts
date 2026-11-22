@@ -14,7 +14,6 @@ import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/inde
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import {
   sniffContentType,
-  TOVU_MAX_UPLOAD_BYTES,
   uploadMedia,
   type AssetBlobRepoPort,
   type AssetRenditionRepoPort,
@@ -22,6 +21,7 @@ import {
   type TransformDefinitionRepoPort,
   type UploadMediaInput,
 } from "../media/index.js";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "../media/index.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";

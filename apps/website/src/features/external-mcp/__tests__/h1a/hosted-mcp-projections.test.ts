@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { hostedMcpProjections } from "@jini-ai/mcp/federation/hosted";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
-import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames } from "../../../../contracts/core/external-mcp-access.js";
-import { externalMcpRecordHasStaticAccessToken, resolveExternalMcpOAuthStatus } from "../../../../contracts/core/external-mcp-auth.js";
+import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames } from "@jini-ai/mcp/federation/hosted";
+import { externalMcpRecordHasStaticAccessToken, resolveExternalMcpOAuthStatus } from "@jini-ai/mcp/federation/hosted";
 import { agentPluginMcpProjections } from "../../../agent-plugins/mcp-host-bindings.js";
 import { BASELINE, computeProjections } from "./fixtures/projection-baseline.js";
 

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { getMediaAccessEvidenceCache } from "#src/platform/media-access-evidence";
-import type { EntryRecord } from "../../index.js";
-import { EntrySlugConflictError, VersionConflictError } from "../../index.js";
+import type { EntryRecord } from "@jini-ai/cms/entries";
+import { EntrySlugConflictError, VersionConflictError } from "@jini-ai/cms/entries";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 
 /**

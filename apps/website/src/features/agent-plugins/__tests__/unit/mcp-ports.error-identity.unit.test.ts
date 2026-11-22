@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ToolInputError } from '@jini-ai/core';
-import { ExternalMcpValidationError, externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames } from '../../../../contracts/core/external-mcp-access.js';
-import { resolveExternalMcpOAuthStatus, externalMcpRecordHasStaticAccessToken } from '../../../../contracts/core/external-mcp-auth.js';
+import { ExternalMcpValidationError, externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMcpToolGrants, validateExternalMcpToolNames } from '@jini-ai/mcp/federation/hosted';
+import { resolveExternalMcpOAuthStatus, externalMcpRecordHasStaticAccessToken } from '@jini-ai/mcp/federation/hosted';
 import { validatedAgentPluginToolGrant } from '../../enable-access.js';
 
 test('a passed tool-name validator and classifier retain canonical error identity through the compatibility entry', () => {

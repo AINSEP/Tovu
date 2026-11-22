@@ -9,7 +9,7 @@ import type {
   WebhookEventEnvelope,
   WebhookSubscriptionRecord,
   WebhookTopic,
-} from "./types.js";
+} from "@jini-ai/integrations/webhooks";
 
 /**
  * @file In-memory adapters for the `integrations` repo ports (ADR-036) + a small local

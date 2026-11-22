@@ -23,7 +23,7 @@ import {
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../mcp-metadata.js";
+import { parseAgentPluginMcpConfig, type McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
 
 // The shipped bundle (Tovu's content plugins plus every selected package; supabase ships as

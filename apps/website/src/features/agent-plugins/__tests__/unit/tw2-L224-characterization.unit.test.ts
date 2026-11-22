@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, rm, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { migrateSiteAgentPluginLayouts } from "../../memory.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseNewSiteAgentPluginTokens, NEW_SITE_AGENT_PLUGIN_TOKENS_SHAPE_ERROR } from "../../new-site-agent-plugin-tokens.js";

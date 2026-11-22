@@ -7,7 +7,7 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { importMenuEntity } from "../import-menu.js";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
 import { TrashAwareInMemoryMenuRepo } from "../trash-aware-memory-menu-repo.js";
-import { MenuVersionConflictError } from "../menu-version-conflict-error.js";
+import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
 
 /**
  * @file Menu writes are compare-and-set (wm S4): `MenuRepoPort.save(record, { expectedVersion })`

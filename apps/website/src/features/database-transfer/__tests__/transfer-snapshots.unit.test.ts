@@ -10,7 +10,7 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
-import { DatabaseTransferPlanStore } from "../plan-store.js";
+import { DatabaseTransferPlanStore } from "@jini-ai/db/tools";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

@@ -10,7 +10,7 @@ import {
   readInstalledMcpServers,
   readInstalledSkillMarkdown,
 } from "../../capability-projection.js";
-import type { McpServerConfig } from "../../mcp-metadata.js";
+import type { McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { PackagePathViolation } from "../../lifecycle.js";
 
 /**

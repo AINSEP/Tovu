@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
-import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 
 /**
  * @file The `site-compliance` bundled Agent Plugin's package is VALID and, more importantly, still

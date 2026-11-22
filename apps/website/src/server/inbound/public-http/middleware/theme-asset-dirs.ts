@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 
-import { resolvePathWithin } from "#src/contracts/core/path-containment";
+import { resolvePathWithin } from "@jini-ai/platform/fs";
 import { themeIdCandidates } from "#src/contracts/core/theme-ids";
 
 /**
@@ -41,7 +41,7 @@ export function resolveThemeDirs(required: { roots: readonly string[]; themeId: 
  *
  * Four separate refusals per root, because a path segment now arrives from the request rather than
  * from a `readdirSync` of trusted names:
- * - `..`/separators/absolute paths, rejected by `core/path-containment.ts`'s shared
+ * - `..`/separators/absolute paths, rejected by `@jini-ai/platform/fs`'s shared
  *   `resolvePathWithin` — kept even though Express decodes `:themeId` as a single segment, because
  *   that is a property of the routing layer rather than of this function.
  * - the `__original-themes__` catalog, whose whole purpose is to be a pristine

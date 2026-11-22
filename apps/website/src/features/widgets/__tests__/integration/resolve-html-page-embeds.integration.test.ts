@@ -2,7 +2,7 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";

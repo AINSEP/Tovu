@@ -4,7 +4,7 @@ import express, { type Request } from 'express';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { originFixture } from '#src/features/member-login/__tests__/fixtures';
-import { MemberLoginError } from '#src/features/member-login/index';
+import { MemberLoginError } from '@jini-ai/user-management/server';
 import * as memberLogin from '#src/features/member-login/index';
 import type { MemberRecord, MemberSessionRecord } from '#src/features/members/index';
 import { InMemoryMemberExternalIdentityRepo } from '#src/features/members/repo.memory';

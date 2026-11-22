@@ -2,7 +2,8 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
-import { assignLocation, MenuConflictError, MenuNotFoundError, MenuVersionConflictError } from "#src/features/navigation/index";
+import { assignLocation, MenuConflictError, MenuNotFoundError } from "#src/features/navigation/index";
+import { MenuVersionConflictError } from "@jini-ai/cms/navigation";
 import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";

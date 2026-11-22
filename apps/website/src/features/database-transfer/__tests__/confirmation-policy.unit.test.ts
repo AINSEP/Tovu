@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
-import { DatabaseTransferPlanStore } from "../plan-store.js";
+import { DatabaseTransferPlanStore } from "@jini-ai/db/tools";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

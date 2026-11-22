@@ -18,7 +18,7 @@ import type { SqlFormDeliveryRepo } from "@jini-ai/cms/forms/sql";
 import type { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
 import type { SqliteTermRepo, SqliteTaxonomyRevisionRepo } from "#src/features/taxonomy/repo.sqlite";
 import type { SqliteTrashRepo } from "#src/features/trash/index";
-import type { toTaxonomyOutbox } from "#src/features/taxonomy/index";
+import type { toTaxonomyOutbox } from "@jini-ai/cms/taxonomy";
 import type { createMediaBlobStore } from "#src/features/object-storage/index";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";

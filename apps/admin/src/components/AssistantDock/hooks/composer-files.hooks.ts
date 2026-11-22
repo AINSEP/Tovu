@@ -34,7 +34,7 @@ import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/fe
  * client-side check that mirrors a server-side one it cannot reach (see `rules.ts`'s
  * `MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES` doc for the same "keep identical, by hand" pattern).
  *
- * Owner-directed (2026-09-21): must stay equal to `apps/website/src/contracts/core/upload-limits.ts`'s
+ * Owner-directed (2026-09-21): must stay equal to `@jini-ai/cms/media`'s `MAX_DOCUMENT_BYTES`, which the website imports as
  * `TOVU_MAX_UPLOAD_BYTES` (50 MiB) and `agent-daemon-server.ts`'s `ATTACHMENT_MAX_BATCH_BYTES`
  * (100 MiB, `TOVU_MAX_UPLOAD_BYTES * 2`) — update both together if either changes.
  */

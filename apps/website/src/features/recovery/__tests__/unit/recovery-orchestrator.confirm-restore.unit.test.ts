@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { confirmRestore } from "../../recovery-orchestrator.js";
+import { confirmRestore } from "@jini-ai/db/recovery/recovery-orchestrator";
 
 /**
  * @file CIC U-002 (SPEC-019) — `confirmRestore`'s disclosure-acknowledgment gate + planId

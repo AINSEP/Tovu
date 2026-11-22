@@ -1,4 +1,4 @@
-import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { scanTextForSecrets } from "#src/contracts/core/secret-scan";
 
 /**

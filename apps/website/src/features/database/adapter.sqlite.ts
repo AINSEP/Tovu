@@ -33,7 +33,7 @@ export interface PendingMigration {
 
 /** The port `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
  * (`tool-registrations.ts`) compose against — mirrors `restore-points.ts`'s
- * `RestorePointListPort`/`RestorePointSavePort` and `timeline.ts`'s `LedgerReadPort`: a small,
+ * `RestorePointListPort`/`RestorePointSavePort` and `@jini-ai/db/tools`' `LedgerReadPort`: a small,
  * domain-declared interface a real adapter and an in-memory double both satisfy.
  *
  * DELIBERATELY NOT IMPLEMENTED FOR AN EXTERNAL SUPABASE-HOSTED POSTGRES, recorded here

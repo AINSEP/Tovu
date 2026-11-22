@@ -4,7 +4,7 @@ import test from "node:test";
 import type { AgentPluginExport } from "@jini-ai/agent-plugins/manifest";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";

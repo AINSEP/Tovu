@@ -68,7 +68,8 @@ import {
   type ImageImportPolicy,
 } from "@jini-ai/cms/media/import";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { sniffContentType, TOVU_MAX_UPLOAD_BYTES, type SniffedContentType } from "../media/index.js";
+import { sniffContentType, type SniffedContentType } from "../media/index.js";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 
 /**
  * The still-image and video types this tool will import, decided by magic bytes rather than by any

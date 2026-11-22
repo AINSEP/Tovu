@@ -8,7 +8,7 @@ import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createApplyConnectDefaults } from "../../features/agent-plugins/apply-connect-defaults.js";
 import * as federation from "../../features/agent-plugins/federate-mcp.js";
-import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../features/agent-plugins/mcp-metadata.js";
+import { parseAgentPluginMcpConfig, type McpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { createStoredExternalMcpConnectionSource } from "../external-mcp-connection-source.js";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { readEnabledExternalMcpConfigs, applyExternalMcpAccess, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";

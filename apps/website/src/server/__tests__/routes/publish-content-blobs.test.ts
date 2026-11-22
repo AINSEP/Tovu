@@ -8,7 +8,8 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS } from "@jini-ai/cms/publish/transfer/blob-staging";
-import { computeBlobStorageKey, TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
+import { computeBlobStorageKey } from "#src/features/media/index";
+import { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
 import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { lastRouteHandler } from "../helpers/last-route-handler.js";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";

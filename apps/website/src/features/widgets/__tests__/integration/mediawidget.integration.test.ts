@@ -57,7 +57,7 @@ test('publishing and entry refs find raw, saved media config and placement slugs
 test('found slugs, missing slugs, audio and two placement overrides resolve through the actual shared media lifecycle', { timeout: 30000 }, async (t) => {
   const started = performance.now();
   t.diagnostic('phase: imports');
-  const { InMemoryEntryRepo } = await import('#src/features/entries/index');
+  const { InMemoryEntryRepo } = await import('@jini-ai/cms/entries');
   const { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } = await import('#src/features/media/index');
   const { buildWidgetHostPorts } = await import('#src/features/widgets/deps');
   const { buildWidgetAreaFieldsJson, buildWidgetInstanceFieldsJson, resolvePageWidgets, InMemoryWidgetRegionBindingRepo } = await import('@jini-ai/cms/widgets');

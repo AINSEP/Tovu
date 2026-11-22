@@ -41,7 +41,7 @@ import type {
   RealtimeSnapshot,
   StatsQuery,
   StatsResult,
-} from "./types.js";
+} from "@jini-ai/analytics";
 
 /** Static capabilities of a sink adapter (frozen-minimal surface, cf. ADR-027 presign). */
 export interface AnalyticsSinkCapabilities {
