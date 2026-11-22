@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ADMIN_COMMON_I18N } from "@jini-ai/admin/core/i18n-common";
-import { COMMON_I18N, composeCommonDictionary } from "../i18n-common";
+import { COMMON_I18N } from "../i18n-common";
 
 import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
@@ -84,17 +84,46 @@ describe("COMMON_I18N: composition over ADMIN_COMMON_I18N", () => {
     expect(COMMON_I18N.es.Save).toBe("Guardar");
   });
 
-  it("lets a host entry win a key collision", () => {
-    const composed = composeCommonDictionary({
-      generic: { es: { Save: "Guardar", Cancel: "Cancelar" } },
-      host: { es: { Save: "Guardar todo" } },
-    });
-    expect(composed).toEqual({ es: { Save: "Guardar todo", Cancel: "Cancelar" } });
+});
+
+/** Precedence and the missing-locale guard need a Jini dictionary the real one can never be (one that
+ *  collides with the branded key, or lacks a locale), so these re-import `COMMON_I18N` over a mocked
+ *  `@jini-ai/admin` module instead of exercising a separate helper. */
+describe("COMMON_I18N: composition rules (mocked Jini dictionary)", () => {
+  const OLDER_DESTINATION_KEY = "is on an older Tovu and can't overwrite these yet. Update it, then publish again.";
+  const TOVU_LOCALES = [
+    "es", "de", "it", "zh-CN", "zh-TW", "ar", "fa", "ru", "ja", "id", "pt-BR",
+    "ko", "pl", "hu", "fr", "uk", "tr", "th", "hi", "ur", "bn",
+  ];
+
+  afterEach(() => {
+    vi.doUnmock("@jini-ai/admin/core/i18n-common");
+    vi.resetModules();
   });
 
-  it("follows the host's locale order and throws for a locale the package lacks", () => {
-    const composed = composeCommonDictionary({ generic: { es: { a: "1" }, de: { a: "2" } }, host: { de: {}, es: {} } });
-    expect(Object.keys(composed)).toEqual(["de", "es"]);
-    expect(() => composeCommonDictionary({ generic: {}, host: { xx: {} } })).toThrow("common dictionary xx is missing");
+  async function importOver(jini: Record<string, Record<string, string>>) {
+    vi.resetModules();
+    vi.doMock("@jini-ai/admin/core/i18n-common", () => ({ ADMIN_COMMON_I18N: jini }));
+    return (await import("../i18n-common")).COMMON_I18N;
+  }
+
+  it("lets the branded Tovu entry win a key collision and keeps the other Jini entries", async () => {
+    const jini = Object.fromEntries(TOVU_LOCALES.map((l) => [l, { Save: `save-${l}`, [OLDER_DESTINATION_KEY]: "generic" }]));
+    const composed = await importOver(jini);
+    expect(composed.es).toEqual({
+      Save: "save-es",
+      [OLDER_DESTINATION_KEY]:
+        "usa una versión anterior de Tovu y aún no puede sobrescribir estos elementos. Actualízalo y vuelve a publicar.",
+    });
+  });
+
+  it("exposes Tovu's locales in Tovu's order, ignoring extra or reordered Jini locales", async () => {
+    const jini = Object.fromEntries([...TOVU_LOCALES].reverse().concat("xx").map((l) => [l, { Save: l }]));
+    expect(Object.keys(await importOver(jini))).toEqual(TOVU_LOCALES);
+  });
+
+  it("throws at module load when a Tovu locale is missing from Jini", async () => {
+    const jini = Object.fromEntries(TOVU_LOCALES.filter((l) => l !== "bn").map((l) => [l, { Save: l }]));
+    await expect(importOver(jini)).rejects.toThrow("common dictionary bn is missing from @jini-ai/admin");
   });
 });
