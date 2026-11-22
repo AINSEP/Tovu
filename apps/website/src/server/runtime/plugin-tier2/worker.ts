@@ -26,8 +26,7 @@ export interface Tier2WorkerMainRequired {
 }
 
 export interface Tier2WorkerMainOptional {
-  /** Test seam. Omitted ⇒ on the real-import path, register the C043 import policy and both SDK
-   * specifiers in this worker, then real `import()`. */
+  /** Test seam. Omitted ⇒ register both SDK specifiers in this worker, then real `import()`. */
   readonly importModule?: (entryPath: string) => Promise<unknown>;
 }
 
