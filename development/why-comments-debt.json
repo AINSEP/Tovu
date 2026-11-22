@@ -2680,6 +2680,26 @@
     {
       "id": "e2f8783dbd23",
       "reason": "code deleted by R8b step 6"
+    },
+    {
+      "id": "3a88965844da",
+      "reason": "P9 SH-1: entries/index.ts re-export shell deleted (owner: no re-export shells). Importers now import the error classes straight from @jini-ai/cms/entries, so the single-class-identity property this comment defended holds by construction."
+    },
+    {
+      "id": "712ec844d7b6",
+      "reason": "P9 SH-1: header of the deleted entries/index.ts re-export barrel; @jini-ai/cms/entries owns the surface and the host SQLite adapter (repo.sqlite.ts) keeps its own header."
+    },
+    {
+      "id": "e015f80d8aeb",
+      "reason": "P9 SH-1: header of the deleted form-destinations/types.ts compat path; the types live in @jini-ai/cms/forms, which form-destinations/index.ts and registry.ts now name."
+    },
+    {
+      "id": "17bfc96e19eb",
+      "reason": "P9 SH-1: header of the deleted member-login/types.ts compat path; importers use @jini-ai/user-management/server directly."
+    },
+    {
+      "id": "0f4aac65199f",
+      "reason": "P9 SH-1: header of the deleted taxonomy/index.ts re-export barrel; @jini-ai/cms/taxonomy owns the surface, gated-hooks.ts and tool-registrations.ts keep their own headers."
     }
   ]
 }

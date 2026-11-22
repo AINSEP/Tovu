@@ -10,7 +10,7 @@ import type { FormDestinationDescriptor, FormDestinationModule, FormDestinationR
  *
  * A plugin opts in by shipping {@link FORM_DESTINATIONS_FILENAME} at its root: a data-only list of
  * `{ id, label, module, receive?, hosts?, credentialLabel? }`. `module` is a plain-JS `.mjs` file
- * inside the plugin whose default export is a `FormDestinationModule` (`./types.ts`).
+ * inside the plugin whose default export is a `FormDestinationModule` (`@jini-ai/cms/forms`).
  *
  * TRUST RULE (fail closed), the shared gate in `Jini packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts`: a
  * module runs in this process, so it loads only when the plugin is ACTIVE, its installed digest is
