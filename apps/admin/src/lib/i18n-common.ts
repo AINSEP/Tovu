@@ -8,10 +8,10 @@
  * dictionary first, this app's own entries last, so a host entry always wins a key collision.
  *
  * A feature dictionary looks up its own keys first; only falls back here on a miss (see
- * `createDictionaryTranslator` in `@jini-ai/core/text`). Adding a new language means a block in
- * `ADMIN_COMMON_I18N` plus a row in `HOST_COMMON_I18N` below — the composition throws if either side
- * is missing the locale, so a half-added language fails at module load instead of silently showing
- * English.
+ * `createDictionaryTranslator` in `@jini-ai/core/text`). Tovu's locale rows below govern which
+ * locales are exposed, and in what order. Adding a new language means a row in
+ * `OLDER_DESTINATION_I18N` below plus a block in `ADMIN_COMMON_I18N`: a Tovu locale missing from Jini
+ * throws at module load, so a half-added language fails loudly instead of silently showing English.
  *
  * This does NOT cover the Settings dialog's own content (tab names, form labels inside it) — that
  * ships as a SEPARATE dictionary in the `@jini-ai/ui` package this app depends on
@@ -53,27 +53,13 @@ const OLDER_DESTINATION_I18N: Record<string, string> = {
   bn: "পুরনো Tovu সংস্করণে আছে এবং এখনো এগুলো ওভাররাইট করতে পারে না। এটি আপডেট করুন, তারপর আবার প্রকাশ করুন।",
 };
 
-const HOST_COMMON_I18N: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(OLDER_DESTINATION_I18N).map(([locale, value]) => [locale, { [OLDER_DESTINATION_KEY]: value }]),
+/** Per Tovu locale row: the matching Jini locale spread first, the branded entry last, so the
+ *  branded entry wins a key collision. Built inline rather than through an exported helper: the
+ *  merge rule itself is product-neutral, and a neutral helper belongs in Jini, not in a host. */
+export const COMMON_I18N: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(OLDER_DESTINATION_I18N).map(([locale, olderDestination]) => {
+    const jiniEntries = ADMIN_COMMON_I18N[locale];
+    if (jiniEntries === undefined) throw new Error(`common dictionary ${locale} is missing from @jini-ai/admin`);
+    return [locale, { ...jiniEntries, [OLDER_DESTINATION_KEY]: olderDestination }];
+  }),
 );
-
-/** Lays a host's own entries over the package's generic dictionary, per locale. The host's locale
- *  set and order win (a locale the host lists but the package lacks throws, so a half-added language
- *  fails at module load); within a locale the host entry wins a key collision. */
-export function composeCommonDictionary(
-  { generic, host }: { generic: Record<string, Record<string, string>>; host: Record<string, Record<string, string>> },
-  _optional: Record<string, never> = {},
-): Record<string, Record<string, string>> {
-  return Object.fromEntries(
-    Object.entries(host).map(([locale, hostEntries]) => {
-      const genericEntries = generic[locale];
-      if (genericEntries === undefined) throw new Error(`common dictionary ${locale} is missing from @jini-ai/admin`);
-      return [locale, { ...genericEntries, ...hostEntries }];
-    }),
-  );
-}
-
-export const COMMON_I18N: Record<string, Record<string, string>> = composeCommonDictionary({
-  generic: ADMIN_COMMON_I18N,
-  host: HOST_COMMON_I18N,
-});
