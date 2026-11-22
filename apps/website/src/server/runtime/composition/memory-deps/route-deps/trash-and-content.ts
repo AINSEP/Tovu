@@ -12,7 +12,7 @@ import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 import { createInMemoryAgentSessionStore, createInMemoryConversationToolApprovalStore, resolvePublicAssistantAvailability } from "../../../../../assistant/index.js";
 import { getEffective, set, INSTRUCTIONS_NAMESPACE } from "#src/features/settings/index";
 import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { composeVisitorToolsManagement } from "../../visitor-tools-management.js";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
 

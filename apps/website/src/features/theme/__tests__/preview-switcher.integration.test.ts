@@ -6,7 +6,7 @@ import { join } from "node:path";
 import test, { type TestContext } from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { createSettingsPrincipalLookup, type SetValueRequired } from "#src/features/settings/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { exportSite } from "#src/features/site-export/site-exporter";

@@ -31,7 +31,7 @@ import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-m
 import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { resolvePublicAssistantAvailability } from "../../../../assistant/index.js";
 import { set } from "#src/features/settings/index";
 import { compositionSharedOAuth } from "./shared-oauth-commerce.js";

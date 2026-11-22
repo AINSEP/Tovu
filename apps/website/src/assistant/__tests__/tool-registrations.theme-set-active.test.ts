@@ -13,7 +13,8 @@ import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { discoverAllBuiltInThemes, themeRosterPorts } from "#src/features/theme/index";
 import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
-import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
+import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import {
   buildSetActiveThemeRegistrations,
   contributeSetActiveThemeTools,

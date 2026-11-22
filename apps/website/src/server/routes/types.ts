@@ -1355,7 +1355,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   resolveStorefrontProducts: () => Promise<SiteProduct[]>;
   /**
-   * The same `resolveActiveThemeId` (`features/presentation/active-theme-id.ts`) the live public
+   * The same `resolveActiveThemeId` (`@jini-ai/cms/presentation/site/active-theme-id`) the live public
    * routes resolve the active theme with, injected here for `features/site-export/route-manifest.ts` to
    * reuse — mirroring `resolveStorefrontProducts`/`createSiteApp` immediately above, but for a
    * different reason: `resolveActiveThemeId` has no `server/**`-only type to avoid (unlike

@@ -5,7 +5,7 @@ import test, { type TestContext } from "node:test";
 import { bootSite } from "#src/server/__tests__/helpers/unrun-site-boot";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { resolveActiveTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";

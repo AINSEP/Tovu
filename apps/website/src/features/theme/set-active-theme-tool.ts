@@ -10,11 +10,11 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 import type { ToolContributor } from "@jini-ai/core";
 import {
-  resolveActiveThemeId,
   setActiveTheme,
   PresentationSettingsValidationError,
   type PresentationSettingsRepoPort,
 } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 
 import { writableThemeIds, ThemeStylingRequiredError } from "./active-theme.js";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";

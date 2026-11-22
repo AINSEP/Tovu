@@ -2,7 +2,7 @@
  * @file Public presentation surface from @jini-ai/cms/presentation.
  * Presentation owns workspace theme identity, separate from settings' definitions/value ledger.
  * Host SQLite adapters bind the site's schema; route requirements remain host documentation.
- * active-theme-id.ts supplies one fallback answer shared by live pages, export and preview.
+ * @jini-ai/cms/presentation/site/active-theme-id supplies one fallback answer shared by live pages, export and preview.
  * The host composition root imports SqlitePresentationSettingsRepo through this barrel;
  * the generic package barrel omits SQLite adapters.
  */
@@ -21,7 +21,5 @@ export {
 } from "@jini-ai/cms/presentation";
 
 export { SqlitePresentationSettingsRepo } from "./repo.sqlite.js";
-
-export { resolveActiveThemeId, type ActiveThemeIdResolutionDeps } from "./active-theme-id.js";
 
 export { setActiveTheme, type SetActiveThemeRequired } from "./set-active-theme.js";

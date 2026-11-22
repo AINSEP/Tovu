@@ -6,7 +6,8 @@ import test from "node:test";
 
 import { ToolInputError } from "@jini-ai/core";
 
-import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
+import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";

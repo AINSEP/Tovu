@@ -39,7 +39,7 @@ export function themeIdCandidates({ id }: { id: string }, _optional = {}): strin
  * the optional-theme feature, where they intend to handle styling themselves.
  *
  * NOT the empty string, deliberately, even though `""` would have needed no thought. `""` is
- * ALREADY taken: `features/presentation/active-theme-id.ts`'s `resolveActiveThemeId` returns it for
+ * ALREADY taken: `@jini-ai/cms/presentation/site/active-theme-id`'s `resolveActiveThemeId` returns it for
  * "this workspace has no `presentation_settings` row yet" (a freshly created workspace, or a
  * `content.db` mid-seed), and its own doc defines that as "fall back". Spelling the deliberate
  * choice `""` too would have made an unwritten workspace render THEMELESS instead of on the default

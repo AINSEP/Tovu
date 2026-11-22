@@ -32,7 +32,7 @@ import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
 import { readAdminChartProviderSnapshot } from "../chart-providers.js";
 import { removeEntityWithoutBlocker } from "#src/features/trash/index";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { resolveExportOutputRootDir } from "../site-paths.js";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a

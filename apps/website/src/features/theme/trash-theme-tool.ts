@@ -4,7 +4,7 @@ import type { RemoveEntity, TrashActor, TrashMarkerResult } from "@jini-ai/cms/t
 import { nowIso } from "@jini-ai/core/primitives";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "@jini-ai/core";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import type { TrashKindMover } from "#src/features/trash/index";
 
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";

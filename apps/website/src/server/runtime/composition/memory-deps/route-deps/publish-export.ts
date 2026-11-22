@@ -13,7 +13,7 @@ import { resolveExportOutputRootDir, resolvePublishOutputRootDir, bundledAgentPl
 import { describeSiteBinding } from "#src/platform/site-dir/index";
 import { isAdminAssistantEnabled } from "../../admin-assistant-enabled.js";
 import { resolveStorefrontProducts } from "../../../../inbound/public-http/routes/site/products.js";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "@jini-ai/cms/presentation/site/active-theme-id";
 import { listPublishedPosts } from "#src/features/post/index";
 import { InMemoryPublishHistoryStore, InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";

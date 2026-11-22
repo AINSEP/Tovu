@@ -64,7 +64,7 @@ export interface ActiveThemeResolutionDeps {
  * entire meaning is step 2 of {@link resolveActiveTheme} directly below — the pair has to be read
  * together to be understood, and a reader of the layout leaf has nothing there to say what "default"
  * means. It must stay inside `features/theme` (not `features/presentation`) for the measured reason
- * `features/presentation/active-theme-id.ts`'s own header records: `features/presentation` is inside
+ * `@jini-ai/cms/presentation/site/active-theme-id`'s own header records: `features/presentation` is inside
  * the pre-existing 36-module SCC and `features/theme` is not, so a constant consumed by
  * `resolveActiveTheme` must not create that edge.
  */

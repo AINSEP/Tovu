@@ -171,7 +171,7 @@ test("the sentinel's exact spelling is pinned — `apps/admin` mirrors this lite
 });
 
 test("the sentinel is not the empty string — `\"\"` already means something else", () => {
-  // `features/presentation/active-theme-id.ts` returns `""` for "this workspace has no
+  // `@jini-ai/cms/presentation/site/active-theme-id` returns `""` for "this workspace has no
   // presentation_settings row yet", and its own doc defines that as "fall back". If the deliberate
   // no-theme sentinel were also `""`, a workspace that had simply never been written would render
   // themeless instead of on the default theme — state 3 arriving where state 2 belongs.
