@@ -300,7 +300,7 @@ The admin `members` and `users` screens are in lane A.
 | the `server` preset's 8 edges and the `sqlite`/`infra` shims' 5 | 13 |
 | **the remaining "~16" (14 pairs)** | 14 |
 
-The gate (`scripts/check-no-cross-package.ts:73-77`, base pinned at `35c4961af`) only blocks **new** edges. These existing ones are debt, not failures. **Option C, as I read the reports** (`xpkg-r13b-r3b.md:42` keeps "23 allowed-optionC imports" under `user-management/src/admin/react/**`): kit imports into the admin React layer stay. Everything else gets one of three fixes:
+The gate (Jini `scripts/check-no-cross-package.ts:74-84`, base pinned at `35c4961af` in the root `check:cross-package` script) only blocks **new** edges. These existing ones are debt, not failures. **Option C, as I read the reports** (Tovu `cloud-results/xpkg-r13b-r3b.md:42` keeps "23 allowed-optionC imports" under `user-management/src/admin/react/**`): kit imports into the admin React layer stay. Everything else gets one of three fixes:
 - (a) move the pure contract into `@jini-ai/core`;
 - (b) take the collaborator through the existing `required`/`_optional` args;
 - (c) move the importing file into the target package.
@@ -335,7 +335,7 @@ Each XC step must leave `pnpm check:cross-package` with fewer pairs and no new o
 - **RT-3, `commerce-server.mjs` (45 min).**
   - Delete `packages/agent-plugins/core/commerce-server.{mjs,d.ts}`, the export `./commerce/server` (`package.json:266-268`), the assertions in `commerce/__tests__/bundled-package.test.mjs:13,20`, the three `scripts/injection-debt.json:4-6` rows and the `api-baseline/jini-ai__agent-plugins.json:193` entry. Reword `scripts/check-package-layers.ts:131`.
   - Tovu imports commerce straight from `@jini-ai/commerce` (`server/runtime/composition/commerce.ts:13`), so nothing breaks.
-  - Drop the `@jini-ai/commerce` optional peer if nothing else uses it. That was the STOP in `wave1-xpkg-G-STALE-DEPS.md:24`; the owner's retire order resolves it.
+  - Drop the `@jini-ai/commerce` optional peer if nothing else uses it. That was the STOP in Jini `cloud-results/wave1-xpkg-G-STALE-DEPS.md:24`; the owner's retire order resolves it.
 
 ### Lane SEC — Tovu security → Jini `admin/security` (swap, not move)
 
