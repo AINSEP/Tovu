@@ -2744,6 +2744,26 @@
     {
       "id": "f61d0bf8cd44",
       "reason": "Moved verbatim to Jini @jini-ai/cms/presentation/site/active-theme-id.ts resolveActiveThemeId doc (Jini 1ee707247, C-presentation-1.J); host caller paths reworded neutral per N2."
+    },
+    {
+      "id": "137f75d8594c",
+      "reason": "Moved to Jini @jini-ai/devops/deploy/site/types (Jini d2e038d1f), reworded neutral (\"The host's own normalized run status\"); the Tovu file was deleted."
+    },
+    {
+      "id": "d572cf643cf6",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/peer-url header (Jini f6758fe00), reworded neutral (\"a host instance at a URL\"); the Tovu file was deleted."
+    },
+    {
+      "id": "00329c9f622a",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/peer-url normalizePeerBaseUrl doc (Jini f6758fe00), reworded neutral (/site prefix, site.example.com example); the Tovu file was deleted."
+    },
+    {
+      "id": "bc828ddd55cc",
+      "reason": "Moved to Jini @jini-ai/cms/publish/content/publish-readiness header (Jini f5be6cb7c), test path citation reworded to name the host test in words (N2); the Tovu file was deleted."
+    },
+    {
+      "id": "4e242caacc1b",
+      "reason": "Moved to Jini @jini-ai/devops/source-control/site/credential-form header (Jini d2e038d1f), registry path citation reworded to name the host registry in words; the Tovu file was deleted."
     }
   ]
 }
