@@ -1,6 +1,6 @@
 # X-webhooks-1 — webhooks → @jini-ai/integrations (Jini step J then Tovu step T)
 
-Lane X. Batch J:11 T:14. Depends on: none (only already-Jini code). Est: J 43 min, T 37 min.
+Lane X. Batch J:13 T:15. Depends on: none (only already-Jini code). Est: J 43 min, T 37 min.
 
 ## J — move verbatim into Jini (4 files, 450 LOC)
 

@@ -1,6 +1,6 @@
 # X-comments-1 — comments → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:11 T:12. Depends on: C-contracts-core-2. Est: J 36 min, T 17 min.
+Lane X. Batch J:10 T:11. Depends on: C-contracts-core-2. Est: J 36 min, T 17 min.
 
 ## J — move verbatim into Jini (2 files, 104 LOC)
 

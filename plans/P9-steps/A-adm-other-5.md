@@ -1,6 +1,6 @@
 # A-adm-other-5 — adm-other → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:34 T:35. Depends on: A-adm-shell-lib-3, A-adm-other-2, A-adm-shell-components-1. Est: J 81 min, T 43 min.
+Lane A. Batch J:33 T:34. Depends on: A-adm-shell-lib-3, A-adm-other-2, A-adm-shell-components-1. Est: J 81 min, T 43 min.
 
 ## J — move verbatim into Jini (14 files, 808 LOC)
 

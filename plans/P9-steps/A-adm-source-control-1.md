@@ -1,6 +1,6 @@
 # A-adm-source-control-1 — adm-source-control → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:30 T:31. Depends on: A-adm-shell-lib-3. Est: J 28 min, T 16 min.
+Lane A. Batch J:31 T:32. Depends on: A-adm-shell-lib-3. Est: J 28 min, T 16 min.
 
 ## J — move verbatim into Jini (1 files, 7 LOC)
 

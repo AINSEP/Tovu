@@ -1,6 +1,6 @@
 # X-fs-files-1 — fs-files → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:17 T:18. Depends on: none (only already-Jini code). Est: J 37 min, T 24 min.
+Lane X. Batch J:16 T:17. Depends on: none (only already-Jini code). Est: J 37 min, T 24 min.
 
 ## J — move verbatim into Jini (2 files, 408 LOC)
 

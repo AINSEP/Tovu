@@ -1,6 +1,6 @@
 # X-widgets-1 — widgets → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:8 T:10. Depends on: none (only already-Jini code). Est: J 34 min, T 16 min.
+Lane X. Batch J:7 T:8. Depends on: none (only already-Jini code). Est: J 34 min, T 16 min.
 
 ## J — move verbatim into Jini (1 files, 15 LOC)
 

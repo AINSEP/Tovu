@@ -1,6 +1,6 @@
 # X-webmcp-1 — webmcp → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:18 T:19. Depends on: none (only already-Jini code). Est: J 31 min, T 20 min.
+Lane X. Batch J:17 T:18. Depends on: none (only already-Jini code). Est: J 31 min, T 20 min.
 
 ## J — move verbatim into Jini (2 files, 62 LOC)
 

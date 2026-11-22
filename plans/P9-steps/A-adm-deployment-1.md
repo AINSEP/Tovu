@@ -1,6 +1,6 @@
 # A-adm-deployment-1 — adm-deployment → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:29 T:30. Depends on: A-adm-shell-lib-3, A-adm-other-2. Est: J 31 min, T 17 min.
+Lane A. Batch J:31 T:32. Depends on: A-adm-shell-lib-3, A-adm-other-2. Est: J 31 min, T 17 min.
 
 ## J — move verbatim into Jini (2 files, 24 LOC)
 

@@ -5,6 +5,9 @@ import path from 'node:path';
 const g = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const OUT = process.argv[3]; const QUIET = !!process.env.QUIET;
 fs.mkdirSync(path.join(OUT, 'steps'), { recursive: true });
+const ROOT = process.env.ROOT || '/home/user/tv12';
+const srcOf = (f) => { try { return fs.readFileSync(path.join(ROOT, f), 'utf8'); } catch { return ''; } };
+function shellKind(f) { const raw = srcOf(f); const s = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''); const stm = s.split(/;\s*\n|\n(?=\s*(?:export|import)\b)/).map((x) => (x || '').trim()).filter(Boolean); const re = stm.filter((x) => /^export\s+(type\s+)?(\*|\{[\s\S]*?\})\s+from\s+["']@jini-ai\//.test(x)); if (re.length && re.length === stm.filter((x) => !/^import\s/.test(x)).length) return 'shell'; if (re.length && /compatibility adapter|deprecated compat/i.test(raw)) return 'adapter'; return null; }
 const W = 'apps/website/src/';
 const A = 'apps/admin/src/';
 // ---- areas: id, lane, src prefix, Jini package, Jini dir under packages/<pkg>/src/
@@ -135,11 +138,11 @@ function keepReason(f) { for (const [re, why] of KEEP_RULES) if (re.test(f)) ret
 // ---- classify
 const files = Object.keys(g).filter((f) => !g[f].isTest && /\.(ts|tsx|mjs|css)$/.test(f));
 const P = new Map(); // moving set: f -> placement
-const KEEP = new Map();
-for (const f of files) { const p = placement(f); if (!p) continue; const k = keepReason(f); if (k) { KEEP.set(f, { area: p.area, why: k }); continue; } P.set(f, p); }
+const KEEP = new Map(); const SHELL = new Map();
+for (const f of files) { const p = placement(f); if (!p) continue; const k = keepReason(f); if (k) { KEEP.set(f, { area: p.area, why: k }); continue; } const sk = /\.tsx?$/.test(f) ? shellKind(f) : null; if (sk) { SHELL.set(f, { area: p.area, kind: sk }); continue; } P.set(f, p); }
 // blockers: deps on Tovu files that are not moving
 const VIRT=(process.env.VIRTUAL||'').split(',').filter(Boolean); const IGX=(process.env.IGNORE_XP||'').split(',').filter(Boolean);
-const isVirt=(t)=>VIRT.some(v=>t.startsWith(v));
+const isVirt=(t)=>VIRT.some(v=>t.startsWith(v)) || SHELL.has(t);
 const directBlock = new Map();
 const xp = new Map(); // cross-package edges that would be new in Jini
 for (const [f, p] of P) {
@@ -179,9 +182,8 @@ for (const [f, v] of Object.entries(g)) for (const i of v.imps) if (i.to) { if (
 for (const [f, p] of P) if ((importers.get(f) || []).some((im) => /server\/runtime\//.test(im.from) && !g[im.from].isTest)) bump(p.area[0], 'comp');
 // ---- steps: chunk ready files per area by level
 const LIM_FILES = 14, LIM_LOC = 1600, LIM_IMP = 140;
-const ROOT = process.env.ROOT || '/home/user/tv12';
 const impCount = (f) => (importers.get(f) || []).length;
-const srcOf = (f) => { try { return fs.readFileSync(path.join(ROOT, f), 'utf8'); } catch { return ''; } };
+
 const steps = [];
 const stepOf = new Map();
 for (const a of AREAS) {
@@ -263,13 +265,14 @@ for (const s of steps) {
   L.push(`# ${s.id} — ${s.area[0]} → @jini-ai/${s.area[3]} (Jini step J then Tovu step T)`, '');
   L.push(`Lane ${s.lane}. Batch ${s.batch ?? 'later'}. Depends on: ${[...s.deps].join(', ') || 'none (only already-Jini code)'}. Est: J ${s.estJ} min, T ${s.estT} min.`, '');
   L.push(`## J — move verbatim into Jini (${s.files.length} files, ${s.loc} LOC)`, '', '| Tovu source | Jini destination | LOC | flags |', '|---|---|---|---|');
-  for (const f of s.files) L.push(`| \`${f}\` | \`${P.get(f).dest}\` | ${g[f].loc} | ${g[f].tovuWords ? 'W' + g[f].tovuWords : ''} |`);
+  for (const f of s.files) { const col = fs.existsSync(path.join(process.env.JROOT || '/home/user/j12', P.get(f).dest)); if (col) (s.col ||= []).push(f); L.push(`| \`${f}\` | \`${P.get(f).dest}\` | ${g[f].loc} | ${[g[f].tovuWords ? 'W' + g[f].tovuWords : '', col ? 'COLLISION' : ''].filter(Boolean).join(' ')} |`); }
   L.push('', '**package.json export entries** (dist triple `types`/`import`/`default`, same shape as the neighbours):', ...[...s.exports].sort().map((e) => '- ' + e), s.exports.size ? '' : '- none (no Tovu importer outside this step)', '');
   L.push('**Relative imports inside moved files**: rewrite each `../..`/`#src/`/`@/` specifier that pointed at a file moved in this or an earlier step to the relative path between the two Jini destinations (`.js` suffix); a `@jini-ai/<same package>/x` import becomes relative. Nothing else in the file changes.', '');
   L.push(`## Tests that move with the code (${s.testsMove.length}, ${s.testLoc} LOC) → Jini \`__tests__/\` beside the destination`, ...s.testsMove.map((t) => `- \`${t}\``), s.testsMove.length ? '' : '- none: write characterization tests first in Jini for the moved behaviour (tests-first)', '');
   L.push(`## T — Tovu repoint: delete the ${s.files.length} sources, rewrite every importer (${s.imp.length} lines)`, '', '```', ...s.imp, '```', '');
   L.push(`## Tovu tests that must stay green (${s.testsStay.size}; import lines are repointed above, assertions untouched)`, ...[...s.testsStay].sort().map((t) => `- \`${t}\``), '');
   if (s.words.length) L.push(`## Tovu words (Jini guard N1 fails on /tovu/i, comments included)`, ...s.words.map((f) => `- \`${f}\` (${g[f].tovuWords})`), 'Comments: replace the product name with "the host" and keep every why-sentence. Literals (`data-tovu-*`, `.tovu/`, `TOVU_*`, `tovu-*` ids): rename to the `jini` form in Jini and add one row per literal to `plans/P9-BREAKS.md`; never inject a product string from Tovu.', '');
+  if (s.col?.length) L.push('## COLLISION — Jini already has a file at the destination', ...s.col.map((f) => `- \`${f}\` → \`${P.get(f).dest}\`: diff the two first. Same behaviour → this is a leftover duplicate: delete the Tovu copy and repoint its importers to the existing Jini export (no move). Different → STOP and report the diff (do not merge behaviours).`), '');
   if (s.n2?.length) L.push('## Neutrality N2 (no `apps/website|admin|desktop` or `#src/` text in Jini, comments included)', ...s.n2.map((f) => `- \`${f}\`: reword each comment path citation to name the host module in words ("the host\'s theme routes"), keeping the why`), '');
   if (s.breaks?.length) L.push('## Product literals → BREAKS ledger (rename to the jini form; one row each in plans/P9-BREAKS.md)', '```', ...s.breaks, '```', '');
   if (s.hk?.length) L.push('## Hook-injection gate (Jini `check:hook-injection`)', ...s.hk.map((f) => `- \`${f}\` imports a custom hook module directly; in Jini the hook must arrive as a prop from the host (owner CI rule). Keep the hook file beside it; the Tovu screen that renders it passes the hook. If that needs more than a prop added at the single call site, STOP and report.`), '');
@@ -278,6 +281,9 @@ for (const s of steps) {
   L.push('## Named mutation', s.mutation, '');
   fs.writeFileSync(path.join(OUT, 'steps', s.id + '.md'), L.join('\n'));
 }
+{ const L = ['# SH — delete Tovu re-export shells / compat adapters of Jini (owner: no re-export shells)', '', 'For each file: every importer line below imports names the shell re-exports from Jini. Replace the specifier with the Jini specifier the shell re-exports those names from (shown per shell); if one import pulls names from two Jini specifiers, split it into two import lines. Then delete the shell. **adapter** files also hold host values (product constants such as transfer schema names): move ONLY the re-export lines out (importers import Jini directly), keep the host constants in the file, and delete the file only if nothing else remains.', ''];
+  for (const [f, v] of [...SHELL].sort()) { const src = srcOf(f); const specs = [...src.matchAll(/from\s*["'](@jini-ai\/[^"']+)["']/g)].map((m) => m[1]); L.push(`## \`${f}\` (${v.kind}, ${g[f].loc} LOC) → ${[...new Set(specs)].map((x) => '`' + x + '`').join(', ')}`, '```'); for (const im of importers.get(f) || []) L.push(`${im.from}:${im.line}  '${im.spec}'${g[im.from].isTest ? '  (test)' : ''}`); L.push('```', ''); }
+  fs.writeFileSync(path.join(OUT, 'steps', 'SH-shells-1.md'), L.join('\n')); fs.writeFileSync(path.join(OUT, 'shells.json'), JSON.stringify([...SHELL].map(([f, v]) => ({ f, ...v, area: v.area[0], imps: (importers.get(f) || []).length })))); }
 fs.writeFileSync(path.join(OUT, 'breaks.txt'), steps.flatMap((s) => (s.breaks || []).map((b) => s.id + ' | ' + b)).join('\n'));
 fs.writeFileSync(path.join(OUT, 'items.json'), JSON.stringify(items.map((it) => ({ id: it.id, lane: it.s.lane, repo: it.kind === 'J' ? 'Jini' : 'Tovu', files: it.s.files.length, loc: it.s.loc, deps: it.kind === 'J' ? [...it.s.deps].map((d) => d + '.J') : [it.s.id + '.J'], batch: it.batch, est: it.kind === 'J' ? it.s.estJ : it.s.estT, area: it.s.area[0], pkg: it.s.area[3], imp: it.s.imp.length }))));
 console.log('moving', P.size, 'ready', ready.length, 'blocked', blockedList.length, 'keep', KEEP.size, 'steps', steps.length, 'batches', batches.length, 'unbatched', left.length);

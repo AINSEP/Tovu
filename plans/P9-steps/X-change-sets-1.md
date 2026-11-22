@@ -1,6 +1,6 @@
 # X-change-sets-1 — change-sets → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:16 T:18. Depends on: none (only already-Jini code). Est: J 29 min, T 19 min.
+Lane X. Batch J:15 T:17. Depends on: none (only already-Jini code). Est: J 29 min, T 19 min.
 
 ## J — move verbatim into Jini (1 files, 108 LOC)
 

@@ -1,6 +1,6 @@
 # X-permanent-delete-1 — permanent-delete → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:15 T:17. Depends on: none (only already-Jini code). Est: J 28 min, T 25 min.
+Lane X. Batch J:14 T:15. Depends on: none (only already-Jini code). Est: J 28 min, T 25 min.
 
 ## J — move verbatim into Jini (1 files, 35 LOC)
 

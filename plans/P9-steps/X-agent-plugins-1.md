@@ -1,8 +1,8 @@
 # X-agent-plugins-1 — agent-plugins → @jini-ai/agent-plugins (Jini step J then Tovu step T)
 
-Lane X. Batch J:19 T:20. Depends on: none (only already-Jini code). Est: J 88 min, T 107 min.
+Lane X. Batch J:19 T:20. Depends on: none (only already-Jini code). Est: J 79 min, T 65 min.
 
-## J — move verbatim into Jini (13 files, 867 LOC)
+## J — move verbatim into Jini (12 files, 853 LOC)
 
 | Tovu source | Jini destination | LOC | flags |
 |---|---|---|---|
@@ -14,7 +14,6 @@ Lane X. Batch J:19 T:20. Depends on: none (only already-Jini code). Est: J 88 mi
 | `apps/website/src/features/agent-plugins/deploy-split-activation.ts` | `packages/agent-plugins/src/site/deploy-split-activation.ts` | 30 |  |
 | `apps/website/src/features/agent-plugins/descriptor-i18n.ts` | `packages/agent-plugins/src/site/descriptor-i18n.ts` | 23 |  |
 | `apps/website/src/features/agent-plugins/executable-tools/approval-bindings.ts` | `packages/agent-plugins/src/site/executable-tools/approval-bindings.ts` | 8 |  |
-| `apps/website/src/features/agent-plugins/mcp-metadata.ts` | `packages/agent-plugins/src/site/mcp-metadata.ts` | 14 | W2 |
 | `apps/website/src/features/agent-plugins/memory-i18n.ts` | `packages/agent-plugins/src/site/memory-i18n.ts` | 172 |  |
 | `apps/website/src/features/agent-plugins/executable-tools/approval.ts` | `packages/agent-plugins/src/site/executable-tools/approval.ts` | 10 |  |
 | `apps/website/src/features/agent-plugins/retired-plugin-tool-aliases.ts` | `packages/agent-plugins/src/site/retired-plugin-tool-aliases.ts` | 52 |  |
@@ -30,7 +29,6 @@ Lane X. Batch J:19 T:20. Depends on: none (only already-Jini code). Est: J 88 mi
 - "@jini-ai/agent-plugins" exports["./site/descriptor-i18n"]
 - "@jini-ai/agent-plugins" exports["./site/executable-tools/approval"]
 - "@jini-ai/agent-plugins" exports["./site/executable-tools/approval-bindings"]
-- "@jini-ai/agent-plugins" exports["./site/mcp-metadata"]
 - "@jini-ai/agent-plugins" exports["./site/memory-i18n"]
 - "@jini-ai/agent-plugins" exports["./site/retired-plugin-tool-aliases"]
 - "@jini-ai/agent-plugins" exports["./site/soon-lock"]
@@ -38,20 +36,17 @@ Lane X. Batch J:19 T:20. Depends on: none (only already-Jini code). Est: J 88 mi
 
 **Relative imports inside moved files**: rewrite each `../..`/`#src/`/`@/` specifier that pointed at a file moved in this or an earlier step to the relative path between the two Jini destinations (`.js` suffix); a `@jini-ai/<same package>/x` import becomes relative. Nothing else in the file changes.
 
-## Tests that move with the code (10, 1104 LOC) → Jini `__tests__/` beside the destination
+## Tests that move with the code (7, 555 LOC) → Jini `__tests__/` beside the destination
 - `apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/capabilities.unit.test.ts`
 - `apps/website/src/features/agent-plugins/admin-surfaces/__tests__/unit/forms.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/bundled-catalog.pointer.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/bundled-id-upgrade.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/manifest.default-tools-read.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/bundled-site-compliance-package.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/manifest.unit.test.ts`
 - `apps/website/src/features/agent-plugins/executable-tools/__tests__/unit/approval.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/retired-plugin-tool-aliases.unit.test.ts`
 
 
-## T — Tovu repoint: delete the 13 sources, rewrite every importer (82 lines)
+## T — Tovu repoint: delete the 12 sources, rewrite every importer (52 lines)
 
 ```
 apps/website/src/features/agent-plugins/executable-tools/__tests__/capability-lifetime.security.test.ts:22  '../../admin-surfaces/capabilities.js' -> '@jini-ai/agent-plugins/site/admin-surfaces/capabilities'
@@ -92,36 +87,6 @@ apps/website/src/features/agent-plugins/lifecycle.ts:28  './deploy-split-activat
 apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts:9  '../../descriptor-i18n.js' -> '@jini-ai/agent-plugins/site/descriptor-i18n'
 apps/website/src/features/source-control/provider-registry.ts:7  '#src/features/agent-plugins/descriptor-i18n' -> '@jini-ai/agent-plugins/site/descriptor-i18n'
 apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts:16  './approval-bindings.js' -> '@jini-ai/agent-plugins/site/executable-tools/approval-bindings'
-apps/website/src/assistant/__tests__/external-mcp-connection-source.operator-read-only.test.ts:11  '../../features/agent-plugins/mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts:26  '../../features/agent-plugins/mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-pipeline.integration.test.ts:14  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts:19  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts:18  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts:19  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/apply-tool-renames.unit.test.ts:15  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/bundled-composio-package.unit.test.ts:8  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts:20  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-package.unit.test.ts:7  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:8  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/bundled-search-meilisearch.unit.test.ts:22  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/bundled-site-import-package.unit.test.ts:14  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts:8  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/capability-projection.unit.test.ts:13  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts:29  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/declined-access.unit.test.ts:10  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts:12  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts:23  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts:26  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts:23  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/portable-readers.unit.test.ts:3  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/token-sign-in.unit.test.ts:8  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/__tests__/unit/tw2-L224-characterization.unit.test.ts:7  '../../mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/capability-projection.ts:9  './mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/capability-projection.ts:10  './mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/connect-tool.ts:23  './mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/features/agent-plugins/federate-mcp.ts:16  './mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/server/__tests__/admin-supabase-token-no-agent.test.ts:16  '../../features/agent-plugins/mcp-metadata.js' -> '@jini-ai/agent-plugins/site/mcp-metadata'
-apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts:13  '#src/features/agent-plugins/mcp-metadata' -> '@jini-ai/agent-plugins/site/mcp-metadata'
 apps/website/src/features/agent-plugins/__tests__/unit/memory-i18n.unit.test.ts:5  '../../memory-i18n.js' -> '@jini-ai/agent-plugins/site/memory-i18n'
 apps/website/src/features/agent-plugins/uninstall-confirmation-ui.ts:1  './memory-i18n.js' -> '@jini-ai/agent-plugins/site/memory-i18n'
 apps/website/src/assistant/__tests__/moved-tools.golden.test.ts:28  '../../features/agent-plugins/executable-tools/approval.js' -> '@jini-ai/agent-plugins/site/executable-tools/approval'
@@ -138,48 +103,24 @@ apps/website/src/server/runtime/boot/bootstrap.ts:6  '#src/features/agent-plugin
 apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts:17  '#src/features/agent-plugins/soon-lock' -> '@jini-ai/agent-plugins/site/soon-lock'
 ```
 
-## Tovu tests that must stay green (43; import lines are repointed above, assertions untouched)
-- `apps/website/src/assistant/__tests__/external-mcp-connection-source.operator-read-only.test.ts`
-- `apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts`
+## Tovu tests that must stay green (19; import lines are repointed above, assertions untouched)
 - `apps/website/src/assistant/__tests__/moved-tools.golden.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-pipeline.integration.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/a10b-connect-seam.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/apply-tool-renames.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/bundled-composio-package.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-package.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/bundled-kuinetic-package.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/bundled-search-meilisearch.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/bundled-site-import-package.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/bundled-software-engineering-package.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/capability-projection.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/declined-access.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/deploy-split-activation.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/memory-i18n.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/plugin-credential-cards.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/portable-readers.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/retire-bundled.unit.test.ts`
 - `apps/website/src/features/agent-plugins/__tests__/unit/soon-lock.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/token-sign-in.unit.test.ts`
-- `apps/website/src/features/agent-plugins/__tests__/unit/tw2-L224-characterization.unit.test.ts`
 - `apps/website/src/features/agent-plugins/executable-tools/__tests__/capability-lifetime.security.test.ts`
 - `apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.security.test.ts`
 - `apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts`
 - `apps/website/src/features/deployments/deploy-targets/__tests__/vendor-scan.ts`
-- `apps/website/src/server/__tests__/admin-supabase-token-no-agent.test.ts`
-- `apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts`
 - `apps/website/src/server/runtime/boot/__tests__/bootstrap-reporting.unit.test.ts`
 - `development/scripts/__tests__/bundled-agent-plugin-selection.test.ts`
 
@@ -188,7 +129,6 @@ apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts:17  '#
 - `apps/website/src/features/agent-plugins/admin-surfaces/public-config.ts` (3)
 - `apps/website/src/features/agent-plugins/bundled-catalog.ts` (22)
 - `apps/website/src/features/agent-plugins/bundled-id-upgrade.ts` (10)
-- `apps/website/src/features/agent-plugins/mcp-metadata.ts` (2)
 - `apps/website/src/features/agent-plugins/soon-lock.ts` (2)
 Comments: replace the product name with "the host" and keep every why-sentence. Literals (`data-tovu-*`, `.tovu/`, `TOVU_*`, `tovu-*` ids): rename to the `jini` form in Jini and add one row per literal to `plans/P9-BREAKS.md`; never inject a product string from Tovu.
 

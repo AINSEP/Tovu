@@ -1,13 +1,12 @@
 # X-database-1 — database → @jini-ai/db (Jini step J then Tovu step T)
 
-Lane X. Batch J:20 T:22. Depends on: C-contracts-core-7. Est: J 43 min, T 28 min.
+Lane X. Batch J:21 T:23. Depends on: C-contracts-core-7. Est: J 38 min, T 23 min.
 
-## J — move verbatim into Jini (4 files, 48 LOC)
+## J — move verbatim into Jini (3 files, 44 LOC)
 
 | Tovu source | Jini destination | LOC | flags |
 |---|---|---|---|
 | `apps/website/src/features/database/db-messages.ts` | `packages/db/src/site/db-messages.ts` | 23 | W3 |
-| `apps/website/src/features/database/timeline.ts` | `packages/db/src/site/timeline.ts` | 4 |  |
 | `apps/website/src/features/database/agent-tools.ts` | `packages/db/src/site/agent-tools.ts` | 10 | W3 |
 | `apps/website/src/features/database/gated-hooks.ts` | `packages/db/src/site/gated-hooks.ts` | 11 | W1 |
 
@@ -15,27 +14,19 @@ Lane X. Batch J:20 T:22. Depends on: C-contracts-core-7. Est: J 43 min, T 28 min
 - "@jini-ai/db" exports["./site/agent-tools"]
 - "@jini-ai/db" exports["./site/db-messages"]
 - "@jini-ai/db" exports["./site/gated-hooks"]
-- "@jini-ai/db" exports["./site/timeline"]
 
 
 **Relative imports inside moved files**: rewrite each `../..`/`#src/`/`@/` specifier that pointed at a file moved in this or an earlier step to the relative path between the two Jini destinations (`.js` suffix); a `@jini-ai/<same package>/x` import becomes relative. Nothing else in the file changes.
 
-## Tests that move with the code (3, 293 LOC) → Jini `__tests__/` beside the destination
-- `apps/website/src/features/database/__tests__/unit/timeline.unit.test.ts`
+## Tests that move with the code (2, 200 LOC) → Jini `__tests__/` beside the destination
 - `apps/website/src/features/database/__tests__/unit/agent-tools.unit.test.ts`
 - `apps/website/src/features/database/__tests__/unit/migrate-forward-hooks.unit.test.ts`
 
 
-## T — Tovu repoint: delete the 4 sources, rewrite every importer (15 lines)
+## T — Tovu repoint: delete the 3 sources, rewrite every importer (9 lines)
 
 ```
 apps/website/src/features/database/tool-registrations.ts:45  './db-messages.js' -> '@jini-ai/db/site/db-messages'
-apps/website/src/features/database/__tests__/unit/repo.memory.unit.test.ts:8  '../../timeline.js' -> '@jini-ai/db/site/timeline'
-apps/website/src/features/database/repo.memory.ts:1  './timeline.js' -> '@jini-ai/db/site/timeline'
-apps/website/src/features/database/tool-registrations.ts:48  './timeline.js' -> '@jini-ai/db/site/timeline'
-apps/website/src/platform/db/sqlite/database-journal-repo.ts:9  '#src/features/database/timeline' -> '@jini-ai/db/site/timeline'
-apps/website/src/server/inbound/admin-http/routes/database/timeline.ts:6  '#src/features/database/timeline' -> '@jini-ai/db/site/timeline'
-apps/website/src/server/routes/types.ts:87  '../../features/database/timeline.js' -> '@jini-ai/db/site/timeline'
 apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts:63  '../../features/database/agent-tools.js' -> '@jini-ai/db/site/agent-tools'
 apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts:12  '../../features/database/agent-tools.js' -> '@jini-ai/db/site/agent-tools'
 apps/website/src/features/database/__tests__/db-tool-descriptors.snapshot.unit.test.ts:3  '../agent-tools.js' -> '@jini-ai/db/site/agent-tools'
@@ -46,11 +37,10 @@ apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts:13
 apps/website/src/server/routes/types.ts:116  '../../features/database/gated-hooks.js' -> '@jini-ai/db/site/gated-hooks'
 ```
 
-## Tovu tests that must stay green (4; import lines are repointed above, assertions untouched)
+## Tovu tests that must stay green (3; import lines are repointed above, assertions untouched)
 - `apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts`
 - `apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts`
 - `apps/website/src/features/database/__tests__/db-tool-descriptors.snapshot.unit.test.ts`
-- `apps/website/src/features/database/__tests__/unit/repo.memory.unit.test.ts`
 
 ## Tovu words (Jini guard N1 fails on /tovu/i, comments included)
 - `apps/website/src/features/database/db-messages.ts` (3)
@@ -65,4 +55,4 @@ apps/website/src/features/database/agent-tools.ts:7: return getJiniDatabaseAgent
 ```
 
 ## Named mutation
-in the Jini copy of `db-messages.ts`, negate the first `if (` condition of its first exported function; `timeline.unit.test.ts` must go red, then revert
+in the Jini copy of `db-messages.ts`, negate the first `if (` condition of its first exported function; `agent-tools.unit.test.ts` must go red, then revert

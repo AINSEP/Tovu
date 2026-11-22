@@ -1,6 +1,6 @@
 # A-adm-themes-1 — adm-themes → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:24 T:25. Depends on: none (only already-Jini code). Est: J 64 min, T 49 min.
+Lane A. Batch J:23 T:24. Depends on: none (only already-Jini code). Est: J 64 min, T 49 min.
 
 ## J — move verbatim into Jini (9 files, 800 LOC)
 

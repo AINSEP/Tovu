@@ -1,6 +1,6 @@
 # X-identity-1 — identity → @jini-ai/user-management (Jini step J then Tovu step T)
 
-Lane X. Batch J:19 T:21. Depends on: none (only already-Jini code). Est: J 71 min, T 87 min.
+Lane X. Batch J:19 T:20. Depends on: none (only already-Jini code). Est: J 71 min, T 87 min.
 
 ## J — move verbatim into Jini (10 files, 1249 LOC)
 

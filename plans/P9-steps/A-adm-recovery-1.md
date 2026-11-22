@@ -1,6 +1,6 @@
 # A-adm-recovery-1 — adm-recovery → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:30 T:31. Depends on: A-adm-other-1, A-adm-other-3, A-adm-shell-lib-3. Est: J 40 min, T 29 min.
+Lane A. Batch J:32 T:33. Depends on: A-adm-other-1, A-adm-other-3, A-adm-shell-lib-3. Est: J 40 min, T 29 min.
 
 ## J — move verbatim into Jini (4 files, 145 LOC)
 

@@ -1,6 +1,6 @@
 # X-skills-1 — skills → @jini-ai/agentic (Jini step J then Tovu step T)
 
-Lane X. Batch J:20 T:21. Depends on: none (only already-Jini code). Est: J 42 min, T 19 min.
+Lane X. Batch J:19 T:20. Depends on: none (only already-Jini code). Est: J 42 min, T 19 min.
 
 ## J — move verbatim into Jini (3 files, 35 LOC)
 

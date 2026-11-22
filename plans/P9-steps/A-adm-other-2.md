@@ -1,6 +1,6 @@
 # A-adm-other-2 — adm-other → @jini-ai/admin (Jini step J then Tovu step T)
 
-Lane A. Batch J:26 T:28. Depends on: none (only already-Jini code). Est: J 76 min, T 98 min.
+Lane A. Batch J:26 T:27. Depends on: none (only already-Jini code). Est: J 76 min, T 98 min.
 
 ## J — move verbatim into Jini (14 files, 542 LOC)
 

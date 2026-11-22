@@ -1,6 +1,6 @@
 # X-content-types-1 — content-types → @jini-ai/cms (Jini step J then Tovu step T)
 
-Lane X. Batch J:10 T:15. Depends on: C-platform-routing-1, C-contracts-core-4. Est: J 35 min, T 113 min.
+Lane X. Batch J:10 T:12. Depends on: C-platform-routing-1, C-contracts-core-4. Est: J 35 min, T 113 min.
 
 ## J — move verbatim into Jini (3 files, 234 LOC)
 
