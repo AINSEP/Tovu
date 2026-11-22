@@ -1,6 +1,6 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { AdminMenu, AdminMenuAuthoring, AdminMenuItem } from "./menus-api.types";
+import type { AdminMenu, AdminMenuAuthoring, AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 
 /** The admin API calls of the menus feature. */
 export const menusApi = {

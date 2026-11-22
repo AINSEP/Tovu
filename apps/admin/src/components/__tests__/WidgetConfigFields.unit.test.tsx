@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { collectionsApi } from "../../features/collections/api/collections-api";
 import { menusApi } from "../../features/menus/api/menus-api";
-import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
+import type { AdminWidgetType } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 

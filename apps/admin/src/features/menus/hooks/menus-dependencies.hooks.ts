@@ -1,8 +1,8 @@
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { trashApi } from "@/features/trash/api/trash-api";
-import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { menusApi } from "@/features/menus/api/menus-api";
-import type { MenusPort } from "./menus-port.hooks";
+import type { MenusPort } from "@jini-ai/admin/screens/menus/hooks/menus-port.hooks";
 import { pagePublicPath } from "../../pages/rules";
 
 /**

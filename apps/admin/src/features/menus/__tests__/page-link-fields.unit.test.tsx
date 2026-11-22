@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import type { AdminMenuItem } from "@/features/menus/api/menus-api.types";
-import { MenuPageLinkFields } from "../MenuPageLinkFields";
+import type { AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
+import { MenuPageLinkFields } from "@jini-ai/admin/screens/menus/MenuPageLinkFields";
 import { MENUS_DICT } from "../menus-i18n";
 
 it("selects pages by id and retains unpublished/missing references with an admin hint", () => {

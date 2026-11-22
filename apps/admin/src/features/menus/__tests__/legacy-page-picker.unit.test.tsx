@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it } from "vitest";
-import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";

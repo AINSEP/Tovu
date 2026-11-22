@@ -2,7 +2,7 @@ import { t as translateForWidgetEmbed } from "../app-i18n";
 import { useEffect, useState, type ComponentProps } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
-import type { AdminWidget } from "../features/widgets/api/widgets-api.types";
+import type { AdminWidget } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import { widgetsApi } from "../features/widgets/api/widgets-api";
 import { describeApiError } from "./admin-http/request";
 import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";

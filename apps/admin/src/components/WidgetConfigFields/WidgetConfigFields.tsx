@@ -2,8 +2,8 @@ import { MediaContentEditor } from "./MediaContentEditor";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { isUserCollection } from "../../features/collections/rules";
 import type { AdminContentType, ContentTypeFieldKind } from "../../features/collections/api/collections-api.types";
-import type { AdminMenu } from "../../features/menus/api/menus-api.types";
-import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
+import type { AdminMenu } from "@jini-ai/admin/screens/menus/api/menus-api.types";
+import type { AdminWidgetType } from "@jini-ai/admin/screens/widgets/api/widgets-api.types";
 import type { AdminFormDefinition } from "@jini-ai/admin/screens/forms/api/forms-api.types";
 
 import {
