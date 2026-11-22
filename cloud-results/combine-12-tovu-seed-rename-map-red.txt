@@ -1,0 +1,40 @@
+✔ a revision the ledger does not name is held, never moved (4.23111ms)
+✔ nothing moves when this build does not ship the canonical package (0.33896ms)
+✔ a moved copy whose replacement did not seed is put back and reported as restored (0.859833ms)
+✖ the rename map covers every bundled package 0.7.2 shipped as tovu/<id> (3.269834ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 423.562551
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-id-upgrade.unit.test.ts:1:3185
+✖ the rename map covers every bundled package 0.7.2 shipped as tovu/<id> (3.269834ms)
+  AssertionError [ERR_ASSERTION]: a site holding one of these pre-rename copies would keep it and log a seed conflict on every boot
+  + actual - expected
+  
+  + [
+  +   'calendly',
+  +   'shopify'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-id-upgrade.unit.test.ts:65:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'calendly', 'shopify' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

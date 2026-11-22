@@ -2,7 +2,7 @@
  * @file Bundled plugin publisher-ID upgrade (r62t-rsy-7 "Installed plugin ID upgrade", owner decision:
  * a Tovu-owned maintenance step with verified bundled replacements).
  *
- * `@jini-ai/agent-plugins` 0.7.3 renamed 23 bundled packages from `tovu/<id>` to `jini/<id>`. The
+ * `@jini-ai/agent-plugins` 0.7.3 renamed 25 bundled packages from `tovu/<id>` to `jini/<id>`. The
  * local name (`cloudflare`) did not change, so Jini's install admission sees a different publisher
  * in the same slot and refuses the canonical package (`PLUGIN_ID_CONFLICT`). Without this step every
  * existing site keeps its pre-rename copy forever and logs one seed failure per plugin per boot.
@@ -27,9 +27,9 @@ import type { FilesystemPort } from "@jini-ai/agent-plugins/lifecycle";
 
 /** Local ids whose bundled package moved from publisher `tovu` to `jini` in @jini-ai/agent-plugins 0.7.3. */
 const RENAMED_TO_JINI = [
-  "cloudflare", "composio", "fly", "github", "github-pages", "google-login", "google-workspace",
+  "calendly", "cloudflare", "composio", "fly", "github", "github-pages", "google-login", "google-workspace",
   "higgsfield-media", "jev", "meilisearch", "netlify", "opentelemetry", "posthog", "railway", "render",
-  "resend", "s3-compatible", "sentry", "site-compliance", "site-import", "supabase", "vercel", "wordpress",
+  "resend", "s3-compatible", "sentry", "shopify", "site-compliance", "site-import", "supabase", "vercel", "wordpress",
 ] as const;
 
 /** Local id -> the pre-rename and canonical publisher-qualified ids. The exact map stays in Tovu. */
