@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-qu
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MenuEditor, MenuItemTargetFields, targetForKind } from "../MenuEditor";
+import { MenuEditor, MenuItemTargetFields } from "../MenuEditor";
+import { targetForKind } from "@jini-ai/admin/screens/menus/page-link-rules";
 import type { MenuEditorController } from "../hooks/use-menu-editor.hooks";
 import type { AdminMenuItem } from "@jini-ai/admin/screens/menus/api/menus-api.types";
 import { installInternalLinkInterceptor, useRouteLocation } from "../../../lib/router";

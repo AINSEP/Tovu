@@ -9,7 +9,6 @@ import { MenuPageLinkFields } from "@jini-ai/admin/screens/menus/MenuPageLinkFie
 import type { MenuPageChoice } from "@jini-ai/admin/screens/menus/page-link-rules";
 import { useMenuTargetEditor } from "@jini-ai/admin/screens/menus/MenuPageLinkFields.hooks";
 import { type Translate } from '@jini-ai/core/text';
-export { targetForKind } from "@jini-ai/admin/screens/menus/page-link-rules";
 
 /**
  * @file Per-menu tree editor (ADR-029 whole-tree replace) — markup only.
