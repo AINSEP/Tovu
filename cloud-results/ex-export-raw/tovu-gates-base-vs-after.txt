@@ -1,0 +1,10 @@
+typecheck exit 0	typecheck exit 0
+typecheck:tests exit 0	typecheck:tests exit 0
+check:boundaries exit 0	check:boundaries exit 0
+check:size exit 1	check:size exit 1
+check:complexity exit 0	check:complexity exit 0
+check:hooks exit 0	check:hooks exit 0
+check:architecture exit 1	check:architecture exit 1
+check:why-comments exit 1	check:why-comments exit 1
+admin-tsc exit 0	admin-tsc exit 0
+DONE	DONE
