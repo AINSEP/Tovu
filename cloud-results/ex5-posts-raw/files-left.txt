@@ -1,0 +1,4 @@
+== base: moving 2483 ready 541 blocked 1942 keep 372 steps 91 batches 36 unbatched 0
+{"moving":2483,"shells":3,"total":2486,"themeAreaFiles":111,"totalExclThemeAreas":2375,"postAreas":[["post",51],["adm-posts",59]]}
+== tip2: moving 2478 ready 536 blocked 1942 keep 372 steps 90 batches 36 unbatched 0
+{"moving":2478,"shells":3,"total":2481,"themeAreaFiles":111,"totalExclThemeAreas":2370,"postAreas":[["post",48],["adm-posts",57]]}

@@ -1,0 +1,14 @@
+typecheck-cms exit=0
+typecheck-admin exit=0
+typecheck exit=0
+guard exit=0
+api-check exit=0
+size exit=1
+complexity exit=1
+hooks exit=0
+why-base exit=0
+why-default exit=1
+cross-package exit=1
+log-safety exit=1
+errors exit=0
+DONE
