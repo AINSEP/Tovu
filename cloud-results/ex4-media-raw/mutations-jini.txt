@@ -1,0 +1,18 @@
+== X-image-transform-1 MUTATED cms/src/media/site-transform/image-ops.ts: if (!Array.isArray(outputs) || outputs.length === 0 || outputs.length > IMAGE_LIMITS.maxOutputs) -> if (!(!Array.isArray(outputs) || outputs.length === 0 || outputs.length > IMAGE_LIMITS.maxOutputs))
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  11 failed | 1 passed (12)
+== X-image-transform-1 RESTORED (cmp identical; git status: 0 changes)
+      Tests  12 passed (12)
+== X-object-storage-1 MUTATED platform/src/object-store/site/setting.ts: typeof effective?.value === "string" ? -> typeof effective?.value !== "string" ?
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  4 failed | 2 passed (6)
+== X-object-storage-1 RESTORED (cmp identical; git status: 0 changes)
+      Tests  6 passed (6)
+== X-media-1 MUTATED cms/src/media/site/hydrate-blob-store-from-seed.ts: if (relativePaths.length === 0) { -> if (!(relativePaths.length === 0)) {
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  8 failed | 1 passed (9)
+== X-media-1 RESTORED (cmp identical; git status: 0 changes)
+      Tests  9 passed (9)

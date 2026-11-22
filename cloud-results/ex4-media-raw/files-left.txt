@@ -1,0 +1,7 @@
+Measured with plans/P9-data/tools/scan.mjs + plan.mjs from origin/plan/whats-left-1122 on clean worktrees. FILES-LEFT = moving + shells. themeAreaFiles = scanner areas theme + adm-themes. laneScannerAreas = scanner areas media, media-import, media-generation, image-transform, asset-transfer, object-storage. laneStepFilesLeft = k-work.json rows of the 19 lane steps still present.
+== base f7185f153
+moving 2483 ready 541 blocked 1942 keep 372 steps 91 batches 36 unbatched 0
+{"label": "base", "moving": 2483, "shells": 3, "total": 2486, "themeAreaFiles": 111, "totalExclThemeAreas": 2375, "laneScannerAreas": 50, "laneStepFilesLeft": "98/98", "shellsLeft": ["apps/website/src/features/custom-credentials/sets/host.ts", "apps/website/src/features/custom-credentials/sets/store.ts", "apps/website/src/features/custom-credentials/sets/vault-repo.ts"]}
+== tip 320a0f8c3f
+moving 2472 ready 531 blocked 1941 keep 372 steps 89 batches 36 unbatched 0
+{"label": "tip", "moving": 2472, "shells": 3, "total": 2475, "themeAreaFiles": 111, "totalExclThemeAreas": 2364, "laneScannerAreas": 40, "laneStepFilesLeft": "87/98", "shellsLeft": ["apps/website/src/features/custom-credentials/sets/host.ts", "apps/website/src/features/custom-credentials/sets/store.ts", "apps/website/src/features/custom-credentials/sets/vault-repo.ts"]}

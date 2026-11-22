@@ -1,0 +1,4 @@
+> jini@ api:check ~/Jini
+> node --import tsx ./scripts/check-api-surface.ts
+[api] checked 40 packages, 705 entries, 17283 symbols
+EXIT 0

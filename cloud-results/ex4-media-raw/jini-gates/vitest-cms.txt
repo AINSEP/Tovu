@@ -1,0 +1,40 @@
+ ✓ src/forms/__tests__/forms.honeypot.test.ts (7 tests) 2ms
+ ✓ src/media/site/__tests__/public-path.test.ts (6 tests) 3ms
+ ✓ src/workspace/__tests__/repo.memory.test.ts (2 tests) 4ms
+ ✓ src/workspace/__tests__/delete.test.ts (3 tests) 3ms
+ ✓ src/trash/__tests__/exports.test.ts (2 tests) 3ms
+ ✓ src/media/__tests__/file-extension.test.ts (1 test) 2ms
+ ✓ src/trash/__tests__/lock-keys.test.ts (2 tests) 2ms
+ ✓ src/media/site/__tests__/upload-content-type.test.ts (1 test) 2ms
+ ✓ src/content-types/__tests__/lifecycle-dispatch.test.ts (4 tests) 2ms
+ ✓ src/publish/transfer/__tests__/artifact-format.test.ts (1 test) 2ms
+ ✓ src/seo/dom/__tests__/apply-head-elements.test.ts (2 tests) 14ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  forms/src/__tests__/package-boundary.test.ts > forms keeps its own published root entry and CMS exposes no forms alias
+AssertionError: expected '0.7.2' to be '0.7.3-next.2' // Object.is equality
+Expected: [32m"0.7.[7m3-next.[27m2"[39m
+Received: [31m"0.7.2"[39m
+ ❯ forms/src/__tests__/package-boundary.test.ts:23:58
+     21|   // The version is read, not pinned: every release bump must ship wit…
+     22|   // so the newest released heading is the version the package claims.
+     23|   expect(changelog.match(/^## (\d+\.\d+\.\d+)\b/m)?.[1]).toBe(own.vers…
+       |                                                          ^
+     24|   // Publishable since 809ed6d1; publish-pending/publish-all skip priv…
+     25|   expect(own).not.toHaveProperty("private");
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+ FAIL  src/forms/__tests__/create-tables.reference.test.ts > pglite: createFormsTables matches the reference DDL's catalog
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/forms/__tests__/create-tables.reference.test.ts:72:1
+     70| });
+     71| 
+     72| test("pglite: createFormsTables matches the reference DDL's catalog", …
+       | ^
+     73|   const reference = openPgliteKernel({ PGlite }, {});
+     74|   const created = openPgliteKernel({ PGlite }, {});
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+ Test Files  2 failed | 433 passed (435)
+      Tests  2 failed | 5047 passed (5049)
+   Start at  22:31:07
+   Duration  85.05s (transform 10.33s, setup 0ms, collect 49.92s, tests 119.55s, environment 322ms, prepare 27.82s)
+EXIT 1

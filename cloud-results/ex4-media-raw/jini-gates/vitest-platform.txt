@@ -1,0 +1,40 @@
+ ✓ src/__tests__/unit/deadline-wait.unit.test.ts (8 tests) 8ms
+ ✓ src/mail/__tests__/provider-setup.test.ts (3 tests) 4ms
+ ✓ src/__tests__/command.test.ts (19 tests) 10ms
+ ✓ src/__tests__/aws-sigv4.f1.test.ts (8 tests) 8ms
+ ✓ src/secrets/__tests__/exports.test.ts (2 tests) 6ms
+ ✓ src/mail/__tests__/purpose-scoped-mailer.test.ts (11 tests) 9ms
+ ✓ src/secrets/__tests__/vault.api-connection-kind.test.ts (4 tests) 7ms
+ ✓ src/secrets/__tests__/envelope-validation-w2g.unit.test.ts (6 tests) 7ms
+ ✓ src/mail/__tests__/provider.test.ts (21 tests) 14ms
+ ✓ src/mail/__tests__/delivery-observer-w2g.unit.test.ts (1 test) 5ms
+ ✓ src/__tests__/integration-contracts.test.ts (4 tests) 7ms
+ ✓ src/secrets/__tests__/site-key-exports.test.ts (2 tests) 5ms
+ ✓ src/__tests__/asset-cache-dispatcher.test.ts (7 tests) 7ms
+ ✓ src/mail/__tests__/rate-limit.test.ts (5 tests) 4ms
+ ✓ src/web/__tests__/html-document-host-pin.test.ts (1 test) 5ms
+ ✓ src/fs/__tests__/directory-home.boundaries.test.ts (25 tests) 7ms
+ ✓ src/mail/__tests__/feedback.test.ts (11 tests) 6ms
+ ✓ src/secrets/__tests__/provider-matches.test.ts (6 tests) 4ms
+ ✓ src/net/__tests__/api-host.agent-runtime.test.ts (14 tests) 7ms
+ ✓ src/mail/__tests__/purpose-gate-predicate.test.ts (4 tests) 6ms
+ ✓ src/mail/__tests__/engine-contracts.test.ts (4 tests) 5ms
+ ✓ src/__tests__/entry-barrels.test.ts (3 tests) 9ms
+ ✓ src/fs/__tests__/directory-running-lock-stale-address.test.ts (4 tests) 5ms
+ ✓ src/mail/__tests__/domain-read.test.ts (6 tests) 8ms
+ ✓ src/mail/__tests__/mail-status-cache.test.ts (5 tests) 3ms
+ ✓ src/secrets/__tests__/keyring.env.generate-errors.test.ts (6 tests) 5ms
+ ✓ src/__tests__/messages.test.ts (3 tests) 5ms
+ ✓ src/object-store/__tests__/descriptors.test.ts (2 tests) 4ms
+ ✓ src/__tests__/home-expansion.test.ts (6 tests) 4ms
+ ✓ src/mail/__tests__/sender-identity.test.ts (3 tests) 3ms
+ ✓ src/mail/__tests__/delivery-availability.test.ts (1 test) 2ms
+ ✓ src/fs/__tests__/strict-containment.test.ts (7 tests) 2ms
+ ✓ src/__tests__/windows-system-tools.test.ts (3 tests) 6ms
+ ✓ src/fs/__tests__/env-text.test.ts (8 tests) 4ms
+ ✓ src/secrets/__tests__/aad.unit.test.ts (1 test) 2ms
+ Test Files  181 passed (181)
+      Tests  3360 passed | 6 skipped (3366)
+   Start at  22:32:33
+   Duration  28.85s (transform 4.28s, setup 0ms, collect 14.06s, tests 37.89s, environment 29ms, prepare 11.51s)
+EXIT 0

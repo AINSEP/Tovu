@@ -1,0 +1,40 @@
+packages/cms typecheck: Done
+examples/notes-app typecheck$ tsc -p tsconfig.json --noEmit
+packages/agent-plugins typecheck$ tsc -p tsconfig.json --noEmit
+packages/agent-runtime typecheck$ tsc -p tsconfig.json --noEmit
+packages/cms/forms typecheck$ tsc -p tsconfig.json --noEmit
+packages/cms/forms typecheck: Done
+packages/commerce typecheck$ tsc -p tsconfig.json --noEmit
+examples/notes-app typecheck: Done
+packages/commerce typecheck: Done
+packages/agent-plugins typecheck: Done
+packages/agent-runtime typecheck: Done
+packages/node-adapters typecheck$ tsc -p tsconfig.json --noEmit
+packages/search typecheck$ tsc -p tsconfig.json --noEmit
+packages/ui typecheck$ tsc -p tsconfig.json --noEmit
+packages/node-adapters typecheck: Done
+packages/search typecheck: Done
+packages/ui typecheck: Done
+packages/provider-plugins typecheck$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.charts.json --noEmit
+packages/chat typecheck$ tsc -p tsconfig.json --noEmit
+packages/admin typecheck$ tsc -p tsconfig.json --noEmit
+packages/provider-plugins typecheck: Done
+packages/admin typecheck: Done
+packages/chat typecheck: Done
+packages/daemon typecheck$ tsc -p tsconfig.json --noEmit
+packages/user-management typecheck$ tsc -p tsconfig.json --noEmit
+packages/user-management typecheck: Done
+packages/daemon typecheck: Done
+packages/devops typecheck$ tsc -p tsconfig.json --noEmit
+packages/mcp typecheck$ tsc -p tsconfig.json --noEmit
+packages/server typecheck$ tsc -p tsconfig.tests.json && tsc -p tsconfig.json --noEmit
+packages/sqlite typecheck$ tsc -p tsconfig.json --noEmit
+packages/sqlite typecheck: Done
+packages/server typecheck: Done
+packages/devops typecheck: Done
+packages/mcp typecheck: Done
+examples/neutral-host typecheck$ tsc -p tsconfig.json
+examples/reference-web typecheck$ tsc -p tsconfig.json --noEmit
+examples/neutral-host typecheck: Done
+examples/reference-web typecheck: Done
+EXIT 0

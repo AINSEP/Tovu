@@ -1,0 +1,5 @@
+✖ resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake (7.640942ms)
+ℹ pass 64
+ℹ fail 1
+✖ failing tests:
+✖ resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake (7.640942ms)
