@@ -9,7 +9,7 @@ import { type OutboxPort } from "@jini-ai/core/contracts/events";
 import type { ContentDatabase, PostsTable } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
-import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
+import { extractHtmlEntryRefs } from "@jini-ai/cms/entries/site/entry-refs-extractor";
 import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 // Not from `../post/index.js`: that barrel deliberately never re-exports Pages-specific things and,
 // symmetrically, `SYSTEM_ACTOR_ID` is a generic actor fallback this file needs directly rather than

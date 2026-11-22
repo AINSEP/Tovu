@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { scanHtmlEmbeds } from "@jini-ai/cms/widgets/html";
 import { extractEntryRefs } from "@jini-ai/cms/widgets";
-import { extractHtmlEntryRefs } from "../extractor.js";
+import { extractHtmlEntryRefs } from "@jini-ai/cms/entries/site/entry-refs-extractor";
 
 /**
  * @file Canaries for `extractHtmlEntryRefs` on the shared marker parser.

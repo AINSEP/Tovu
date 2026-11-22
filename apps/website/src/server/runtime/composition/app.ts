@@ -23,7 +23,7 @@ import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/r
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { bindSiteConsentService } from './site-consent.js';
 import { createTovuPluginHost } from "./plugin-host.js";
-import { widgetCollectionListPort } from "../../../features/entries/public-list.js";
+import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";

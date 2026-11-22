@@ -2,7 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 import { EntityNotLiveError, ForbiddenError } from "@jini-ai/cms/core";
-import { authorizeContentEdit, createContentTargetPorts } from "#src/features/taxonomy/content-targets";
+import { authorizeContentEdit, createContentTargetPorts } from "@jini-ai/cms/taxonomy/site/content-targets";
 import {
   toTaxonomyOutbox,
   TaxonomyNotApplicableError,

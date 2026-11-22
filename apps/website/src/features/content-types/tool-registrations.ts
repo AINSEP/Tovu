@@ -1,4 +1,4 @@
-import { toolMetadata } from '../../contracts/core/tool-metadata/content-types.js';
+import { toolMetadata } from '@jini-ai/cms/content-types/site/tool-metadata';
 import { withToolMetadata } from '@jini-ai/core';
 /**
  * @file Content-types' agent-tool registrations, built by `@jini-ai/cms/content-types`.

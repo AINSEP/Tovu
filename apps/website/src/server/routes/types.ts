@@ -102,7 +102,7 @@ import type { TeardownIndexProvisionerPort } from "../../features/content-types/
 import type { ContentTypeListPort } from "@jini-ai/cms/content-types";
 import type { EntryRepoPort } from "@jini-ai/cms/entries";
 import type { EntryListPort } from "@jini-ai/cms/entries";
-import type { EntryDisplayListPort, EntryListExcludingTypesPort } from "../../features/entries/public-list.js";
+import type { EntryDisplayListPort, EntryListExcludingTypesPort } from "@jini-ai/cms/entries/site/public-list";
 import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
 import type {
   AssignmentCountEntryTermRepoPort,

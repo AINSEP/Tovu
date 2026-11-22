@@ -56,7 +56,7 @@ import path from "node:path";
 
 import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { scanEmbedMarkers, describeRejection } from "@jini-ai/cms/widgets/markers";
-import { extractHtmlEntryRefs } from "../../apps/website/src/contracts/core/entry-refs/extractor.js";
+import { extractHtmlEntryRefs } from "@jini-ai/cms/entries/site/entry-refs-extractor";
 import { SqliteEntryRefsRepo } from "../../apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
 

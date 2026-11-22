@@ -37,7 +37,7 @@ import {
   type ParseDeclaredContentTypesResult,
 } from "@jini-ai/plugins/host";
 
-import { SYSTEM_CONTENT_TYPES } from "../../contracts/core/system-content-types.js";
+import { SYSTEM_CONTENT_TYPES } from "@jini-ai/cms/content-types/site/system-content-types";
 
 export { MAX_DECLARED_CONTENT_TYPES, MAX_DECLARED_FIELDS, MAX_DECLARED_QUERYABLE_FIELDS } from "@jini-ai/plugins/host";
 export type { ApplyDeclaredContentTypesResult, DeclarativeManifestView, DeclaredContentTypeOutcome, ParseDeclaredContentTypesResult } from "@jini-ai/plugins/host";

@@ -1,12 +1,12 @@
-import { widgetCollectionListPort } from "../../../entries/public-list.js";
-import { SYSTEM_CONTENT_TYPES } from "../../../../contracts/core/system-content-types.js";
+import { widgetCollectionListPort } from "@jini-ai/cms/entries/site/public-list";
+import { SYSTEM_CONTENT_TYPES } from "@jini-ai/cms/content-types/site/system-content-types";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
 import type { EntryRecord } from "@jini-ai/cms/entries";
 import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
-import { type CollectionListQuery, type EntryDisplayListPort, type EntryListExcludingTypesPort } from "#src/features/entries/public-list";
+import { type CollectionListQuery, type EntryDisplayListPort, type EntryListExcludingTypesPort } from "@jini-ai/cms/entries/site/public-list";
 import { createRecentEntriesResolver, type CoreResolverDeps } from "@jini-ai/cms/widgets/resolvers";
 type ContentTypeLookup = CoreResolverDeps["contentTypes"];
 import type { WidgetInstanceView, WidgetResolveContext } from "@jini-ai/cms/widgets";

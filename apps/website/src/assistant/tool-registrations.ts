@@ -49,7 +49,7 @@ import type { DatabaseToolDeps } from "../features/database/tool-registrations.j
 import type { DeployOpsToolDeps } from "../features/deployments/deploy-ops/tool-registrations.js";
 import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations.js";
 import type { StaticPublishToolDeps } from "../features/deployments/publish-agent-tools.js";
-import type { EntriesToolDeps } from "../features/entries/tool-registrations.js";
+import type { EntriesToolDeps } from "@jini-ai/cms/entries/site/tool-registrations";
 import type { ExternalMcpToolDeps } from "../features/external-mcp/deps.js";
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
 import type { SiteBackupToolDeps } from "../features/site-backup/tool-registrations.js";

@@ -1,7 +1,7 @@
 import { SqlContentTypeRepo } from "@jini-ai/cms/content-types/sql";
 import { type ContentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { DECLARED_CONTENT_TYPE_OWNERS } from "#src/contracts/core/declared-content-type-owners";
+import { DECLARED_CONTENT_TYPE_OWNERS } from "@jini-ai/cms/content-types/site/declared-content-type-owners";
 
 /** Tovu owns the persisted table names. */
 export const CONTENT_TYPE_TABLES = { contentTypes: "content_types", revisions: "content_type_revisions" } as const;

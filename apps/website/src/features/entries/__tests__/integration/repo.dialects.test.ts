@@ -9,7 +9,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createEntry, publishEntry, updateEntry } from "@jini-ai/cms/entries";
 import type { EntryRecord } from "@jini-ai/cms/entries";
-import type { CollectionListQuery } from "../../public-list.js";
+import type { CollectionListQuery } from "@jini-ai/cms/entries/site/public-list";
 import { SqliteEntryRepo } from "../../repo.sqlite.js";
 
 /**

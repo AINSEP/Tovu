@@ -12,7 +12,7 @@ import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "@jini-ai/daemon/surface-exchanges";
 import { createPost, InMemoryPostRepo } from "../../features/post/index.js";
 import { type AgentToolDefinition as TaxonomyAgentToolDefinition } from "@jini-ai/core";
-import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
+import { taxonomyAgentToolCatalog } from "@jini-ai/cms/taxonomy/site/agent-tools";
 import {
   InMemoryEntryTermRepo,
   InMemoryTaxonomyRepo,

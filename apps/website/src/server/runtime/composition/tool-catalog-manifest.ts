@@ -82,7 +82,7 @@ import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
 import type { DeployOpsRegistry } from "#src/features/deployments/index";
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
-import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
+import { contributeEntriesTools } from "@jini-ai/cms/entries/site/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
 import { contributeExternalMcpOperationsTools } from "#src/features/external-mcp/operations-tools";
 import { probeExternalMcpServer } from "#src/features/external-mcp/external-mcp-probe";
