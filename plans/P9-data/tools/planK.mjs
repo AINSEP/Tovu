@@ -216,7 +216,9 @@ for (const s of steps) {
 const pre = [
   { id: 'RT-K1-0.J', repo: 'Jini', lane: 'RT-K1', deps: [], est: 100, pkg: 'core', files: 0 },
   { id: 'RT-K1-0.T', repo: 'Tovu', lane: 'RT-K1', deps: ['RT-K1-0.J'], est: 90, files: 0, touch: ['apps/website/src/server/inbound/admin-http/admin-json-route-ports.ts', 'apps/website/src/server/inbound/admin-http/routes/settings/shared.ts'] },
-  { id: 'A-K2-0.J', repo: 'Jini', lane: 'A-K2', deps: [], est: 110, pkg: 'admin', files: 0 },
+  { id: 'A-K2-0a.J', repo: 'Jini', lane: 'A-K2', deps: [], est: 110, pkg: 'admin', files: 0 },
+  { id: 'A-K2-0b.J', repo: 'Jini', lane: 'A-K2', deps: ['A-K2-0a.J'], est: 110, pkg: 'admin', files: 0 },
+  { id: 'A-K2-0.J', repo: 'Jini', lane: 'A-K2', deps: ['A-K2-0b.J'], est: 110, pkg: 'admin', files: 0 },
   { id: 'A-K2-0.T', repo: 'Tovu', lane: 'A-K2', deps: ['A-K2-0.J'], est: 45, files: 0, touch: ['apps/admin/src/integrations/jini-kits.ts'] },
   { id: 'K4-i18n-common.J', repo: 'Jini', lane: 'K4', deps: [], est: 80, pkg: 'admin', files: 0 },
   { id: 'K4-i18n-common.T', repo: 'Tovu', lane: 'K4', deps: ['K4-i18n-common.J'], est: 60, files: 0, touch: [I18N_COMMON] },
