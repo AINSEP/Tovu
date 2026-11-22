@@ -4,7 +4,7 @@ import { mock, test } from "node:test";
 import { contentHash } from "@jini-ai/cms/publish/content/content-hash";
 
 // Simulate the next release without changing the actual wire format or stored v1 rows.
-mock.module(new URL("../content-hash.ts", import.meta.url).href, {
+mock.module(import.meta.resolve("@jini-ai/cms/publish/content/content-hash"), {
   namedExports: { CONTENT_HASH_VERSION: 2, contentHash },
 });
 const { planImport } = await import("../planner.js");
