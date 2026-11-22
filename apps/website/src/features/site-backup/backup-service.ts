@@ -35,7 +35,7 @@ import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
 import { SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type TovuBackupPlanStore } from "./plan-content.js";
-import { CANCELLED, initialPushProgress, uploadBackupPlan } from "./push-content.js";
+import { CANCELLED, commitBackupPlan, initialPushProgress, uploadBackupPlan } from "./push-content.js";
 import { SiteBackupPushJobs, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import {
   captureDatabaseSnapshot,
@@ -704,28 +704,9 @@ async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps
   if (!uploaded.ok) return pushRefusal(uploaded);
   if (run.signal.aborted) return pushRefusal(CANCELLED);
 
-  const committed = await credential.provider.commitBackupTree({
-    ...target,
-    branch: plan.repository.branch,
-    folder: plan.folder,
-    commitMessage: plan.commitMessage,
-    parentCommitSha: plan.repository.parentCommitSha,
-    baseTreeSha: plan.repository.baseTreeSha,
-    htmlUrl: plan.repository.htmlUrl,
-    entries: uploaded.entries,
-  });
+  const committed = await commitBackupPlan({ provider: credential.provider, target, plan, entries: uploaded.entries });
   if (!committed.ok) return pushRefusal(providerRefusal({ deps, toolId: SITE_BACKUP_PUSH_TOOL_ID, failure: committed }));
-  return {
-    pushed: true,
-    commitSha: committed.commitSha,
-    commitUrl: committed.commitUrl,
-    repository: `${plan.owner}/${plan.repo}`,
-    branch: plan.repository.branch,
-    folder: plan.folder,
-    credentialWarnings: plan.credentialWarnings ?? [],
-    filesWritten: uploaded.entries.length,
-    totalBytes: uploaded.entries.reduce((sum, entry) => sum + entry.bytes, 0),
-  };
+  return committed.result;
 }
 
 async function runObservedBackupPush(required: Parameters<typeof pushPlannedBackup>[0]): Promise<PushResult> {
