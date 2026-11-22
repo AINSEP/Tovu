@@ -535,11 +535,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/comments/ip-hash-salt.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/website/src/features/comments/provider-selection.ts",
     "rule": "catch-reads-error",
     "value": 1
