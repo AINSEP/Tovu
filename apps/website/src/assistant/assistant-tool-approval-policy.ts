@@ -1,5 +1,7 @@
 import type { ToolRegistration } from '@jini-ai/core';
-import { TOOL_APPROVAL_POLICY, EXTENSION_TOOL_APPROVAL_POLICY, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
+import { TOOL_APPROVAL_POLICY, EXTENSION_TOOL_APPROVAL_POLICY } from '../contracts/headless/index.js';
+import type { ToolApprovalClass } from "@jini-ai/core/contracts/site/tool-metadata-approval-policy";
+import type { HostToolApprovalPolicy as ToolApprovalPolicy } from "../contracts/core/tool-metadata/index.js";
 
 /** Owner rule (2026-09-24, restated 2026-10-08 after a site import asked once per page): no
  * per-item confirmation for anything the owner can undo. Permanent deletes, overwrites of current

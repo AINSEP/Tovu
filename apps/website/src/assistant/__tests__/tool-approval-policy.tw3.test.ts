@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { approvalClassFor, federatedApprovalClassFor } from '../tool-approval-policy.js';
-import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalPolicy } from '../../contracts/headless/index.js';
+import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS } from '../../contracts/headless/index.js';
+import type { HostToolApprovalPolicy as ToolApprovalPolicy } from "../../contracts/core/tool-metadata/index.js";
 
 test('TW3 local classification preserves each dynamic rule and rejects inherited ids', () => {
   const cases: [ToolApprovalPolicy['rule'], unknown, string][] = [
@@ -45,4 +46,14 @@ test('TW3 federated classification pins action, declaration, hint and fallback p
   ];
   for (const [input, expected] of cases) assert.equal(federatedApprovalClassFor(input, { fallbackClass: 'replace-secret' }), expected, JSON.stringify(input));
   assert.equal(federatedApprovalClassFor({ input: Object.assign([], { action: 'delete' }) }), 'edit');
+});
+
+test('TW3 the host approval policy names exactly the six rules the evaluator classifies', () => {
+  // Compile-time half: core's generic contract accepts any rule string; the host specialization
+  // must not, or a catalog typo would reach the evaluator with no classifier.
+  // @ts-expect-error — not one of the host's rule names
+  const unknownRule: NonNullable<ToolApprovalPolicy['rule']> = 'not-a-host-rule';
+  const hostRules: NonNullable<ToolApprovalPolicy['rule']>[] = ['http-method', 'page-control', 'export-commit', 'plugin-enable', 'execution-setting', 'theme-activation'];
+  assert.equal(new Set(hostRules).size, 6);
+  assert.equal(unknownRule, 'not-a-host-rule');
 });

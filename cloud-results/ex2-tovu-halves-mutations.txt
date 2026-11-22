@@ -11,3 +11,8 @@
  Test Files  1 failed | 1 passed (2)
       Tests  3 failed | 20 passed (23)
 restored by byte copy; cmp identical
+
+## M2 (K4-seam-1.T): catalog rule 'theme-activation' -> 'theme-activate' in apps/website/src/contracts/core/tool-metadata/theme.ts (catalog keeps generic core type via as const satisfies; host specialization at projection)
+root tsc --noEmit:
+apps/website/src/contracts/core/tool-metadata/index.ts(135,22): error TS2322: Type '{ readonly theme_get_preview_switcher: { readonly search: { readonly keywords: "theme preview switcher banner demo i
+restored by byte copy; cmp identical; root tsc 0 after
