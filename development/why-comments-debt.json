@@ -2680,6 +2680,18 @@
     {
       "id": "e2f8783dbd23",
       "reason": "code deleted by R8b step 6"
+    },
+    {
+      "id": "8a66e4f6ec51",
+      "reason": "Moved verbatim to Jini @jini-ai/devops/static-export/site/ports.ts (Jini 6cdb019c7, D-site-export-1.J); two host path citations reworded neutral per N2, rest identical."
+    },
+    {
+      "id": "65b3ca92ccdf",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/presentation/site/active-theme-id.ts header (Jini 1ee707247, C-presentation-1.J); host path citations reworded neutral per N2, rest identical."
+    },
+    {
+      "id": "f61d0bf8cd44",
+      "reason": "Moved verbatim to Jini @jini-ai/cms/presentation/site/active-theme-id.ts resolveActiveThemeId doc (Jini 1ee707247, C-presentation-1.J); host caller paths reworded neutral per N2."
     }
   ]
 }
