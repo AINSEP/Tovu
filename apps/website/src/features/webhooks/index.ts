@@ -35,34 +35,12 @@ export type {
 // here (via `./ports`) so existing `integrations` consumers don't need to know the type moved.
 export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "./ports.js";
 
-// Subscription CRUD write-service (ADR-036 §6) — the first landed consumer is the admin HTTP API
-// (`apps/website/src/server/inbound/admin-http/routes/integrations`), so this barrel now carries the
-// surface that file's own doc comment already promised ("the delivery worker, admin routes, AI tools
-// depend on `integrations` via this index"). Additive only — no behavior change to `./subscriptions`.
-export {
-  createSubscription,
-  deleteSubscription,
-  pauseSubscription,
-  updateSubscription,
-  WebhookSubscriptionNotFoundError,
-  WebhookSubscriptionValidationError,
-} from "./subscriptions.js";
-export type {
-  CreateSubscriptionInput,
-  CreateSubscriptionRequired,
-  DeleteSubscriptionInput,
-  DeleteSubscriptionRequired,
-  PauseSubscriptionInput,
-  PauseSubscriptionRequired,
-  PauseSubscriptionOptional,
-  UpdateSubscriptionInput,
-  UpdateSubscriptionRequired,
-  WebhookSubscriptionDeps,
-  WebhookSubscriptionOptional,
-} from "./subscriptions.js";
+// Subscription CRUD write-service (ADR-036 §6): its first landed consumer was the admin HTTP API
+// (the integrations admin routes). It now lives at `@jini-ai/integrations/webhooks/site/subscriptions`,
+// and the routes, the delivery worker and AI tools import it from there (no re-export shell here).
 
-// In-memory repo adapters (the local-dev/test half of each ADR-006 rule-of-two) — same rationale
-// as the `./subscriptions` export above.
+// In-memory repo adapters (the local-dev/test half of each ADR-006 rule-of-two), exported here so the
+// admin HTTP API and its tests reach them through this index.
 export {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,

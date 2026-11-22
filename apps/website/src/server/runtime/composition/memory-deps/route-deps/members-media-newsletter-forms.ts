@@ -4,7 +4,7 @@ import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mai
 import type { OutboundEmail } from "#src/platform/mail/index";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { InMemoryWebhookSubscriptionRepo, InMemoryWebhookDeliveryRepo } from "#src/features/webhooks/index";
-import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
+import { createKeyringBackedSigner } from "@jini-ai/integrations/webhooks/site/signing.keyring";
 import { InMemoryImageTransformer } from "#src/features/media/index";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { ensureDefaultList } from "#src/features/newsletter/lists";

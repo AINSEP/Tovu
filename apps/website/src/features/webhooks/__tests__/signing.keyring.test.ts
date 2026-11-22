@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createKeyringBackedSigner } from "../signing.keyring.js";
-import { createFixedSecretSigner, verifySignature } from "../signing.js";
+import { createKeyringBackedSigner } from "@jini-ai/integrations/webhooks/site/signing.keyring";
+import { createFixedSecretSigner, verifySignature } from "@jini-ai/integrations/webhooks/site/signing";
 import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { WebhookSubscriptionRecord } from "@jini-ai/integrations/webhooks";
 

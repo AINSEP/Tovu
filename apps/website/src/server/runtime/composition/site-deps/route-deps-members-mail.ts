@@ -28,7 +28,7 @@ import { SqliteNewsletterSubscriptionRepo } from "#src/features/newsletter/repo.
 import { SqliteWebhookDeliveryRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
-import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
+import { createKeyringBackedSigner } from "@jini-ai/integrations/webhooks/site/signing.keyring";
 import { createMailActivityRepo } from "#src/features/mail/activity.repo";
 import { createMailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
 import { createMammothDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/mammoth";

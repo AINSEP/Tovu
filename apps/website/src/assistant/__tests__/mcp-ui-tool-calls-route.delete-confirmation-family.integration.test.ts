@@ -50,7 +50,7 @@ import { isNeverInTrash, removeVia, restoreVia } from "#src/features/redirects/_
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "#src/features/redirects/tool-registrations";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
-import { createSubscription } from "#src/features/webhooks/subscriptions";
+import { createSubscription } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/features/webhooks/tool-registrations";
 import { commentTrashDoubles } from "#src/features/comments/__tests__/comment-trash-doubles";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

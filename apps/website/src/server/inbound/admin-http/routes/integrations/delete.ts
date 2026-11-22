@@ -2,7 +2,7 @@ import { RecordVersionConflictError, versionConflictBody } from "@jini-ai/core/o
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { deleteSubscription, WebhookSubscriptionNotFoundError } from "#src/features/webhooks/index";
+import { deleteSubscription, WebhookSubscriptionNotFoundError } from "@jini-ai/integrations/webhooks/site/subscriptions";
 import { toAdminSubscriptionResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toWebhookSubscriptionDeps, type IntegrationsRouteRegistrar } from "./deps.js";

@@ -1,6 +1,6 @@
 import type { DeliveryEnvelopeStore, HttpClientPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "#src/features/webhooks/index";
 import { processDueDeliveries } from "#src/features/webhooks/delivery";
-import type { WebhookSigner } from "#src/features/webhooks/signing";
+import type { WebhookSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
