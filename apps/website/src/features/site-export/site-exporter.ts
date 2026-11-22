@@ -16,7 +16,7 @@ import { buildPreviewExportManifest } from "./theme-preview-manifest.js";
 import { themePreviewExportSize } from "./theme-preview-report.js";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { rewriteExportMediaResponse, type ExportMediaUrlDeps } from "./media-original-urls.js";
-import { exportPublicOrigin, rewriteExportOriginResponse } from "./public-origin-policy.js";
+import { exportPublicOrigin, rewriteExportOriginResponse } from "@jini-ai/devops/static-export/site/public-origin-policy";
 import { exportHtml } from "./export-html-policy.js";
 export { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
 export type { ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";

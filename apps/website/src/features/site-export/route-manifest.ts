@@ -9,7 +9,7 @@ import { postPublicPath } from "#src/platform/routing/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
 import type { RedirectRecord, RedirectRepoPort } from "@jini-ai/cms/redirects";
-import type { ManifestRoute, ManifestSkip, RouteManifest } from "./ports.js";
+import type { ManifestRoute, ManifestSkip, RouteManifest } from "@jini-ai/devops/static-export/site/ports";
 
 /**
  * @file The public-site route enumerator, shared by the exporter and theme previews.
@@ -112,7 +112,7 @@ export interface RouteManifestProduct {
   readonly title: string;
 }
 
-/** Base slug for the synthetic 404-probe route (`ports.ts`'s `ManifestRoute.kind: "not-found"`
+/** Base slug for the synthetic 404-probe route (`@jini-ai/devops/static-export/site/ports`'s `ManifestRoute.kind: "not-found"`
  *  doc) — a real-looking, `[a-z0-9-]+`-shaped slug chosen specifically to miss every real post,
  *  page, and theme page, so requesting it exercises the SAME "nothing matched" branch a genuinely
  *  broken visitor link would. */
