@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { packAgentPluginDirectory } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
-import { parseAgentPluginMcpConfig } from "../../../../apps/website/src/features/agent-plugins/mcp-metadata.ts";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { DEPLOY_TARGETS_FILENAME } from "../../../../apps/website/src/features/deployments/deploy-targets/registry.ts";
 import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
 

@@ -20,7 +20,7 @@ import { packAgentPluginDirectory } from "../../../../apps/website/src/features/
 import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
 import { MAIL_ADAPTERS_FILENAME, loadMailAdapterRegistry, loadMailAdapterRegistryFromSource } from "../../../../apps/website/src/features/agent-plugins/mail-adapter-registry.ts";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
-import { parseAgentPluginMcpConfig } from "../../../../apps/website/src/features/agent-plugins/mcp-metadata.ts";
+import { parseAgentPluginMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
 import { seedBundledAgentPlugins } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
 import { buildMailProviderRegistrations } from "../../../../apps/website/src/features/mail-status/provider-tool-registrations.ts";
 

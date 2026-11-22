@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { parseAgentPluginManifest } from '@jini-ai/agent-plugins/lifecycle';
-import { parseAgentPluginMcpConfig } from '../../../../apps/website/src/features/agent-plugins/mcp-metadata.ts';
+import { parseAgentPluginMcpConfig } from '@jini-ai/agent-plugins/lifecycle';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
 // Moved from content/agent-plugins/higgsfield-media (D-W): the plugin ships as @jini-ai/agent-plugins/higgsfield-media; this Tovu-bound test reads it from there.
