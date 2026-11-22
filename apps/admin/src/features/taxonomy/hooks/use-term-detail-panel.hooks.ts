@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import type { AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { KEYS } from "../rules";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
-import type { TaxonomyPort } from "./taxonomy-port.hooks";
+import type { TaxonomyPort } from "@jini-ai/admin/screens/taxonomy/hooks/taxonomy-port.hooks";
 
 /**
  * @file Everything `TermDetailPanel`'s own rename form does, so it can stay markup only.

@@ -1,5 +1,5 @@
 import { request } from "../../../lib/admin-http/request";
-import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm, GatedConfirmResult, GatedPlanResult, MergeTermPlanDetails } from "./taxonomy-api.types";
+import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm, GatedConfirmResult, GatedPlanResult, MergeTermPlanDetails } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 
 /** The admin API calls of the taxonomy feature. */
 export const taxonomyApi = {

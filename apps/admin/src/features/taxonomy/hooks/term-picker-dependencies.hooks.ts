@@ -1,7 +1,7 @@
-import type { AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { AdminTaxonomyWithTerms } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
 import { authApi } from "@/features/auth/api/auth-api";
-import type { TermPickerPort } from "./term-picker-port.hooks";
+import type { TermPickerPort } from "@jini-ai/admin/screens/taxonomy/hooks/term-picker-port.hooks";
 import { createFakeNewTermFormPort, defaultNewTermFormPort, type AdminTermCreateCall } from "./new-term-form-dependencies.hooks";
 
 /**

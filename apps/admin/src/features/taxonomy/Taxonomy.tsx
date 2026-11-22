@@ -1,7 +1,7 @@
-import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "./api/taxonomy-api.types";
+import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { useState } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { TaxonomyRowMenu } from "./TaxonomyRowMenu";
+import { TaxonomyRowMenu } from "@jini-ai/admin/screens/taxonomy/TaxonomyRowMenu";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { termDepth, otherMergeTargets, type DeleteBlockedState } from "./rules";
 import { useWiredNewTermForm } from "./hooks/use-new-term-form.hooks";

@@ -1,4 +1,4 @@
-import type { GatedConfirmResult, GatedPlanResult } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { GatedConfirmResult, GatedPlanResult } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import type { AdminDisclosureResult, RestoreExecuteResult } from "@/features/recovery/api/recovery-api.types";
 import { recoveryApi } from "@/features/recovery/api/recovery-api";
 import type { RestoreFlowPort } from "./restore-flow-port.hooks";

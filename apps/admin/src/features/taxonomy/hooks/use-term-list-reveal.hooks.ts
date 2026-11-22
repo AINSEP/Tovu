@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { AdminTerm } from "@jini-ai/admin/screens/taxonomy/api/taxonomy-api.types";
 import { termListView, type TermListView } from "../rules";
 
 /**
