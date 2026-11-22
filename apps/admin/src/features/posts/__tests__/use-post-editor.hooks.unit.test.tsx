@@ -785,7 +785,7 @@ describe("usePostEditor — save", () => {
   it("save('published') forces status to published in the same call, without a separate status change", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
     const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
-    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.post).not.toBeNull());
 
     await act(async () => {
       await result.current.save({}, { statusOverride: "published" });
@@ -978,7 +978,7 @@ describe("usePostEditor — save", () => {
   it("saving is true while a save is in flight and false once it settles", async () => {
     const { port, resolvers } = deferredSavePort({ ...POST, status: "draft" });
     const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
-    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.post).not.toBeNull());
 
     expect(result.current.saving).toBe(false);
 
@@ -1003,7 +1003,7 @@ describe("usePostEditor — save", () => {
   it("an older save settling does not clear saving while a newer save is still in flight", async () => {
     const { port, resolvers } = deferredSavePort({ ...POST, status: "draft" });
     const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
-    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.post).not.toBeNull());
 
     act(() => {
       void result.current.save({});
@@ -1843,10 +1843,11 @@ describe("usePostEditor — optimistic concurrency", () => {
     expect(result.current.error).toBe("slug 'taken' already exists");
   });
 
-  it("falls back to an unguarded save only when no post has loaded yet — there is no version to claim", async () => {
+  // Was "falls back to an unguarded save only when no post has loaded yet": that save wrote the
+  // editor's empty doc over the stored row with no version to check (client report 2026-11-21).
+  it("refuses to save when no post has loaded — the editor would write an empty body with no version to check", async () => {
     const port = createFakePostEditorPort({ post: POST, getPostError: "boom" });
     const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
-    await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.error).toBe("boom"));
     expect(result.current.post).toBeNull();
 
@@ -1854,7 +1855,8 @@ describe("usePostEditor — optimistic concurrency", () => {
       await result.current.save({});
     });
 
-    expect(port.updatePostCalls[0].expectedVersion).toBeUndefined();
+    expect(port.updatePostCalls).toHaveLength(0);
+    expect(result.current.error).toBe("This post hasn't finished loading, so nothing was saved. Wait a moment, then try again.");
   });
 });
 
@@ -1998,7 +2000,8 @@ describe("usePostEditor coverage boundaries", () => {
     port.getPost = async () => { throw "offline"; };
     const navigate = fakeNavigate();
     const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate, t: fakeT } }));
-    await waitFor(() => expect(result.current.error).toBe("failed to load post"));
+    // A non-HTTP failure is a defect here: the plain line, never the raw value.
+    await waitFor(() => expect(result.current.error).toBe("This post didn't finish loading. Reload the page; nothing was changed."));
     await act(async () => { await result.current.remove(); });
     expect(result.current.post).toBeNull();
     expect(result.current.deleting).toBe(false);
@@ -2088,15 +2091,16 @@ describe("usePostEditor — remaining boundaries", () => {
     expect(result.current.previewExpanded).toBe(true);
   });
 
-  it("a save that fails before any row has loaded reports the error and parks no local backup", async () => {
+  it("a save before any row has loaded is refused, reaches no server, and parks no local backup", async () => {
     const port = createFakePostEditorPort({ post: POST, getPostError: "boom" });
-    port.updatePost = async () => { throw new ApiError({ message: "session expired", status: 401 }); };
+    const update = vi.spyOn(port, "updatePost");
     const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
     await waitFor(() => expect(result.current.error).toBe("boom"));
 
     await act(async () => { await result.current.save({}); });
 
-    expect(result.current.error).toBe("session expired");
+    expect(update).not.toHaveBeenCalled();
+    expect(result.current.error).toBe("This post hasn't finished loading, so nothing was saved. Wait a moment, then try again.");
     expect(result.current.post).toBeNull();
     expect(localStorage.length).toBe(0);
   });

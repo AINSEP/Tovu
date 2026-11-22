@@ -2904,6 +2904,40 @@ for (const [locale, message] of Object.entries(PREVIEW_CONSENT_TRANSLATIONS)) {
   Object.assign(POSTS_DICT[locale], { "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.": message });
 }
 
+// The post editor's load-failure line and its refusal to save a body that has not loaded yet
+// (client report 2026-11-21) — keys are `POST_LOAD_FAILED`/`POST_NOT_LOADED_SAVE_REFUSED` in
+// `hooks/post-editor-messages.ts`.
+const POST_LOAD_COPY: Record<string, [loadFailed: string, saveRefused: string]> = {
+  "es": ["Esta entrada no terminó de cargarse. Vuelve a cargar la página; no se cambió nada.", "Esta entrada aún no ha terminado de cargarse, así que no se guardó nada. Espera un momento y vuelve a intentarlo."],
+  "id": ["Postingan ini belum selesai dimuat. Muat ulang halaman; tidak ada yang diubah.", "Postingan ini belum selesai dimuat, jadi tidak ada yang disimpan. Tunggu sebentar, lalu coba lagi."],
+  "de": ["Dieser Beitrag wurde nicht vollständig geladen. Lade die Seite neu; es wurde nichts geändert.", "Dieser Beitrag ist noch nicht vollständig geladen, daher wurde nichts gespeichert. Warte kurz und versuche es dann erneut."],
+  "ru": ["Эта запись не загрузилась до конца. Перезагрузите страницу; ничего не изменено.", "Эта запись ещё не загрузилась, поэтому ничего не сохранено. Подождите немного и попробуйте снова."],
+  "fa": ["این نوشته کامل بارگذاری نشد. صفحه را دوباره بارگذاری کنید؛ چیزی تغییر نکرد.", "این نوشته هنوز کامل بارگذاری نشده، پس چیزی ذخیره نشد. کمی صبر کنید و دوباره تلاش کنید."],
+  "ar": ["لم يكتمل تحميل هذا المنشور. أعد تحميل الصفحة؛ لم يتغير شيء.", "لم يكتمل تحميل هذا المنشور بعد، لذلك لم يُحفظ شيء. انتظر لحظة ثم حاول مرة أخرى."],
+  "ja": ["この投稿の読み込みが完了しませんでした。ページを再読み込みしてください。何も変更されていません。", "この投稿はまだ読み込み中のため、何も保存されませんでした。少し待ってからもう一度お試しください。"],
+  "ko": ["이 게시물을 끝까지 불러오지 못했습니다. 페이지를 새로 고치세요. 변경된 내용은 없습니다.", "이 게시물을 아직 불러오는 중이라 아무것도 저장되지 않았습니다. 잠시 후 다시 시도하세요."],
+  "pl": ["Ten wpis nie wczytał się do końca. Odśwież stronę; nic nie zostało zmienione.", "Ten wpis jeszcze się nie wczytał, więc nic nie zostało zapisane. Poczekaj chwilę i spróbuj ponownie."],
+  "hu": ["Ez a bejegyzés nem töltődött be teljesen. Töltsd újra az oldalt; semmi sem változott.", "Ez a bejegyzés még nem töltődött be, ezért semmi sem lett mentve. Várj egy kicsit, majd próbáld újra."],
+  "fr": ["Cet article n’a pas fini de se charger. Rechargez la page ; rien n’a été modifié.", "Cet article n’a pas encore fini de se charger, donc rien n’a été enregistré. Patientez un instant, puis réessayez."],
+  "uk": ["Цей допис не завантажився до кінця. Перезавантажте сторінку; нічого не змінено.", "Цей допис ще не завантажився, тому нічого не збережено. Зачекайте трохи й спробуйте знову."],
+  "tr": ["Bu yazı yüklenmeyi tamamlamadı. Sayfayı yeniden yükleyin; hiçbir şey değiştirilmedi.", "Bu yazı henüz yüklenmedi, bu yüzden hiçbir şey kaydedilmedi. Biraz bekleyip yeniden deneyin."],
+  "th": ["โพสต์นี้โหลดไม่เสร็จ โปรดโหลดหน้านี้ใหม่ ไม่มีสิ่งใดถูกเปลี่ยนแปลง", "โพสต์นี้ยังโหลดไม่เสร็จ จึงไม่ได้บันทึกสิ่งใด โปรดรอสักครู่แล้วลองอีกครั้ง"],
+  "it": ["Questo articolo non ha finito di caricarsi. Ricarica la pagina; non è stato modificato nulla.", "Questo articolo non ha ancora finito di caricarsi, quindi non è stato salvato nulla. Attendi un momento e riprova."],
+  "hi": ["यह पोस्ट पूरी तरह लोड नहीं हुई। पेज फिर से लोड करें; कुछ भी नहीं बदला गया।", "यह पोस्ट अभी लोड हो रही है, इसलिए कुछ भी सहेजा नहीं गया। थोड़ा रुकें, फिर दोबारा कोशिश करें।"],
+  "ur": ["یہ پوسٹ پوری طرح لوڈ نہیں ہوئی۔ صفحہ دوبارہ لوڈ کریں؛ کچھ بھی تبدیل نہیں ہوا۔", "یہ پوسٹ ابھی لوڈ ہو رہی ہے، اس لیے کچھ محفوظ نہیں ہوا۔ تھوڑا انتظار کریں، پھر دوبارہ کوشش کریں۔"],
+  "bn": ["এই পোস্টটি পুরোপুরি লোড হয়নি। পেজটি আবার লোড করুন; কিছুই বদলানো হয়নি।", "এই পোস্টটি এখনও লোড হচ্ছে, তাই কিছুই সংরক্ষিত হয়নি। একটু অপেক্ষা করে আবার চেষ্টা করুন।"],
+  "zh-CN": ["此文章未能完成加载。请重新加载页面；没有任何更改。", "此文章尚未加载完成，因此没有保存任何内容。请稍候再试。"],
+  "zh-TW": ["此文章未能完成載入。請重新載入頁面；沒有任何變更。", "此文章尚未載入完成，因此沒有儲存任何內容。請稍候再試。"],
+  "pt-BR": ["Este post não terminou de carregar. Recarregue a página; nada foi alterado.", "Este post ainda não terminou de carregar, então nada foi salvo. Aguarde um momento e tente novamente."],
+};
+for (const [locale, [loadFailed, saveRefused]] of Object.entries(POST_LOAD_COPY)) {
+  // Same initialization-only Object.assign shape as the preview consent note above.
+  Object.assign(POSTS_DICT[locale], {
+    "This post didn't finish loading. Reload the page; nothing was changed.": loadFailed,
+    "This post hasn't finished loading, so nothing was saved. Wait a moment, then try again.": saveRefused,
+  });
+}
+
 // Screen requirements that previously bypassed this dictionary or were absent in every locale.
 const POST_SCREEN_COPY: Record<string, Record<string, string>> = {
   "es": {

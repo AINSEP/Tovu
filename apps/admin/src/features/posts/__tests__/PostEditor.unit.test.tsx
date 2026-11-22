@@ -383,7 +383,9 @@ describe("Post load — error and loading states", () => {
 
     render(<PostEditor postId="p1" />);
 
-    expect(await screen.findByText("network down")).toBeInTheDocument();
+    // A network failure reads as plain words; the shared failure notice carries the details.
+    expect(await screen.findByText("This post didn't finish loading. Reload the page; nothing was changed.")).toBeInTheDocument();
+    expect(screen.queryByText("network down")).not.toBeInTheDocument();
     expect(screen.queryByText(/loading editor/i)).not.toBeInTheDocument();
   });
 
