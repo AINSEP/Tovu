@@ -240,7 +240,8 @@ const done = new Set((process.env.DONEJ || '').split(',').filter(Boolean)); for 
 while (left.length && batches.length < 400) {
   const b = []; const pk = new Map(); const touched = new Set();
   const ready = left.filter((it) => it.deps.every((d) => done.has(d)));
-  ready.sort((x, y) => (y.repo === 'Tovu') - (x.repo === 'Tovu') || (y.files - x.files) || ((unl.get(y.id) || 0) - (unl.get(x.id) || 0)));
+  const base = (it) => /^(RT-K1-0|A-K2-0|K4-)/.test(it.id) ? 1 : 0; // bases unlock whole lanes
+  ready.sort((x, y) => (y.repo === 'Tovu') - (x.repo === 'Tovu') || (y.files - x.files) || (base(y) - base(x)) || ((unl.get(y.id) || 0) - (unl.get(x.id) || 0)));
   for (const it of ready) {
     if (b.length >= WIDTH) break;
     if (it.repo === 'Jini') { const n = pk.get(it.pkg) || 0; if (n >= 2) continue; pk.set(it.pkg, n + 1); }
