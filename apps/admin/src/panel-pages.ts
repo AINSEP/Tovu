@@ -36,6 +36,9 @@ export const Authentication = lazy(() => import("./features/authentication").the
 export const Roles = lazy(() => import("./features/roles").then(module => ({ default: module.Roles })));
 export const SettingsUi = lazy(() => import("./features/settings").then(module => ({ default: module.SettingsUi })));
 export { Seo } from "@jini-ai/admin/screens/seo";
+// The SEO screen mounts through the host module scope; panels.tsx injects these into it.
+export { useModulePanel } from "./integrations/jini-admin/modules.hooks";
+export { SeoModuleLoading } from "./integrations/jini-admin/seo-module.hooks";
 export { Redirects } from "./features/redirects";
 export const Plugins = lazy(() => import("./features/plugins").then(module => ({ default: module.Plugins })));
 export const AgentPlugins = lazy(() => import("./features/plugins").then(module => ({ default: module.AgentPlugins })));

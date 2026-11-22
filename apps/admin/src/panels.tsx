@@ -29,7 +29,7 @@ import {
   Authentication,
   Roles,
   SettingsUi,
-  Seo,
+  Seo, SeoModuleLoading, useModulePanel,
   Redirects,
   Plugins,
   AgentPlugins,
@@ -58,8 +58,6 @@ import {
   Sites,
 } from "./panel-pages";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
-import { useModulePanel } from "./integrations/jini-admin/modules.hooks";
-import { SeoModuleLoading } from "./integrations/jini-admin/seo-module.hooks";
 import { t as tApp } from "./app-i18n";
 
 /**
