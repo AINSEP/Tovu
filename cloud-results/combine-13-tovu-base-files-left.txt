@@ -1,0 +1,3 @@
+P9 scanner (plans/P9-data/tools/scan.mjs + plan.mjs from origin/plan/whats-left-1122 75b14f028) on 41e948ee4a
+moving 2488 ready 550 blocked 1938 keep 372 steps 93 batches 37 unbatched 0
+{"moving":2488,"shells":21,"total":2509,"themeAreaFiles":111}
