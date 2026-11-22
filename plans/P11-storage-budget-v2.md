@@ -299,3 +299,5 @@ sqlite3 ~/Documents/Tovu/<site>/data.nosync/chat.db \
 sqlite3 ~/Documents/Tovu/<site>/data.nosync/chat.db "select sum(length(attempt_base_json)) from assistant_run_attempts;"
 ls -l ~/Documents/Tovu/*/data.nosync/*.db-wal 2>/dev/null
 ```
+
+- **Storage DEFAULTS Q1-Q14 APPROVED by owner 2026-11-22 ~2:50 PM PT** (as written in plans/P11-storage-budget-v2.md §6).
