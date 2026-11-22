@@ -65,7 +65,13 @@ import type { LoadSourceControlProviders } from "../../features/source-control/p
 import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";
 import type { CredentialSchemeRule } from "../../features/agent-plugins/auth-schemes.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
-import type { AssetBlobRepoPort, AssetRenditionRepoPort, BlobStorePort, ImageTransformerPort, TransformDefinitionRepoPort } from "../../features/media/index.js";
+import type {
+  AssetBlobRepoPort,
+  AssetRenditionRepoPort,
+  BlobStorePort,
+  ImageTransformerPort,
+  TransformDefinitionRepoPort,
+} from "../../features/media/index.js";
 import type { MediaContentTypeStorePort } from "@jini-ai/cms/media/site/content-type-store";
 // Composition-root-only boot effect, deliberately imported straight from its own file rather than
 // through the `features/media` barrel — same precedent `deps.ts` already follows for

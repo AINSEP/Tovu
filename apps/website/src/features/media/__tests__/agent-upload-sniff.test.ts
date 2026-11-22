@@ -5,7 +5,13 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryBlobStore, InMemoryTransformDefinitionRepo } from "../index.js";
+import {
+  InMemoryAssetBlobRepo,
+  InMemoryAssetRenditionRepo,
+  InMemoryMediaRepo,
+  InMemoryBlobStore,
+  InMemoryTransformDefinitionRepo,
+} from "../index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";

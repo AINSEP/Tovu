@@ -18,7 +18,14 @@ import test from "node:test";
 
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
-import { computeBlobStorageKey, findMediaByIdOrSlug, InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryTransformDefinitionRepo, type MediaRecord } from "#src/features/media/index";
+import {
+  computeBlobStorageKey,
+  findMediaByIdOrSlug,
+  InMemoryAssetBlobRepo,
+  InMemoryBlobStore,
+  InMemoryTransformDefinitionRepo,
+  type MediaRecord,
+} from "#src/features/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "@jini-ai/cms/media/site/bootstrap";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import { contributeMediaPublish } from "#src/features/media/publish-content";

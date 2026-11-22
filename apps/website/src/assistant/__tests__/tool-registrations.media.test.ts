@@ -19,7 +19,16 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { mediaAgentToolCatalog, type AgentToolDefinition, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryBlobStore, InMemoryTransformDefinitionRepo, registerTransform } from "../../features/media/index.js";
+import {
+  mediaAgentToolCatalog,
+  type AgentToolDefinition,
+  InMemoryAssetBlobRepo,
+  InMemoryAssetRenditionRepo,
+  InMemoryMediaRepo,
+  InMemoryBlobStore,
+  InMemoryTransformDefinitionRepo,
+  registerTransform,
+} from "../../features/media/index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
 import {
   assertRiskMetadataIsWirable,
