@@ -2744,6 +2744,98 @@
     {
       "id": "f61d0bf8cd44",
       "reason": "Moved verbatim to Jini @jini-ai/cms/presentation/site/active-theme-id.ts resolveActiveThemeId doc (Jini 1ee707247, C-presentation-1.J); host caller paths reworded neutral per N2."
+    },
+    {
+      "id": "d00f26e06372",
+      "reason": "Moved to Jini packages/admin/src/screens/collections/api/collections-api.types.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "46df8d4b4b87",
+      "reason": "Moved to Jini packages/admin/src/screens/collections/collections-i18n.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "f4f57f063c18",
+      "reason": "Moved to Jini packages/admin/src/screens/collections/hooks/collection-entries-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "4c649b2214b7",
+      "reason": "Moved to Jini packages/admin/src/screens/collections/hooks/collection-entry-editor-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "d04440293e35",
+      "reason": "Moved to Jini packages/admin/src/screens/collections/hooks/collections-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "9126d46ce8bc",
+      "reason": "Moved to Jini packages/admin/src/screens/collections/hooks/edit-fields-dialog-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "406ab17360b9",
+      "reason": "Moved to Jini packages/admin/src/screens/collections/hooks/new-content-type-dialog-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "bf47a1eccc2e",
+      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/api/taxonomy-api.types.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "6002d8226881",
+      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/hooks/merge-term-section-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "e35b2bd633cc",
+      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/hooks/new-taxonomy-form-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "4ffcd28f0cf2",
+      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/hooks/new-term-form-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "a7580c5b3d64",
+      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/hooks/taxonomy-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "92d1819dc541",
+      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/hooks/term-picker-port.hooks.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "c07d13346ca7",
+      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/taxonomy-i18n.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "591d16d5dc5b",
+      "reason": "Moved to Jini packages/admin/src/screens/taxonomy/taxonomy-i18n.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "683d5edb7f2f",
+      "reason": "Already absent from the base file (integ/merge-13 0d7f78fa4); the file moved verbatim to Jini packages/cms/src/widgets/site/entry-refs-extractor.ts (ex5), so this move deleted nothing."
+    },
+    {
+      "id": "2ac6de43da4b",
+      "reason": "Moved to Jini packages/cms/src/content-types/site/tool-metadata.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "bf50f41fc07a",
+      "reason": "Moved to Jini packages/cms/src/entries/site/tool-metadata.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "3a77631bfded",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/site/tool-metadata.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "cd288484f44a",
+      "reason": "Moved to Jini packages/cms/src/entries/site/contracts.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "4008c3088d21",
+      "reason": "Moved to Jini packages/cms/src/entries/site/public-list.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "0939abbcdd49",
+      "reason": "Moved to Jini packages/cms/src/entries/site/tool-registrations.ts (ex5) with the file; host path citations reworded neutral."
+    },
+    {
+      "id": "c110c3c5c34d",
+      "reason": "Already absent from the base file (integ/merge-13 0d7f78fa4); the file moved verbatim to Jini packages/cms/src/taxonomy/site/content-targets.ts (ex5), so this move deleted nothing."
     }
   ]
 }
