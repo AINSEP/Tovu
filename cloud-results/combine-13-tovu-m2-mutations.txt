@@ -1,0 +1,50 @@
+### m2 codex/ex-core-tovu — each plant is in the LINKED Jini dist that Tovu imports (Jini git tree untouched); restored by byte copy
+== M2-a strict-base64 decode guard negated (ex-core named mutation)
+file: /home/user/Jini/packages/core/dist/contracts/site/strict-base64.js
+29c29
+<     if (!value || value.length % 4 !== 0 || !STRICT_BASE64_PATTERN.test(value))
+---
+>     if (!(!value || value.length % 4 !== 0 || !STRICT_BASE64_PATTERN.test(value)))
+MUTATED  apps/website/src/server/inbound/admin-http/routes/media/__tests__/upload.test.ts: ℹ pass 2 ℹ fail 10  ✖ upload: alt: null uploads fine and stores empty string, same as omitted (555.662271ms)|✖ upload: credit omitted leaves it as empty string (unchanged default) (178.552466ms)|✖ upload: dataBase64 with a character outside the alphabet is rejected with 400, not decoded leniently into an asset (278.57447ms)|✖ upload: a normal alt string value is stored trimmed (135.0772ms)|
+MUTATED  apps/website/src/server/inbound/admin-http/routes/media/__tests__/replace.test.ts: ℹ pass 4 ℹ fail 12  ✖ replace preserves identity/editorial metadata and atomically switches the file and renditions (122.229225ms)|✖ replace refuses invalid upload: dataBase64 is not valid base64 (100.090198ms)|✖ replace refuses invalid upload: content type 'application/pdf' is not allowed for upload (99.383297ms)|✖ replace refuses invalid upload: invalid SVG document (99.077169ms)|
+restored: byte-identical
+RESTORED apps/website/src/server/inbound/admin-http/routes/media/__tests__/upload.test.ts: ℹ pass 12 ℹ fail 0 
+RESTORED apps/website/src/server/inbound/admin-http/routes/media/__tests__/replace.test.ts: ℹ pass 16 ℹ fail 0 
+
+== M2-b request-facts reader key reverted to the old tovuRequestFacts literal (JINI_REQUEST_FACTS rename)
+file: /home/user/Jini/packages/core/dist/contracts/site/request-facts.js
+23c23
+<     const facts = locals[JINI_REQUEST_FACTS];
+---
+>     const facts = locals["tovuRequestFacts"];
+MUTATED  apps/website/src/server/inbound/shared/__tests__/request-facts.unit.test.ts: ℹ pass 10 ℹ fail 1  ✖ request facts: they are the same answers the hooks computed before (the existing functions, called unchanged) (4.167808ms)|✖ request facts: they are the same answers the hooks computed before (the existing functions, called unchanged) (4.167808ms)|
+MUTATED  apps/website/src/assistant/__tests__/admin-frontend-owner.unit.test.ts: ℹ pass 5 ℹ fail 5  ✖ frontend streams use the same tab identity as response requests (0.720736ms)|✖ missing principal, ambiguous tab and missing tab never create an owner (0.609902ms)|✖ admin tabId pin: a single tabId opens an owner, and the x-frontend-tab-id header wins over the query (21.512238ms)|✖ admin tabId pin: a repeated tabId, a bracketed tabId and a tabId after 1000 other parameters make no owner (3.575157ms)|
+restored: byte-identical
+RESTORED apps/website/src/server/inbound/shared/__tests__/request-facts.unit.test.ts: ℹ pass 11 ℹ fail 0 
+RESTORED apps/website/src/assistant/__tests__/admin-frontend-owner.unit.test.ts: ℹ pass 10 ℹ fail 0 
+
+== M2-c isTrashed always false (soft-delete)
+file: /home/user/Jini/packages/core/dist/contracts/site/soft-delete.js
+11c11
+<     return record.deletedAt !== undefined && record.deletedAt !== null;
+---
+>     return false;
+MUTATED  apps/website/src/features/post/__tests__/post.delete.test.ts: ℹ pass 31 ℹ fail 10  ✖ isTrashed treats even an empty string as a present deletion marker (4.575114ms)|✖ deletePost stamps a trash marker and keeps the row (soft, not hard) (2.652529ms)|✖ deletePost rejects an already-trashed row rather than bumping the version a second time (0.739967ms)|✖ deleting a PUBLISHED row emits entry.unpublished (SEO's sitemap-cache invalidation signal) (0.920078ms)|
+MUTATED  apps/website/src/features/post/__tests__/retire-post.test.ts: ℹ pass 5 ℹ fail 3  ✖ retirePostForReplacement frees the slug and trashes the row under a renamed slug (10.987468ms)|✖ retiring a published holder records revisions and emits only its public transition (2.852976ms)|✖ retiring an ALREADY-trashed holder only moves it aside: same version, no revision, no event (1.624588ms)|✖ retirePostForReplacement frees the slug and trashes the row under a renamed slug (10.987468ms)|
+restored: byte-identical
+RESTORED apps/website/src/features/post/__tests__/post.delete.test.ts: ℹ pass 41 ℹ fail 0 
+RESTORED apps/website/src/features/post/__tests__/retire-post.test.ts: ℹ pass 8 ℹ fail 0 
+
+== M2-d postAuthorForDisplay ignores showAuthor (post-author)
+file: /home/user/Jini/packages/core/dist/contracts/site/post-author.js
+3c3
+<     return required.post.showAuthor === true ? required.post.author?.trim() || null : null;
+---
+>     return true ? required.post.author?.trim() || null : null;
+MUTATED  apps/website/src/server/inbound/public-http/http/site/__tests__/render-author.test.ts: ℹ pass 1 ℹ fail 5  ✖ storefront: the stock Liquid post byline renders escaped credit only when opted in (346.51897ms)|✖ fashion-modern: the stock Liquid post byline renders escaped credit only when opted in (287.82605ms)|✖ Handlebars receives the same gated author contract and escapes it with ordinary double braces (319.486461ms)|✖ the bare post renderer also honors the toggle and escapes the author (2.848628ms)|
+MUTATED  apps/website/src/server/__tests__/routes/post-template-author.test.ts: ℹ pass 2 ℹ fail 9  ✖ author: core header renders one escaped credit and removes hidden/empty credits (533.497241ms)|✖ author: author marker renders one escaped credit and removes hidden/empty credits (389.820975ms)|✖ author: author token in the body renders one escaped credit and removes hidden/empty credits (434.627518ms)|✖ author: author marker in a partial renders one escaped credit and removes hidden/empty credits (417.941998ms)|
+restored: byte-identical
+RESTORED apps/website/src/server/inbound/public-http/http/site/__tests__/render-author.test.ts: ℹ pass 6 ℹ fail 0 
+RESTORED apps/website/src/server/__tests__/routes/post-template-author.test.ts: ℹ pass 11 ℹ fail 0 
+
+Watermark (C-contracts-core-1.J named mutation, stampWatermark tx guard): no Tovu consumer; run in Jini combine-13 (3/3 red, combine-13-jini-raw/mutations.txt), not re-run here.
