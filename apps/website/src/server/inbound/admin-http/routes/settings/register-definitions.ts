@@ -17,7 +17,8 @@ import {
   registerDefinitions,
 } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { toWriteServiceDeps, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { toWriteServiceDeps, mountSettingsJsonRoute } from "./shared.js";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 const REGISTER_DEFINITIONS_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
   { matches: (e) => e instanceof SecretNotSupportedError, status: 400, code: "SECRET_NOT_SUPPORTED" },
@@ -138,7 +139,7 @@ export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistr
 
       const items = parseDefinitionItems({ body: req.body });
       if (!items) {
-        rejectSettingsRequest({ status: 400, error: "'definitions' must be an array", code: "VALIDATION_ERROR" });
+        rejectRoute({ status: 400, error: "'definitions' must be an array", code: "VALIDATION_ERROR" });
       }
 
       const writeDeps = toWriteServiceDeps(deps);
@@ -149,7 +150,7 @@ export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistr
       for (const raw of items) {
         const outcome = await applyDefinitionItem({ raw, opCtx, toRegister });
         if ("unknownOp" in outcome) {
-          rejectSettingsRequest({ status: 400, error: `unknown op '${outcome.unknownOp}'`, code: "VALIDATION_ERROR" });
+          rejectRoute({ status: 400, error: `unknown op '${outcome.unknownOp}'`, code: "VALIDATION_ERROR" });
         }
         applied.push(outcome.applied);
       }

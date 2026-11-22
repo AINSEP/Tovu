@@ -12,7 +12,8 @@ import {
 } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
 import { resolveTargetWorkspaceId } from "@jini-ai/core/settings";
-import { createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { createTovuSettingsService, mountSettingsJsonRoute } from "./shared.js";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -78,7 +79,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = ({ app, dep
     handle: async ({ request: req, principal, authorize }) => {
       const parsed = parseSetRequestFields({ rawBody: req.body });
       if (!parsed) {
-        rejectSettingsRequest({ status: 400,
+        rejectRoute({ status: 400,
           error: "namespace, key, scope (global|workspace|user), and valueJson are required",
           code: "VALIDATION_ERROR",
         });
@@ -101,7 +102,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = ({ app, dep
       // 404-checked against `deps.workspaceId` above (ADR-007).
       const targetWorkspace = resolveTargetWorkspaceId({ workspaceId: deps.workspaceId, input: { bodyWorkspaceId, scope } });
       if (!targetWorkspace.ok) {
-        rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
+        rejectRoute({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }
       const workspaceId = targetWorkspace.workspaceId;
 
