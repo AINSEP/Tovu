@@ -5,8 +5,8 @@ import test from "node:test";
 
 import { registerFindInPageIpc, relayFindResults } from "./find-in-page-ipc.ts";
 import { FIND_IN_PAGE_CHANNELS, FIND_RESULT_CHANNEL } from "./contracts/find-in-page.ts";
-import { registerSpellCheckContextMenu } from "./spellcheck-menu.ts";
-import type { MenuBuilder } from "./spellcheck-menu.ts";
+import { registerSpellCheckContextMenu } from "@jini-ai/desktop-host/shell/spellcheck-menu";
+import type { MenuBuilder } from "@jini-ai/desktop-host/shell/spellcheck-menu";
 
 test("disposing Find IPC removes both native channels and leaves unrelated registrations usable", () => {
   type Handler = Parameters<Parameters<typeof registerFindInPageIpc>[0]["ipcMain"]["handle"]>[1];

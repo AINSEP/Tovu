@@ -20,7 +20,7 @@ import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import { createNodePackagingFilesystem, missingClosureDependencies, stageTransitiveDependencies as stageClosure } from "@jini-ai/devops/packaging/electron";
 
-import { lacksExecuteBits, ptyHelperPaths } from "./pty-helpers.ts";
+import { lacksExecuteBits, ptyHelperPaths } from "@jini-ai/desktop-host/shell/pty-helpers";
 import { isBundleInput, type StalenessShell } from "./shell-staleness.ts";
 
 const NODE_MODULES = "node_modules";

@@ -53,8 +53,8 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 import { createCheckLog } from '../src/live-verify-checks.ts';
-import { advancesEveryStep, nextOrdinal, parseCount, previousOrdinal } from '../src/find-in-page-verify.ts';
-import type { Count } from '../src/find-in-page-verify.ts';
+import { advancesEveryStep, nextOrdinal, parseCount, previousOrdinal } from '@jini-ai/desktop-host/shell/find-in-page-verify';
+import type { Count } from '@jini-ai/desktop-host/shell/find-in-page-verify';
 
 const DESKTOP = path.resolve(import.meta.dirname, '..');
 const REPO = path.resolve(DESKTOP, '../..');

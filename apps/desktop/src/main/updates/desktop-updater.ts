@@ -4,9 +4,9 @@
  * Settings › Check for updates…. The updater's own rules live in `../../auto-update-controller.ts`
  * and Jini; this file owns only the state `main.ts` kept in four module variables.
  */
-import { createAutoUpdateController } from "../../auto-update-controller.ts";
+import { createAutoUpdateController } from "@jini-ai/desktop-host/shell/auto-update-controller";
 import { updaterSkipReason } from "../../update-policy.ts";
-import type { AutoUpdateController, AutoUpdateControllerDeps } from "../../auto-update-controller.ts";
+import type { AutoUpdateController, AutoUpdateControllerDeps } from "@jini-ai/desktop-host/shell/auto-update-controller";
 import type { CheckableUpdater } from "../../update-check-now.ts";
 
 /** electron-updater's `autoUpdater`, as both the controller and a manual check use it. */

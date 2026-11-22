@@ -164,16 +164,16 @@ import { importSiteArchive, stopRunningImports, tidyInterruptedImports } from ".
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
 import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
-import { registerSpellCheckContextMenu } from "../spellcheck-menu.ts";
+import { registerSpellCheckContextMenu } from "@jini-ai/desktop-host/shell/spellcheck-menu";
 import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
 import { readMaximumLiveSiteViews, writeMaximumLiveSiteViews, refreshMaximumLiveSiteViewsMenu, registerSiteViewPreferenceIpc } from "../site-view-preference.ts";
 import { SITE_VIEW_PREFERENCE_CHANNELS } from "../contracts/site-view-preference.ts";
 import { createLivePreviewGuests, isLivePreviewGuestAllowed } from "./boot/site-preview-guests.ts";
-import { presenceDirPath } from "../instance-presence.ts";
+import { presenceDirPath } from "@jini-ai/desktop-host/shell/instance-presence";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
 import type { MenuItemConstructorOptions, WebContents } from "electron";
-import type { SelftestTracker } from "../selftest-tracker.ts";
+import type { SelftestTracker } from "@jini-ai/desktop-host/electron/selftest";
 // The decisions this file wires live beside it in src/main/: windows/ (window and navigation policy), boot/
 // (site spawn, previews, boot steps and failures), updates/ (updater, Settings menu, notices, telemetry).
 import { promptForSiteDir as promptForSiteFolder } from "./windows/site-folder-prompt.ts";

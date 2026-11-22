@@ -3,7 +3,7 @@
  * the process/dialog effects `main.ts` used to apply inline, extracted so each decision runs against
  * fakes. Electron's `app`/`dialog`, `console` and `process.exitCode` arrive as ports.
  */
-import { createSelftestTracker, type SelftestTracker } from "../../selftest-tracker.ts";
+import { createSelftestTracker, type SelftestTracker } from "@jini-ai/desktop-host/electron/selftest";
 
 /** The process and dialog effects a boot failure may apply. */
 export interface BootFailurePorts {

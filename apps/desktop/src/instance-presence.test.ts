@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { createInstancePresence, isPidAlive, presenceDirPath } from "./instance-presence.ts";
+import { createInstancePresence, isPidAlive, presenceDirPath } from "@jini-ai/desktop-host/shell/instance-presence";
 
 function tempDir(): string {
   return path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-presence-")), "instances");
