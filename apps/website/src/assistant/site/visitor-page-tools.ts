@@ -23,9 +23,9 @@ export interface VisitorPageTools {
 export async function resolveVisitorPageTarget({ deps, input }: { deps: AnonymousPublishedPostDeps; input: Record<string, unknown> },
   { pages, assertPath }: Pick<VisitorPageTools, 'assertPath'> & { pages?: readonly VisitorPageTarget[] } = {},
 ): Promise<VisitorPageTarget> {
-  const id = visitorNavigationId({ input });
+  const matches = visitorNavigationMatch({ input });
   const targets = pages ?? await publicTargets({ deps });
-  const target = targets.find(candidate => candidate.id === id);
+  const target = targets.find(matches);
   if (!target) throw new Error('Unpublished page');
   assertVisitorPath({ path: target.path });
   await assertPath?.({ path: target.path });
@@ -35,12 +35,31 @@ type VisitorPageTarget = { readonly id: string; readonly label: string; readonly
 async function publicTargets({ deps }: { deps: AnonymousPublishedPostDeps }): Promise<readonly VisitorPageTarget[]> {
   return (await readAnonymousPublishedPosts({ deps })).map(post => ({ id: post.id, label: post.title, path: postPublicPath({ slug: post.slug }) }));
 }
-function visitorNavigationId({ input }: { input: Record<string, unknown> }): unknown {
+/** A slug (what search_published_entries returns) matches only a published target's own path,
+ * so it can never name a route the server did not list; ids stay for direct callers. */
+function visitorNavigationMatch({ input }: { input: Record<string, unknown> }): (target: VisitorPageTarget) => boolean {
   if (input.query && Object.keys(input.query).length) throw new Error('Visitor query refused');
+  if (typeof input.slug === 'string') {
+    const path = postPublicPath({ slug: input.slug });
+    return target => target.path === path;
+  }
   const entity = input.entity as { type: string; id: string } | undefined;
   if (entity && !['post', 'page', 'entry'].includes(entity.type)) throw new Error('Unpublished entity type');
-  return entity?.id ?? input.page;
+  const id = entity?.id ?? input.page;
+  return target => target.id === id;
 }
+
+/** Visitors address pages by slug (owner 2026-11-13: restore slug navigation). Jini's admin
+ * page.navigate text names data-agent-page ids from page.find_elements, a tool visitors lack. */
+const VISITOR_NAVIGATE = {
+  description: "Open one of this site's published public pages or posts in the visitor's browser tab. Address it by slug, " +
+    "as returned by search_published_entries (for example 'contact'); '/' is the home page. Search first when unsure of the slug.",
+  inputSchema: { type: 'object', properties: { slug: { type: 'string', description: "The page or post's URL slug, from search_published_entries." } },
+    required: ['slug'], additionalProperties: false },
+} as const;
+/** The page capabilities as visitors see them: model schemas and input checks both read this. */
+export const VISITOR_PAGE_CAPABILITIES: readonly CapabilityDef[] = PAGE_CAPABILITIES.map(capability =>
+  capability.id === 'page.navigate' ? { ...capability, ...VISITOR_NAVIGATE } : capability);
 function assertVisitorPath({ path }: { path: string }): void {
   if (checkSiteRelativeTarget(path).kind !== 'ok' || /[?#]/.test(path)) throw new Error('Reserved page');
 }
@@ -55,7 +74,7 @@ export function visitorPageNeedsConfirmation({ toolId, input, publication }: { t
  * The registration handler receives only this detached server-bound plan, never a browser grant.
  * O(p) in <=256 reviewed handles plus the content owner's navigation read. */
 export function createVisitorPageCapabilities({ deps, page }: { deps: AnonymousPublishedPostDeps; page: VisitorPageTools }, _options = {}): readonly VisitorCapabilityContract[] {
-  return PAGE_CAPABILITIES.map(capability => {
+  return VISITOR_PAGE_CAPABILITIES.map(capability => {
     const registration = page.registrations.find(tool => tool.descriptor.id === capability.id)!;
     return { name: capability.id, visitorOfferable: true as const, ...VISITOR_TOOL_PRESENTATION[capability.id as keyof typeof VISITOR_TOOL_PRESENTATION], readOnly: capability.risk === 'read',
       acceptsInput: ({ input }) => validVisitorPageInput({ capability, input, publication: page.publication }),
@@ -68,7 +87,7 @@ export function createVisitorPageCapabilities({ deps, page }: { deps: AnonymousP
         const pages = page.listPages ? await page.listPages() : await publicTargets({ deps });
         if (page.publication.path && !pages.some(target => target.path === page.publication.path)) throw new Error('Page no longer public');
         const navigation = capability.id === 'page.navigate' ? await resolveVisitorPageTarget({ deps, input: args }, { pages, assertPath: page.assertPath }) : undefined;
-        if (navigation) { args.page = navigation.id; delete args.entity; delete args.query; }
+        if (navigation) { args.page = navigation.id; delete args.slug; delete args.entity; delete args.query; }
         const wire = { ...args, __visitorPage: { revision: page.publication.revision, approved: true, pages: pageTargetSummaries({ pages, navigation }), ...(navigation ? { path: navigation.path } : {}) } };
         return { result: await registration.handler({ ...context, input: wire }, {}) };
       },

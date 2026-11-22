@@ -43,7 +43,9 @@ function fixture() {
   write(path.join(repo, "apps", "website", "src", "platform", "db", "drizzle", "0001.sql"));
   write(path.join(repo, "apps", "website", "src", "platform", "db", "drizzle", "meta.json"));
   write(path.join(repo, "apps", "admin", "dist", "index.html"), "admin");
-  write(path.join(repo, "apps", "site-chat", "dist", "site-assistant.js"), "chat");
+  for (const file of ["site-assistant.js", "site-assistant.css", "site-assistant-loader.js", "site-assistant-vanilla.js", "site-assistant-vanilla.css"]) {
+    write(path.join(repo, "apps", "site-chat", "dist", file), "chat");
+  }
   write(path.join(repo, "packages", "sdk", "package.json"), JSON.stringify({ name: "@tovu/sdk" }));
   mkdirSync(path.join(repo, "packages", "notes"), { recursive: true });
   write(path.join(repo, "node_modules", "dep-a", "package.json"), JSON.stringify({ dependencies: { nested: "1" } }));
@@ -239,6 +241,21 @@ test("source preconditions refuse BEFORE anything under staging/ is written", (t
     breakIt(fx);
     refusal(harness(fx).run, expected(fx));
     assert.ok(!existsSync(fx.outDir), `${name}: staging/ must be untouched`);
+  }
+});
+
+// 2026-11-13: desktop 0.1.31 shipped a site-chat dist built by the main vite config only, so it
+// had site-assistant.js but no site-assistant-loader.js; every locally served site lost its chat
+// bubble (the page renderer fails closed without loader + widget js + css). Staging must refuse it.
+test("a site-chat build missing the loader or vanilla bundle is refused with the full build command", (t) => {
+  for (const missing of ["site-assistant-loader.js", "site-assistant.css", "site-assistant-vanilla.js", "site-assistant-vanilla.css"]) {
+    const fx = fixture();
+    t.after(fx.cleanup);
+    rmSync(path.join(fx.repo, "apps", "site-chat", "dist", missing));
+    refusal(harness(fx).run,
+      `the built shell at ${path.join(fx.repo, "apps/site-chat/dist")} is incomplete: ${missing} is missing, so no site would show its chat bubble. ` +
+        `Run \`cd apps/site-chat && npm run build:local\` at ${fx.repo} first.`);
+    assert.ok(!existsSync(fx.outDir), `${missing}: staging/ must be untouched`);
   }
 });
 

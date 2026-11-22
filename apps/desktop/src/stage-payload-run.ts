@@ -31,6 +31,10 @@ interface RuntimeManifest {
 interface ShellEntry extends StalenessShell {
   sourceDirs?: string[];
   sourceFiles?: string[];
+  /** Files besides `marker` the server needs from this build; a dist missing one is refused. */
+  requiredFiles?: string[];
+  /** Plain-words consequence of a missing `requiredFiles` entry, for the refusal message. */
+  missingMeans?: string;
 }
 
 /** The `node:fs` surface staging uses — the real module at the composition edge. */
@@ -274,6 +278,15 @@ function failIfShellIsStale(repoRoot: string, shell: ShellEntry, { steps }: Stag
   if (failure) fail(failure);
 }
 
+/** Refuse a shell build that has its marker but lacks another file the server needs. */
+function failIfShellIsIncomplete(repoRoot: string, shell: ShellEntry, { fs }: StagePorts): void {
+  const dir = path.join(repoRoot, shell.relative);
+  const missing = (shell.requiredFiles ?? []).find((name) => !fs.existsSync(path.join(dir, name)));
+  if (missing === undefined) return;
+  const consequence = shell.missingMeans ? `, so ${shell.missingMeans}` : "";
+  fail(`the built shell at ${dir} is incomplete: ${missing} is missing${consequence}. Run \`${shell.buildWith}\` at ${repoRoot} first.`);
+}
+
 /** Every check that must pass before anything under `staging/` is touched. */
 function assertSourcePreconditions(layout: StageLayout, ports: StagePorts): RuntimeManifest {
   const { fs } = ports;
@@ -293,6 +306,7 @@ function assertSourcePreconditions(layout: StageLayout, ports: StagePorts): Runt
     if (!fs.existsSync(path.join(layout.repoRoot, shell.relative, shell.marker))) {
       fail(`no built shell at ${path.join(layout.repoRoot, shell.relative, shell.marker)}. Run \`${shell.buildWith}\` at ${layout.repoRoot} first.`);
     }
+    failIfShellIsIncomplete(layout.repoRoot, shell, ports);
     // Existence was never enough -- see failIfShellIsStale's header for the bundle this missed.
     failIfShellIsStale(layout.repoRoot, shell, ports);
   }

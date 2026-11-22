@@ -78,7 +78,7 @@ jobs:
         run: |
           npm run build
           (cd apps/admin && npm ci && npx vite build)
-          (cd apps/site-chat && npm ci && npx vite build)
+          (cd apps/site-chat && npm ci && npm run build)
       - name: Package an unsigned app with the release staging path
         working-directory: apps/desktop
         env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
@@ -155,7 +155,7 @@ jobs:
         run: |
           npm ci && npm run build   # registry @jini-ai/* pins cover what vendor/jini used to add
           (cd apps/admin && npm ci && npx vite build)
-          (cd apps/site-chat && npm ci && npx vite build)
+          (cd apps/site-chat && npm ci && npm run build)
           npm ci --prefix apps/desktop
       - name: Build + stage desktop
         working-directory: apps/desktop
@@ -399,7 +399,7 @@ jobs:
         run: |
           npm ci && npm run build   # registry @jini-ai/* pins cover what vendor/jini used to add
           (cd apps/admin && npm ci && npx vite build)
-          (cd apps/site-chat && npm ci && npx vite build)
+          (cd apps/site-chat && npm ci && npm run build)
           npm ci --prefix apps/desktop
       - name: Build + stage desktop
         working-directory: apps/desktop
