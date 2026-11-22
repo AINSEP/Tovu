@@ -1,4 +1,4 @@
-import type { AdminContentType } from "../../features/collections/api/collections-api.types";
+import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import type { AdminMenu } from "../../features/menus/api/menus-api.types";
 import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
 

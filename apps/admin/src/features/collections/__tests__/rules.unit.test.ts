@@ -23,7 +23,7 @@ import {
   visibleEntryEditorError,
   type DraftField,
 } from "../rules";
-import type { AdminContentType, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType, ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 
 /**

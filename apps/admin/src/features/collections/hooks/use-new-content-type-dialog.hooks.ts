@@ -15,7 +15,7 @@ import {
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../collections-i18n";
 import { defaultNewContentTypeDialogPort } from "./new-content-type-dialog-dependencies.hooks";
-import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.hooks";
+import type { NewContentTypeDialogPort } from "@jini-ai/admin/screens/collections/hooks/new-content-type-dialog-port.hooks";
 
 /**
  * @file `NewContentTypeDialog`'s own state and submit action (design-spec.md §1.3), so the dialog

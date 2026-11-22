@@ -1,4 +1,4 @@
-import { type AdminContentType } from "./api/collections-api.types";
+import { type AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import "../../styles/native-domain-dialogs.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";

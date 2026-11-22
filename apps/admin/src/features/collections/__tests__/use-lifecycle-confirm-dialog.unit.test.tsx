@@ -2,7 +2,7 @@ import { fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-r
 import { describe, expect, it, vi } from "vitest";
 
 import { LifecycleConfirmDialog } from "../LifecycleConfirmDialog";
-import type { AdminContentType } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { useLifecycleConfirmDialog } from "../hooks/use-lifecycle-confirm-dialog.hooks";
 
 /**

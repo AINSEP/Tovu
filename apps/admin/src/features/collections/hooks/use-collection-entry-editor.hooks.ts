@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import type { AdminContentType, AdminEntry } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType, AdminEntry } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS, visibleEntryEditorError } from "../rules";
@@ -12,7 +12,7 @@ import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { entryLifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionEntryEditorPort } from "./collection-entry-editor-dependencies.hooks";
-import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.hooks";
+import type { CollectionEntryEditorPort } from "@jini-ai/admin/screens/collections/hooks/collection-entry-editor-port.hooks";
 
 /**
  * @file Everything the collection entry editor does, so `CollectionEntryEditor.tsx` is only

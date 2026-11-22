@@ -1,6 +1,6 @@
-import type { AdminContentType, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
+import type { AdminContentType, ContentTypeFieldDef } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 import { collectionsApi } from "@/features/collections/api/collections-api";
-import type { EditFieldsDialogPort } from "./edit-fields-dialog-port.hooks";
+import type { EditFieldsDialogPort } from "@jini-ai/admin/screens/collections/hooks/edit-fields-dialog-port.hooks";
 
 /**
  * @file The only place `use-edit-fields-dialog.hooks.ts` reaches `lib/api` — see

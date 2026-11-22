@@ -2,7 +2,7 @@ import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { useCallback, useRef, useState } from "react";
 
-import type { ContentTypeFieldKind } from "../../features/collections/api/collections-api.types";
+import type { ContentTypeFieldKind } from "@jini-ai/admin/screens/collections/api/collections-api.types";
 
 import { isAbortError } from '@jini-ai/core/text';
 /**
